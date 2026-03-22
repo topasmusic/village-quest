@@ -210,7 +210,7 @@ Write-Utf8 -Path (Join-Path $Target "src\main\resources\fabric.mod.json") -Conte
     "homepage": "https://fabricmc.net/",
     "sources": "https://github.com/FabricMC/fabric-example-mod"
   },
-  "license": "CC0-1.0",
+  "license": "MIT",
   "icon": "assets/wolkensprung/icon.png",
   "environment": "*",
   "entrypoints": {
