@@ -1,0 +1,35 @@
+{
+  "type": "minecraft:entity",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "minecraft:painting",
+          "functions": [
+            {
+              "function": "minecraft:copy_components",
+              "source": "this",
+              "include": [
+                "minecraft:painting_variant",
+                "minecraft:custom_name",
+                "minecraft:lore"
+              ],
+              "keep_non_existent_components": false
+            },
+            {
+              "function": "minecraft:copy_name",
+              "source": "this"
+            }
+          ]
+        }
+      ],
+      "conditions": [
+        {
+          "condition": "minecraft:survives_explosion"
+        }
+      ]
+    }
+  ]
+}
