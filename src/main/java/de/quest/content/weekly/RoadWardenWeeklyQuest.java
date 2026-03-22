@@ -1,0 +1,99 @@
+package de.quest.content.weekly;
+
+import de.quest.quest.weekly.WeeklyQuestCompletion;
+import de.quest.quest.weekly.WeeklyQuestDefinition;
+import de.quest.quest.weekly.WeeklyQuestKeys;
+import de.quest.quest.weekly.WeeklyQuestService;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.mob.CreeperEntity;
+import net.minecraft.entity.mob.Monster;
+import net.minecraft.item.ItemStack;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
+
+import java.util.List;
+import java.util.UUID;
+
+public final class RoadWardenWeeklyQuest implements WeeklyQuestDefinition {
+    @Override
+    public WeeklyQuestService.WeeklyQuestType type() {
+        return WeeklyQuestService.WeeklyQuestType.ROAD_WARDEN;
+    }
+
+    @Override
+    public Text title() {
+        return Text.translatable("quest.village-quest.weekly.roadwarden.title");
+    }
+
+    @Override
+    public Text offerParagraph1() {
+        return Text.translatable("quest.village-quest.weekly.roadwarden.offer.1").formatted(Formatting.GRAY);
+    }
+
+    @Override
+    public Text offerParagraph2() {
+        return Text.translatable("quest.village-quest.weekly.roadwarden.offer.2").formatted(Formatting.GRAY);
+    }
+
+    @Override
+    public List<Text> progressLines(ServerWorld world, UUID playerId) {
+        return List.of(
+                Text.translatable(
+                        "quest.village-quest.weekly.roadwarden.progress.1",
+                        WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.ROADWARDEN_HOSTILES),
+                        WeeklyQuestService.roadWardenHostileTarget()
+                ).formatted(Formatting.GRAY),
+                Text.translatable(
+                        "quest.village-quest.weekly.roadwarden.progress.2",
+                        WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.ROADWARDEN_CREEPERS),
+                        WeeklyQuestService.roadWardenCreeperTarget()
+                ).formatted(Formatting.GRAY)
+        );
+    }
+
+    @Override
+    public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
+        UUID playerId = player.getUuid();
+        return WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.ROADWARDEN_HOSTILES) >= WeeklyQuestService.roadWardenHostileTarget()
+                && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.ROADWARDEN_CREEPERS) >= WeeklyQuestService.roadWardenCreeperTarget();
+    }
+
+    @Override
+    public WeeklyQuestCompletion buildCompletion() {
+        return WeeklyQuestService.buildCompletion(
+                title(),
+                Text.translatable("quest.village-quest.weekly.roadwarden.completion.1").formatted(Formatting.GRAY),
+                Text.translatable("quest.village-quest.weekly.roadwarden.completion.2").formatted(Formatting.GRAY),
+                Text.translatable("quest.village-quest.weekly.roadwarden.completion.3").formatted(Formatting.GRAY),
+                WeeklyQuestService.reward(2, 0),
+                WeeklyQuestService.magicShardReward(2),
+                ItemStack.EMPTY,
+                1200,
+                null,
+                0
+        );
+    }
+
+    @Override
+    public void onMonsterKill(ServerWorld world, ServerPlayerEntity player, Entity killedEntity) {
+        if (!WeeklyQuestService.isAcceptedThisWeek(world, player.getUuid()) || WeeklyQuestService.hasCompletedThisWeek(world, player.getUuid()) || killedEntity == null) {
+            return;
+        }
+
+        UUID playerId = player.getUuid();
+        boolean changed = false;
+        if (killedEntity instanceof Monster) {
+            WeeklyQuestService.addQuestIntClamped(world, playerId, WeeklyQuestKeys.ROADWARDEN_HOSTILES, 1, WeeklyQuestService.roadWardenHostileTarget());
+            changed = true;
+        }
+        if (killedEntity instanceof CreeperEntity) {
+            WeeklyQuestService.addQuestIntClamped(world, playerId, WeeklyQuestKeys.ROADWARDEN_CREEPERS, 1, WeeklyQuestService.roadWardenCreeperTarget());
+            changed = true;
+        }
+        if (changed) {
+            WeeklyQuestService.completeIfEligible(world, player);
+        }
+    }
+}
