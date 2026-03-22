@@ -8,7 +8,7 @@
 		"TopasMusic",
 		"Landschaftswart"
 	],
-	"license": "All Rights Reserved",
+	"license": "MIT",
 	"icon": "assets/village-quest/icon.png",
 	"environment": "*",
 	"entrypoints": {

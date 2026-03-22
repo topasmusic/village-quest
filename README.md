@@ -78,6 +78,10 @@
 - wallet-based purchases
 - rotating offer pool
 - timed appearance with natural spawn checks and despawn timer
+
+## License
+
+This project is licensed under the `MIT` License. See [LICENSE](LICENSE) for details.
 - natural respawn cooldown after leaving
 
 ## Admin Commands
