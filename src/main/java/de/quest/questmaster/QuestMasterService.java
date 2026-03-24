@@ -1,5 +1,7 @@
 package de.quest.questmaster;
 
+import de.quest.data.PlayerQuestData;
+import de.quest.data.QuestState;
 import de.quest.entity.QuestMasterEntity;
 import de.quest.registry.ModEntities;
 import net.minecraft.entity.Entity;
@@ -15,16 +17,28 @@ import net.minecraft.world.Heightmap;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 public final class QuestMasterService {
     private static final int MIN_SPAWN_DISTANCE = 4;
     private static final int MAX_SPAWN_DISTANCE = 10;
     private static final int MAX_SPAWN_ATTEMPTS = 12;
     private static final int VERTICAL_SEARCH_RADIUS = 12;
+    private static final long PLAYER_SUMMON_COOLDOWN_TICKS = 20L * 60L * 5L;
     private static final double MAX_INTERACT_DISTANCE_SQUARED = 64.0;
     private static final double NEARBY_QUESTMASTER_DISTANCE_SQUARED = 400.0;
 
     private QuestMasterService() {}
+
+    private static PlayerQuestData data(ServerWorld world, UUID playerId) {
+        return QuestState.get(world.getServer()).getPlayerData(playerId);
+    }
+
+    private static void markDirty(ServerWorld world) {
+        if (world != null) {
+            QuestState.get(world.getServer()).markDirty();
+        }
+    }
 
     public static boolean isEligibleSpawnTarget(PlayerEntity player) {
         return player != null && player.isAlive() && !player.isSpectator();
@@ -108,6 +122,39 @@ public final class QuestMasterService {
 
     public static double getMaxInteractDistanceSquared() {
         return MAX_INTERACT_DISTANCE_SQUARED;
+    }
+
+    public static long getPlayerSummonCooldownTicks() {
+        return PLAYER_SUMMON_COOLDOWN_TICKS;
+    }
+
+    public static void applyPlayerSummonCooldown(ServerWorld world, UUID playerId) {
+        if (world == null || playerId == null) {
+            return;
+        }
+        data(world, playerId).setQuestMasterSummonBlockedUntil(world.getTime() + PLAYER_SUMMON_COOLDOWN_TICKS);
+        markDirty(world);
+    }
+
+    public static long getPlayerSummonCooldownRemainingTicks(ServerWorld world, UUID playerId) {
+        if (world == null || playerId == null) {
+            return 0L;
+        }
+        long remaining = data(world, playerId).getQuestMasterSummonBlockedUntil() - world.getTime();
+        return Math.max(0L, remaining);
+    }
+
+    public static Text formatDuration(long remainingTicks) {
+        long totalSeconds = Math.max(1L, (remainingTicks + 19L) / 20L);
+        long minutes = totalSeconds / 60L;
+        long seconds = totalSeconds % 60L;
+        if (minutes > 0L && seconds > 0L) {
+            return Text.translatable("text.village-quest.duration.minutes_seconds", minutes, seconds);
+        }
+        if (minutes > 0L) {
+            return Text.translatable("text.village-quest.duration.minutes", minutes);
+        }
+        return Text.translatable("text.village-quest.duration.seconds", seconds);
     }
 
     private static BlockPos findSpawnPos(ServerWorld world, ServerPlayerEntity anchor) {

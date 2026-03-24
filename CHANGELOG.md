@@ -2,6 +2,17 @@
 
 Hotfix-heavy polish phases are grouped into version ranges to keep this file readable. Major content and larger technical changes keep their own entries.
 
+## 1.19.4 - NPC Self-Defense Update
+
+- Added a short self-defense mode for the `Pilgrim` and `Questmaster` when they are attacked by players, including warning lines, retaliation lines, and temporary sword draw behavior.
+- The `Pilgrim` now retaliates earlier than the `Questmaster`, while both still remain killable and only turn hostile toward the attacking player.
+- Added visible held-weapon rendering and a reliable close-range hit flow so retaliation now actually draws a sword and lands hits instead of only body-checking.
+- Expanded the warning/retaliation line pool and slowed line repetition down so the NPC chatter stays more varied and less spammy.
+- Tuned the self-defense balance down so both NPCs chase and swing more slowly and deal less damage.
+- The `Questmaster` now closes active interactions before defending and blocks fresh conversations while in combat.
+- If a player kills the `Questmaster`, only that player is locked out from `/questmaster` for `5` minutes.
+- Added persistent per-player storage plus summon feedback text for that personal `Questmaster` cooldown.
+
 ## 1.19.3 - Furnace Quest Hook Fixes
 
 - Fixed furnace-based quest progress so taking cooked items from the output slot now counts reliably again.
