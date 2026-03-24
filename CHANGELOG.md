@@ -7,6 +7,10 @@ Hotfix-heavy polish phases are grouped into version ranges to keep this file rea
 - Fixed furnace-based quest progress so taking cooked items from the output slot now counts reliably again.
 - Added a second furnace screen-handler hook so output collected via `Shift`-click / quick-move also grants quest progress.
 - This restores reliable progress for furnace-based objectives such as `Bakehouse Stock`, `River Meal`, and `Smith Smelting`.
+- Added explicit turn-in consumption for crafted/cooked quest items so they are actually pulled from the inventory on completion instead of only counting progress.
+- This now covers `Bakehouse Stock`, `Wheat Harvest`, `River Meal`, `Smith Smelting`, `Harvest for the Village`, and `Smith Week`.
+- The `Surveyor's Compass` relic quest continues to consume the plain crafted `Netherite Pickaxe` on claim.
+- Reworked the `Provisions Satchel` away from plain bread-and-torches into a better random travel bundle with guaranteed `Golden Carrots`, a low-chance `Golden Apple`, and weighted bonus loot rolls such as ingots, emeralds, diamonds, coal, torches, and cooked food.
 
 ## 1.19.2 - Inventory Compat Follow-Up
 

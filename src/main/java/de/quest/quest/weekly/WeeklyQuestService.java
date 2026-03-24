@@ -16,6 +16,8 @@ import net.minecraft.entity.passive.AnimalEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -314,6 +316,9 @@ public final class WeeklyQuestService {
         if (definition == null || !definition.isComplete(world, player)) {
             return false;
         }
+        if (!definition.consumeCompletionRequirements(world, player)) {
+            return false;
+        }
 
         deliverCompletion(world, player, definition.buildCompletion());
         markCompletedThisWeek(world, playerId);
@@ -576,6 +581,48 @@ public final class WeeklyQuestService {
 
     public static int getPickedUpStat(ServerPlayerEntity player, Item item) {
         return DailyQuestService.getPickedUpStat(player, item);
+    }
+
+    public static int countInventoryItem(PlayerEntity player, Item item) {
+        if (player == null || item == null) {
+            return 0;
+        }
+
+        PlayerInventory inventory = player.getInventory();
+        int total = 0;
+        for (int i = 0; i < inventory.size(); i++) {
+            ItemStack stack = inventory.getStack(i);
+            if (!stack.isEmpty() && stack.isOf(item)) {
+                total += stack.getCount();
+            }
+        }
+        return total;
+    }
+
+    public static boolean consumeInventoryItem(PlayerEntity player, Item item, int amount) {
+        if (player == null || item == null || amount <= 0) {
+            return false;
+        }
+        if (countInventoryItem(player, item) < amount) {
+            return false;
+        }
+
+        PlayerInventory inventory = player.getInventory();
+        int remaining = amount;
+        for (int i = 0; i < inventory.size() && remaining > 0; i++) {
+            ItemStack stack = inventory.getStack(i);
+            if (stack.isEmpty() || !stack.isOf(item)) {
+                continue;
+            }
+            int removed = Math.min(remaining, stack.getCount());
+            stack.decrement(removed);
+            remaining -= removed;
+        }
+
+        if (player instanceof ServerPlayerEntity serverPlayer) {
+            serverPlayer.currentScreenHandler.sendContentUpdates();
+        }
+        return remaining <= 0;
     }
 
     public static int totalWoolPickedUp(ServerPlayerEntity player) {

@@ -59,7 +59,10 @@ public final class BakehouseStockWeeklyQuest implements WeeklyQuestDefinition {
         UUID playerId = player.getUuid();
         return WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.BAKEHOUSE_BREAD) >= WeeklyQuestService.bakehouseBreadTarget()
                 && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.BAKEHOUSE_PIE) >= WeeklyQuestService.bakehousePieTarget()
-                && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.BAKEHOUSE_POTATO) >= WeeklyQuestService.bakehousePotatoTarget();
+                && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.BAKEHOUSE_POTATO) >= WeeklyQuestService.bakehousePotatoTarget()
+                && WeeklyQuestService.countInventoryItem(player, Items.BREAD) >= WeeklyQuestService.bakehouseBreadTarget()
+                && WeeklyQuestService.countInventoryItem(player, Items.PUMPKIN_PIE) >= WeeklyQuestService.bakehousePieTarget()
+                && WeeklyQuestService.countInventoryItem(player, Items.BAKED_POTATO) >= WeeklyQuestService.bakehousePotatoTarget();
     }
 
     @Override
@@ -76,6 +79,18 @@ public final class BakehouseStockWeeklyQuest implements WeeklyQuestDefinition {
                 ReputationService.ReputationTrack.FARMING,
                 35
         );
+    }
+
+    @Override
+    public boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) {
+        if (WeeklyQuestService.countInventoryItem(player, Items.BREAD) < WeeklyQuestService.bakehouseBreadTarget()
+                || WeeklyQuestService.countInventoryItem(player, Items.PUMPKIN_PIE) < WeeklyQuestService.bakehousePieTarget()
+                || WeeklyQuestService.countInventoryItem(player, Items.BAKED_POTATO) < WeeklyQuestService.bakehousePotatoTarget()) {
+            return false;
+        }
+        return WeeklyQuestService.consumeInventoryItem(player, Items.BREAD, WeeklyQuestService.bakehouseBreadTarget())
+                && WeeklyQuestService.consumeInventoryItem(player, Items.PUMPKIN_PIE, WeeklyQuestService.bakehousePieTarget())
+                && WeeklyQuestService.consumeInventoryItem(player, Items.BAKED_POTATO, WeeklyQuestService.bakehousePotatoTarget());
     }
 
     @Override
