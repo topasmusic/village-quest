@@ -78,6 +78,7 @@ public final class PlayerQuestData {
     private int surveyorCompassPickaxeBaseline;
     private int surveyorCompassModeIndex;
     private long surveyorCompassHomeCooldownUntil;
+    private long questMasterSummonBlockedUntil;
 
     public long getCurrencyBalance() {
         return currencyBalance;
@@ -698,6 +699,14 @@ public final class PlayerQuestData {
 
     public void setSurveyorCompassHomeCooldownUntil(long surveyorCompassHomeCooldownUntil) {
         this.surveyorCompassHomeCooldownUntil = Math.max(0L, surveyorCompassHomeCooldownUntil);
+    }
+
+    public long getQuestMasterSummonBlockedUntil() {
+        return questMasterSummonBlockedUntil;
+    }
+
+    public void setQuestMasterSummonBlockedUntil(long questMasterSummonBlockedUntil) {
+        this.questMasterSummonBlockedUntil = Math.max(0L, questMasterSummonBlockedUntil);
     }
 
     public void resetShardRelicQuest() {

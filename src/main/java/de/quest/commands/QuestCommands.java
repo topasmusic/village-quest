@@ -519,6 +519,14 @@ public final class QuestCommands {
         }
 
         var world = source.getServer().getOverworld();
+        long summonCooldown = QuestMasterService.getPlayerSummonCooldownRemainingTicks(world, player.getUuid());
+        if (summonCooldown > 0L) {
+            source.sendFeedback(() -> Text.translatable(
+                    "command.village-quest.questmaster.spawn.cooldown",
+                    QuestMasterService.formatDuration(summonCooldown)
+            ).formatted(Formatting.RED), false);
+            return 0;
+        }
         if (QuestMasterService.findNearbyQuestMaster(world, player.getX(), player.getY(), player.getZ()) != null) {
             source.sendFeedback(() -> Text.translatable("command.village-quest.questmaster.spawn.exists").formatted(Formatting.RED), false);
             return 0;

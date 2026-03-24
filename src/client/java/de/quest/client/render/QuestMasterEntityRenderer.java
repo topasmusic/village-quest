@@ -5,9 +5,12 @@ import de.quest.entity.QuestMasterEntity;
 import net.minecraft.client.model.Dilation;
 import net.minecraft.client.render.entity.EntityRendererFactory;
 import net.minecraft.client.render.entity.MobEntityRenderer;
+import net.minecraft.client.render.entity.state.ArmedEntityRenderState;
+import net.minecraft.client.render.entity.feature.HeldItemFeatureRenderer;
 import net.minecraft.client.render.entity.model.EntityModelLayer;
 import net.minecraft.client.render.entity.model.PlayerEntityModel;
 import net.minecraft.client.render.entity.state.PlayerEntityRenderState;
+import net.minecraft.client.item.ItemModelManager;
 import net.minecraft.entity.player.PlayerSkinType;
 import net.minecraft.entity.player.SkinTextures;
 import net.minecraft.util.AssetInfo;
@@ -30,9 +33,12 @@ public final class QuestMasterEntityRenderer extends MobEntityRenderer<QuestMast
     };
     private static final SkinTextures QUEST_MASTER_SKIN =
             SkinTextures.create(QUEST_MASTER_TEXTURE_ASSET, null, null, PlayerSkinType.WIDE);
+    private final ItemModelManager itemModelManager;
 
     public QuestMasterEntityRenderer(EntityRendererFactory.Context context) {
         super(context, new PlayerEntityModel(context.getPart(QUEST_MASTER_LAYER), false), 0.5f);
+        this.itemModelManager = context.getItemModelManager();
+        this.addFeature(new HeldItemFeatureRenderer<>(this));
     }
 
     public static net.minecraft.client.model.TexturedModelData createModelData() {
@@ -51,6 +57,7 @@ public final class QuestMasterEntityRenderer extends MobEntityRenderer<QuestMast
     @Override
     public void updateRenderState(QuestMasterEntity entity, PlayerEntityRenderState state, float tickDelta) {
         super.updateRenderState(entity, state, tickDelta);
+        ArmedEntityRenderState.updateRenderState(entity, state, this.itemModelManager, tickDelta);
         state.skinTextures = QUEST_MASTER_SKIN;
     }
 

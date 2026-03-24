@@ -83,6 +83,7 @@ public final class QuestState extends PersistentState {
         readUuidLongMap(root, "progressDay", (id, value) -> getPlayerData(id).setProgressDay(value));
         readUuidLongMap(root, "acceptedDay", (id, value) -> getPlayerData(id).setAcceptedDay(value));
         readUuidLongMap(root, "bonusAcceptedDay", (id, value) -> getPlayerData(id).setBonusAcceptedDay(value));
+        readUuidLongMap(root, "questMasterSummonBlockedUntil", (id, value) -> getPlayerData(id).setQuestMasterSummonBlockedUntil(value));
         readUuidLongMap(root, "weeklyProgressCycle", (id, value) -> getPlayerData(id).setWeeklyProgressCycle(value));
         readUuidLongMap(root, "weeklyAcceptedCycle", (id, value) -> getPlayerData(id).setWeeklyAcceptedCycle(value));
         readUuidLongMap(root, "weeklyRewardCycle", (id, value) -> getPlayerData(id).setWeeklyRewardCycle(value));
@@ -135,6 +136,7 @@ public final class QuestState extends PersistentState {
         NbtList dailyProgressFlags = new NbtList();
         NbtList acceptedDay = new NbtList();
         NbtList bonusAcceptedDay = new NbtList();
+        NbtList questMasterSummonBlockedUntil = new NbtList();
         NbtList weeklyProgressCycle = new NbtList();
         NbtList weeklyAcceptedCycle = new NbtList();
         NbtList weeklyRewardCycle = new NbtList();
@@ -201,6 +203,9 @@ public final class QuestState extends PersistentState {
             }
             if (data.getBonusAcceptedDay() != PlayerQuestData.UNSET_DAY) {
                 bonusAcceptedDay.add(entryLong(id, data.getBonusAcceptedDay()));
+            }
+            if (data.getQuestMasterSummonBlockedUntil() > 0L) {
+                questMasterSummonBlockedUntil.add(entryLong(id, data.getQuestMasterSummonBlockedUntil()));
             }
             if (data.getWeeklyProgressCycle() != PlayerQuestData.UNSET_DAY) {
                 weeklyProgressCycle.add(entryLong(id, data.getWeeklyProgressCycle()));
@@ -288,6 +293,7 @@ public final class QuestState extends PersistentState {
         root.put("weeklyProgressFlags", weeklyProgressFlags);
         root.put("acceptedDay", acceptedDay);
         root.put("bonusAcceptedDay", bonusAcceptedDay);
+        root.put("questMasterSummonBlockedUntil", questMasterSummonBlockedUntil);
         root.put("weeklyProgressCycle", weeklyProgressCycle);
         root.put("weeklyAcceptedCycle", weeklyAcceptedCycle);
         root.put("weeklyRewardCycle", weeklyRewardCycle);
