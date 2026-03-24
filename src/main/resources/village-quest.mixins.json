@@ -3,6 +3,7 @@
   "package": "de.quest.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "AbstractFurnaceScreenHandlerMixin",
     "AnvilScreenHandlerMixin",
     "AnimalEntityMixin",
     "BrewedPotionCriterionMixin",
