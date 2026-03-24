@@ -1194,6 +1194,9 @@ public final class DailyQuestService {
         if (definition == null || !definition.isComplete(world, player)) {
             return false;
         }
+        if (!definition.consumeCompletionRequirements(world, player)) {
+            return false;
+        }
 
         DailyQuestType questType = activeQuestChoice(world, playerId);
         DailyQuestCompletion completion = definition.buildCompletion(world);
@@ -1377,6 +1380,9 @@ public final class DailyQuestService {
     }
 
     public static int countInventoryItem(PlayerEntity player, Item item) {
+        if (player == null || item == null) {
+            return 0;
+        }
         PlayerInventory inventory = player.getInventory();
         int total = 0;
         for (int i = 0; i < inventory.size(); i++) {
@@ -1388,7 +1394,19 @@ public final class DailyQuestService {
         return total;
     }
 
-    private static boolean consumeInventoryItem(PlayerEntity player, Item item, int amount) {
+    public static int countInventoryItems(PlayerEntity player, Item... items) {
+        if (player == null || items == null || items.length == 0) {
+            return 0;
+        }
+
+        int total = 0;
+        for (Item item : items) {
+            total += countInventoryItem(player, item);
+        }
+        return total;
+    }
+
+    public static boolean consumeInventoryItem(PlayerEntity player, Item item, int amount) {
         if (player == null || item == null || amount <= 0) {
             return false;
         }
@@ -1410,6 +1428,32 @@ public final class DailyQuestService {
 
         if (player instanceof ServerPlayerEntity serverPlayer) {
             serverPlayer.currentScreenHandler.sendContentUpdates();
+        }
+        return remaining <= 0;
+    }
+
+    public static boolean consumeInventoryItems(PlayerEntity player, int amount, Item... items) {
+        if (player == null || amount <= 0 || items == null || items.length == 0) {
+            return false;
+        }
+        if (countInventoryItems(player, items) < amount) {
+            return false;
+        }
+
+        int remaining = amount;
+        for (Item item : items) {
+            if (remaining <= 0) {
+                break;
+            }
+            int available = countInventoryItem(player, item);
+            if (available <= 0) {
+                continue;
+            }
+            int toConsume = Math.min(remaining, available);
+            if (!consumeInventoryItem(player, item, toConsume)) {
+                return false;
+            }
+            remaining -= toConsume;
         }
         return remaining <= 0;
     }

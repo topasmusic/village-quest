@@ -50,7 +50,8 @@ public final class RiverMealDailyQuest implements DailyQuestDefinition {
     public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
         UUID playerId = player.getUuid();
         return DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.RIVER_FISH_PROGRESS) >= DailyQuestService.riverFishTarget()
-                && DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.RIVER_COOKED_FISH_PROGRESS) >= DailyQuestService.riverCookedFishTarget();
+                && DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.RIVER_COOKED_FISH_PROGRESS) >= DailyQuestService.riverCookedFishTarget()
+                && DailyQuestService.countInventoryItems(player, Items.COOKED_COD, Items.COOKED_SALMON) >= DailyQuestService.riverCookedFishTarget();
     }
 
     @Override
@@ -64,6 +65,11 @@ public final class RiverMealDailyQuest implements DailyQuestDefinition {
                 ItemStack.EMPTY,
                 ItemStack.EMPTY
         );
+    }
+
+    @Override
+    public boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) {
+        return DailyQuestService.consumeInventoryItems(player, DailyQuestService.riverCookedFishTarget(), Items.COOKED_COD, Items.COOKED_SALMON);
     }
 
     @Override

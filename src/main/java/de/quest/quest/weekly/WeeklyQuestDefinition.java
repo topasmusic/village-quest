@@ -27,6 +27,8 @@ public interface WeeklyQuestDefinition {
 
     WeeklyQuestCompletion buildCompletion();
 
+    default boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) { return true; }
+
     default void onAccepted(ServerWorld world, ServerPlayerEntity player) {}
 
     default void onServerTick(ServerWorld world, ServerPlayerEntity player) {}

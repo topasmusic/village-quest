@@ -42,9 +42,7 @@ public final class ShopService {
                 Text.translatable("text.village-quest.shop.offer.proviantbeutel.description"),
                 6L,
                 world -> previewStack(Items.BUNDLE, "text.village-quest.shop.offer.proviantbeutel.title"),
-                (world, player) -> deliver(player,
-                        new ItemStack(Items.BREAD, 8),
-                        new ItemStack(Items.TORCH, 16))
+                (world, player) -> deliver(player, createProvisionsSatchelLoot(world))
         ));
         offers.put("hunters_satchel", new ShopOffer(
                 "hunters_satchel",
@@ -334,6 +332,56 @@ public final class ShopService {
             giveOrDrop(player, stack.copy());
         }
         return ShopOffer.PurchaseResult.success(Text.empty());
+    }
+
+    private static ItemStack[] createProvisionsSatchelLoot(ServerWorld world) {
+        List<ItemStack> rewards = new ArrayList<>();
+        rewards.add(new ItemStack(Items.GOLDEN_CARROT, 32));
+
+        if (world != null && world.random.nextFloat() < 0.10f) {
+            rewards.add(new ItemStack(Items.GOLDEN_APPLE, 1));
+        }
+
+        rewards.add(rollProvisionsSatchelBonus(world));
+        if (world != null && world.random.nextFloat() < 0.65f) {
+            rewards.add(rollProvisionsSatchelBonus(world));
+        }
+
+        rewards.removeIf(stack -> stack == null || stack.isEmpty());
+        return rewards.toArray(ItemStack[]::new);
+    }
+
+    private static ItemStack rollProvisionsSatchelBonus(ServerWorld world) {
+        int roll = world == null ? 0 : world.random.nextInt(100);
+        if (roll < 24) {
+            return new ItemStack(Items.GOLD_INGOT, randomRange(world, 8, 20));
+        }
+        if (roll < 42) {
+            return new ItemStack(Items.IRON_INGOT, randomRange(world, 12, 24));
+        }
+        if (roll < 56) {
+            return new ItemStack(Items.EMERALD, randomRange(world, 4, 10));
+        }
+        if (roll < 64) {
+            return new ItemStack(Items.DIAMOND, randomRange(world, 1, 4));
+        }
+        if (roll < 76) {
+            return new ItemStack(Items.TORCH, randomRange(world, 24, 48));
+        }
+        if (roll < 88) {
+            return new ItemStack(Items.COOKED_BEEF, randomRange(world, 8, 16));
+        }
+        return new ItemStack(Items.COAL, randomRange(world, 16, 32));
+    }
+
+    private static int randomRange(ServerWorld world, int minInclusive, int maxInclusive) {
+        if (maxInclusive <= minInclusive) {
+            return minInclusive;
+        }
+        if (world == null) {
+            return minInclusive;
+        }
+        return minInclusive + world.random.nextInt(maxInclusive - minInclusive + 1);
     }
 
     private static ItemStack previewStack(Item item, String titleKey) {

@@ -53,7 +53,8 @@ public final class WheatHarvestDailyQuest implements DailyQuestDefinition {
     public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
         UUID playerId = player.getUuid();
         return DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.WHEAT_PROGRESS) >= DailyQuestService.wheatTarget()
-                && DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.BREAD_PROGRESS) >= DailyQuestService.breadTarget();
+                && DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.BREAD_PROGRESS) >= DailyQuestService.breadTarget()
+                && DailyQuestService.countInventoryItem(player, Items.BREAD) >= DailyQuestService.breadTarget();
     }
 
     @Override
@@ -67,6 +68,11 @@ public final class WheatHarvestDailyQuest implements DailyQuestDefinition {
                 ItemStack.EMPTY,
                 ItemStack.EMPTY
         );
+    }
+
+    @Override
+    public boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) {
+        return DailyQuestService.consumeInventoryItem(player, Items.BREAD, DailyQuestService.breadTarget());
     }
 
     @Override

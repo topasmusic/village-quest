@@ -62,7 +62,9 @@ public final class SmithWeekWeeklyQuest implements WeeklyQuestDefinition {
         UUID playerId = player.getUuid();
         return WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.SMITH_ORE) >= WeeklyQuestService.smithOreTarget()
                 && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.SMITH_IRON) >= WeeklyQuestService.smithIronTarget()
-                && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.SMITH_GOLD) >= WeeklyQuestService.smithGoldTarget();
+                && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.SMITH_GOLD) >= WeeklyQuestService.smithGoldTarget()
+                && WeeklyQuestService.countInventoryItem(player, Items.IRON_INGOT) >= WeeklyQuestService.smithIronTarget()
+                && WeeklyQuestService.countInventoryItem(player, Items.GOLD_INGOT) >= WeeklyQuestService.smithGoldTarget();
     }
 
     @Override
@@ -79,6 +81,16 @@ public final class SmithWeekWeeklyQuest implements WeeklyQuestDefinition {
                 ReputationService.ReputationTrack.CRAFTING,
                 45
         );
+    }
+
+    @Override
+    public boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) {
+        if (WeeklyQuestService.countInventoryItem(player, Items.IRON_INGOT) < WeeklyQuestService.smithIronTarget()
+                || WeeklyQuestService.countInventoryItem(player, Items.GOLD_INGOT) < WeeklyQuestService.smithGoldTarget()) {
+            return false;
+        }
+        return WeeklyQuestService.consumeInventoryItem(player, Items.IRON_INGOT, WeeklyQuestService.smithIronTarget())
+                && WeeklyQuestService.consumeInventoryItem(player, Items.GOLD_INGOT, WeeklyQuestService.smithGoldTarget());
     }
 
     @Override

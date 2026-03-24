@@ -52,7 +52,8 @@ public final class SmithSmeltingDailyQuest implements DailyQuestDefinition {
     public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
         UUID playerId = player.getUuid();
         return DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.SMITH_SMELT_ORE_PROGRESS) >= DailyQuestService.smithSmeltOreTarget()
-                && DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.SMITH_SMELT_INGOT_PROGRESS) >= DailyQuestService.smithSmeltIngotTarget();
+                && DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.SMITH_SMELT_INGOT_PROGRESS) >= DailyQuestService.smithSmeltIngotTarget()
+                && DailyQuestService.countInventoryItem(player, Items.IRON_INGOT) >= DailyQuestService.smithSmeltIngotTarget();
     }
 
     @Override
@@ -66,6 +67,11 @@ public final class SmithSmeltingDailyQuest implements DailyQuestDefinition {
                 ItemStack.EMPTY,
                 ItemStack.EMPTY
         );
+    }
+
+    @Override
+    public boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) {
+        return DailyQuestService.consumeInventoryItem(player, Items.IRON_INGOT, DailyQuestService.smithSmeltIngotTarget());
     }
 
     @Override

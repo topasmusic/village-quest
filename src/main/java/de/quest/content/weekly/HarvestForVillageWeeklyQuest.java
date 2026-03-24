@@ -66,7 +66,8 @@ public final class HarvestForVillageWeeklyQuest implements WeeklyQuestDefinition
         return WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.HARVEST_WHEAT) >= WeeklyQuestService.harvestWheatTarget()
                 && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.HARVEST_CARROT) >= WeeklyQuestService.harvestCarrotTarget()
                 && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.HARVEST_POTATO) >= WeeklyQuestService.harvestPotatoTarget()
-                && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.HARVEST_BREAD) >= WeeklyQuestService.harvestBreadTarget();
+                && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.HARVEST_BREAD) >= WeeklyQuestService.harvestBreadTarget()
+                && WeeklyQuestService.countInventoryItem(player, Items.BREAD) >= WeeklyQuestService.harvestBreadTarget();
     }
 
     @Override
@@ -83,6 +84,11 @@ public final class HarvestForVillageWeeklyQuest implements WeeklyQuestDefinition
                 ReputationService.ReputationTrack.FARMING,
                 40
         );
+    }
+
+    @Override
+    public boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) {
+        return WeeklyQuestService.consumeInventoryItem(player, Items.BREAD, WeeklyQuestService.harvestBreadTarget());
     }
 
     @Override
