@@ -2,6 +2,13 @@
 
 Hotfix-heavy polish phases are grouped into version ranges to keep this file readable. Major content and larger technical changes keep their own entries.
 
+## 1.19.2 - Inventory Compat Follow-Up
+
+- The journal bookmark tab now uses the right-side inventory edge as its normal placement again.
+- Added a compatibility fallback for `Status Effect Bars`: when that mod is loaded and the player currently has active status effects, the journal tab automatically moves to the upper-right bookmark position instead of fighting the effect panel.
+- Kept the animated hidden-behind-inventory presentation so the tab only peeks out at rest and slides outward on hover.
+- Fine-tuned the upper-right fallback tab position slightly downward so it sits more naturally against the vanilla inventory frame.
+
 ## 1.19.1 - Questmaster And Inventory Polish
 
 - The `Questmaster` summon logic now searches around the player's current height first, so the NPC can appear in underground bases and caves instead of only surfacing above ground.

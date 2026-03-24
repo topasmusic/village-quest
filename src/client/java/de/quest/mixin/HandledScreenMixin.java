@@ -1,6 +1,7 @@
 package de.quest.mixin;
 
 import de.quest.client.ui.InventoryJournalButtonLayout;
+import de.quest.client.ui.InventoryJournalCompat;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.screen.Screen;
@@ -33,25 +34,36 @@ public abstract class HandledScreenMixin extends Screen {
 
     @Unique
     private InventoryJournalButtonLayout.Layout villageQuest$journalLayout() {
-        return InventoryJournalButtonLayout.resolve((HandledScreenAccessor) (Object) this);
+        return InventoryJournalButtonLayout.resolve((HandledScreenAccessor) (Object) this, villageQuest$useTopRightFallback());
+    }
+
+    @Unique
+    private boolean villageQuest$useTopRightFallback() {
+        return InventoryJournalCompat.shouldUseTopRightFallback(MinecraftClient.getInstance());
     }
 
     @Unique
     private boolean villageQuest$isHoveringJournalButton(double mouseX, double mouseY) {
         InventoryJournalButtonLayout.Layout layout = villageQuest$journalLayout();
+        int inventoryTop = this.y;
         int inventoryRight = this.x + ((HandledScreenAccessor) (Object) this).villageQuest$getBackgroundWidth();
-        int x = layout.mode() == InventoryJournalButtonLayout.LayoutMode.BOOKMARK_TAB_RIGHT
-                ? Math.max(layout.expandedX(), inventoryRight)
-                : layout.expandedX();
-        int y = layout.y();
-        int visibleWidth = (layout.expandedX() + layout.width()) - x;
-        if (visibleWidth <= 0) {
+        int x = layout.expandedX();
+        int y = layout.expandedY();
+        int visibleWidth = layout.width();
+        int visibleHeight = layout.height();
+        if (layout.mode() == InventoryJournalButtonLayout.LayoutMode.BOOKMARK_TAB_RIGHT) {
+            x = Math.max(layout.expandedX(), inventoryRight);
+            visibleWidth = (layout.expandedX() + layout.width()) - x;
+        } else if (layout.mode() == InventoryJournalButtonLayout.LayoutMode.BOOKMARK_TAB_TOP_RIGHT) {
+            visibleHeight = Math.min(layout.height(), inventoryTop - y);
+        }
+        if (visibleWidth <= 0 || visibleHeight <= 0) {
             return false;
         }
         return mouseX >= x
                 && mouseX < x + visibleWidth
                 && mouseY >= y
-                && mouseY < y + layout.height();
+                && mouseY < y + visibleHeight;
     }
 
     @Inject(method = "mouseClicked(Lnet/minecraft/client/gui/Click;Z)Z", at = @At("HEAD"), cancellable = true)

@@ -1,6 +1,7 @@
 package de.quest.mixin;
 
 import de.quest.client.ui.InventoryJournalButtonLayout;
+import de.quest.client.ui.InventoryJournalCompat;
 import de.quest.VillageQuest;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
@@ -34,7 +35,7 @@ public abstract class InventoryScreenMixin extends Screen {
 
     @Unique
     private InventoryJournalButtonLayout.Layout villageQuest$journalLayout() {
-        return InventoryJournalButtonLayout.resolve((HandledScreenAccessor) (Object) this);
+        return InventoryJournalButtonLayout.resolve((HandledScreenAccessor) (Object) this, villageQuest$useTopRightFallback());
     }
 
     @Unique
@@ -44,21 +45,42 @@ public abstract class InventoryScreenMixin extends Screen {
     }
 
     @Unique
+    private int villageQuest$inventoryTop() {
+        return ((HandledScreenAccessor) (Object) this).villageQuest$getY();
+    }
+
+    @Unique
+    private boolean villageQuest$useTopRightFallback() {
+        return InventoryJournalCompat.shouldUseTopRightFallback(MinecraftClient.getInstance());
+    }
+
+    @Unique
+    private VisibleArea villageQuest$visibleArea(InventoryJournalButtonLayout.Layout layout, float revealProgress) {
+        int renderX = layout.renderX(revealProgress);
+        int renderY = layout.renderY(revealProgress);
+        if (layout.mode() == InventoryJournalButtonLayout.LayoutMode.BOOKMARK_TAB_RIGHT) {
+            int x = Math.max(renderX, villageQuest$inventoryRight());
+            int width = (renderX + layout.width()) - x;
+            return new VisibleArea(x, renderY, width, layout.height());
+        }
+        if (layout.mode() == InventoryJournalButtonLayout.LayoutMode.BOOKMARK_TAB_TOP_RIGHT) {
+            int height = Math.min(layout.height(), villageQuest$inventoryTop() - renderY);
+            return new VisibleArea(renderX, renderY, layout.width(), height);
+        }
+        return new VisibleArea(renderX, renderY, layout.width(), layout.height());
+    }
+
+    @Unique
     private boolean villageQuest$isHoveringJournalButton(double mouseX, double mouseY, float revealProgress) {
         InventoryJournalButtonLayout.Layout layout = villageQuest$journalLayout();
-        int renderX = layout.renderX(revealProgress);
-        int x = layout.mode() == InventoryJournalButtonLayout.LayoutMode.BOOKMARK_TAB_RIGHT
-                ? Math.max(renderX, villageQuest$inventoryRight())
-                : renderX;
-        int y = layout.y();
-        int visibleWidth = (renderX + layout.width()) - x;
-        if (visibleWidth <= 0) {
+        VisibleArea visibleArea = villageQuest$visibleArea(layout, revealProgress);
+        if (visibleArea.width() <= 0 || visibleArea.height() <= 0) {
             return false;
         }
-        return mouseX >= x
-                && mouseX < x + visibleWidth
-                && mouseY >= y
-                && mouseY < y + layout.height();
+        return mouseX >= visibleArea.x()
+                && mouseX < visibleArea.x() + visibleArea.width()
+                && mouseY >= visibleArea.y()
+                && mouseY < visibleArea.y() + visibleArea.height();
     }
 
     @Unique
@@ -78,7 +100,7 @@ public abstract class InventoryScreenMixin extends Screen {
         }
 
         int x = layout.renderX(villageQuest$journalRevealProgress);
-        int y = layout.y();
+        int y = layout.renderY(villageQuest$journalRevealProgress);
         int width = layout.width();
         int height = layout.height();
         int border = hovered ? 0xFFF0D7A7 : 0xFF6F4A2C;
@@ -96,6 +118,16 @@ public abstract class InventoryScreenMixin extends Screen {
             context.fill(contentX + 1, y + height - 5, x + width - 2, y + height - 4, accent);
             context.fill(x + 2, y + 5, x + overlap + 1, y + 7, hovered ? 0xFFF0D7A7 : 0xFFB88A46);
             context.fill(x + 2, y + height - 8, x + overlap + 1, y + height - 6, hovered ? 0xFFF0D7A7 : 0xFFB88A46);
+        } else if (layout.mode() == InventoryJournalButtonLayout.LayoutMode.BOOKMARK_TAB_TOP_RIGHT) {
+            int overlap = layout.overlap();
+            int contentHeight = layout.contentHeight();
+            int contentY = y;
+
+            context.fill(x, y, x + width, y + height, border);
+            context.fill(x + 1, y + 1, x + width - 1, y + height - 1, inner);
+            context.fill(x + 3, contentY + 1, x + 4, y + contentHeight - 1, accent);
+            context.fill(x + width - 5, contentY + 1, x + width - 4, y + contentHeight - 1, accent);
+            context.fill(x + 5, y + height - overlap - 1, x + width - 5, y + height - overlap + 1, hovered ? 0xFFF0D7A7 : 0xFFB88A46);
         } else {
             context.fill(x, y, x + width, y + height, border);
             context.fill(x + 1, y + 1, x + width - 1, y + height - 1, inner);
@@ -107,8 +139,14 @@ public abstract class InventoryScreenMixin extends Screen {
         int iconBaseX = layout.mode() == InventoryJournalButtonLayout.LayoutMode.BOOKMARK_TAB_RIGHT
                 ? x + layout.overlap()
                 : x;
+        int iconAreaHeight = layout.mode() == InventoryJournalButtonLayout.LayoutMode.BOOKMARK_TAB_TOP_RIGHT
+                ? layout.contentHeight()
+                : height;
+        int iconBaseY = layout.mode() == InventoryJournalButtonLayout.LayoutMode.BOOKMARK_TAB_TOP_RIGHT
+                ? y
+                : y;
         int iconX = iconBaseX + Math.max(1, (iconAreaWidth - VILLAGE_QUEST$JOURNAL_ICON_SIZE) / 2);
-        int iconY = y + Math.max(2, (height - VILLAGE_QUEST$JOURNAL_ICON_SIZE) / 2);
+        int iconY = iconBaseY + Math.max(1, (iconAreaHeight - VILLAGE_QUEST$JOURNAL_ICON_SIZE) / 2);
         context.drawTexture(
                 RenderPipelines.GUI_TEXTURED,
                 VILLAGE_QUEST$JOURNAL_BUTTON_TEXTURE,
@@ -130,4 +168,7 @@ public abstract class InventoryScreenMixin extends Screen {
             context.drawTooltip(MinecraftClient.getInstance().textRenderer, Text.translatable("screen.village-quest.inventory.journal_button"), mouseX, mouseY);
         }
     }
+
+    @Unique
+    private record VisibleArea(int x, int y, int width, int height) {}
 }
