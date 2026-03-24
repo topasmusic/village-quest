@@ -11,4 +11,10 @@ public interface HandledScreenAccessor {
 
     @Accessor("y")
     int villageQuest$getY();
+
+    @Accessor("backgroundWidth")
+    int villageQuest$getBackgroundWidth();
+
+    @Accessor("backgroundHeight")
+    int villageQuest$getBackgroundHeight();
 }

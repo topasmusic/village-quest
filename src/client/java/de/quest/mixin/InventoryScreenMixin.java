@@ -1,5 +1,6 @@
 package de.quest.mixin;
 
+import de.quest.client.ui.InventoryJournalButtonLayout;
 import de.quest.VillageQuest;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
@@ -8,6 +9,7 @@ import net.minecraft.client.gui.screen.ingame.InventoryScreen;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.MathHelper;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -20,51 +22,98 @@ public abstract class InventoryScreenMixin extends Screen {
     private static final Identifier VILLAGE_QUEST$JOURNAL_BUTTON_TEXTURE =
             Identifier.of(VillageQuest.MOD_ID, "textures/gui/journal_inventory_button.png");
     @Unique
-    private static final int VILLAGE_QUEST$JOURNAL_BUTTON_SIZE = 18;
-    @Unique
     private static final int VILLAGE_QUEST$JOURNAL_ICON_SIZE = 14;
     @Unique
     private static final int VILLAGE_QUEST$JOURNAL_TEXTURE_SIZE = 14;
+    @Unique
+    private float villageQuest$journalRevealProgress = 0.0f;
 
     protected InventoryScreenMixin(Text title) {
         super(title);
     }
 
     @Unique
-    private int villageQuest$journalButtonX() {
-        return ((HandledScreenAccessor) (Object) this).villageQuest$getX() + 132;
+    private InventoryJournalButtonLayout.Layout villageQuest$journalLayout() {
+        return InventoryJournalButtonLayout.resolve((HandledScreenAccessor) (Object) this);
     }
 
     @Unique
-    private int villageQuest$journalButtonY() {
-        return ((HandledScreenAccessor) (Object) this).villageQuest$getY() + 61;
+    private int villageQuest$inventoryRight() {
+        HandledScreenAccessor accessor = (HandledScreenAccessor) (Object) this;
+        return accessor.villageQuest$getX() + accessor.villageQuest$getBackgroundWidth();
+    }
+
+    @Unique
+    private boolean villageQuest$isHoveringJournalButton(double mouseX, double mouseY, float revealProgress) {
+        InventoryJournalButtonLayout.Layout layout = villageQuest$journalLayout();
+        int renderX = layout.renderX(revealProgress);
+        int x = layout.mode() == InventoryJournalButtonLayout.LayoutMode.BOOKMARK_TAB_RIGHT
+                ? Math.max(renderX, villageQuest$inventoryRight())
+                : renderX;
+        int y = layout.y();
+        int visibleWidth = (renderX + layout.width()) - x;
+        if (visibleWidth <= 0) {
+            return false;
+        }
+        return mouseX >= x
+                && mouseX < x + visibleWidth
+                && mouseY >= y
+                && mouseY < y + layout.height();
     }
 
     @Unique
     private boolean villageQuest$isHoveringJournalButton(double mouseX, double mouseY) {
-        int x = villageQuest$journalButtonX();
-        int y = villageQuest$journalButtonY();
-        return mouseX >= x
-                && mouseX < x + VILLAGE_QUEST$JOURNAL_BUTTON_SIZE
-                && mouseY >= y
-                && mouseY < y + VILLAGE_QUEST$JOURNAL_BUTTON_SIZE;
+        return villageQuest$isHoveringJournalButton(mouseX, mouseY, villageQuest$journalRevealProgress);
     }
 
-    @Inject(method = "render", at = @At("TAIL"))
-    private void villageQuest$renderJournalButton(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        int x = villageQuest$journalButtonX();
-        int y = villageQuest$journalButtonY();
+    @Inject(method = "drawBackground", at = @At("HEAD"))
+    private void villageQuest$renderJournalButtonBehindInventory(DrawContext context, float delta, int mouseX, int mouseY, CallbackInfo ci) {
+        InventoryJournalButtonLayout.Layout layout = villageQuest$journalLayout();
         boolean hovered = villageQuest$isHoveringJournalButton(mouseX, mouseY);
+        villageQuest$journalRevealProgress = MathHelper.lerp(0.35f, villageQuest$journalRevealProgress, hovered ? 1.0f : 0.0f);
+        if (villageQuest$journalRevealProgress < 0.02f) {
+            villageQuest$journalRevealProgress = 0.0f;
+        } else if (villageQuest$journalRevealProgress > 0.98f) {
+            villageQuest$journalRevealProgress = 1.0f;
+        }
+
+        int x = layout.renderX(villageQuest$journalRevealProgress);
+        int y = layout.y();
+        int width = layout.width();
+        int height = layout.height();
         int border = hovered ? 0xFFF0D7A7 : 0xFF6F4A2C;
         int inner = hovered ? 0xCC3A2617 : 0xCC24170E;
+        int accent = hovered ? 0x99F5E1B7 : 0x664A3420;
 
-        context.fill(x, y, x + VILLAGE_QUEST$JOURNAL_BUTTON_SIZE, y + VILLAGE_QUEST$JOURNAL_BUTTON_SIZE, border);
-        context.fill(x + 1, y + 1, x + VILLAGE_QUEST$JOURNAL_BUTTON_SIZE - 1, y + VILLAGE_QUEST$JOURNAL_BUTTON_SIZE - 1, inner);
+        if (layout.mode() == InventoryJournalButtonLayout.LayoutMode.BOOKMARK_TAB_RIGHT) {
+            int overlap = layout.overlap();
+            int contentWidth = layout.contentWidth();
+            int contentX = x + overlap;
+
+            context.fill(x, y, x + width, y + height, border);
+            context.fill(x + 1, y + 1, x + width - 1, y + height - 1, inner);
+            context.fill(contentX + 1, y + 3, x + width - 2, y + 4, accent);
+            context.fill(contentX + 1, y + height - 5, x + width - 2, y + height - 4, accent);
+            context.fill(x + 2, y + 5, x + overlap + 1, y + 7, hovered ? 0xFFF0D7A7 : 0xFFB88A46);
+            context.fill(x + 2, y + height - 8, x + overlap + 1, y + height - 6, hovered ? 0xFFF0D7A7 : 0xFFB88A46);
+        } else {
+            context.fill(x, y, x + width, y + height, border);
+            context.fill(x + 1, y + 1, x + width - 1, y + height - 1, inner);
+        }
+
+        int iconAreaWidth = layout.mode() == InventoryJournalButtonLayout.LayoutMode.BOOKMARK_TAB_RIGHT
+                ? layout.contentWidth()
+                : width;
+        int iconBaseX = layout.mode() == InventoryJournalButtonLayout.LayoutMode.BOOKMARK_TAB_RIGHT
+                ? x + layout.overlap()
+                : x;
+        int iconX = iconBaseX + Math.max(1, (iconAreaWidth - VILLAGE_QUEST$JOURNAL_ICON_SIZE) / 2);
+        int iconY = y + Math.max(2, (height - VILLAGE_QUEST$JOURNAL_ICON_SIZE) / 2);
         context.drawTexture(
                 RenderPipelines.GUI_TEXTURED,
                 VILLAGE_QUEST$JOURNAL_BUTTON_TEXTURE,
-                x + 2,
-                y + 2,
+                iconX,
+                iconY,
                 0.0f,
                 0.0f,
                 VILLAGE_QUEST$JOURNAL_ICON_SIZE,
@@ -72,7 +121,11 @@ public abstract class InventoryScreenMixin extends Screen {
                 VILLAGE_QUEST$JOURNAL_TEXTURE_SIZE,
                 VILLAGE_QUEST$JOURNAL_TEXTURE_SIZE
         );
+    }
 
+    @Inject(method = "render", at = @At("TAIL"))
+    private void villageQuest$renderJournalTooltip(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+        boolean hovered = villageQuest$isHoveringJournalButton(mouseX, mouseY);
         if (hovered) {
             context.drawTooltip(MinecraftClient.getInstance().textRenderer, Text.translatable("screen.village-quest.inventory.journal_button"), mouseX, mouseY);
         }
