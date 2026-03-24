@@ -2,6 +2,14 @@
 
 Hotfix-heavy polish phases are grouped into version ranges to keep this file readable. Major content and larger technical changes keep their own entries.
 
+## 1.19.1 - Questmaster And Inventory Polish
+
+- The `Questmaster` summon logic now searches around the player's current height first, so the NPC can appear in underground bases and caves instead of only surfacing above ground.
+- Fixed breeding progress so quests that ask for `2` animals bred now count real breeding pairs once, instead of double-counting both parents during the same pairing.
+- Reworked the inventory journal access into an animated bookmark tab on the right edge of the vanilla inventory UI.
+- The bookmark tab now sits behind the inventory panel so only its edge peeks out at rest, then slides outward on hover before opening the journal on click.
+- Improved compatibility with `Better Inventory` by moving the journal access away from the old top-right floating button area.
+
 ## 1.19.0 - Reputation Expansion Batch
 
 - Added the fifth reputation track `Monster Hunting` and extended the journal and reputation views to show it cleanly even when no unlocks are tied to a track yet.

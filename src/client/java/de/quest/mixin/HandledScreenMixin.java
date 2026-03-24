@@ -1,6 +1,6 @@
 package de.quest.mixin;
 
-import de.quest.VillageQuest;
+import de.quest.client.ui.InventoryJournalButtonLayout;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.screen.Screen;
@@ -16,9 +16,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(HandledScreen.class)
 public abstract class HandledScreenMixin extends Screen {
-    @Unique
-    private static final int VILLAGE_QUEST$JOURNAL_BUTTON_SIZE = 20;
-
     @Shadow
     protected int x;
 
@@ -35,23 +32,26 @@ public abstract class HandledScreenMixin extends Screen {
     }
 
     @Unique
-    private int villageQuest$journalButtonX() {
-        return this.x + 132;
-    }
-
-    @Unique
-    private int villageQuest$journalButtonY() {
-        return this.y + 61;
+    private InventoryJournalButtonLayout.Layout villageQuest$journalLayout() {
+        return InventoryJournalButtonLayout.resolve((HandledScreenAccessor) (Object) this);
     }
 
     @Unique
     private boolean villageQuest$isHoveringJournalButton(double mouseX, double mouseY) {
-        int x = villageQuest$journalButtonX();
-        int y = villageQuest$journalButtonY();
+        InventoryJournalButtonLayout.Layout layout = villageQuest$journalLayout();
+        int inventoryRight = this.x + ((HandledScreenAccessor) (Object) this).villageQuest$getBackgroundWidth();
+        int x = layout.mode() == InventoryJournalButtonLayout.LayoutMode.BOOKMARK_TAB_RIGHT
+                ? Math.max(layout.expandedX(), inventoryRight)
+                : layout.expandedX();
+        int y = layout.y();
+        int visibleWidth = (layout.expandedX() + layout.width()) - x;
+        if (visibleWidth <= 0) {
+            return false;
+        }
         return mouseX >= x
-                && mouseX < x + VILLAGE_QUEST$JOURNAL_BUTTON_SIZE
+                && mouseX < x + visibleWidth
                 && mouseY >= y
-                && mouseY < y + VILLAGE_QUEST$JOURNAL_BUTTON_SIZE;
+                && mouseY < y + layout.height();
     }
 
     @Inject(method = "mouseClicked(Lnet/minecraft/client/gui/Click;Z)Z", at = @At("HEAD"), cancellable = true)

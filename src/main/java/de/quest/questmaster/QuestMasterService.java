@@ -20,6 +20,7 @@ public final class QuestMasterService {
     private static final int MIN_SPAWN_DISTANCE = 4;
     private static final int MAX_SPAWN_DISTANCE = 10;
     private static final int MAX_SPAWN_ATTEMPTS = 12;
+    private static final int VERTICAL_SEARCH_RADIUS = 12;
     private static final double MAX_INTERACT_DISTANCE_SQUARED = 64.0;
     private static final double NEARBY_QUESTMASTER_DISTANCE_SQUARED = 400.0;
 
@@ -116,24 +117,54 @@ public final class QuestMasterService {
             int distance = MathHelper.nextInt(world.random, MIN_SPAWN_DISTANCE, MAX_SPAWN_DISTANCE);
             int x = origin.getX() + MathHelper.floor(Math.cos(angle) * distance);
             int z = origin.getZ() + MathHelper.floor(Math.sin(angle) * distance);
-            int y = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
-            BlockPos feetPos = new BlockPos(x, y, z);
-            BlockPos groundPos = feetPos.down();
+            BlockPos localPos = findNearbyVerticalSpawnPos(world, origin.getY(), x, z);
+            if (localPos != null) {
+                return localPos;
+            }
 
-            if (!world.getWorldBorder().contains(feetPos)) {
-                continue;
+            int surfaceY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
+            BlockPos surfacePos = validateSpawnPos(world, new BlockPos(x, surfaceY, z));
+            if (surfacePos != null) {
+                return surfacePos;
             }
-            if (y <= world.getBottomY()) {
-                continue;
-            }
-            if (!world.getBlockState(groundPos).isSideSolidFullSquare(world, groundPos, Direction.UP)) {
-                continue;
-            }
-            if (!world.getBlockState(feetPos).isAir() || !world.getBlockState(feetPos.up()).isAir()) {
-                continue;
-            }
-            return feetPos;
         }
         return null;
+    }
+
+    private static BlockPos findNearbyVerticalSpawnPos(ServerWorld world, int originY, int x, int z) {
+        int minY = Math.max(world.getBottomY() + 1, originY - VERTICAL_SEARCH_RADIUS);
+        int maxY = Math.min(world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z), originY + VERTICAL_SEARCH_RADIUS);
+        for (int offset = 0; offset <= VERTICAL_SEARCH_RADIUS; offset++) {
+            BlockPos lowerPos = validateSpawnPos(world, new BlockPos(x, originY - offset, z));
+            if (originY - offset >= minY && lowerPos != null) {
+                return lowerPos;
+            }
+            if (offset == 0) {
+                continue;
+            }
+
+            BlockPos upperPos = validateSpawnPos(world, new BlockPos(x, originY + offset, z));
+            if (originY + offset <= maxY && upperPos != null) {
+                return upperPos;
+            }
+        }
+        return null;
+    }
+
+    private static BlockPos validateSpawnPos(ServerWorld world, BlockPos feetPos) {
+        BlockPos groundPos = feetPos.down();
+        if (!world.getWorldBorder().contains(feetPos)) {
+            return null;
+        }
+        if (feetPos.getY() <= world.getBottomY()) {
+            return null;
+        }
+        if (!world.getBlockState(groundPos).isSideSolidFullSquare(world, groundPos, Direction.UP)) {
+            return null;
+        }
+        if (!world.getBlockState(feetPos).isAir() || !world.getBlockState(feetPos.up()).isAir()) {
+            return null;
+        }
+        return feetPos;
     }
 }
