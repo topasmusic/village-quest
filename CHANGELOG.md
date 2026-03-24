@@ -2,6 +2,12 @@
 
 Hotfix-heavy polish phases are grouped into version ranges to keep this file readable. Major content and larger technical changes keep their own entries.
 
+## 1.19.3 - Furnace Quest Hook Fixes
+
+- Fixed furnace-based quest progress so taking cooked items from the output slot now counts reliably again.
+- Added a second furnace screen-handler hook so output collected via `Shift`-click / quick-move also grants quest progress.
+- This restores reliable progress for furnace-based objectives such as `Bakehouse Stock`, `River Meal`, and `Smith Smelting`.
+
 ## 1.19.2 - Inventory Compat Follow-Up
 
 - The journal bookmark tab now uses the right-side inventory edge as its normal placement again.
