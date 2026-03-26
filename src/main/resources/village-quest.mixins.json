@@ -9,6 +9,7 @@
     "BrewedPotionCriterionMixin",
     "FurnaceOutputSlotMixin",
     "ForgingScreenHandlerAccessor",
+    "ForgingScreenHandlerMixin",
     "MerchantEntityAccessor",
     "TradeOutputSlotMixin",
     "WanderingTraderEntityInvoker"

@@ -2,6 +2,13 @@
 
 Hotfix-heavy polish phases are grouped into version ranges to keep this file readable. Major content and larger technical changes keep their own entries.
 
+## 1.19.5 - Quest Progress Hotfixes
+
+- Hotfixed villager-trade quest progress so completed villager deals again count reliably even when the trade result is quick-moved with `Shift`-click.
+- Emerald-income objectives tied to villager trades now also read the actual completed `TradeOffer`, so earned emerald payouts are credited reliably again.
+- Audited the remaining quest hooks for the same progress-loss pattern and added a dedicated anvil quick-move hook so the shard relic's anvil-enchant step also survives `Shift`-click output pickup.
+- Tightened the `Pet Collar` daily so it only counts real collar recolors on the player's own tamed `Wolf` or `Cat`, ignoring unrelated tameables and same-color no-op dye uses.
+
 ## 1.19.4 - NPC Self-Defense Update
 
 - Added a short self-defense mode for the `Pilgrim` and `Questmaster` when they are attacked by players, including warning lines, retaliation lines, and temporary sword draw behavior.

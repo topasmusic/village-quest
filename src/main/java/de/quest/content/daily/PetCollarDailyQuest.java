@@ -4,8 +4,10 @@ import de.quest.quest.daily.DailyQuestCompletion;
 import de.quest.quest.daily.DailyQuestDefinition;
 import de.quest.quest.daily.DailyQuestKeys;
 import de.quest.quest.daily.DailyQuestService;
+import net.minecraft.entity.passive.CatEntity;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.passive.TameableEntity;
+import net.minecraft.entity.passive.WolfEntity;
 import net.minecraft.item.DyeItem;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -67,8 +69,16 @@ public final class PetCollarDailyQuest implements DailyQuestDefinition {
         if (DailyQuestService.hasCompletedToday(world, player.getUuid())) return;
         if (!DailyQuestService.isAcceptedToday(world, player.getUuid())) return;
         if (!(entity instanceof TameableEntity tameable)) return;
-        if (!tameable.isTamed()) return;
-        if (!(inHand.getItem() instanceof DyeItem)) return;
+        if (!tameable.isTamed() || !tameable.isOwner(player)) return;
+        if (!(inHand.getItem() instanceof DyeItem dyeItem)) return;
+
+        boolean validCollarRecolor = false;
+        if (entity instanceof WolfEntity wolf) {
+            validCollarRecolor = dyeItem.getColor() != wolf.getCollarColor();
+        } else if (entity instanceof CatEntity cat) {
+            validCollarRecolor = dyeItem.getColor() != cat.getCollarColor();
+        }
+        if (!validCollarRecolor) return;
 
         DailyQuestService.setQuestFlag(world, player.getUuid(), DailyQuestKeys.PET_COLLAR_DONE, true);
         DailyQuestService.completeIfEligible(world, player);
