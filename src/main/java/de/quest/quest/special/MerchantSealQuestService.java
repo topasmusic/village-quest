@@ -5,6 +5,7 @@ import de.quest.data.QuestState;
 import de.quest.entity.PilgrimEntity;
 import de.quest.mixin.MerchantEntityAccessor;
 import de.quest.mixin.WanderingTraderEntityInvoker;
+import de.quest.pilgrim.PilgrimContractService;
 import de.quest.pilgrim.PilgrimService;
 import de.quest.quest.QuestBookHelper;
 import de.quest.quest.QuestTrackerService;
@@ -106,6 +107,7 @@ public final class MerchantSealQuestService {
         data.setMerchantSealQuestStage(RelicQuestStage.ACTIVE);
         markDirty(world);
         player.sendMessage(Texts.acceptedTitle(title(), Formatting.GOLD), false);
+        QuestTrackerService.enableForAcceptedQuest(world, player);
         showProgress(player, data);
         refreshQuestUi(world, player);
         return true;
@@ -128,7 +130,8 @@ public final class MerchantSealQuestService {
             return false;
         }
         PlayerQuestData data = data(world, playerId);
-        return data.getPendingSpecialOfferKind() == SpecialQuestKind.MERCHANT_SEAL
+        return RelicQuestProgressionService.hasStoryRequirement(world, playerId, SpecialQuestKind.MERCHANT_SEAL)
+                || data.getPendingSpecialOfferKind() == SpecialQuestKind.MERCHANT_SEAL
                 || data.getMerchantSealQuestStage() != RelicQuestStage.NONE;
     }
 
@@ -225,7 +228,8 @@ public final class MerchantSealQuestService {
         }
 
         pilgrim.setOfferIds(rerolledOffers);
-        return finalizeSealUse(world, player);
+        boolean rerolledContract = PilgrimContractService.rerollOffer(world, player);
+        return finalizeSealUse(world, player, rerolledContract);
     }
 
     public static ActionResult tryUseOnWanderingTrader(ServerWorld world, ServerPlayerEntity player, WanderingTraderEntity trader, ItemStack stack) {
@@ -247,7 +251,7 @@ public final class MerchantSealQuestService {
 
         ((MerchantEntityAccessor) trader).villageQuest$setOffers(null);
         ((WanderingTraderEntityInvoker) trader).villageQuest$invokeFillRecipes(world);
-        return finalizeSealUse(world, player);
+        return finalizeSealUse(world, player, false);
     }
 
     private static boolean shouldOfferQuest(ServerWorld world, ServerPlayerEntity player, PlayerQuestData data) {
@@ -255,7 +259,7 @@ public final class MerchantSealQuestService {
                 && !data.isPendingSpecialOffer()
                 && ModItems.MERCHANT_SEAL != null
                 && DailyQuestService.openQuestStatus(world, player.getUuid()) == null
-                && de.quest.reputation.ReputationService.get(world, player.getUuid(), de.quest.reputation.ReputationService.ReputationTrack.TRADE) >= REQUIRED_TRADE_REPUTATION;
+                && RelicQuestProgressionService.isUnlocked(world, player.getUuid(), SpecialQuestKind.MERCHANT_SEAL);
     }
 
     private static void showOffer(ServerWorld world, ServerPlayerEntity player) {
@@ -391,12 +395,16 @@ public final class MerchantSealQuestService {
         return null;
     }
 
-    private static ActionResult finalizeSealUse(ServerWorld world, ServerPlayerEntity player) {
+    private static ActionResult finalizeSealUse(ServerWorld world, ServerPlayerEntity player, boolean rerolledContract) {
         PlayerQuestData data = data(world, player.getUuid());
         data.setMerchantSealLastUseDay(currentDay());
         markDirty(world);
         world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_VILLAGER_WORK_CARTOGRAPHER, SoundCategory.PLAYERS, 0.9f, 1.1f);
-        player.sendMessage(Text.translatable("message.village-quest.special.merchant.rerolled").formatted(Formatting.GOLD), false);
+        player.sendMessage(Text.translatable(
+                rerolledContract
+                        ? "message.village-quest.special.merchant.rerolled_rumor"
+                        : "message.village-quest.special.merchant.rerolled"
+        ).formatted(Formatting.GOLD), false);
         return ActionResult.SUCCESS;
     }
 }

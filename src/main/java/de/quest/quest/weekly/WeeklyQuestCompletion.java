@@ -12,7 +12,7 @@ public record WeeklyQuestCompletion(
         long currencyReward,
         ItemStack rewardB,
         ItemStack rewardC,
-        int xp,
+        int levels,
         ReputationService.ReputationTrack reputationTrack,
         int reputationAmount
 ) {
@@ -20,7 +20,7 @@ public record WeeklyQuestCompletion(
         currencyReward = Math.max(0L, currencyReward);
         rewardB = rewardB == null ? ItemStack.EMPTY : rewardB;
         rewardC = rewardC == null ? ItemStack.EMPTY : rewardC;
-        xp = Math.max(0, xp);
+        levels = Math.max(0, levels);
         reputationAmount = Math.max(0, reputationAmount);
     }
 }

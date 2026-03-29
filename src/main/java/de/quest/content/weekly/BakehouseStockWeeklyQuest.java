@@ -75,7 +75,7 @@ public final class BakehouseStockWeeklyQuest implements WeeklyQuestDefinition {
                 WeeklyQuestService.reward(1, 16),
                 WeeklyQuestService.magicShardReward(1),
                 ItemStack.EMPTY,
-                850,
+                14,
                 ReputationService.ReputationTrack.FARMING,
                 35
         );

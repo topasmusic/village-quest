@@ -95,6 +95,7 @@ public final class PilgrimService {
             );
             pilgrim.setOfferIds(ShopService.rollPilgrimOfferIds(world.random, world, anchor.getUuid(), PilgrimEntity.DEFAULT_OFFER_COUNT));
             pilgrim.setDespawnTicks(PilgrimEntity.DEFAULT_DESPAWN_TICKS);
+            pilgrim.beginArrivalTracking(anchor);
 
             if (!world.isSpaceEmpty(pilgrim)) {
                 continue;
@@ -164,6 +165,7 @@ public final class PilgrimService {
                 Text.empty(),
                 0L,
                 0,
+                List.of(),
                 List.of()
         ));
     }
@@ -195,6 +197,15 @@ public final class PilgrimService {
         }
         if (!pilgrim.isCustomer(player)) {
             closeTrade(player);
+            return;
+        }
+
+        if (payload.offerId() != null && payload.offerId().startsWith(PilgrimContractService.ACTION_ENTRY_ID)) {
+            String contractId = payload.offerId().length() > PilgrimContractService.ACTION_ENTRY_ID.length() + 1
+                    ? payload.offerId().substring(PilgrimContractService.ACTION_ENTRY_ID.length() + 1)
+                    : null;
+            PilgrimContractService.handleContractAction(world, player, contractId);
+            refreshTrade(world, player, pilgrim);
             return;
         }
 
@@ -265,6 +276,16 @@ public final class PilgrimService {
         return MAX_INTERACT_DISTANCE_SQUARED;
     }
 
+    public static void refreshIfTrading(ServerWorld world, ServerPlayerEntity player) {
+        if (world == null || player == null) {
+            return;
+        }
+        PilgrimEntity pilgrim = findActivePilgrim(world);
+        if (pilgrim != null && pilgrim.isCustomer(player)) {
+            refreshTrade(world, player, pilgrim);
+        }
+    }
+
     public static void beginNaturalSpawnCooldown(ServerWorld world) {
         if (world == null || world.getServer() == null) {
             return;
@@ -282,8 +303,31 @@ public final class PilgrimService {
                 pilgrim.getDisplayName(),
                 de.quest.economy.CurrencyService.getBalance(world, player.getUuid()),
                 pilgrim.getDespawnTicks(),
-                buildOfferData(world, player, pilgrim)
+                buildOfferData(world, player, pilgrim),
+                buildContractData(world, player)
         );
+    }
+
+    private static List<Payloads.PilgrimContractData> buildContractData(ServerWorld world, ServerPlayerEntity player) {
+        List<PilgrimContractService.PilgrimContractView> views = PilgrimContractService.buildViews(world, player);
+        if (views.isEmpty()) {
+            return List.of();
+        }
+        List<Payloads.PilgrimContractData> payloads = new ArrayList<>(views.size());
+        for (PilgrimContractService.PilgrimContractView view : views) {
+            payloads.add(new Payloads.PilgrimContractData(
+                    view.contractId(),
+                    view.title(),
+                    view.status(),
+                    view.descriptionLines(),
+                    view.objectiveLines(),
+                    view.rewardLines(),
+                    view.actionLabel(),
+                    view.actionEnabled(),
+                    view.previewStack()
+            ));
+        }
+        return payloads;
     }
 
     private static boolean isNaturalSpawnCooldownActive(ServerWorld world) {

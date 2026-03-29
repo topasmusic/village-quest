@@ -200,7 +200,10 @@ public final class QuestMasterScreen extends Screen {
         int mouseY = (int) click.y();
 
         List<CategoryView> categories = data.categories();
-        for (int i = 0; i < Math.min(3, categories.size()); i++) {
+        for (int i = 0; i < categories.size(); i++) {
+            if (categories.get(i).entryCount() <= 0) {
+                continue;
+            }
             int x = left + CATEGORY_SLOT_X;
             int y = top + CATEGORY_SLOT_Y + (i * (CATEGORY_SLOT_HEIGHT + CATEGORY_SLOT_GAP));
             if (isWithin(mouseX, mouseY, x, y, CATEGORY_SLOT_WIDTH, CATEGORY_SLOT_HEIGHT)) {
@@ -292,7 +295,7 @@ public final class QuestMasterScreen extends Screen {
 
     private void drawSidebar(DrawContext context, int left, int top, int mouseX, int mouseY) {
         List<CategoryView> categories = data.categories();
-        for (int i = 0; i < Math.min(3, categories.size()); i++) {
+        for (int i = 0; i < categories.size(); i++) {
             CategoryView category = categories.get(i);
             int x = left + CATEGORY_SLOT_X;
             int y = top + CATEGORY_SLOT_Y + (i * (CATEGORY_SLOT_HEIGHT + CATEGORY_SLOT_GAP));

@@ -49,9 +49,21 @@ public final class ClientQuestNetworking {
                         payload.weeklyActive(),
                         payload.weeklyTitle(),
                         payload.weeklyProgress(),
+                        payload.storyActive(),
+                        payload.storyTitle(),
+                        payload.storyProgress(),
+                        payload.pilgrimActive(),
+                        payload.pilgrimTitle(),
+                        payload.pilgrimProgress(),
                         payload.specialActive(),
                         payload.specialTitle(),
-                        payload.specialProgress()
+                        payload.specialProgress(),
+                        payload.hasVillageLedgerProject(),
+                        payload.hasApiaryCharterProject(),
+                        payload.hasForgeCharterProject(),
+                        payload.hasMarketCharterProject(),
+                        payload.hasPastureCharterProject(),
+                        payload.hasWatchBellProject()
                 );
 
                 if (payload.action() == Payloads.JournalPayload.ACTION_OPEN) {
@@ -80,6 +92,12 @@ public final class ClientQuestNetworking {
                     payload.weeklyActive(),
                     payload.weeklyTitle(),
                     payload.weeklyLines(),
+                    payload.storyActive(),
+                    payload.storyTitle(),
+                    payload.storyLines(),
+                    payload.pilgrimActive(),
+                    payload.pilgrimTitle(),
+                    payload.pilgrimLines(),
                     payload.specialActive(),
                     payload.specialTitle(),
                     payload.specialLines()
@@ -107,12 +125,28 @@ public final class ClientQuestNetworking {
                     ));
                 }
 
+                List<PilgrimTradeScreen.PilgrimContractView> contracts = new ArrayList<>(payload.contracts().size());
+                for (Payloads.PilgrimContractData contract : payload.contracts()) {
+                    contracts.add(new PilgrimTradeScreen.PilgrimContractView(
+                            contract.contractId(),
+                            contract.title(),
+                            contract.status(),
+                            contract.descriptionLines(),
+                            contract.objectiveLines(),
+                            contract.rewardLines(),
+                            contract.actionLabel(),
+                            contract.actionEnabled(),
+                            contract.previewStack()
+                    ));
+                }
+
                 PilgrimTradeScreen.PilgrimTradeData data = new PilgrimTradeScreen.PilgrimTradeData(
                         payload.entityId(),
                         payload.merchantName(),
                         payload.balance(),
                         payload.despawnTicks(),
-                        offers
+                        offers,
+                        contracts
                 );
 
                 if (payload.action() == Payloads.PilgrimTradePayload.ACTION_OPEN) {

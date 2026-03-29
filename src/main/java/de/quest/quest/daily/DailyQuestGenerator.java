@@ -3,6 +3,7 @@ package de.quest.quest.daily;
 import de.quest.content.daily.CoalMiningDailyQuest;
 import de.quest.content.daily.CreeperWatchDailyQuest;
 import de.quest.content.daily.HoneyDailyQuest;
+import de.quest.content.daily.MarketRoundsDailyQuest;
 import de.quest.content.daily.AutumnHarvestDailyQuest;
 import de.quest.content.daily.PetCollarDailyQuest;
 import de.quest.content.daily.PotatoHarvestDailyQuest;
@@ -35,11 +36,15 @@ public final class DailyQuestGenerator {
             new SmithSmeltingDailyQuest(),
             new StallNewLifeDailyQuest(),
             new VillageTradingDailyQuest(),
+            new MarketRoundsDailyQuest(),
             new ZombieCullDailyQuest(),
             new SkeletonPatrolDailyQuest(),
             new SpiderSweepDailyQuest(),
             new CreeperWatchDailyQuest()
     );
+    private static final List<DailyQuestDefinition> CORE_DEFINITIONS = DEFINITIONS.stream()
+            .filter(definition -> definition.type().category() != DailyQuestService.DailyQuestCategory.COMBAT)
+            .toList();
 
     private DailyQuestGenerator() {}
 
@@ -58,7 +63,7 @@ public final class DailyQuestGenerator {
             return null;
         }
 
-        List<DailyQuestDefinition> candidates = withoutType(DEFINITIONS, excludedType);
+        List<DailyQuestDefinition> candidates = withoutType(CORE_DEFINITIONS, excludedType);
         candidates = withoutCategory(candidates, excludedCategory);
 
         return candidates.get(world.random.nextInt(candidates.size()));

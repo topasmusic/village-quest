@@ -7,6 +7,8 @@ import de.quest.quest.QuestBookHelper;
 import de.quest.quest.QuestTrackerService;
 import de.quest.quest.daily.DailyQuestService;
 import de.quest.questmaster.QuestMasterUiService;
+import de.quest.quest.story.StoryQuestService;
+import de.quest.quest.story.VillageProjectService;
 import de.quest.registry.ModItems;
 import de.quest.reputation.ReputationService;
 import de.quest.util.Texts;
@@ -297,6 +299,7 @@ public final class WeeklyQuestService {
         markDirty(world);
         definition.onAccepted(world, player);
         player.sendMessage(Texts.acceptedTitle(definition.title(), Formatting.GOLD), false);
+        QuestTrackerService.enableForAcceptedQuest(world, player);
         world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, SoundCategory.PLAYERS, 0.6f, 1.0f);
         refreshQuestUi(world, playerId);
         return true;
@@ -322,6 +325,22 @@ public final class WeeklyQuestService {
 
         deliverCompletion(world, player, definition.buildCompletion());
         markCompletedThisWeek(world, playerId);
+        refreshQuestUi(world, playerId);
+        return true;
+    }
+
+    public static boolean cancelThisWeek(ServerWorld world, UUID playerId) {
+        if (world == null || playerId == null) {
+            return false;
+        }
+        if (!isAcceptedThisWeek(world, playerId) || hasCompletedThisWeek(world, playerId)) {
+            return false;
+        }
+
+        PlayerQuestData data = data(world, playerId);
+        clearProgress(data);
+        data.setWeeklyAcceptedCycle(PlayerQuestData.UNSET_DAY);
+        markDirty(world);
         refreshQuestUi(world, playerId);
         return true;
     }
@@ -495,6 +514,7 @@ public final class WeeklyQuestService {
         if (definition != null) {
             definition.onPilgrimPurchase(world, player, offerId);
         }
+        StoryQuestService.onPilgrimPurchase(world, player, offerId);
     }
 
     public static void onMonsterKill(ServerWorld world, ServerPlayerEntity player, Entity killedEntity) {
@@ -514,7 +534,7 @@ public final class WeeklyQuestService {
                                                         long currencyReward,
                                                         ItemStack rewardB,
                                                         ItemStack rewardC,
-                                                        int xp,
+                                                        int levels,
                                                         ReputationService.ReputationTrack reputationTrack,
                                                         int reputationAmount) {
         return new WeeklyQuestCompletion(
@@ -525,7 +545,7 @@ public final class WeeklyQuestService {
                 currencyReward,
                 rewardB,
                 rewardC,
-                xp,
+                levels,
                 reputationTrack,
                 reputationAmount
         );
@@ -639,22 +659,25 @@ public final class WeeklyQuestService {
     }
 
     private static void deliverCompletion(ServerWorld world, ServerPlayerEntity player, WeeklyQuestCompletion completion) {
-        if (completion.currencyReward() > 0L) {
-            CurrencyService.addBalance(world, player.getUuid(), completion.currencyReward());
+        long actualCurrencyReward = completion.currencyReward() + VillageProjectService.bonusCurrency(world, player.getUuid(), completion.reputationTrack());
+        if (actualCurrencyReward > 0L) {
+            CurrencyService.addBalance(world, player.getUuid(), actualCurrencyReward);
         }
+        int actualReputationReward = 0;
         if (completion.reputationTrack() != null && completion.reputationAmount() > 0) {
-            ReputationService.add(world, player.getUuid(), completion.reputationTrack(), completion.reputationAmount());
+            actualReputationReward = VillageProjectService.applyReputationReward(world, player.getUuid(), completion.reputationTrack(), completion.reputationAmount());
         }
         giveReward(player, completion.rewardB());
         giveReward(player, completion.rewardC());
-        if (completion.xp() > 0) {
-            player.addExperience(completion.xp());
+        int actualLevelReward = completion.levels() + VillageProjectService.bonusLevels(world, player.getUuid(), completion.reputationTrack());
+        if (actualLevelReward > 0) {
+            player.addExperienceLevels(actualLevelReward);
         }
 
         Text divider = Text.literal("------------------------------").formatted(Formatting.GRAY);
         Text rewardsTitle = Text.translatable("text.village-quest.daily.rewards").formatted(Formatting.GRAY);
-        Text xpLine = Text.empty().append(Text.literal("    "))
-                .append(Text.translatable("text.village-quest.daily.xp_reward", completion.xp()).formatted(Formatting.GREEN));
+        Text levelLine = Text.empty().append(Text.literal("    "))
+                .append(Text.translatable("text.village-quest.daily.level_reward", actualLevelReward).formatted(Formatting.GREEN));
 
         MutableText rewardBody = Text.empty()
                 .append(divider.copy()).append(Text.literal("\n"))
@@ -664,13 +687,15 @@ public final class WeeklyQuestService {
                 .append(completion.completionLine3()).append(Text.literal("\n\n"))
                 .append(rewardsTitle).append(Text.literal(":\n\n"));
 
-        appendCurrencyRewardLine(rewardBody, completion.currencyReward());
-        if (completion.reputationTrack() != null && completion.reputationAmount() > 0) {
-            appendTextRewardLine(rewardBody, ReputationService.formatRewardLine(completion.reputationTrack(), completion.reputationAmount()));
+        appendCurrencyRewardLine(rewardBody, actualCurrencyReward);
+        if (completion.reputationTrack() != null && actualReputationReward > 0) {
+            appendTextRewardLine(rewardBody, ReputationService.formatRewardLine(completion.reputationTrack(), actualReputationReward));
         }
+        appendTextRewardLine(rewardBody, VillageProjectService.formatBonusRewardLine(world, player.getUuid(), completion.reputationTrack()));
+        appendTextRewardLine(rewardBody, VillageProjectService.formatRewardEchoLine(world, player.getUuid(), completion.reputationTrack()));
         appendRewardLine(rewardBody, completion.rewardB());
         appendRewardLine(rewardBody, completion.rewardC());
-        rewardBody.append(xpLine).append(Text.literal("\n")).append(divider.copy());
+        rewardBody.append(levelLine).append(Text.literal("\n")).append(divider.copy());
 
         player.sendMessage(rewardBody, false);
         world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 0.9f, 1.0f);

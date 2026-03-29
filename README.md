@@ -57,6 +57,19 @@
   - dig up the cache and recover the ring
 - the ring works from the offhand and grants `+2` block reach while building
 
+## Full Wiki
+
+The repo now includes a full wiki for the current `1.20.0` baseline:
+
+- [Wiki Home](docs/wiki/README.md)
+- [Getting Started](docs/wiki/getting-started.md)
+- [Core Progression](docs/wiki/core-progression.md)
+- [Stories and Village Projects](docs/wiki/stories-and-projects.md)
+- [Relics, Wayfinder, and Magic Shards](docs/wiki/relics-and-shards.md)
+- [Pilgrim and Roadside Watch](docs/wiki/pilgrim-and-roadside-watch.md)
+- [Quest Reference](docs/wiki/quest-reference.md)
+- [Commands and Admin Tools](docs/wiki/commands-and-admin.md)
+
 ## Player Commands
 
 - `/questmaster`

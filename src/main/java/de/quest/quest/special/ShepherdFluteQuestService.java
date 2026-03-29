@@ -123,6 +123,7 @@ public final class ShepherdFluteQuestService {
         data.setShepherdFluteWoolBaseline(totalWoolPickedUp(player));
         markDirty(world);
         player.sendMessage(Texts.acceptedTitle(title(), Formatting.AQUA), false);
+        QuestTrackerService.enableForAcceptedQuest(world, player);
         showProgress(player, data);
         refreshQuestUi(world, player);
         return true;
@@ -145,7 +146,8 @@ public final class ShepherdFluteQuestService {
             return false;
         }
         PlayerQuestData data = data(world, playerId);
-        return data.getPendingSpecialOfferKind() == SpecialQuestKind.SHEPHERD_FLUTE
+        return RelicQuestProgressionService.hasStoryRequirement(world, playerId, SpecialQuestKind.SHEPHERD_FLUTE)
+                || data.getPendingSpecialOfferKind() == SpecialQuestKind.SHEPHERD_FLUTE
                 || data.getShepherdFluteQuestStage() != RelicQuestStage.NONE;
     }
 
@@ -239,7 +241,7 @@ public final class ShepherdFluteQuestService {
                 && !data.isPendingSpecialOffer()
                 && ModItems.SHEPHERD_FLUTE != null
                 && DailyQuestService.openQuestStatus(world, player.getUuid()) == null
-                && de.quest.reputation.ReputationService.get(world, player.getUuid(), de.quest.reputation.ReputationService.ReputationTrack.ANIMALS) >= REQUIRED_ANIMAL_REPUTATION;
+                && RelicQuestProgressionService.isUnlocked(world, player.getUuid(), SpecialQuestKind.SHEPHERD_FLUTE);
     }
 
     private static void showOffer(ServerWorld world, ServerPlayerEntity player) {

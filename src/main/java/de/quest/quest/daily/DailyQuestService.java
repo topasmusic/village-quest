@@ -3,6 +3,7 @@ package de.quest.quest.daily;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.economy.CurrencyService;
+import de.quest.pilgrim.PilgrimContractService;
 import de.quest.quest.QuestBookHelper;
 import de.quest.quest.QuestTrackerService;
 import de.quest.questmaster.QuestMasterUiService;
@@ -10,6 +11,9 @@ import de.quest.quest.special.RelicQuestStage;
 import de.quest.quest.special.ShardRelicQuestStage;
 import de.quest.reputation.ReputationService;
 import de.quest.quest.special.SpecialQuestService;
+import de.quest.quest.story.StoryQuestService;
+import de.quest.quest.story.VillageProjectService;
+import de.quest.questmaster.QuestMasterProgressionService;
 import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.registry.ModItems;
 import de.quest.util.Texts;
@@ -78,6 +82,7 @@ public final class DailyQuestService {
         SMITH_SMELTING(DailyQuestCategory.CRAFTING),
         STALL_NEW_LIFE(DailyQuestCategory.ANIMALS),
         VILLAGE_TRADING(DailyQuestCategory.VILLAGE),
+        MARKET_ROUNDS(DailyQuestCategory.VILLAGE),
         ZOMBIE_CULL(DailyQuestCategory.COMBAT),
         SKELETON_PATROL(DailyQuestCategory.COMBAT),
         SPIDER_SWEEP(DailyQuestCategory.COMBAT),
@@ -423,6 +428,7 @@ public final class DailyQuestService {
 
         Text title = definition == null ? fallbackQuestTitle(choice) : definition.title();
         player.sendMessage(Texts.acceptedTitle(title, Formatting.GREEN), false);
+        QuestTrackerService.enableForAcceptedQuest(world, player);
         sendCurrentProgressActionbar(world, player);
         refreshQuestUi(world, playerId);
     }
@@ -448,6 +454,7 @@ public final class DailyQuestService {
 
         Text title = definition == null ? fallbackQuestTitle(data.getBonusChoice()) : definition.title();
         player.sendMessage(Texts.acceptedTitle(title, Formatting.LIGHT_PURPLE), false);
+        QuestTrackerService.enableForAcceptedQuest(world, player);
         sendCurrentProgressActionbar(world, player);
         refreshQuestUi(world, playerId);
     }
@@ -498,6 +505,7 @@ public final class DailyQuestService {
             case SMITH_SMELTING -> Text.translatable("quest.village-quest.daily.smelt.title");
             case STALL_NEW_LIFE -> Text.translatable("quest.village-quest.daily.stall.title");
             case VILLAGE_TRADING -> Text.translatable("quest.village-quest.daily.trade.title");
+            case MARKET_ROUNDS -> Text.translatable("quest.village-quest.daily.market_rounds.title");
             case ZOMBIE_CULL -> Text.translatable("quest.village-quest.daily.zombie_cull.title");
             case SKELETON_PATROL -> Text.translatable("quest.village-quest.daily.skeleton_patrol.title");
             case SPIDER_SWEEP -> Text.translatable("quest.village-quest.daily.spider_sweep.title");
@@ -572,6 +580,7 @@ public final class DailyQuestService {
             case SMITH_SMELTING -> Text.translatable("command.village-quest.setquest.option.smelt");
             case STALL_NEW_LIFE -> Text.translatable("command.village-quest.setquest.option.stall");
             case VILLAGE_TRADING -> Text.translatable("command.village-quest.setquest.option.trade");
+            case MARKET_ROUNDS -> Text.translatable("command.village-quest.setquest.option.market_rounds");
             case ZOMBIE_CULL -> Text.translatable("command.village-quest.setquest.option.zombie");
             case SKELETON_PATROL -> Text.translatable("command.village-quest.setquest.option.skeleton");
             case SPIDER_SWEEP -> Text.translatable("command.village-quest.setquest.option.spider");
@@ -590,7 +599,7 @@ public final class DailyQuestService {
         }
         return switch (type) {
             case HONEY, PET_COLLAR, WHEAT_HARVEST, POTATO_HARVEST, STALL_NEW_LIFE -> DailyQuestDifficulty.EASY;
-            case WOODCUTTING, WOOL_WEAVING, RIVER_MEAL, AUTUMN_HARVEST, ZOMBIE_CULL, SPIDER_SWEEP -> DailyQuestDifficulty.STANDARD;
+            case WOODCUTTING, WOOL_WEAVING, RIVER_MEAL, AUTUMN_HARVEST, MARKET_ROUNDS, ZOMBIE_CULL, SPIDER_SWEEP -> DailyQuestDifficulty.STANDARD;
             case COAL_MINING, SMITH_SMELTING, VILLAGE_TRADING, SKELETON_PATROL, CREEPER_WATCH -> DailyQuestDifficulty.HARD;
         };
     }
@@ -612,6 +621,7 @@ public final class DailyQuestService {
             case SMITH_SMELTING -> "smelt";
             case STALL_NEW_LIFE -> "stall";
             case VILLAGE_TRADING -> "trade";
+            case MARKET_ROUNDS -> "market_rounds";
             case ZOMBIE_CULL -> "zombie";
             case SKELETON_PATROL -> "skeleton";
             case SPIDER_SWEEP -> "spider";
@@ -674,16 +684,24 @@ public final class DailyQuestService {
                 profile.currencyReward(),
                 rewardB,
                 rewardC,
-                profile.xp()
+                profile.levels()
         );
     }
 
     private static DailyQuestRewardProfile rewardProfile(DailyQuestType type) {
         return switch (difficulty(type)) {
-            case EASY -> new DailyQuestRewardProfile(CurrencyService.SILVERMARK * 2L, 120);
-            case STANDARD -> new DailyQuestRewardProfile(CurrencyService.SILVERMARK * 5L, 150);
-            case HARD -> new DailyQuestRewardProfile(CurrencyService.CROWN, 180);
+            case EASY -> new DailyQuestRewardProfile(CurrencyService.SILVERMARK * 2L, 2);
+            case STANDARD -> new DailyQuestRewardProfile(CurrencyService.SILVERMARK * 5L, 4);
+            case HARD -> new DailyQuestRewardProfile(CurrencyService.CROWN, 6);
         };
+    }
+
+    public static long rewardCurrency(DailyQuestType type) {
+        return rewardProfile(type).currencyReward();
+    }
+
+    public static int rewardLevels(DailyQuestType type) {
+        return rewardProfile(type).levels();
     }
 
     public static boolean setQuestChoiceForToday(ServerWorld world, UUID playerId, DailyQuestType quest) {
@@ -833,6 +851,7 @@ public final class DailyQuestService {
             case "smelt" -> DailyQuestType.SMITH_SMELTING;
             case "stall" -> DailyQuestType.STALL_NEW_LIFE;
             case "trade" -> DailyQuestType.VILLAGE_TRADING;
+            case "market_rounds", "rounds" -> DailyQuestType.MARKET_ROUNDS;
             case "zombie" -> DailyQuestType.ZOMBIE_CULL;
             case "skeleton" -> DailyQuestType.SKELETON_PATROL;
             case "spider" -> DailyQuestType.SPIDER_SWEEP;
@@ -1154,7 +1173,9 @@ public final class DailyQuestService {
         if (definition != null) {
             definition.onFurnaceOutput(world, player, stack);
         }
+        StoryQuestService.onFurnaceOutput(world, player, stack);
         WeeklyQuestService.onFurnaceOutput(world, player, stack);
+        PilgrimContractService.onFurnaceOutput(world, player, stack);
     }
 
     public static void onVillagerTrade(ServerWorld world, ServerPlayerEntity player, ItemStack stack) {
@@ -1162,8 +1183,10 @@ public final class DailyQuestService {
         if (definition != null) {
             definition.onVillagerTrade(world, player, stack);
         }
+        StoryQuestService.onVillagerTrade(world, player, stack);
         WeeklyQuestService.onVillagerTrade(world, player, stack);
         SpecialQuestService.onVillagerTrade(world, player, stack);
+        PilgrimContractService.onVillagerTrade(world, player, stack);
     }
 
     public static void onAnimalLove(ServerWorld world, ServerPlayerEntity player, AnimalEntity animal) {
@@ -1171,8 +1194,10 @@ public final class DailyQuestService {
         if (definition != null) {
             definition.onAnimalLove(world, player, animal);
         }
+        StoryQuestService.onAnimalLove(world, player, animal);
         WeeklyQuestService.onAnimalLove(world, player, animal);
         SpecialQuestService.onAnimalLove(world, player, animal);
+        PilgrimContractService.onAnimalLove(world, player, animal);
     }
 
     public static void onMonsterKill(ServerWorld world, ServerPlayerEntity player, Entity killedEntity) {
@@ -1185,6 +1210,7 @@ public final class DailyQuestService {
 
     public static boolean completeIfEligible(ServerWorld world, ServerPlayerEntity player) {
         UUID playerId = player.getUuid();
+        boolean storyWasUnlocked = QuestMasterProgressionService.isStoryCategoryUnlocked(world, playerId);
         ActiveQuestSlot slot = activeQuestSlot(world, playerId);
         if (slot == null) {
             return false;
@@ -1206,6 +1232,7 @@ public final class DailyQuestService {
             markBonusCompletedToday(world, playerId);
         } else {
             markCompletedToday(world, playerId);
+            QuestMasterProgressionService.onNormalDailyCompleted(world, player, storyWasUnlocked);
         }
         refreshQuestUi(world, playerId);
         return true;
@@ -1217,6 +1244,7 @@ public final class DailyQuestService {
         }
 
         UUID playerId = player.getUuid();
+        boolean storyWasUnlocked = QuestMasterProgressionService.isStoryCategoryUnlocked(world, playerId);
         ActiveQuestSlot slot = activeQuestSlot(world, playerId);
         if (slot == null) {
             return false;
@@ -1234,6 +1262,7 @@ public final class DailyQuestService {
             markBonusCompletedToday(world, playerId);
         } else {
             markCompletedToday(world, playerId);
+            QuestMasterProgressionService.onNormalDailyCompleted(world, player, storyWasUnlocked);
         }
         refreshQuestUi(world, playerId);
         return true;
@@ -1272,25 +1301,32 @@ public final class DailyQuestService {
                                           DailyQuestType questType,
                                           DailyQuestCompletion completion,
                                           boolean allowMagicShardDrop) {
+        int shardCountBefore = ModItems.MAGIC_SHARD == null ? 0 : countInventoryItem(player, ModItems.MAGIC_SHARD);
         ItemStack bonusReward = allowMagicShardDrop ? maybeRollMagicShardReward(world, player.getUuid()) : ItemStack.EMPTY;
         ReputationService.ReputationReward reputationReward = questType == null ? null : ReputationService.rewardFor(questType);
-        if (completion.currencyReward() > 0L) {
-            CurrencyService.addBalance(world, player.getUuid(), completion.currencyReward());
+        ReputationService.ReputationTrack track = reputationReward == null ? null : reputationReward.track();
+        long actualCurrencyReward = completion.currencyReward() + VillageProjectService.bonusCurrency(world, player.getUuid(), track);
+        if (actualCurrencyReward > 0L) {
+            CurrencyService.addBalance(world, player.getUuid(), actualCurrencyReward);
         }
+        int actualReputationReward = 0;
         if (reputationReward != null && reputationReward.amount() > 0) {
-            ReputationService.add(world, player.getUuid(), reputationReward.track(), reputationReward.amount());
+            actualReputationReward = VillageProjectService.applyReputationReward(world, player.getUuid(), reputationReward.track(), reputationReward.amount());
         }
         giveReward(player, completion.rewardB());
         giveReward(player, completion.rewardC());
         giveReward(player, bonusReward);
-        if (completion.xp() > 0) {
-            player.addExperience(completion.xp());
+        int shardCountAfter = ModItems.MAGIC_SHARD == null ? 0 : countInventoryItem(player, ModItems.MAGIC_SHARD);
+        QuestMasterProgressionService.onMagicShardCountChanged(world, player, shardCountBefore, shardCountAfter);
+        int actualLevelReward = completion.levels() + VillageProjectService.bonusLevels(world, player.getUuid(), track);
+        if (actualLevelReward > 0) {
+            player.addExperienceLevels(actualLevelReward);
         }
 
         Text divider = Text.literal("------------------------------").formatted(Formatting.GRAY);
         Text rewardsTitle = Text.translatable("text.village-quest.daily.rewards").formatted(Formatting.GRAY);
-        Text xpLine = Text.empty().append(Text.literal("    "))
-                .append(Text.translatable("text.village-quest.daily.xp_reward", completion.xp()).formatted(Formatting.GREEN));
+        Text levelLine = Text.empty().append(Text.literal("    "))
+                .append(Text.translatable("text.village-quest.daily.level_reward", actualLevelReward).formatted(Formatting.GREEN));
 
         net.minecraft.text.MutableText rewardBody = Text.empty()
                 .append(divider.copy()).append(Text.literal("\n"))
@@ -1301,14 +1337,16 @@ public final class DailyQuestService {
                 .append(completion.completionLine3()).append(Text.literal("\n\n"))
                 .append(rewardsTitle).append(Text.literal(":\n\n"));
 
-        appendCurrencyRewardLine(rewardBody, completion.currencyReward());
-        if (reputationReward != null && reputationReward.amount() > 0) {
-            appendTextRewardLine(rewardBody, ReputationService.formatRewardLine(reputationReward.track(), reputationReward.amount()));
+        appendCurrencyRewardLine(rewardBody, actualCurrencyReward);
+        if (reputationReward != null && actualReputationReward > 0) {
+            appendTextRewardLine(rewardBody, ReputationService.formatRewardLine(reputationReward.track(), actualReputationReward));
         }
+        appendTextRewardLine(rewardBody, VillageProjectService.formatBonusRewardLine(world, player.getUuid(), track));
+        appendTextRewardLine(rewardBody, VillageProjectService.formatRewardEchoLine(world, player.getUuid(), track));
         appendRewardLine(rewardBody, completion.rewardB());
         appendRewardLine(rewardBody, completion.rewardC());
         appendRewardLine(rewardBody, bonusReward);
-        rewardBody.append(xpLine).append(Text.literal("\n"))
+        rewardBody.append(levelLine).append(Text.literal("\n"))
                 .append(divider.copy());
 
         player.sendMessage(rewardBody, false);
@@ -1608,7 +1646,7 @@ public final class DailyQuestService {
         return VILLAGE_TRADE_EMERALD_TARGET;
     }
 
-    private record DailyQuestRewardProfile(long currencyReward, int xp) {}
+    private record DailyQuestRewardProfile(long currencyReward, int levels) {}
 
     public record DailyAdminInfo(DailyQuestType quest,
                                  DailyAdminState state,

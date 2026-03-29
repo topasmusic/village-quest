@@ -22,6 +22,9 @@ public final class WeeklyQuestGenerator {
             new NightWatchWeeklyQuest(),
             new RoadWardenWeeklyQuest()
     );
+    private static final List<WeeklyQuestDefinition> CORE_DEFINITIONS = DEFINITIONS.stream()
+            .filter(definition -> definition.type().category() != WeeklyQuestService.WeeklyQuestCategory.COMBAT)
+            .toList();
 
     private WeeklyQuestGenerator() {}
 
@@ -36,7 +39,7 @@ public final class WeeklyQuestGenerator {
             return null;
         }
 
-        List<WeeklyQuestDefinition> candidates = withoutType(DEFINITIONS, excludedType);
+        List<WeeklyQuestDefinition> candidates = withoutType(CORE_DEFINITIONS, excludedType);
         candidates = withoutCategory(candidates, excludedCategory);
         return candidates.get(world.random.nextInt(candidates.size()));
     }

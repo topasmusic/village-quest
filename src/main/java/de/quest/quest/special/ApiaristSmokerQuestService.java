@@ -103,6 +103,7 @@ public final class ApiaristSmokerQuestService {
         data.setApiaristSmokerQuestStage(RelicQuestStage.ACTIVE);
         markDirty(world);
         player.sendMessage(Texts.acceptedTitle(title(), Formatting.GREEN), false);
+        QuestTrackerService.enableForAcceptedQuest(world, player);
         showProgress(player, data);
         refreshQuestUi(world, player);
         return true;
@@ -125,7 +126,8 @@ public final class ApiaristSmokerQuestService {
             return false;
         }
         PlayerQuestData data = data(world, playerId);
-        return data.getPendingSpecialOfferKind() == SpecialQuestKind.APIARIST_SMOKER
+        return RelicQuestProgressionService.hasStoryRequirement(world, playerId, SpecialQuestKind.APIARIST_SMOKER)
+                || data.getPendingSpecialOfferKind() == SpecialQuestKind.APIARIST_SMOKER
                 || data.getApiaristSmokerQuestStage() != RelicQuestStage.NONE;
     }
 
@@ -237,7 +239,7 @@ public final class ApiaristSmokerQuestService {
                 && !data.isPendingSpecialOffer()
                 && ModItems.APIARISTS_SMOKER != null
                 && DailyQuestService.openQuestStatus(world, player.getUuid()) == null
-                && de.quest.reputation.ReputationService.get(world, player.getUuid(), de.quest.reputation.ReputationService.ReputationTrack.FARMING) >= REQUIRED_FARMING_REPUTATION;
+                && RelicQuestProgressionService.isUnlocked(world, player.getUuid(), SpecialQuestKind.APIARIST_SMOKER);
     }
 
     private static void showOffer(ServerWorld world, ServerPlayerEntity player) {

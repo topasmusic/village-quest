@@ -8,11 +8,13 @@ import net.minecraft.client.render.entity.MobEntityRenderer;
 import net.minecraft.client.render.entity.state.ArmedEntityRenderState;
 import net.minecraft.client.render.entity.feature.HeldItemFeatureRenderer;
 import net.minecraft.client.render.entity.model.EntityModelLayer;
+import net.minecraft.client.render.entity.model.BipedEntityModel;
 import net.minecraft.client.render.entity.model.PlayerEntityModel;
 import net.minecraft.client.render.entity.state.PlayerEntityRenderState;
 import net.minecraft.client.item.ItemModelManager;
 import net.minecraft.entity.player.PlayerSkinType;
 import net.minecraft.entity.player.SkinTextures;
+import net.minecraft.item.Items;
 import net.minecraft.util.AssetInfo;
 import net.minecraft.util.Identifier;
 
@@ -58,6 +60,9 @@ public final class PilgrimEntityRenderer extends MobEntityRenderer<PilgrimEntity
     public void updateRenderState(PilgrimEntity entity, PlayerEntityRenderState state, float tickDelta) {
         super.updateRenderState(entity, state, tickDelta);
         ArmedEntityRenderState.updateRenderState(entity, state, this.itemModelManager, tickDelta);
+        if (entity.getMainHandStack().isOf(Items.TORCH)) {
+            state.rightArmPose = BipedEntityModel.ArmPose.BLOCK;
+        }
         state.skinTextures = PILGRIM_SKIN;
     }
 

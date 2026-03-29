@@ -1,6 +1,7 @@
 package de.quest.client.screen;
 
 import de.quest.economy.CurrencyService;
+import de.quest.quest.special.RelicQuestProgressionService;
 import de.quest.reputation.ReputationService;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
@@ -34,7 +35,9 @@ public class JournalScreen extends Screen {
     private static final int CONTENT_X_OFFSET = 43;
     private static final int ARROW_WIDTH = 23;
     private static final int ARROW_HEIGHT = 13;
-    private static final int DONE_BUTTON_WIDTH = 80;
+    private static final int ACTION_BUTTON_WIDTH = 80;
+    private static final int ACTION_BUTTON_GAP = 8;
+    private static final int ACTION_BUTTON_ROW_INSET = 4;
     private static final int BUTTON_ROW_HEIGHT = 20;
     private static final String CANCEL_TEXT = "X";
     private static final int CANCEL_COLOR = 0xFFFF4B4B;
@@ -61,9 +64,21 @@ public class JournalScreen extends Screen {
         public final boolean weeklyActive;
         public final Text weeklyTitle;
         public final Text weeklyProgress;
+        public final boolean storyActive;
+        public final Text storyTitle;
+        public final Text storyProgress;
+        public final boolean pilgrimActive;
+        public final Text pilgrimTitle;
+        public final Text pilgrimProgress;
         public final boolean specialActive;
         public final Text specialTitle;
         public final Text specialProgress;
+        public final boolean hasVillageLedgerProject;
+        public final boolean hasApiaryCharterProject;
+        public final boolean hasForgeCharterProject;
+        public final boolean hasMarketCharterProject;
+        public final boolean hasPastureCharterProject;
+        public final boolean hasWatchBellProject;
 
         public JournalData(
                 int total,
@@ -87,9 +102,21 @@ public class JournalScreen extends Screen {
                 boolean weeklyActive,
                 Text weeklyTitle,
                 Text weeklyProgress,
+                boolean storyActive,
+                Text storyTitle,
+                Text storyProgress,
+                boolean pilgrimActive,
+                Text pilgrimTitle,
+                Text pilgrimProgress,
                 boolean specialActive,
                 Text specialTitle,
-                Text specialProgress
+                Text specialProgress,
+                boolean hasVillageLedgerProject,
+                boolean hasApiaryCharterProject,
+                boolean hasForgeCharterProject,
+                boolean hasMarketCharterProject,
+                boolean hasPastureCharterProject,
+                boolean hasWatchBellProject
         ) {
             this.total = total;
             this.discovered = discovered;
@@ -112,9 +139,21 @@ public class JournalScreen extends Screen {
             this.weeklyActive = weeklyActive;
             this.weeklyTitle = weeklyTitle == null ? Text.empty() : weeklyTitle;
             this.weeklyProgress = weeklyProgress == null ? Text.empty() : weeklyProgress;
+            this.storyActive = storyActive;
+            this.storyTitle = storyTitle == null ? Text.empty() : storyTitle;
+            this.storyProgress = storyProgress == null ? Text.empty() : storyProgress;
+            this.pilgrimActive = pilgrimActive;
+            this.pilgrimTitle = pilgrimTitle == null ? Text.empty() : pilgrimTitle;
+            this.pilgrimProgress = pilgrimProgress == null ? Text.empty() : pilgrimProgress;
             this.specialActive = specialActive;
             this.specialTitle = specialTitle == null ? Text.empty() : specialTitle;
             this.specialProgress = specialProgress == null ? Text.empty() : specialProgress;
+            this.hasVillageLedgerProject = hasVillageLedgerProject;
+            this.hasApiaryCharterProject = hasApiaryCharterProject;
+            this.hasForgeCharterProject = hasForgeCharterProject;
+            this.hasMarketCharterProject = hasMarketCharterProject;
+            this.hasPastureCharterProject = hasPastureCharterProject;
+            this.hasWatchBellProject = hasWatchBellProject;
         }
 
         public boolean hasAnySpecialItem() {
@@ -170,9 +209,12 @@ public class JournalScreen extends Screen {
 
     private record SpecialItemEntry(String nameKey, String loreKey) {}
 
+    private record ProjectEntry(String keyPrefix, boolean unlocked) {}
+
     private JournalData data;
     private List<Page> pages = List.of();
     private int pageIndex = 0;
+    private ButtonWidget questMasterButton;
     private ButtonWidget doneButton;
     private final List<CancelHit> cancelHits = new ArrayList<>();
 
@@ -190,16 +232,23 @@ public class JournalScreen extends Screen {
     protected void init() {
         buildPages();
 
-        int left = (this.width - PAGE_WIDTH) / 2;
-        int top = (this.height - PAGE_HEIGHT) / 2;
-        int buttonY = getButtonRowY(top);
-        int centerX = left + PAGE_WIDTH / 2;
+        int centerX = (this.width - PAGE_WIDTH) / 2 + PAGE_WIDTH / 2;
+        int buttonY = getButtonRowY((this.height - PAGE_HEIGHT) / 2);
 
-        this.doneButton = ButtonWidget.builder(Text.translatable("screen.village-quest.journal.done"), b -> this.close())
-                .dimensions(centerX - DONE_BUTTON_WIDTH / 2, buttonY, DONE_BUTTON_WIDTH, BUTTON_ROW_HEIGHT)
+        this.questMasterButton = ButtonWidget.builder(
+                        Text.translatable("screen.village-quest.journal.active.questmaster_button"),
+                        b -> summonQuestMasterFromJournal()
+                )
+                .dimensions(0, buttonY, ACTION_BUTTON_WIDTH, BUTTON_ROW_HEIGHT)
                 .build();
 
+        this.doneButton = ButtonWidget.builder(Text.translatable("screen.village-quest.journal.done"), b -> this.close())
+                .dimensions(0, buttonY, ACTION_BUTTON_WIDTH, BUTTON_ROW_HEIGHT)
+                .build();
+
+        addDrawableChild(this.questMasterButton);
         addDrawableChild(this.doneButton);
+        updateContextButtons(centerX, buttonY);
     }
 
     @Override
@@ -217,6 +266,8 @@ public class JournalScreen extends Screen {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         int left = (this.width - PAGE_WIDTH) / 2;
         int top = (this.height - PAGE_HEIGHT) / 2;
+        int centerX = left + PAGE_WIDTH / 2;
+        updateContextButtons(centerX, getButtonRowY(top));
 
         context.drawTexture(RenderPipelines.GUI_TEXTURED, BOOK_TEXTURE, left, top, 0.0f, 0.0f, PAGE_WIDTH, PAGE_HEIGHT, 256, 256);
 
@@ -331,11 +382,13 @@ public class JournalScreen extends Screen {
             }
             if (pageIndex > 0 && isHover(mouseX, mouseY, prevX, buttonY, ARROW_WIDTH, ARROW_HEIGHT)) {
                 pageIndex--;
+                updateContextButtons(left + PAGE_WIDTH / 2, getButtonRowY(top));
                 playPageTurnSound();
                 return true;
             }
             if (pageIndex + 1 < pages.size() && isHover(mouseX, mouseY, nextX, buttonY, ARROW_WIDTH, ARROW_HEIGHT)) {
                 pageIndex++;
+                updateContextButtons(left + PAGE_WIDTH / 2, getButtonRowY(top));
                 playPageTurnSound();
                 return true;
             }
@@ -354,6 +407,7 @@ public class JournalScreen extends Screen {
         result.add(buildCommandPageTwo());
         result.add(buildFlowPage());
         result.addAll(buildReputationPages());
+        result.addAll(buildProjectsPages());
         if (data.hasAnySpecialItem()) {
             result.addAll(buildSpecialItemsPages());
         }
@@ -390,7 +444,38 @@ public class JournalScreen extends Screen {
                 "screen.village-quest.journal.summary.reputation",
                 data.farmingReputation + data.craftingReputation + data.animalReputation + data.tradeReputation + data.monsterReputation
         ).getString());
+        addWrappedLine(page, gray, BODY_TEXT_SCALE, Text.translatable(
+                "screen.village-quest.journal.summary.projects",
+                completedProjectCount()
+        ).getString());
         return page;
+    }
+
+    private List<Page> buildProjectsPages() {
+        List<ProjectEntry> entries = List.of(
+                new ProjectEntry("quest.village-quest.project.village_ledger", data.hasVillageLedgerProject),
+                new ProjectEntry("quest.village-quest.project.apiary_charter", data.hasApiaryCharterProject),
+                new ProjectEntry("quest.village-quest.project.forge_charter", data.hasForgeCharterProject),
+                new ProjectEntry("quest.village-quest.project.market_charter", data.hasMarketCharterProject),
+                new ProjectEntry("quest.village-quest.project.pasture_charter", data.hasPastureCharterProject),
+                new ProjectEntry("quest.village-quest.project.watch_bell", data.hasWatchBellProject)
+        );
+
+        List<Page> result = new ArrayList<>();
+        Page currentPage = createProjectsPage(true);
+        int gray = 0xFF9E9E9E;
+        int green = 0xFF6BCB6B;
+
+        for (ProjectEntry entry : entries) {
+            if (pageHeight(currentPage) + projectEntryHeight(entry) > CONTENT_HEIGHT && hasProjectContent(currentPage)) {
+                result.add(currentPage);
+                currentPage = createProjectsPage(false);
+            }
+            addProjectEntry(currentPage, green, gray, entry.keyPrefix(), entry.unlocked());
+        }
+
+        result.add(currentPage);
+        return result;
     }
 
     private Page buildCommandPageOne() {
@@ -439,6 +524,7 @@ public class JournalScreen extends Screen {
         addParagraph(page, gray, Text.translatable("screen.village-quest.journal.flow.3").getString());
         addParagraph(page, gray, Text.translatable("screen.village-quest.journal.flow.4").getString());
         addParagraph(page, gray, Text.translatable("screen.village-quest.journal.flow.5").getString());
+        addParagraph(page, gray, Text.translatable("screen.village-quest.journal.flow.6").getString());
         return page;
     }
 
@@ -518,18 +604,58 @@ public class JournalScreen extends Screen {
         if (!ReputationService.hasReputationUnlocks(track)) {
             addWrappedLine(page, detailColor, BODY_TEXT_SCALE, Text.translatable("text.village-quest.reputation.no_unlocks_yet").getString());
         } else {
-            ReputationService.ReputationUnlock nextUnlock = ReputationService.nextReputationUnlock(track, value);
-            if (nextUnlock == null) {
-                addWrappedLine(page, 0xFF6BCB6B, BODY_TEXT_SCALE, Text.translatable("screen.village-quest.journal.reputation.all_unlocked").getString());
-            } else {
-                addWrappedLine(page, detailColor, BODY_TEXT_SCALE, Text.translatable(
-                        "screen.village-quest.journal.reputation.next_unlock",
-                        Text.translatable(nextUnlock.titleKey()).getString(),
-                        nextUnlock.requiredReputation()
-                ).getString());
+            int nextUnlockColor = detailColor;
+            String nextUnlockLine = storyAwareNextUnlockLine(track, value);
+            if (Text.translatable("screen.village-quest.journal.reputation.all_unlocked").getString().equals(nextUnlockLine)) {
+                nextUnlockColor = 0xFF6BCB6B;
             }
+            addWrappedLine(page, nextUnlockColor, BODY_TEXT_SCALE, nextUnlockLine);
         }
         page.addLine("", detailColor, BODY_TEXT_SCALE);
+    }
+
+    private String storyAwareNextUnlockLine(ReputationService.ReputationTrack track, int value) {
+        RelicQuestProgressionService.RelicUnlockPath path = RelicQuestProgressionService.pathFor(track);
+        ReputationService.ReputationUnlock nextUnlock = ReputationService.nextReputationUnlock(track, value);
+        boolean storyMet = hasStoryProjectForTrack(track);
+
+        if (path != null && !storyMet) {
+            String storyTitle = Text.translatable("quest.village-quest.story." + path.requiredStoryArc().id() + ".title").getString();
+            if (nextUnlock != null && nextUnlock.requiredReputation() >= path.requiredReputation()) {
+                return Text.translatable(
+                        "screen.village-quest.journal.reputation.next_unlock_story",
+                        Text.translatable(nextUnlock.titleKey()).getString(),
+                        storyTitle,
+                        path.requiredReputation()
+                ).getString();
+            }
+            if (nextUnlock == null) {
+                return Text.translatable(
+                        "screen.village-quest.journal.reputation.story_required",
+                        Text.translatable(path.titleKey()).getString(),
+                        storyTitle
+                ).getString();
+            }
+        }
+
+        if (nextUnlock == null) {
+            return Text.translatable("screen.village-quest.journal.reputation.all_unlocked").getString();
+        }
+        return Text.translatable(
+                "screen.village-quest.journal.reputation.next_unlock",
+                Text.translatable(nextUnlock.titleKey()).getString(),
+                nextUnlock.requiredReputation()
+        ).getString();
+    }
+
+    private boolean hasStoryProjectForTrack(ReputationService.ReputationTrack track) {
+        return switch (track) {
+            case FARMING -> data.hasApiaryCharterProject;
+            case CRAFTING -> data.hasForgeCharterProject;
+            case ANIMALS -> data.hasPastureCharterProject;
+            case TRADE -> data.hasMarketCharterProject;
+            case MONSTER_HUNTING -> data.hasWatchBellProject;
+        };
     }
 
     private void addHelpLine(Page page, int commandColor, String command, String description) {
@@ -549,6 +675,33 @@ public class JournalScreen extends Screen {
         page.addLine("", detailColor, BODY_TEXT_SCALE);
     }
 
+    private void addProjectEntry(Page page, int titleColor, int detailColor, String keyPrefix, boolean unlocked) {
+        addWrappedLine(page, titleColor, BODY_TEXT_SCALE, Text.translatable(keyPrefix + ".title").getString());
+        addWrappedLine(page, unlocked ? titleColor : detailColor, BODY_TEXT_SCALE, Text.translatable(
+                unlocked
+                        ? "screen.village-quest.journal.projects.built"
+                        : "screen.village-quest.journal.projects.locked"
+        ).getString());
+        addWrappedLine(page, detailColor, BODY_TEXT_SCALE, Text.translatable(keyPrefix + ".description").getString());
+        addWrappedLine(page, detailColor, BODY_TEXT_SCALE, Text.translatable(keyPrefix + ".effect").getString());
+        if (unlocked) {
+            addWrappedLine(page, 0xFF8C7C6A, BODY_TEXT_SCALE, Text.translatable(keyPrefix + ".memory").getString());
+        }
+        page.addLine("", detailColor, BODY_TEXT_SCALE);
+    }
+
+    private Page createProjectsPage(boolean includeStory) {
+        Page page = new Page();
+        int gray = 0xFF9E9E9E;
+        int gold = 0xFFD7B46A;
+        page.addLine(Text.translatable("screen.village-quest.journal.projects.header").getString(), gold, HEADER_TEXT_SCALE);
+        page.addLine("", gray, BODY_TEXT_SCALE);
+        if (includeStory) {
+            addParagraph(page, gray, Text.translatable("screen.village-quest.journal.projects.story").getString());
+        }
+        return page;
+    }
+
     private Page createSpecialItemsPage(boolean includeStory) {
         Page page = new Page();
         int gray = 0xFF9E9E9E;
@@ -565,9 +718,25 @@ public class JournalScreen extends Screen {
         return page.lines.size() > createSpecialItemsPage(true).lines.size();
     }
 
+    private boolean hasProjectContent(Page page) {
+        return page.lines.size() > createProjectsPage(false).lines.size();
+    }
+
     private int specialItemEntryHeight(SpecialItemEntry entry) {
         return wrappedTextHeight(Text.translatable(entry.nameKey()).getString(), BODY_TEXT_SCALE)
                 + wrappedTextHeight(Text.translatable(entry.loreKey()).getString(), BODY_TEXT_SCALE)
+                + lineHeight(BODY_TEXT_SCALE);
+    }
+
+    private int projectEntryHeight(ProjectEntry entry) {
+        String stateKey = entry.unlocked()
+                ? "screen.village-quest.journal.projects.built"
+                : "screen.village-quest.journal.projects.locked";
+        return wrappedTextHeight(Text.translatable(entry.keyPrefix() + ".title").getString(), BODY_TEXT_SCALE)
+                + wrappedTextHeight(Text.translatable(stateKey).getString(), BODY_TEXT_SCALE)
+                + wrappedTextHeight(Text.translatable(entry.keyPrefix() + ".description").getString(), BODY_TEXT_SCALE)
+                + wrappedTextHeight(Text.translatable(entry.keyPrefix() + ".effect").getString(), BODY_TEXT_SCALE)
+                + (entry.unlocked() ? wrappedTextHeight(Text.translatable(entry.keyPrefix() + ".memory").getString(), BODY_TEXT_SCALE) : 0)
                 + lineHeight(BODY_TEXT_SCALE);
     }
 
@@ -612,12 +781,35 @@ public class JournalScreen extends Screen {
         }
 
         if (data.weeklyActive) {
-            page.addLine(Text.translatable("screen.village-quest.journal.active.weekly").getString(), 0xFFD7B46A, BODY_TEXT_SCALE);
+            page.addLine(Text.translatable("screen.village-quest.journal.active.weekly").getString(), 0xFFD7B46A, BODY_TEXT_SCALE, JournalActionPayload.ACTION_CANCEL_WEEKLY);
             if (!data.weeklyTitle.getString().isEmpty()) {
                 addWrappedLine(page, 0xFFD7B46A, BODY_TEXT_SCALE, data.weeklyTitle.getString());
             }
             if (!data.weeklyProgress.getString().isEmpty()) {
                 addWrappedLine(page, green, BODY_TEXT_SCALE, data.weeklyProgress.getString());
+            }
+            addWrappedLine(page, gray, BODY_TEXT_SCALE, Text.translatable("screen.village-quest.journal.active.weekly_hint").getString());
+            page.addLine("", gray, BODY_TEXT_SCALE);
+        }
+
+        if (data.storyActive) {
+            page.addLine(Text.translatable("screen.village-quest.journal.active.story").getString(), 0xFFD7E9A9, BODY_TEXT_SCALE);
+            if (!data.storyTitle.getString().isEmpty()) {
+                addWrappedLine(page, 0xFFD7E9A9, BODY_TEXT_SCALE, data.storyTitle.getString());
+            }
+            if (!data.storyProgress.getString().isEmpty()) {
+                addWrappedLine(page, green, BODY_TEXT_SCALE, data.storyProgress.getString());
+            }
+            page.addLine("", gray, BODY_TEXT_SCALE);
+        }
+
+        if (data.pilgrimActive) {
+            page.addLine(Text.translatable("screen.village-quest.journal.active.pilgrim").getString(), 0xFFE0BA76, BODY_TEXT_SCALE);
+            if (!data.pilgrimTitle.getString().isEmpty()) {
+                addWrappedLine(page, 0xFFE0BA76, BODY_TEXT_SCALE, data.pilgrimTitle.getString());
+            }
+            if (!data.pilgrimProgress.getString().isEmpty()) {
+                addWrappedLine(page, green, BODY_TEXT_SCALE, data.pilgrimProgress.getString());
             }
             page.addLine("", gray, BODY_TEXT_SCALE);
         }
@@ -633,7 +825,7 @@ public class JournalScreen extends Screen {
             page.addLine("", gray, BODY_TEXT_SCALE);
         }
 
-        if (!data.dailyActive && !data.weeklyActive && !data.specialActive) {
+        if (!data.dailyActive && !data.weeklyActive && !data.storyActive && !data.pilgrimActive && !data.specialActive) {
             addWrappedLine(page, gray, BODY_TEXT_SCALE, Text.translatable("screen.village-quest.journal.active.none").getString());
             page.addLine("", gray, BODY_TEXT_SCALE);
             addWrappedLine(page, blue, BODY_TEXT_SCALE, Text.translatable("screen.village-quest.journal.active.none_hint").getString());
@@ -661,7 +853,49 @@ public class JournalScreen extends Screen {
     }
 
     private int getButtonRowY(int top) {
-        return top + PAGE_HEIGHT + 4;
+        return top + PAGE_HEIGHT + 2;
+    }
+
+    private void updateContextButtons(int centerX, int buttonY) {
+        if (this.questMasterButton == null) {
+            return;
+        }
+        boolean showQuestMaster = this.pageIndex == 0;
+        int totalWidth = ACTION_BUTTON_WIDTH * 2 + ACTION_BUTTON_GAP;
+        int rowLeft = centerX - totalWidth / 2 + ACTION_BUTTON_ROW_INSET;
+
+        this.questMasterButton.setPosition(rowLeft, buttonY);
+        this.questMasterButton.visible = showQuestMaster;
+        this.questMasterButton.active = showQuestMaster;
+
+        if (showQuestMaster) {
+            this.doneButton.setPosition(rowLeft + ACTION_BUTTON_WIDTH + ACTION_BUTTON_GAP, buttonY);
+        } else {
+            this.doneButton.setPosition(centerX - ACTION_BUTTON_WIDTH / 2, buttonY);
+        }
+    }
+
+    private int completedProjectCount() {
+        int count = 0;
+        if (data.hasVillageLedgerProject) {
+            count++;
+        }
+        if (data.hasApiaryCharterProject) {
+            count++;
+        }
+        if (data.hasForgeCharterProject) {
+            count++;
+        }
+        if (data.hasMarketCharterProject) {
+            count++;
+        }
+        if (data.hasPastureCharterProject) {
+            count++;
+        }
+        if (data.hasWatchBellProject) {
+            count++;
+        }
+        return count;
     }
 
     private void sendJournalToggle() {
@@ -669,6 +903,14 @@ public class JournalScreen extends Screen {
             return;
         }
         this.client.player.networkHandler.sendChatCommand("journal");
+    }
+
+    private void summonQuestMasterFromJournal() {
+        if (this.client == null || this.client.player == null) {
+            return;
+        }
+        this.client.player.networkHandler.sendChatCommand("questmaster");
+        this.close();
     }
 
     private void playPageTurnSound() {

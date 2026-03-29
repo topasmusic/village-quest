@@ -3,6 +3,7 @@ package de.quest.network;
 import de.quest.pilgrim.PilgrimService;
 import de.quest.quest.QuestBookHelper;
 import de.quest.quest.daily.DailyQuestService;
+import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.questmaster.QuestMasterUiService;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -20,6 +21,11 @@ public final class QuestNetworking {
                 if (payload.action() == Payloads.JournalActionPayload.ACTION_CANCEL_DAILY) {
                     if (DailyQuestService.isDailyActive(world, player.getUuid())) {
                         DailyQuestService.cancelToday(world, player.getUuid());
+                        QuestBookHelper.refreshQuestBook(world, player);
+                    }
+                } else if (payload.action() == Payloads.JournalActionPayload.ACTION_CANCEL_WEEKLY) {
+                    if (WeeklyQuestService.isWeeklyActive(world, player.getUuid())) {
+                        WeeklyQuestService.cancelThisWeek(world, player.getUuid());
                         QuestBookHelper.refreshQuestBook(world, player);
                     }
                 }
