@@ -58,9 +58,21 @@ public final class Payloads {
             boolean weeklyActive,
             Text weeklyTitle,
             Text weeklyProgress,
+            boolean storyActive,
+            Text storyTitle,
+            Text storyProgress,
+            boolean pilgrimActive,
+            Text pilgrimTitle,
+            Text pilgrimProgress,
             boolean specialActive,
             Text specialTitle,
-            Text specialProgress
+            Text specialProgress,
+            boolean hasVillageLedgerProject,
+            boolean hasApiaryCharterProject,
+            boolean hasForgeCharterProject,
+            boolean hasMarketCharterProject,
+            boolean hasPastureCharterProject,
+            boolean hasWatchBellProject
     ) implements CustomPayload {
         public static final int ACTION_OPEN = 0;
         public static final int ACTION_UPDATE = 1;
@@ -92,9 +104,21 @@ public final class Payloads {
             boolean weeklyActive = buf.readBoolean();
             Text weeklyTitle = TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf);
             Text weeklyProgress = TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf);
+            boolean storyActive = buf.readBoolean();
+            Text storyTitle = TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf);
+            Text storyProgress = TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf);
+            boolean pilgrimActive = buf.readBoolean();
+            Text pilgrimTitle = TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf);
+            Text pilgrimProgress = TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf);
             boolean specialActive = buf.readBoolean();
             Text specialTitle = TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf);
             Text specialProgress = TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf);
+            boolean hasVillageLedgerProject = buf.readBoolean();
+            boolean hasApiaryCharterProject = buf.readBoolean();
+            boolean hasForgeCharterProject = buf.readBoolean();
+            boolean hasMarketCharterProject = buf.readBoolean();
+            boolean hasPastureCharterProject = buf.readBoolean();
+            boolean hasWatchBellProject = buf.readBoolean();
             return new JournalPayload(
                     action,
                     total,
@@ -118,9 +142,21 @@ public final class Payloads {
                     weeklyActive,
                     weeklyTitle,
                     weeklyProgress,
+                    storyActive,
+                    storyTitle,
+                    storyProgress,
+                    pilgrimActive,
+                    pilgrimTitle,
+                    pilgrimProgress,
                     specialActive,
                     specialTitle,
-                    specialProgress
+                    specialProgress,
+                    hasVillageLedgerProject,
+                    hasApiaryCharterProject,
+                    hasForgeCharterProject,
+                    hasMarketCharterProject,
+                    hasPastureCharterProject,
+                    hasWatchBellProject
             );
         }
 
@@ -147,9 +183,21 @@ public final class Payloads {
             buf.writeBoolean(payload.weeklyActive());
             TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, payload.weeklyTitle());
             TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, payload.weeklyProgress());
+            buf.writeBoolean(payload.storyActive());
+            TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, payload.storyTitle());
+            TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, payload.storyProgress());
+            buf.writeBoolean(payload.pilgrimActive());
+            TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, payload.pilgrimTitle());
+            TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, payload.pilgrimProgress());
             buf.writeBoolean(payload.specialActive());
             TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, payload.specialTitle());
             TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, payload.specialProgress());
+            buf.writeBoolean(payload.hasVillageLedgerProject());
+            buf.writeBoolean(payload.hasApiaryCharterProject());
+            buf.writeBoolean(payload.hasForgeCharterProject());
+            buf.writeBoolean(payload.hasMarketCharterProject());
+            buf.writeBoolean(payload.hasPastureCharterProject());
+            buf.writeBoolean(payload.hasWatchBellProject());
         }
 
         @Override
@@ -160,6 +208,7 @@ public final class Payloads {
 
     public record JournalActionPayload(int action) implements CustomPayload {
         public static final int ACTION_CANCEL_DAILY = 0;
+        public static final int ACTION_CANCEL_WEEKLY = 1;
 
         public static final CustomPayload.Id<JournalActionPayload> ID =
                 new CustomPayload.Id<>(Identifier.of(VillageQuest.MOD_ID, "journal_action"));
@@ -217,6 +266,12 @@ public final class Payloads {
             boolean weeklyActive,
             Text weeklyTitle,
             List<Text> weeklyLines,
+            boolean storyActive,
+            Text storyTitle,
+            List<Text> storyLines,
+            boolean pilgrimActive,
+            Text pilgrimTitle,
+            List<Text> pilgrimLines,
             boolean specialActive,
             Text specialTitle,
             List<Text> specialLines
@@ -234,10 +289,16 @@ public final class Payloads {
             boolean weeklyActive = buf.readBoolean();
             Text weeklyTitle = TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf);
             List<Text> weeklyLines = readTextList(buf);
+            boolean storyActive = buf.readBoolean();
+            Text storyTitle = TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf);
+            List<Text> storyLines = readTextList(buf);
+            boolean pilgrimActive = buf.readBoolean();
+            Text pilgrimTitle = TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf);
+            List<Text> pilgrimLines = readTextList(buf);
             boolean specialActive = buf.readBoolean();
             Text specialTitle = TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf);
             List<Text> specialLines = readTextList(buf);
-            return new QuestTrackerPayload(enabled, dailyActive, dailyTitle, dailyLines, weeklyActive, weeklyTitle, weeklyLines, specialActive, specialTitle, specialLines);
+            return new QuestTrackerPayload(enabled, dailyActive, dailyTitle, dailyLines, weeklyActive, weeklyTitle, weeklyLines, storyActive, storyTitle, storyLines, pilgrimActive, pilgrimTitle, pilgrimLines, specialActive, specialTitle, specialLines);
         }
 
         private static void write(RegistryByteBuf buf, QuestTrackerPayload payload) {
@@ -248,6 +309,12 @@ public final class Payloads {
             buf.writeBoolean(payload.weeklyActive());
             TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, payload.weeklyTitle());
             writeTextList(buf, payload.weeklyLines());
+            buf.writeBoolean(payload.storyActive());
+            TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, payload.storyTitle());
+            writeTextList(buf, payload.storyLines());
+            buf.writeBoolean(payload.pilgrimActive());
+            TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, payload.pilgrimTitle());
+            writeTextList(buf, payload.pilgrimLines());
             buf.writeBoolean(payload.specialActive());
             TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, payload.specialTitle());
             writeTextList(buf, payload.specialLines());
@@ -300,13 +367,51 @@ public final class Payloads {
         }
     }
 
+    public record PilgrimContractData(
+            String contractId,
+            Text title,
+            Text status,
+            List<Text> descriptionLines,
+            List<Text> objectiveLines,
+            List<Text> rewardLines,
+            Text actionLabel,
+            boolean actionEnabled,
+            ItemStack previewStack
+    ) {
+        private static PilgrimContractData read(RegistryByteBuf buf) {
+            String contractId = buf.readString();
+            Text title = TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf);
+            Text status = TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf);
+            List<Text> descriptionLines = QuestTrackerPayload.readTextList(buf);
+            List<Text> objectiveLines = QuestTrackerPayload.readTextList(buf);
+            List<Text> rewardLines = QuestTrackerPayload.readTextList(buf);
+            Text actionLabel = TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf);
+            boolean actionEnabled = buf.readBoolean();
+            ItemStack previewStack = ItemStack.PACKET_CODEC.decode(buf);
+            return new PilgrimContractData(contractId, title, status, descriptionLines, objectiveLines, rewardLines, actionLabel, actionEnabled, previewStack);
+        }
+
+        private static void write(RegistryByteBuf buf, PilgrimContractData payload) {
+            buf.writeString(payload.contractId());
+            TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, payload.title());
+            TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, payload.status());
+            QuestTrackerPayload.writeTextList(buf, payload.descriptionLines());
+            QuestTrackerPayload.writeTextList(buf, payload.objectiveLines());
+            QuestTrackerPayload.writeTextList(buf, payload.rewardLines());
+            TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, payload.actionLabel());
+            buf.writeBoolean(payload.actionEnabled());
+            ItemStack.PACKET_CODEC.encode(buf, payload.previewStack());
+        }
+    }
+
     public record PilgrimTradePayload(
             int action,
             int entityId,
             Text merchantName,
             long balance,
             int despawnTicks,
-            List<PilgrimTradeOfferData> offers
+            List<PilgrimTradeOfferData> offers,
+            List<PilgrimContractData> contracts
     ) implements CustomPayload {
         public static final int ACTION_OPEN = 0;
         public static final int ACTION_UPDATE = 1;
@@ -328,7 +433,12 @@ public final class Payloads {
             for (int i = 0; i < count; i++) {
                 offers.add(PilgrimTradeOfferData.read(buf));
             }
-            return new PilgrimTradePayload(action, entityId, merchantName, balance, despawnTicks, offers);
+            int contractCount = buf.readVarInt();
+            List<PilgrimContractData> contracts = new ArrayList<>(contractCount);
+            for (int i = 0; i < contractCount; i++) {
+                contracts.add(PilgrimContractData.read(buf));
+            }
+            return new PilgrimTradePayload(action, entityId, merchantName, balance, despawnTicks, offers, contracts);
         }
 
         private static void write(RegistryByteBuf buf, PilgrimTradePayload payload) {
@@ -340,6 +450,10 @@ public final class Payloads {
             buf.writeVarInt(payload.offers().size());
             for (PilgrimTradeOfferData offer : payload.offers()) {
                 PilgrimTradeOfferData.write(buf, offer);
+            }
+            buf.writeVarInt(payload.contracts().size());
+            for (PilgrimContractData contract : payload.contracts()) {
+                PilgrimContractData.write(buf, contract);
             }
         }
 

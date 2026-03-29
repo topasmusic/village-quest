@@ -11,11 +11,12 @@ public record DailyQuestCompletion(
         long currencyReward,
         ItemStack rewardB,
         ItemStack rewardC,
-        int xp
+        int levels
 ) {
     public DailyQuestCompletion {
         currencyReward = Math.max(0L, currencyReward);
         rewardB = rewardB == null ? ItemStack.EMPTY : rewardB;
         rewardC = rewardC == null ? ItemStack.EMPTY : rewardC;
+        levels = Math.max(0, levels);
     }
 }

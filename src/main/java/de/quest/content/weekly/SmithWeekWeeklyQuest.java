@@ -77,7 +77,7 @@ public final class SmithWeekWeeklyQuest implements WeeklyQuestDefinition {
                 WeeklyQuestService.reward(1, 20),
                 WeeklyQuestService.magicShardReward(1),
                 ItemStack.EMPTY,
-                1000,
+                16,
                 ReputationService.ReputationTrack.CRAFTING,
                 45
         );

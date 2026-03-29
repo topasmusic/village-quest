@@ -17,6 +17,7 @@ import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.entity.mob.PathAwareEntity;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -37,6 +38,9 @@ import java.util.UUID;
 public class PilgrimEntity extends PathAwareEntity {
     public static final int DEFAULT_DESPAWN_TICKS = 24000;
     public static final int DEFAULT_OFFER_COUNT = 5;
+    private static final int ARRIVAL_TRACK_TICKS = 20 * 15;
+    private static final double ARRIVAL_TRACK_SPEED = 0.95;
+    private static final double ARRIVAL_STOP_DISTANCE_SQUARED = 9.0;
     private static final int DEFENSE_DURATION_TICKS = 240;
     private static final int MELEE_COOLDOWN_TICKS = 22;
     private static final int SPEECH_COOLDOWN_TICKS = 120;
@@ -63,6 +67,8 @@ public class PilgrimEntity extends PathAwareEntity {
     private int speechCooldownTicks;
     private UUID customerUuid;
     private UUID lastAggressorUuid;
+    private UUID arrivalTargetUuid;
+    private int arrivalTrackTicks;
 
     public PilgrimEntity(EntityType<? extends PathAwareEntity> entityType, World world) {
         super(entityType, world);
@@ -101,6 +107,7 @@ public class PilgrimEntity extends PathAwareEntity {
             this.meleeCooldownTicks--;
         }
         tickDefenseState();
+        tickArrivalTracking();
 
         ServerPlayerEntity customer = getCustomer();
         if (customer != null) {
@@ -116,6 +123,7 @@ public class PilgrimEntity extends PathAwareEntity {
         if (this.despawnTicks > 0) {
             this.despawnTicks--;
         }
+        updateHeldItemState();
         if (this.despawnTicks == 0) {
             PilgrimService.beginNaturalSpawnCooldown((ServerWorld) this.getEntityWorld());
             if (customer != null) {
@@ -207,6 +215,8 @@ public class PilgrimEntity extends PathAwareEntity {
         super.writeCustomData(data);
         data.putString("Offers", String.join(",", this.offerIds));
         data.putInt("DespawnTicks", this.despawnTicks);
+        data.putInt("ArrivalTrackTicks", this.arrivalTrackTicks);
+        data.putString("ArrivalTarget", this.arrivalTargetUuid == null ? "" : this.arrivalTargetUuid.toString());
     }
 
     @Override
@@ -222,6 +232,17 @@ public class PilgrimEntity extends PathAwareEntity {
             }
         }
         this.despawnTicks = Math.max(0, data.getInt("DespawnTicks", DEFAULT_DESPAWN_TICKS));
+        this.arrivalTrackTicks = Math.max(0, data.getInt("ArrivalTrackTicks", 0));
+        String encodedArrivalTarget = data.getString("ArrivalTarget", "");
+        if (encodedArrivalTarget.isBlank()) {
+            this.arrivalTargetUuid = null;
+        } else {
+            try {
+                this.arrivalTargetUuid = UUID.fromString(encodedArrivalTarget);
+            } catch (IllegalArgumentException ignored) {
+                this.arrivalTargetUuid = null;
+            }
+        }
         if (this.offerIds.isEmpty() && !this.getEntityWorld().isClient()) {
             this.offerIds.addAll(PilgrimService.rollOfferIds(this.getEntityWorld().random, DEFAULT_OFFER_COUNT));
         }
@@ -254,6 +275,16 @@ public class PilgrimEntity extends PathAwareEntity {
         this.despawnTicks = Math.max(0, despawnTicks);
     }
 
+    public void beginArrivalTracking(ServerPlayerEntity player) {
+        if (player == null) {
+            this.arrivalTargetUuid = null;
+            this.arrivalTrackTicks = 0;
+            return;
+        }
+        this.arrivalTargetUuid = player.getUuid();
+        this.arrivalTrackTicks = ARRIVAL_TRACK_TICKS;
+    }
+
     public boolean hasCustomer() {
         return this.customerUuid != null;
     }
@@ -283,6 +314,36 @@ public class PilgrimEntity extends PathAwareEntity {
                 && !customer.isRemoved()
                 && customer.getEntityWorld() == this.getEntityWorld()
                 && customer.squaredDistanceTo(this) <= PilgrimService.getMaxInteractDistanceSquared();
+    }
+
+    private void tickArrivalTracking() {
+        if (this.arrivalTrackTicks <= 0) {
+            return;
+        }
+        this.arrivalTrackTicks--;
+        if (hasCustomer() || isDefending()) {
+            if (this.arrivalTrackTicks <= 0) {
+                clearArrivalTracking();
+            }
+            return;
+        }
+
+        ServerPlayerEntity target = getArrivalTarget();
+        if (!PilgrimService.isEligibleSpawnTarget(target) || target.getEntityWorld() != this.getEntityWorld()) {
+            clearArrivalTracking();
+            return;
+        }
+
+        if (this.squaredDistanceTo(target) > ARRIVAL_STOP_DISTANCE_SQUARED) {
+            this.getNavigation().startMovingTo(target, ARRIVAL_TRACK_SPEED);
+        } else {
+            this.getNavigation().stop();
+        }
+        this.getLookControl().lookAt(target.getX(), target.getEyeY(), target.getZ());
+
+        if (this.arrivalTrackTicks <= 0) {
+            clearArrivalTracking();
+        }
     }
 
     private void tickDefenseState() {
@@ -334,15 +395,19 @@ public class PilgrimEntity extends PathAwareEntity {
         this.lastAggressorUuid = null;
         this.setTarget(null);
         this.getNavigation().stop();
-        equipSword(false);
+        updateHeldItemState();
     }
 
     private boolean isDefending() {
-        return this.defenseTicks > 0 || !this.getMainHandStack().isEmpty();
+        return this.defenseTicks > 0 || this.getMainHandStack().isOf(Items.IRON_SWORD);
     }
 
     private void equipSword(boolean enabled) {
-        this.setStackInHand(Hand.MAIN_HAND, enabled ? new ItemStack(Items.IRON_SWORD) : ItemStack.EMPTY);
+        if (enabled) {
+            setHeldItem(Items.IRON_SWORD);
+        } else {
+            updateHeldItemState();
+        }
     }
 
     private ServerPlayerEntity getAggressor() {
@@ -350,6 +415,49 @@ public class PilgrimEntity extends PathAwareEntity {
             return null;
         }
         return world.getServer().getPlayerManager().getPlayer(this.lastAggressorUuid);
+    }
+
+    private ServerPlayerEntity getArrivalTarget() {
+        if (this.arrivalTargetUuid == null || !(this.getEntityWorld() instanceof ServerWorld world)) {
+            return null;
+        }
+        return world.getServer().getPlayerManager().getPlayer(this.arrivalTargetUuid);
+    }
+
+    private void clearArrivalTracking() {
+        this.arrivalTrackTicks = 0;
+        this.arrivalTargetUuid = null;
+        this.getNavigation().stop();
+    }
+
+    private void updateHeldItemState() {
+        if (this.defenseTicks > 0) {
+            setHeldItem(Items.IRON_SWORD);
+            return;
+        }
+        if (shouldCarryTorch()) {
+            setHeldItem(Items.TORCH);
+            return;
+        }
+        setHeldItem(null);
+    }
+
+    private boolean shouldCarryTorch() {
+        return this.isAlive() && this.getEntityWorld() != null && this.getEntityWorld().isNight();
+    }
+
+    private void setHeldItem(Item item) {
+        ItemStack current = this.getMainHandStack();
+        if (item == null) {
+            if (!current.isEmpty()) {
+                this.setStackInHand(Hand.MAIN_HAND, ItemStack.EMPTY);
+            }
+            return;
+        }
+        if (current.isOf(item) && current.getCount() == 1) {
+            return;
+        }
+        this.setStackInHand(Hand.MAIN_HAND, new ItemStack(item));
     }
 
     private boolean canKeepDefenseTarget(ServerPlayerEntity target) {

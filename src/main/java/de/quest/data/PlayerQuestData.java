@@ -4,6 +4,7 @@ import de.quest.quest.daily.DailyQuestService;
 import de.quest.quest.special.RelicQuestStage;
 import de.quest.quest.special.ShardRelicQuestStage;
 import de.quest.quest.special.SpecialQuestKind;
+import de.quest.quest.story.StoryArcType;
 import de.quest.quest.weekly.WeeklyQuestService;
 
 import java.util.Collections;
@@ -22,7 +23,13 @@ public final class PlayerQuestData {
     private final Set<String> dailyFlags = new HashSet<>();
     private final Map<String, Integer> weeklyIntState = new HashMap<>();
     private final Set<String> weeklyFlags = new HashSet<>();
+    private final Map<String, Integer> storyIntState = new HashMap<>();
+    private final Set<String> storyFlags = new HashSet<>();
+    private final Map<String, Integer> pilgrimIntState = new HashMap<>();
+    private final Set<String> pilgrimFlags = new HashSet<>();
+    private final Set<String> milestoneFlags = new HashSet<>();
     private final Map<String, Integer> reputationState = new HashMap<>();
+    private final Map<String, Integer> storyChapterProgressState = new HashMap<>();
     private long progressDay = UNSET_DAY;
     private long acceptedDay = UNSET_DAY;
     private long bonusAcceptedDay = UNSET_DAY;
@@ -38,6 +45,9 @@ public final class PlayerQuestData {
     private boolean dailyDiscovered;
     private final Set<String> weeklyDiscovered = new HashSet<>();
     private final Set<String> weeklyCompleted = new HashSet<>();
+    private final Set<String> storyDiscovered = new HashSet<>();
+    private final Set<String> storyCompleted = new HashSet<>();
+    private final Set<String> unlockedProjects = new HashSet<>();
     private boolean pendingDailyOffer;
     private boolean pendingShardOffer;
     private boolean pendingBonusOffer;
@@ -78,7 +88,13 @@ public final class PlayerQuestData {
     private int surveyorCompassPickaxeBaseline;
     private int surveyorCompassModeIndex;
     private long surveyorCompassHomeCooldownUntil;
+    private long surveyorCompassHomeConfirmUntil;
     private long questMasterSummonBlockedUntil;
+    private StoryArcType activeStoryArc;
+    private String activePilgrimContractId;
+    private String offeredPilgrimContractId;
+    private String offeredPilgrimContractAltId;
+    private long pilgrimOfferDay = UNSET_DAY;
 
     public long getCurrencyBalance() {
         return currencyBalance;
@@ -162,6 +178,64 @@ public final class PlayerQuestData {
         return Collections.unmodifiableMap(weeklyIntState);
     }
 
+    public int getStoryInt(String key) {
+        if (key == null || key.isEmpty()) {
+            return 0;
+        }
+        return storyIntState.getOrDefault(key, 0);
+    }
+
+    public void setStoryInt(String key, int value) {
+        if (key == null || key.isEmpty()) {
+            return;
+        }
+        if (value == 0) {
+            storyIntState.remove(key);
+        } else {
+            storyIntState.put(key, value);
+        }
+    }
+
+    public void addStoryInt(String key, int amount) {
+        if (amount == 0) {
+            return;
+        }
+        setStoryInt(key, getStoryInt(key) + amount);
+    }
+
+    public Map<String, Integer> getStoryIntState() {
+        return Collections.unmodifiableMap(storyIntState);
+    }
+
+    public int getPilgrimInt(String key) {
+        if (key == null || key.isEmpty()) {
+            return 0;
+        }
+        return pilgrimIntState.getOrDefault(key, 0);
+    }
+
+    public void setPilgrimInt(String key, int value) {
+        if (key == null || key.isEmpty()) {
+            return;
+        }
+        if (value == 0) {
+            pilgrimIntState.remove(key);
+        } else {
+            pilgrimIntState.put(key, value);
+        }
+    }
+
+    public void addPilgrimInt(String key, int amount) {
+        if (amount == 0) {
+            return;
+        }
+        setPilgrimInt(key, getPilgrimInt(key) + amount);
+    }
+
+    public Map<String, Integer> getPilgrimIntState() {
+        return Collections.unmodifiableMap(pilgrimIntState);
+    }
+
     public boolean hasDailyFlag(String key) {
         if (key == null || key.isEmpty()) {
             return false;
@@ -206,6 +280,72 @@ public final class PlayerQuestData {
         return Collections.unmodifiableSet(weeklyFlags);
     }
 
+    public boolean hasStoryFlag(String key) {
+        if (key == null || key.isEmpty()) {
+            return false;
+        }
+        return storyFlags.contains(key);
+    }
+
+    public void setStoryFlag(String key, boolean enabled) {
+        if (key == null || key.isEmpty()) {
+            return;
+        }
+        if (enabled) {
+            storyFlags.add(key);
+        } else {
+            storyFlags.remove(key);
+        }
+    }
+
+    public Set<String> getStoryFlags() {
+        return Collections.unmodifiableSet(storyFlags);
+    }
+
+    public boolean hasPilgrimFlag(String key) {
+        if (key == null || key.isEmpty()) {
+            return false;
+        }
+        return pilgrimFlags.contains(key);
+    }
+
+    public void setPilgrimFlag(String key, boolean enabled) {
+        if (key == null || key.isEmpty()) {
+            return;
+        }
+        if (enabled) {
+            pilgrimFlags.add(key);
+        } else {
+            pilgrimFlags.remove(key);
+        }
+    }
+
+    public Set<String> getPilgrimFlags() {
+        return Collections.unmodifiableSet(pilgrimFlags);
+    }
+
+    public boolean hasMilestoneFlag(String key) {
+        if (key == null || key.isEmpty()) {
+            return false;
+        }
+        return milestoneFlags.contains(key);
+    }
+
+    public void setMilestoneFlag(String key, boolean enabled) {
+        if (key == null || key.isEmpty()) {
+            return;
+        }
+        if (enabled) {
+            milestoneFlags.add(key);
+        } else {
+            milestoneFlags.remove(key);
+        }
+    }
+
+    public Set<String> getMilestoneFlags() {
+        return Collections.unmodifiableSet(milestoneFlags);
+    }
+
     public int getReputation(String key) {
         if (key == null || key.isEmpty()) {
             return 0;
@@ -243,6 +383,16 @@ public final class PlayerQuestData {
     public void clearWeeklyProgress() {
         weeklyIntState.clear();
         weeklyFlags.clear();
+    }
+
+    public void clearStoryProgress() {
+        storyIntState.clear();
+        storyFlags.clear();
+    }
+
+    public void clearPilgrimProgress() {
+        pilgrimIntState.clear();
+        pilgrimFlags.clear();
     }
 
     public long getProgressDay() {
@@ -367,6 +517,87 @@ public final class PlayerQuestData {
 
     public Set<String> getWeeklyCompleted() {
         return Collections.unmodifiableSet(weeklyCompleted);
+    }
+
+    public void setStoryDiscovered(String storyId, boolean discovered) {
+        if (storyId == null || storyId.isEmpty()) {
+            return;
+        }
+        if (discovered) {
+            storyDiscovered.add(storyId);
+        } else {
+            storyDiscovered.remove(storyId);
+        }
+    }
+
+    public Set<String> getStoryDiscovered() {
+        return Collections.unmodifiableSet(storyDiscovered);
+    }
+
+    public void setStoryCompleted(String storyId, boolean completed) {
+        if (storyId == null || storyId.isEmpty()) {
+            return;
+        }
+        if (completed) {
+            storyCompleted.add(storyId);
+        } else {
+            storyCompleted.remove(storyId);
+        }
+    }
+
+    public boolean hasStoryCompleted(String storyId) {
+        if (storyId == null || storyId.isEmpty()) {
+            return false;
+        }
+        return storyCompleted.contains(storyId);
+    }
+
+    public Set<String> getStoryCompleted() {
+        return Collections.unmodifiableSet(storyCompleted);
+    }
+
+    public int getStoryChapterProgress(String storyId) {
+        if (storyId == null || storyId.isEmpty()) {
+            return 0;
+        }
+        return storyChapterProgressState.getOrDefault(storyId, 0);
+    }
+
+    public void setStoryChapterProgress(String storyId, int progress) {
+        if (storyId == null || storyId.isEmpty()) {
+            return;
+        }
+        if (progress <= 0) {
+            storyChapterProgressState.remove(storyId);
+        } else {
+            storyChapterProgressState.put(storyId, progress);
+        }
+    }
+
+    public Map<String, Integer> getStoryChapterProgressState() {
+        return Collections.unmodifiableMap(storyChapterProgressState);
+    }
+
+    public boolean hasUnlockedProject(String projectId) {
+        if (projectId == null || projectId.isEmpty()) {
+            return false;
+        }
+        return unlockedProjects.contains(projectId);
+    }
+
+    public void setUnlockedProject(String projectId, boolean unlocked) {
+        if (projectId == null || projectId.isEmpty()) {
+            return;
+        }
+        if (unlocked) {
+            unlockedProjects.add(projectId);
+        } else {
+            unlockedProjects.remove(projectId);
+        }
+    }
+
+    public Set<String> getUnlockedProjects() {
+        return Collections.unmodifiableSet(unlockedProjects);
     }
 
     public boolean isPendingDailyOffer() {
@@ -701,12 +932,82 @@ public final class PlayerQuestData {
         this.surveyorCompassHomeCooldownUntil = Math.max(0L, surveyorCompassHomeCooldownUntil);
     }
 
+    public long getSurveyorCompassHomeConfirmUntil() {
+        return surveyorCompassHomeConfirmUntil;
+    }
+
+    public void setSurveyorCompassHomeConfirmUntil(long surveyorCompassHomeConfirmUntil) {
+        this.surveyorCompassHomeConfirmUntil = Math.max(0L, surveyorCompassHomeConfirmUntil);
+    }
+
     public long getQuestMasterSummonBlockedUntil() {
         return questMasterSummonBlockedUntil;
     }
 
     public void setQuestMasterSummonBlockedUntil(long questMasterSummonBlockedUntil) {
         this.questMasterSummonBlockedUntil = Math.max(0L, questMasterSummonBlockedUntil);
+    }
+
+    public StoryArcType getActiveStoryArc() {
+        return activeStoryArc;
+    }
+
+    public void setActiveStoryArc(StoryArcType activeStoryArc) {
+        this.activeStoryArc = activeStoryArc;
+    }
+
+    public String getActivePilgrimContractId() {
+        return activePilgrimContractId;
+    }
+
+    public void setActivePilgrimContractId(String activePilgrimContractId) {
+        this.activePilgrimContractId = activePilgrimContractId == null || activePilgrimContractId.isEmpty()
+                ? null
+                : activePilgrimContractId;
+    }
+
+    public String getOfferedPilgrimContractId() {
+        return offeredPilgrimContractId;
+    }
+
+    public void setOfferedPilgrimContractId(String offeredPilgrimContractId) {
+        this.offeredPilgrimContractId = offeredPilgrimContractId == null || offeredPilgrimContractId.isEmpty()
+                ? null
+                : offeredPilgrimContractId;
+    }
+
+    public String getOfferedPilgrimContractAltId() {
+        return offeredPilgrimContractAltId;
+    }
+
+    public void setOfferedPilgrimContractAltId(String offeredPilgrimContractAltId) {
+        this.offeredPilgrimContractAltId = offeredPilgrimContractAltId == null || offeredPilgrimContractAltId.isEmpty()
+                ? null
+                : offeredPilgrimContractAltId;
+    }
+
+    public long getPilgrimOfferDay() {
+        return pilgrimOfferDay;
+    }
+
+    public void setPilgrimOfferDay(long pilgrimOfferDay) {
+        this.pilgrimOfferDay = pilgrimOfferDay;
+    }
+
+    public void resetStoryState() {
+        clearStoryProgress();
+        storyDiscovered.clear();
+        storyCompleted.clear();
+        storyChapterProgressState.clear();
+        activeStoryArc = null;
+    }
+
+    public void resetPilgrimContractState() {
+        clearPilgrimProgress();
+        this.activePilgrimContractId = null;
+        this.offeredPilgrimContractId = null;
+        this.offeredPilgrimContractAltId = null;
+        this.pilgrimOfferDay = UNSET_DAY;
     }
 
     public void resetShardRelicQuest() {
@@ -770,6 +1071,7 @@ public final class PlayerQuestData {
         this.surveyorCompassPickaxeBaseline = 0;
         this.surveyorCompassModeIndex = 0;
         this.surveyorCompassHomeCooldownUntil = 0L;
+        this.surveyorCompassHomeConfirmUntil = 0L;
     }
 
     public boolean hasShardRelicQuestData() {
@@ -821,6 +1123,16 @@ public final class PlayerQuestData {
                 || this.surveyorCompassPickaxeReadyProgress > 0
                 || this.surveyorCompassPickaxeBaseline > 0
                 || this.surveyorCompassModeIndex > 0
-                || this.surveyorCompassHomeCooldownUntil > 0L;
+                || this.surveyorCompassHomeCooldownUntil > 0L
+                || this.surveyorCompassHomeConfirmUntil > 0L;
+    }
+
+    public boolean hasPilgrimContractData() {
+        return this.activePilgrimContractId != null
+                || this.offeredPilgrimContractId != null
+                || this.offeredPilgrimContractAltId != null
+                || this.pilgrimOfferDay != UNSET_DAY
+                || !this.pilgrimIntState.isEmpty()
+                || !this.pilgrimFlags.isEmpty();
     }
 }

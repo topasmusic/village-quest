@@ -75,7 +75,7 @@ public final class StallAndPastureWeeklyQuest implements WeeklyQuestDefinition {
                 WeeklyQuestService.reward(1, 18),
                 WeeklyQuestService.magicShardReward(1),
                 ItemStack.EMPTY,
-                900,
+                14,
                 ReputationService.ReputationTrack.ANIMALS,
                 40
         );

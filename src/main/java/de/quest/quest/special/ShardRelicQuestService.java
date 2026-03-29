@@ -275,6 +275,7 @@ public final class ShardRelicQuestService {
         startTrial(world, player, data);
         markDirty(world);
         player.sendMessage(Texts.acceptedTitle(title(), Formatting.LIGHT_PURPLE), false);
+        QuestTrackerService.enableForAcceptedQuest(world, player);
         showTrialProgress(player, data);
         refreshQuestUi(world, player);
         return true;

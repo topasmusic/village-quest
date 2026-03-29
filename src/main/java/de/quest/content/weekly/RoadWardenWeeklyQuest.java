@@ -70,7 +70,7 @@ public final class RoadWardenWeeklyQuest implements WeeklyQuestDefinition {
                 WeeklyQuestService.reward(2, 0),
                 WeeklyQuestService.magicShardReward(2),
                 ItemStack.EMPTY,
-                1200,
+                18,
                 null,
                 0
         );

@@ -22,6 +22,9 @@ public final class DailyQuestKeys {
     public static final String STALL_BREED_PROGRESS = "daily.stall.breed.progress";
     public static final String TRADE_PROGRESS = "daily.trade.progress";
     public static final String TRADE_EMERALD_PROGRESS = "daily.trade.emerald.progress";
+    public static final String MARKET_ROUNDS_VISITS = "daily.market_rounds.visits";
+    public static final String MARKET_ROUNDS_TRADES = "daily.market_rounds.trades";
+    public static final String MARKET_ROUNDS_VISITED_PREFIX = "daily.market_rounds.visited.";
     public static final String ZOMBIE_CULL_PROGRESS = "daily.zombie_cull.progress";
     public static final String SKELETON_PATROL_PROGRESS = "daily.skeleton_patrol.progress";
     public static final String SPIDER_SWEEP_PROGRESS = "daily.spider_sweep.progress";

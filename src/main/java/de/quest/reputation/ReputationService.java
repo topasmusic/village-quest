@@ -3,6 +3,8 @@ package de.quest.reputation;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.quest.daily.DailyQuestService;
+import de.quest.quest.special.RelicQuestProgressionService;
+import de.quest.questmaster.QuestMasterProgressionService;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
@@ -133,9 +135,11 @@ public final class ReputationService {
         if (world == null || playerId == null || track == null || amount == 0) {
             return get(world, playerId, track);
         }
+        int previousTotal = total(world, playerId);
         PlayerQuestData data = data(world, playerId);
         data.addReputation(track.id(), amount);
         QuestState.get(world.getServer()).markDirty();
+        QuestMasterProgressionService.onReputationChanged(world, playerId, previousTotal);
         return data.getReputation(track.id());
     }
 
@@ -152,10 +156,10 @@ public final class ReputationService {
             return ReputationTrack.CRAFTING;
         }
         return switch (type) {
-            case HONEY, PET_COLLAR, WOOL_WEAVING, STALL_NEW_LIFE -> ReputationTrack.ANIMALS;
-            case WHEAT_HARVEST, POTATO_HARVEST, RIVER_MEAL, AUTUMN_HARVEST -> ReputationTrack.FARMING;
+            case PET_COLLAR, WOOL_WEAVING, STALL_NEW_LIFE -> ReputationTrack.ANIMALS;
+            case HONEY, WHEAT_HARVEST, POTATO_HARVEST, RIVER_MEAL, AUTUMN_HARVEST -> ReputationTrack.FARMING;
             case WOODCUTTING, COAL_MINING, SMITH_SMELTING -> ReputationTrack.CRAFTING;
-            case VILLAGE_TRADING -> ReputationTrack.TRADE;
+            case VILLAGE_TRADING, MARKET_ROUNDS -> ReputationTrack.TRADE;
             case ZOMBIE_CULL, SKELETON_PATROL, SPIDER_SWEEP, CREEPER_WATCH -> ReputationTrack.MONSTER_HUNTING;
         };
     }
@@ -291,6 +295,27 @@ public final class ReputationService {
             return Text.translatable("text.village-quest.reputation.no_unlocks_yet").formatted(Formatting.GRAY);
         }
         ReputationUnlock nextUnlock = nextReputationUnlock(track, currentValue);
+        RelicQuestProgressionService.RelicUnlockPath relicPath = RelicQuestProgressionService.pathFor(track);
+        boolean storyRequired = relicPath != null && !RelicQuestProgressionService.hasStoryRequirement(world, playerId, track);
+        if (storyRequired) {
+            Text relicTitle = Text.translatable(relicPath.titleKey()).formatted(track.color());
+            Text storyTitle = Text.translatable("quest.village-quest.story." + relicPath.requiredStoryArc().id() + ".title").formatted(Formatting.GOLD);
+            if (nextUnlock != null && nextUnlock.requiredReputation() >= relicPath.requiredReputation()) {
+                return Text.translatable(
+                        "text.village-quest.reputation.next_unlock_story",
+                        relicTitle,
+                        storyTitle,
+                        Text.literal(Integer.toString(relicPath.requiredReputation())).formatted(track.color())
+                ).formatted(Formatting.GRAY);
+            }
+            if (nextUnlock == null) {
+                return Text.translatable(
+                        "text.village-quest.reputation.story_required",
+                        relicTitle,
+                        storyTitle
+                ).formatted(Formatting.GRAY);
+            }
+        }
         if (nextUnlock == null) {
             return Text.translatable("text.village-quest.reputation.all_unlocked").formatted(Formatting.DARK_GREEN);
         }

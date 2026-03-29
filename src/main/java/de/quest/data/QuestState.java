@@ -5,6 +5,7 @@ import de.quest.quest.daily.DailyQuestService;
 import de.quest.quest.special.RelicQuestStage;
 import de.quest.quest.special.ShardRelicQuestStage;
 import de.quest.quest.special.SpecialQuestKind;
+import de.quest.quest.story.StoryArcType;
 import de.quest.quest.weekly.WeeklyQuestService;
 import net.minecraft.datafixer.DataFixTypes;
 import net.minecraft.nbt.NbtCompound;
@@ -96,13 +97,27 @@ public final class QuestState extends PersistentState {
         readUuidSet(root, "dailyDiscovered", id -> getPlayerData(id).setDailyDiscovered(true));
         readUuidNamedSet(root, "weeklyDiscoveredEntries", (id, weeklyId) -> getPlayerData(id).markWeeklyDiscovered(weeklyId));
         readUuidNamedSet(root, "weeklyCompletedEntries", (id, weeklyId) -> getPlayerData(id).markWeeklyCompleted(weeklyId));
+        readUuidNamedSet(root, "storyDiscoveredEntries", (id, storyId) -> getPlayerData(id).setStoryDiscovered(storyId, true));
+        readUuidNamedSet(root, "storyCompletedEntries", (id, storyId) -> getPlayerData(id).setStoryCompleted(storyId, true));
+        readUuidNamedSet(root, "storyUnlockedProjects", (id, projectId) -> getPlayerData(id).setUnlockedProject(projectId, true));
+        readUuidNamedSet(root, "milestoneFlags", (id, flag) -> getPlayerData(id).setMilestoneFlag(flag, true));
         readUuidSet(root, "pendingDailyOffer", id -> getPlayerData(id).setPendingDailyOffer(true));
         readUuidSet(root, "pendingShardOffer", id -> getPlayerData(id).setPendingShardOffer(true));
         readUuidSet(root, "pendingBonusOffer", id -> getPlayerData(id).setPendingBonusOffer(true));
         readUuidSet(root, "questTrackerEnabled", id -> getPlayerData(id).setQuestTrackerEnabled(true));
         readUuidSet(root, "starterShardGranted", id -> getPlayerData(id).setStarterShardGranted(true));
         readUuidStringMap(root, "pendingSpecialOfferType", (id, value) -> getPlayerData(id).setPendingSpecialOfferKind(SpecialQuestKind.fromId(value)));
+        readUuidStringMap(root, "activeStoryArc", (id, value) -> getPlayerData(id).setActiveStoryArc(StoryArcType.fromId(value)));
+        readUuidStringMap(root, "pilgrimActiveContract", (id, value) -> getPlayerData(id).setActivePilgrimContractId(value));
+        readUuidStringMap(root, "pilgrimOfferedContract", (id, value) -> getPlayerData(id).setOfferedPilgrimContractId(value));
+        readUuidStringMap(root, "pilgrimOfferedContractAlt", (id, value) -> getPlayerData(id).setOfferedPilgrimContractAltId(value));
+        readUuidLongMap(root, "pilgrimOfferDay", (id, value) -> getPlayerData(id).setPilgrimOfferDay(value));
         readUuidNamedIntMap(root, "reputation", (id, stateKey, value) -> getPlayerData(id).setReputation(stateKey, value));
+        readUuidNamedIntMap(root, "storyProgressInts", (id, stateKey, value) -> getPlayerData(id).setStoryInt(stateKey, value));
+        readUuidNamedSet(root, "storyProgressFlags", (id, stateKey) -> getPlayerData(id).setStoryFlag(stateKey, true));
+        readUuidNamedIntMap(root, "pilgrimProgressInts", (id, stateKey, value) -> getPlayerData(id).setPilgrimInt(stateKey, value));
+        readUuidNamedSet(root, "pilgrimProgressFlags", (id, stateKey) -> getPlayerData(id).setPilgrimFlag(stateKey, true));
+        readUuidNamedIntMap(root, "storyChapterProgress", (id, storyId, value) -> getPlayerData(id).setStoryChapterProgress(storyId, value));
         readSpecialShardQuestData(root);
         readSpecialMerchantSealQuestData(root);
         readSpecialShepherdFluteQuestData(root);
@@ -149,13 +164,27 @@ public final class QuestState extends PersistentState {
         NbtList dailyDiscovered = new NbtList();
         NbtList weeklyDiscoveredEntries = new NbtList();
         NbtList weeklyCompletedEntries = new NbtList();
+        NbtList storyDiscoveredEntries = new NbtList();
+        NbtList storyCompletedEntries = new NbtList();
+        NbtList storyUnlockedProjects = new NbtList();
+        NbtList milestoneFlags = new NbtList();
         NbtList pendingDailyOffer = new NbtList();
         NbtList pendingShardOffer = new NbtList();
         NbtList pendingBonusOffer = new NbtList();
         NbtList questTrackerEnabled = new NbtList();
         NbtList starterShardGranted = new NbtList();
         NbtList pendingSpecialOfferType = new NbtList();
+        NbtList activeStoryArc = new NbtList();
+        NbtList pilgrimActiveContract = new NbtList();
+        NbtList pilgrimOfferedContract = new NbtList();
+        NbtList pilgrimOfferedContractAlt = new NbtList();
+        NbtList pilgrimOfferDay = new NbtList();
         NbtList reputation = new NbtList();
+        NbtList storyProgressInts = new NbtList();
+        NbtList storyProgressFlags = new NbtList();
+        NbtList pilgrimProgressInts = new NbtList();
+        NbtList pilgrimProgressFlags = new NbtList();
+        NbtList storyChapterProgress = new NbtList();
         NbtList specialShardQuest = new NbtList();
         NbtList specialMerchantSealQuest = new NbtList();
         NbtList specialShepherdFluteQuest = new NbtList();
@@ -243,6 +272,18 @@ public final class QuestState extends PersistentState {
             for (String weeklyId : data.getWeeklyCompleted()) {
                 weeklyCompletedEntries.add(entryNamedKey(id, weeklyId));
             }
+            for (String storyId : data.getStoryDiscovered()) {
+                storyDiscoveredEntries.add(entryNamedKey(id, storyId));
+            }
+            for (String storyId : data.getStoryCompleted()) {
+                storyCompletedEntries.add(entryNamedKey(id, storyId));
+            }
+            for (String projectId : data.getUnlockedProjects()) {
+                storyUnlockedProjects.add(entryNamedKey(id, projectId));
+            }
+            for (String flag : data.getMilestoneFlags()) {
+                milestoneFlags.add(entryNamedKey(id, flag));
+            }
             if (data.isPendingDailyOffer()) {
                 pendingDailyOffer.add(entryId(id));
             }
@@ -261,9 +302,45 @@ public final class QuestState extends PersistentState {
             if (data.getPendingSpecialOfferKind() != null) {
                 pendingSpecialOfferType.add(entryString(id, data.getPendingSpecialOfferKind().id()));
             }
+            if (data.getActiveStoryArc() != null) {
+                activeStoryArc.add(entryString(id, data.getActiveStoryArc().id()));
+            }
+            if (data.getActivePilgrimContractId() != null) {
+                pilgrimActiveContract.add(entryString(id, data.getActivePilgrimContractId()));
+            }
+            if (data.getOfferedPilgrimContractId() != null) {
+                pilgrimOfferedContract.add(entryString(id, data.getOfferedPilgrimContractId()));
+            }
+            if (data.getOfferedPilgrimContractAltId() != null) {
+                pilgrimOfferedContractAlt.add(entryString(id, data.getOfferedPilgrimContractAltId()));
+            }
+            if (data.getPilgrimOfferDay() != PlayerQuestData.UNSET_DAY) {
+                pilgrimOfferDay.add(entryLong(id, data.getPilgrimOfferDay()));
+            }
             for (var reputationEntry : data.getReputationState().entrySet()) {
                 if (reputationEntry.getValue() != null && reputationEntry.getValue() > 0) {
                     reputation.add(entryNamedInt(id, reputationEntry.getKey(), reputationEntry.getValue()));
+                }
+            }
+            for (var stateEntry : data.getStoryIntState().entrySet()) {
+                if (stateEntry.getValue() != null && stateEntry.getValue() != 0) {
+                    storyProgressInts.add(entryNamedInt(id, stateEntry.getKey(), stateEntry.getValue()));
+                }
+            }
+            for (String stateKey : data.getStoryFlags()) {
+                storyProgressFlags.add(entryNamedKey(id, stateKey));
+            }
+            for (var stateEntry : data.getPilgrimIntState().entrySet()) {
+                if (stateEntry.getValue() != null && stateEntry.getValue() != 0) {
+                    pilgrimProgressInts.add(entryNamedInt(id, stateEntry.getKey(), stateEntry.getValue()));
+                }
+            }
+            for (String stateKey : data.getPilgrimFlags()) {
+                pilgrimProgressFlags.add(entryNamedKey(id, stateKey));
+            }
+            for (var stateEntry : data.getStoryChapterProgressState().entrySet()) {
+                if (stateEntry.getValue() != null && stateEntry.getValue() > 0) {
+                    storyChapterProgress.add(entryNamedInt(id, stateEntry.getKey(), stateEntry.getValue()));
                 }
             }
             if (data.hasShardRelicQuestData()) {
@@ -306,13 +383,27 @@ public final class QuestState extends PersistentState {
         root.put("dailyDiscovered", dailyDiscovered);
         root.put("weeklyDiscoveredEntries", weeklyDiscoveredEntries);
         root.put("weeklyCompletedEntries", weeklyCompletedEntries);
+        root.put("storyDiscoveredEntries", storyDiscoveredEntries);
+        root.put("storyCompletedEntries", storyCompletedEntries);
+        root.put("storyUnlockedProjects", storyUnlockedProjects);
+        root.put("milestoneFlags", milestoneFlags);
         root.put("pendingDailyOffer", pendingDailyOffer);
         root.put("pendingShardOffer", pendingShardOffer);
         root.put("pendingBonusOffer", pendingBonusOffer);
         root.put("questTrackerEnabled", questTrackerEnabled);
         root.put("starterShardGranted", starterShardGranted);
         root.put("pendingSpecialOfferType", pendingSpecialOfferType);
+        root.put("activeStoryArc", activeStoryArc);
+        root.put("pilgrimActiveContract", pilgrimActiveContract);
+        root.put("pilgrimOfferedContract", pilgrimOfferedContract);
+        root.put("pilgrimOfferedContractAlt", pilgrimOfferedContractAlt);
+        root.put("pilgrimOfferDay", pilgrimOfferDay);
         root.put("reputation", reputation);
+        root.put("storyProgressInts", storyProgressInts);
+        root.put("storyProgressFlags", storyProgressFlags);
+        root.put("pilgrimProgressInts", pilgrimProgressInts);
+        root.put("pilgrimProgressFlags", pilgrimProgressFlags);
+        root.put("storyChapterProgress", storyChapterProgress);
         root.put("specialShardQuest", specialShardQuest);
         root.put("specialMerchantSealQuest", specialMerchantSealQuest);
         root.put("specialShepherdFluteQuest", specialShepherdFluteQuest);
@@ -663,6 +754,7 @@ public final class QuestState extends PersistentState {
             data.setSurveyorCompassPickaxeBaseline(item.getInt("pickaxeBaseline", 0));
             data.setSurveyorCompassModeIndex(item.getInt("modeIndex", 0));
             data.setSurveyorCompassHomeCooldownUntil(item.getLong("homeCooldownUntil", 0L));
+            data.setSurveyorCompassHomeConfirmUntil(item.getLong("homeConfirmUntil", 0L));
         }
     }
 
@@ -676,6 +768,7 @@ public final class QuestState extends PersistentState {
         item.putInt("pickaxeBaseline", data.getSurveyorCompassPickaxeBaseline());
         item.putInt("modeIndex", data.getSurveyorCompassModeIndex());
         item.putLong("homeCooldownUntil", data.getSurveyorCompassHomeCooldownUntil());
+        item.putLong("homeConfirmUntil", data.getSurveyorCompassHomeConfirmUntil());
         return item;
     }
 

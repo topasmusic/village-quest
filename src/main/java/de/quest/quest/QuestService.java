@@ -3,9 +3,11 @@ package de.quest.quest;
 import de.quest.content.item.PeaceArmorHandler;
 import de.quest.data.QuestState;
 import de.quest.painting.PaintingNameService;
+import de.quest.pilgrim.PilgrimContractService;
 import de.quest.pilgrim.PilgrimService;
 import de.quest.quest.daily.DailyQuestService;
 import de.quest.quest.special.SpecialQuestService;
+import de.quest.quest.story.StoryQuestService;
 import de.quest.quest.weekly.WeeklyQuestService;
 import net.fabricmc.fabric.api.entity.event.v1.ServerEntityCombatEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
@@ -30,7 +32,9 @@ public final class QuestService {
 
         ServerTickEvents.END_SERVER_TICK.register(DailyQuestService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(WeeklyQuestService::onServerTick);
+        ServerTickEvents.END_SERVER_TICK.register(StoryQuestService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(SpecialQuestService::onServerTick);
+        ServerTickEvents.END_SERVER_TICK.register(PilgrimContractService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(PaintingNameService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(QuestBookHelper::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(QuestTrackerService::onServerTick);
@@ -54,8 +58,11 @@ public final class QuestService {
                 var pos = hit.getBlockPos();
                 var state = world.getBlockState(pos);
                 var stack = player.getStackInHand(hand);
+                StoryQuestService.onUseBlock(sw, sp, pos, state, stack);
                 DailyQuestService.onBeeNestInteract(sw, sp, state, stack);
+                StoryQuestService.onBeeNestInteract(sw, sp, state, stack);
                 SpecialQuestService.onBeeNestInteract(sw, sp, state, stack);
+                PilgrimContractService.onBeeNestInteract(sw, sp, state, stack);
             }
             return ActionResult.PASS;
         });
@@ -70,6 +77,7 @@ public final class QuestService {
         PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, blockEntity) -> {
             if (world instanceof ServerWorld sw && player instanceof net.minecraft.server.network.ServerPlayerEntity sp) {
                 DailyQuestService.onBlockBreak(sw, sp, pos, state);
+                StoryQuestService.onBlockBreak(sw, sp, pos, state);
                 SpecialQuestService.onBlockBreak(sw, sp, pos, state);
             }
         });
@@ -82,6 +90,8 @@ public final class QuestService {
                     return specialResult;
                 }
                 DailyQuestService.onEntityUse(sw, sp, entity, stack);
+                StoryQuestService.onEntityUse(sw, sp, entity, stack);
+                PilgrimContractService.onEntityUse(sw, sp, entity, stack);
             }
             return ActionResult.PASS;
         });
@@ -89,6 +99,8 @@ public final class QuestService {
         ServerEntityCombatEvents.AFTER_KILLED_OTHER_ENTITY.register((world, entity, killedEntity, damageSource) -> {
             if (world instanceof ServerWorld sw && entity instanceof net.minecraft.server.network.ServerPlayerEntity sp) {
                 DailyQuestService.onMonsterKill(sw, sp, killedEntity);
+                StoryQuestService.onMonsterKill(sw, sp, killedEntity);
+                PilgrimContractService.onMonsterKill(sw, sp, killedEntity);
             }
         });
     }

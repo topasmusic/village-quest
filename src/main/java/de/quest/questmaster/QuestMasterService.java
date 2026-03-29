@@ -74,6 +74,7 @@ public final class QuestMasterService {
             if (!world.spawnEntity(questMaster)) {
                 continue;
             }
+            questMaster.beginArrivalTracking(anchor);
             return questMaster;
         }
         return null;

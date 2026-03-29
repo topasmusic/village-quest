@@ -4,6 +4,7 @@ import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import de.quest.economy.CurrencyService;
+import de.quest.pilgrim.PilgrimContractService;
 import de.quest.pilgrim.PilgrimService;
 import de.quest.quest.QuestTrackerService;
 import de.quest.questmaster.QuestMasterService;
@@ -12,6 +13,9 @@ import de.quest.quest.QuestBookHelper;
 import de.quest.quest.daily.DailyQuestService;
 import de.quest.quest.special.ShardRelicQuestService;
 import de.quest.quest.special.SpecialQuestService;
+import de.quest.quest.story.StoryQuestService;
+import de.quest.quest.story.VillageProjectService;
+import de.quest.quest.story.VillageProjectType;
 import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.reputation.ReputationService;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
@@ -55,6 +59,15 @@ public final class QuestCommands {
     private static final SuggestionProvider<ServerCommandSource> REPUTATION_TRACK_SUGGESTIONS = (ctx, builder) -> {
         for (ReputationService.ReputationTrack track : ReputationService.ReputationTrack.values()) {
             builder.suggest(track.id());
+        }
+        return builder.buildFuture();
+    };
+
+    private static final SuggestionProvider<ServerCommandSource> PROJECT_SUGGESTIONS = (ctx, builder) -> {
+        for (VillageProjectType project : VillageProjectType.values()) {
+            if (!project.alwaysUnlocked()) {
+                builder.suggest(project.id());
+            }
         }
         return builder.buildFuture();
     };
@@ -124,6 +137,28 @@ public final class QuestCommands {
                                             ctx.getSource(),
                                             EntityArgumentType.getPlayer(ctx, "player")
                                     ))))
+                    .then(literal("story")
+                            .then(literal("show")
+                                    .executes(ctx -> showStoryForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
+                                    .then(argument("player", EntityArgumentType.player())
+                                            .executes(ctx -> showStoryForPlayer(
+                                                    ctx.getSource(),
+                                                    EntityArgumentType.getPlayer(ctx, "player")
+                                            ))))
+                            .then(literal("reset")
+                                    .executes(ctx -> resetStoryForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
+                                    .then(argument("player", EntityArgumentType.player())
+                                            .executes(ctx -> resetStoryForPlayer(
+                                                    ctx.getSource(),
+                                                    EntityArgumentType.getPlayer(ctx, "player")
+                                            ))))
+                            .then(literal("complete")
+                                    .executes(ctx -> completeStoryForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
+                                    .then(argument("player", EntityArgumentType.player())
+                                            .executes(ctx -> completeStoryForPlayer(
+                                                    ctx.getSource(),
+                                                    EntityArgumentType.getPlayer(ctx, "player")
+                                            )))))
                     .then(literal("completedaily")
                             .executes(ctx -> completeDailyForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
                             .then(argument("player", EntityArgumentType.player())
@@ -131,6 +166,34 @@ public final class QuestCommands {
                                             ctx.getSource(),
                                             EntityArgumentType.getPlayer(ctx, "player")
                                     ))))
+                    .then(literal("project")
+                            .then(literal("show")
+                                    .executes(ctx -> showProjectsForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
+                                    .then(argument("player", EntityArgumentType.player())
+                                            .executes(ctx -> showProjectsForPlayer(
+                                                    ctx.getSource(),
+                                                    EntityArgumentType.getPlayer(ctx, "player")
+                                            ))))
+                            .then(literal("unlock")
+                                    .then(argument("player", EntityArgumentType.player())
+                                            .then(argument("project", StringArgumentType.word())
+                                                    .suggests(PROJECT_SUGGESTIONS)
+                                                    .executes(ctx -> setProjectForPlayer(
+                                                            ctx.getSource(),
+                                                            EntityArgumentType.getPlayer(ctx, "player"),
+                                                            parseProject(StringArgumentType.getString(ctx, "project")),
+                                                            true
+                                                    )))))
+                            .then(literal("lock")
+                                    .then(argument("player", EntityArgumentType.player())
+                                            .then(argument("project", StringArgumentType.word())
+                                                    .suggests(PROJECT_SUGGESTIONS)
+                                                    .executes(ctx -> setProjectForPlayer(
+                                                            ctx.getSource(),
+                                                            EntityArgumentType.getPlayer(ctx, "player"),
+                                                            parseProject(StringArgumentType.getString(ctx, "project")),
+                                                            false
+                                                    ))))))
                     .then(literal("shardcache")
                             .executes(ctx -> startShardCacheForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
                             .then(argument("player", EntityArgumentType.player())
@@ -153,6 +216,23 @@ public final class QuestCommands {
                                                     ctx.getSource(),
                                                     EntityArgumentType.getPlayer(ctx, "player")
                                             ))))
+                            .then(literal("rumor")
+                                    .then(literal("unlock")
+                                            .executes(ctx -> setPilgrimRumorOverride(ctx.getSource(), ctx.getSource().getPlayer(), true))
+                                            .then(argument("player", EntityArgumentType.player())
+                                                    .executes(ctx -> setPilgrimRumorOverride(
+                                                            ctx.getSource(),
+                                                            EntityArgumentType.getPlayer(ctx, "player"),
+                                                            true
+                                                    ))))
+                                    .then(literal("lock")
+                                            .executes(ctx -> setPilgrimRumorOverride(ctx.getSource(), ctx.getSource().getPlayer(), false))
+                                            .then(argument("player", EntityArgumentType.player())
+                                                    .executes(ctx -> setPilgrimRumorOverride(
+                                                            ctx.getSource(),
+                                                            EntityArgumentType.getPlayer(ctx, "player"),
+                                                            false
+                                                    )))))
                             .then(literal("despawn")
                                     .executes(ctx -> despawnPilgrims(ctx.getSource()))))
                     .then(literal("wallet")
@@ -430,6 +510,106 @@ public final class QuestCommands {
 
         source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.completeweekly.other", target.getDisplayName(), questName).formatted(Formatting.GREEN), false);
         target.sendMessage(Text.translatable("command.village-quest.questadmin.completeweekly.notify", questName).formatted(Formatting.GRAY), false);
+        return 1;
+    }
+
+    private static int showStoryForPlayer(ServerCommandSource source, ServerPlayerEntity target) {
+        if (target == null) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            return 0;
+        }
+        var world = source.getServer().getOverworld();
+        source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.story.header", target.getDisplayName()).formatted(Formatting.GOLD), false);
+        for (Text line : StoryQuestService.buildOverview(world, target.getUuid())) {
+            source.sendFeedback(() -> line, false);
+        }
+        return 1;
+    }
+
+    private static int resetStoryForPlayer(ServerCommandSource source, ServerPlayerEntity target) {
+        if (target == null) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            return 0;
+        }
+
+        var world = source.getServer().getOverworld();
+        if (!StoryQuestService.adminResetStoryState(world, target.getUuid())) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.story.reset.none").formatted(Formatting.RED), false);
+            return 0;
+        }
+        refreshQuestUi(world, target);
+
+        ServerPlayerEntity sourcePlayer = source.getPlayer();
+        if (sourcePlayer != null && sourcePlayer.getUuid().equals(target.getUuid())) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.story.reset.self").formatted(Formatting.GREEN), false);
+            return 1;
+        }
+
+        source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.story.reset.other", target.getDisplayName()).formatted(Formatting.GREEN), false);
+        target.sendMessage(Text.translatable("command.village-quest.questadmin.story.reset.notify").formatted(Formatting.GRAY), false);
+        return 1;
+    }
+
+    private static int completeStoryForPlayer(ServerCommandSource source, ServerPlayerEntity target) {
+        if (target == null) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            return 0;
+        }
+
+        var world = source.getServer().getOverworld();
+        if (!StoryQuestService.adminForceCompleteActiveChapter(world, target)) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.story.complete.none").formatted(Formatting.RED), false);
+            return 0;
+        }
+
+        ServerPlayerEntity sourcePlayer = source.getPlayer();
+        if (sourcePlayer != null && sourcePlayer.getUuid().equals(target.getUuid())) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.story.complete.self").formatted(Formatting.GREEN), false);
+            return 1;
+        }
+
+        source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.story.complete.other", target.getDisplayName()).formatted(Formatting.GREEN), false);
+        target.sendMessage(Text.translatable("command.village-quest.questadmin.story.complete.notify").formatted(Formatting.GRAY), false);
+        return 1;
+    }
+
+    private static int showProjectsForPlayer(ServerCommandSource source, ServerPlayerEntity target) {
+        if (target == null) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            return 0;
+        }
+        var world = source.getServer().getOverworld();
+        source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.project.header", target.getDisplayName()).formatted(Formatting.GOLD), false);
+        for (Text line : VillageProjectService.buildOverview(world, target.getUuid())) {
+            source.sendFeedback(() -> line, false);
+        }
+        return 1;
+    }
+
+    private static int setProjectForPlayer(ServerCommandSource source, ServerPlayerEntity target, VillageProjectType project, boolean unlocked) {
+        if (target == null) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            return 0;
+        }
+        if (project == null || project.alwaysUnlocked()) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.project.invalid").formatted(Formatting.RED), false);
+            return 0;
+        }
+
+        var world = source.getServer().getOverworld();
+        if (!VillageProjectService.setUnlocked(world, target.getUuid(), project, unlocked)) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.project.no_change").formatted(Formatting.RED), false);
+            return 0;
+        }
+        refreshQuestUi(world, target);
+
+        source.sendFeedback(() -> Text.translatable(
+                unlocked
+                        ? "command.village-quest.questadmin.project.unlock"
+                        : "command.village-quest.questadmin.project.lock",
+                target.getDisplayName(),
+                Text.translatable("quest.village-quest.project." + project.id() + ".title")
+        ).formatted(Formatting.GREEN), false);
         return 1;
     }
 
@@ -741,12 +921,50 @@ public final class QuestCommands {
         return 1;
     }
 
+    private static int setPilgrimRumorOverride(ServerCommandSource source, ServerPlayerEntity target, boolean enabled) {
+        if (target == null) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            return 0;
+        }
+
+        var world = source.getServer().getOverworld();
+        PilgrimContractService.adminSetRumorUnlocked(world, target, enabled);
+        refreshQuestUi(world, target);
+
+        ServerPlayerEntity sourcePlayer = source.getPlayer();
+        if (sourcePlayer != null && sourcePlayer.getUuid().equals(target.getUuid())) {
+            source.sendFeedback(() -> Text.translatable(
+                    enabled
+                            ? "command.village-quest.questadmin.pilgrim.rumor.unlock.self"
+                            : "command.village-quest.questadmin.pilgrim.rumor.lock.self"
+            ).formatted(Formatting.GREEN), false);
+            return 1;
+        }
+
+        source.sendFeedback(() -> Text.translatable(
+                enabled
+                        ? "command.village-quest.questadmin.pilgrim.rumor.unlock.other"
+                        : "command.village-quest.questadmin.pilgrim.rumor.lock.other",
+                target.getDisplayName()
+        ).formatted(Formatting.GREEN), false);
+        target.sendMessage(Text.translatable(
+                enabled
+                        ? "command.village-quest.questadmin.pilgrim.rumor.unlock.notify"
+                        : "command.village-quest.questadmin.pilgrim.rumor.lock.notify"
+        ).formatted(Formatting.GRAY), false);
+        return 1;
+    }
+
     private static CurrencyService.CurrencyUnit parseCurrencyUnit(String raw) {
         return CurrencyService.parseUnit(raw);
     }
 
     private static ReputationService.ReputationTrack parseReputationTrack(String raw) {
         return ReputationService.parseTrack(raw);
+    }
+
+    private static VillageProjectType parseProject(String raw) {
+        return VillageProjectType.fromId(raw);
     }
 
     private static void refreshQuestUi(net.minecraft.server.world.ServerWorld world, ServerPlayerEntity player) {
@@ -756,6 +974,7 @@ public final class QuestCommands {
         QuestBookHelper.refreshQuestBook(world, player);
         QuestTrackerService.refresh(world, player);
         QuestMasterUiService.refreshIfOpen(world, player);
+        PilgrimService.refreshIfTrading(world, player);
     }
 
     private enum WalletAdjustmentMode {

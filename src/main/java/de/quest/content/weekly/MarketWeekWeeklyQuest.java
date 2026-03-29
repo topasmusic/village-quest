@@ -72,7 +72,7 @@ public final class MarketWeekWeeklyQuest implements WeeklyQuestDefinition {
                 WeeklyQuestService.reward(2, 20),
                 WeeklyQuestService.magicShardReward(1),
                 ItemStack.EMPTY,
-                1100,
+                16,
                 ReputationService.ReputationTrack.TRADE,
                 50
         );

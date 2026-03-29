@@ -2,10 +2,15 @@ package de.quest.quest;
 
 import de.quest.network.Payloads.JournalPayload;
 import de.quest.economy.CurrencyService;
+import de.quest.pilgrim.PilgrimContractService;
 import de.quest.registry.ModItems;
 import de.quest.quest.daily.DailyQuestService;
 import de.quest.quest.special.SpecialQuestService;
 import de.quest.quest.special.SpecialQuestStatus;
+import de.quest.quest.story.StoryQuestService;
+import de.quest.quest.story.StoryQuestStatus;
+import de.quest.quest.story.VillageProjectService;
+import de.quest.quest.story.VillageProjectType;
 import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.quest.weekly.WeeklyQuestStatus;
 import de.quest.reputation.ReputationService;
@@ -40,6 +45,18 @@ public final class QuestBookHelper {
         Text weeklyProgress = weeklyActive
                 ? Text.literal(String.join("\n", weekly.lines().stream().map(Text::getString).toList()))
                 : Text.empty();
+        StoryQuestStatus story = StoryQuestService.openStatus(world, pid);
+        boolean storyActive = story != null;
+        Text storyTitle = storyActive ? story.title() : Text.empty();
+        Text storyProgress = storyActive
+                ? Text.literal(String.join("\n", story.lines().stream().map(Text::getString).toList()))
+                : Text.empty();
+        PilgrimContractService.PilgrimContractStatus pilgrim = PilgrimContractService.openStatus(world, pid);
+        boolean pilgrimActive = pilgrim != null;
+        Text pilgrimTitle = pilgrimActive ? pilgrim.title() : Text.empty();
+        Text pilgrimProgress = pilgrimActive
+                ? Text.literal(String.join("\n", pilgrim.lines().stream().map(Text::getString).toList()))
+                : Text.empty();
         SpecialQuestStatus special = SpecialQuestService.openStatus(world, pid);
         boolean specialActive = special != null;
         Text specialTitle = specialActive ? special.title() : Text.empty();
@@ -49,15 +66,20 @@ public final class QuestBookHelper {
 
         int total = DailyQuestService.getDailyQuestCount()
                 + WeeklyQuestService.getWeeklyQuestCount()
+                + StoryQuestService.getStoryArcCount()
                 + SpecialQuestService.TOTAL_SPECIAL_QUESTS;
         int discovered = (DailyQuestService.hasDiscoveredDaily(world, pid) ? 1 : 0)
                 + WeeklyQuestService.discoveredCount(world, pid)
+                + StoryQuestService.discoveredCount(world, pid)
                 + SpecialQuestService.discoveredCount(world, pid);
         int completed = (DailyQuestService.isDailyCompleted(world, pid) ? 1 : 0)
                 + WeeklyQuestService.completedCount(world, pid)
+                + StoryQuestService.completedCount(world, pid)
                 + SpecialQuestService.completedCount(world, pid);
         int active = (DailyQuestService.isDailyActive(world, pid) ? 1 : 0)
                 + WeeklyQuestService.activeCount(world, pid)
+                + StoryQuestService.activeCount(world, pid)
+                + (pilgrimActive ? 1 : 0)
                 + SpecialQuestService.activeCount(world, pid);
         long currencyBalance = CurrencyService.getBalance(world, pid);
         int farmingReputation = ReputationService.get(world, pid, ReputationService.ReputationTrack.FARMING);
@@ -70,6 +92,12 @@ public final class QuestBookHelper {
         boolean hasShepherdFlute = hasInventoryItem(player, ModItems.SHEPHERD_FLUTE);
         boolean hasApiaristSmoker = hasInventoryItem(player, ModItems.APIARISTS_SMOKER);
         boolean hasSurveyorCompass = hasInventoryItem(player, ModItems.SURVEYORS_COMPASS);
+        boolean hasVillageLedgerProject = VillageProjectService.isUnlocked(world, pid, VillageProjectType.VILLAGE_LEDGER);
+        boolean hasApiaryCharterProject = VillageProjectService.isUnlocked(world, pid, VillageProjectType.APIARY_CHARTER);
+        boolean hasForgeCharterProject = VillageProjectService.isUnlocked(world, pid, VillageProjectType.FORGE_CHARTER);
+        boolean hasMarketCharterProject = VillageProjectService.isUnlocked(world, pid, VillageProjectType.MARKET_CHARTER);
+        boolean hasPastureCharterProject = VillageProjectService.isUnlocked(world, pid, VillageProjectType.PASTURE_CHARTER);
+        boolean hasWatchBellProject = VillageProjectService.isUnlocked(world, pid, VillageProjectType.WATCH_BELL);
 
         return new JournalPayload(
                 action,
@@ -94,9 +122,21 @@ public final class QuestBookHelper {
                 weeklyActive,
                 weeklyTitle,
                 weeklyProgress,
+                storyActive,
+                storyTitle,
+                storyProgress,
+                pilgrimActive,
+                pilgrimTitle,
+                pilgrimProgress,
                 specialActive,
                 specialTitle,
-                specialProgress
+                specialProgress,
+                hasVillageLedgerProject,
+                hasApiaryCharterProject,
+                hasForgeCharterProject,
+                hasMarketCharterProject,
+                hasPastureCharterProject,
+                hasWatchBellProject
         );
     }
 

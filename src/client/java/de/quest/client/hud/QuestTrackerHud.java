@@ -23,7 +23,7 @@ public final class QuestTrackerHud {
 
     private static void render(DrawContext drawContext, net.minecraft.client.render.RenderTickCounter tickCounter) {
         TrackerState tracker = state;
-        if (!tracker.enabled() || (!tracker.dailyActive() && !tracker.weeklyActive() && !tracker.specialActive())) {
+        if (!tracker.enabled() || (!tracker.dailyActive() && !tracker.weeklyActive() && !tracker.storyActive() && !tracker.pilgrimActive() && !tracker.specialActive())) {
             return;
         }
 
@@ -46,6 +46,18 @@ public final class QuestTrackerHud {
                 maxWidth = Math.max(maxWidth, renderer.getWidth(line));
             }
         }
+        if (tracker.storyActive()) {
+            maxWidth = Math.max(maxWidth, renderer.getWidth(tracker.storyTitle()));
+            for (Text line : tracker.storyLines()) {
+                maxWidth = Math.max(maxWidth, renderer.getWidth(line));
+            }
+        }
+        if (tracker.pilgrimActive()) {
+            maxWidth = Math.max(maxWidth, renderer.getWidth(tracker.pilgrimTitle()));
+            for (Text line : tracker.pilgrimLines()) {
+                maxWidth = Math.max(maxWidth, renderer.getWidth(line));
+            }
+        }
         if (tracker.specialActive()) {
             maxWidth = Math.max(maxWidth, renderer.getWidth(tracker.specialTitle()));
             for (Text line : tracker.specialLines()) {
@@ -60,6 +72,12 @@ public final class QuestTrackerHud {
         }
         if (tracker.weeklyActive()) {
             contentLines += 1 + tracker.weeklyLines().size();
+        }
+        if (tracker.storyActive()) {
+            contentLines += 1 + tracker.storyLines().size();
+        }
+        if (tracker.pilgrimActive()) {
+            contentLines += 1 + tracker.pilgrimLines().size();
         }
         if (tracker.specialActive()) {
             contentLines += 1 + tracker.specialLines().size();
@@ -96,6 +114,24 @@ public final class QuestTrackerHud {
             }
         }
 
+        if (tracker.storyActive()) {
+            drawContext.drawTextWithShadow(renderer, tracker.storyTitle(), textX, textY, 0xFFFFFFFF);
+            textY += lineHeight;
+            for (Text line : tracker.storyLines()) {
+                drawContext.drawTextWithShadow(renderer, line, textX, textY, 0xFFD7E9A9);
+                textY += lineHeight;
+            }
+        }
+
+        if (tracker.pilgrimActive()) {
+            drawContext.drawTextWithShadow(renderer, tracker.pilgrimTitle(), textX, textY, 0xFFFFFFFF);
+            textY += lineHeight;
+            for (Text line : tracker.pilgrimLines()) {
+                drawContext.drawTextWithShadow(renderer, line, textX, textY, 0xFFE7D1A4);
+                textY += lineHeight;
+            }
+        }
+
         if (tracker.specialActive()) {
             drawContext.drawTextWithShadow(renderer, tracker.specialTitle(), textX, textY, 0xFFFFFFFF);
             textY += lineHeight;
@@ -114,12 +150,18 @@ public final class QuestTrackerHud {
             boolean weeklyActive,
             Text weeklyTitle,
             List<Text> weeklyLines,
+            boolean storyActive,
+            Text storyTitle,
+            List<Text> storyLines,
+            boolean pilgrimActive,
+            Text pilgrimTitle,
+            List<Text> pilgrimLines,
             boolean specialActive,
             Text specialTitle,
             List<Text> specialLines
     ) {
         public static TrackerState disabled() {
-            return new TrackerState(false, false, Text.empty(), List.of(), false, Text.empty(), List.of(), false, Text.empty(), List.of());
+            return new TrackerState(false, false, Text.empty(), List.of(), false, Text.empty(), List.of(), false, Text.empty(), List.of(), false, Text.empty(), List.of(), false, Text.empty(), List.of());
         }
     }
 }
