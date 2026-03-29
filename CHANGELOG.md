@@ -8,186 +8,67 @@ Release date: 2026-03-29
 
 ### Village Stories Foundation
 
-- Added the first persistent `Story` category to the Questmaster alongside the existing daily, weekly, and special layers.
-- Added the first multi-step story arc `The Failing Harvest` with `4` sequential chapters that track real harvest, hive, oven-output, and villager-trade actions.
-- Expanded the story system with `4` more multi-step arcs:
+- Added a full `Story` layer to the `Questmaster` with sequential multi-step village arcs instead of dumping every long-form quest on the player at once.
+- Added the visible village-core story chain:
+  - `The Failing Harvest`
   - `The Silent Forge`
   - `Market Road Troubles`
   - `Restless Pens`
-  - `Night Bells`
-- The new story arcs now unlock sequentially instead of dumping every arc on the player at once, keeping the `Story` tab readable while still building long-form progression.
-- Added the `Restless Pens` animals story arc with breeding, wool turn-ins, villager consultation, and a final shared-bell moment that restores the village pens and unlocks the `Pasture Charter`.
-- `The Silent Forge` now includes deeper forge restoration turn-ins, rare ore mining, and a finale that requires buying any villager `Sharpness` book and binding it onto a `Diamond Sword` at an anvil before turning the blade in.
-- `Market Road Troubles` now leans on earned emeralds, real paperwork turn-ins, a larger villager-trade push, and a final `speak with 5 employed villagers` chapter to make the market recovery feel more social and less checklist-driven.
-- `Night Bells` now ends with a full raid-success requirement rather than a generic bell interaction, tracked via a fresh post-acceptance raid victory state.
-- Added the first `Village Projects` journal layer with `Village Ledger` as the foundation project and `Apiary Charter` as the first unlockable permanent upgrade.
-- Completing `The Failing Harvest` now unlocks `Apiary Charter`, which grants `+5` bonus `Farming` reputation on future farming reputation rewards.
-- Added `Forge Charter`, `Market Charter`, `Pasture Charter`, and `Watch Bell` as new permanent story rewards with distinct long-term effects tied to their part of village life.
-- Added a second `Trade` daily, `Market Rounds`, built around visiting employed villagers and making a small real trade, so the `Trade` reputation curve is less bottlenecked.
-- Story chapters now send a one-time `ready to turn in` message once all objectives for the active chapter are complete, so players know to return to the Questmaster.
-- Reworked the early Questmaster onboarding so `Story` stays hidden until the player finishes their first normal daily quest, while `Special` only appears after the first real reputation gain.
-- The `Special` category no longer dumps every future relic quest on new players at once; unreached relic quests and the `Magic Shard` trial now stay hidden until they are actually relevant.
-- Relic quests are now tied to both their matching story arc and the old reputation threshold, so special commissions appear as earned follow-ups to village work instead of isolated reputation gates.
-- Added lore-style chat hints when story work, special commissions, or the shard trial first become relevant.
-- Village projects now also surface as a lightweight memory layer in future reward text, explicitly calling out when a charter or bell is strengthening the reputation payout you just earned.
-- Extended persistent player data, quest-state saving, the journal, the quest tracker HUD, and the Questmaster UI to include the larger story roster and the new village-project state.
+- Added persistent `Village Projects` to the journal and progression layer:
+  - `Village Ledger`
+  - `Apiary Charter`
+  - `Forge Charter`
+  - `Market Charter`
+  - `Pasture Charter`
+  - `Watch Bell`
+- Added `Market Rounds` as a second `Trade` daily so trade reputation is less bottlenecked.
+- Story chapters now send a one-time `ready to turn in` message when complete.
+- `Story` now unlocks after the first normal daily completion, while `Special` unlocks after the first real reputation gain.
+- Relic quests are now tied to both reputation and their matching story arc, so special commissions appear as earned follow-ups to village work.
+- Added lore-style chat hints and stronger journal / reward-state support for story arcs, village projects, and late special progression.
 - Added admin helpers to inspect/reset story progress and to show/unlock/lock village projects for testing.
 
 ### Progression Clarity Rework
 
-- Reworked the current unreleased local batch to make the mod clearer and stronger instead of merely bigger.
-- The `Questmaster` is now more clearly the center of village-core progression:
+- Reworked the current local batch to clarify roles instead of adding more overlapping systems.
+- `Questmaster` is now more clearly the center of village-core progression:
   - normal `Daily` and `Weekly` rotation no longer includes combat quests
-  - `Story` now surfaces only the active arc or next available arc instead of listing the whole archive at once
-  - daily reward previews now show reputation and project-aware follow-up effects more clearly
-- Reframed the old `Monster Hunting` lane into `Roadside Watch` / `Wegewacht` so monster work reads more like village protection and road safety than a generic combat track.
-- Kept `Night Bells` as the late protective side arc, but moved ordinary combat out of the main routine village loop so it no longer competes with the farming / craft / trade / pasture identity of the mod.
-- Reworked the `Pilgrim` away from feeling like a second Questmaster:
-  - the weaker overlapping non-combat road contracts were removed again
-  - the remaining pilgrim work is now limited to the `Wayfinder` roadmark unlock and late dangerous road-watch work tied to `Watch Bell`
-  - the dangerous pilgrim side contracts now center on roadside safety and night danger instead of duplicating ordinary village labor
-- Reworked `Village Projects` so they are less same-shaped and less purely number-driven:
-  - `Apiary Charter` keeps the `+5 Farming Reputation` identity
-  - `Forge Charter` now grants `+2 levels` on future crafting rewards
-  - `Market Charter` now functions as the trust unlock that lets the pilgrim later teach old roadmarks onto the `Wayfinder's Compass`
-  - `Pasture Charter` now grants `+2 Silvermarks` on future animals rewards
-  - `Watch Bell` now grants `+5 Roadside Watch Reputation` and unlocks dangerous pilgrim road work
-- Strengthened project memory and distinction in reward text, journal wording, and follow-up flavor so the player is more likely to remember the village change rather than just a bonus number.
-- Reworked several story and pilgrim text/objective framings to feel less like MMO-style checklist chains and more like natural responses to village problems, especially around:
-  - `Silent Forge`
-  - `Market Road Troubles`
-  - `Restless Pens`
-  - `Night Bells`
-  - the remaining pilgrim contracts
-- Reworked quest rewards away from raw XP points into direct level rewards so high-level players still feel meaningful progress:
-  - dailies now scale by difficulty in whole levels
-  - weeklies now pay larger level chunks based on overall effort
-  - story chapters now pay clearer step-up level rewards with stronger finales
-  - pilgrim contracts now pay level rewards instead of raw XP
-- `Forge Charter` was updated to match that reward rework and now adds `+2 levels` to future crafting rewards instead of a flat XP bonus.
-- Doubled all newly introduced level rewards after the first local balancing pass so they stay meaningful in longer-running worlds:
+  - `Story` now surfaces only the active arc or next available arc
+  - reward previews are clearer about reputation and project-aware follow-up effects
+- Reframed the old combat lane into `Roadside Watch` and moved late dangerous road work fully to the `Pilgrim`.
+- `Night Bells` no longer sits in the visible `Questmaster` story lane; `Watch Bell` is now derived automatically once all four visible village-core stories are complete.
+- `Pilgrim` contracts were simplified and sharpened:
+  - `Roadmarks for the Compass` is now a one-time special contract
+  - once `Watch Bell` is unlocked and `Roadmarks` is no longer pending, the pilgrim now offers exactly `1` dangerous roadside rumor per day
+  - the late roadside rumor pool now includes overworld, nether, and end work with stronger rewards for higher danger
+- `Village Projects` now have clearer identities instead of feeling like near-identical passive bonuses:
+  - `Apiary Charter` -> `+5 Farming Reputation` and `Wayfinder` field-bearing calibration
+  - `Forge Charter` -> `+2 levels` on crafting rewards
+  - `Market Charter` -> unlocks pilgrim roadmark teaching for the `Wayfinder's Compass`
+  - `Pasture Charter` -> `+2 Silvermarks` on animals rewards
+  - `Watch Bell` -> `+5 Roadside Watch Reputation` and late dangerous pilgrim road work
+- Reworked quest rewards away from raw XP points into direct level rewards:
   - dailies now pay `2 / 4 / 6` levels by difficulty
   - weeklies now pay `14 / 16 / 18` levels by effort tier
   - story chapters now pay `4 / 6 / 8 / 10` levels
-  - pilgrim contracts now pay `4 / 6` levels depending on danger and effort
-- Accepting a quest now automatically enables the permanent quest tracker and sends a chat hint explaining that `/questtracker` can toggle it back off again.
-- Reworked the `Wayfinder's Compass` into a staged relic instead of an all-at-once unlock:
-  - the base relic now always starts with `Home`
-  - `Apiary Charter` now unlocks a follow-up `Questmaster` calibration step instead of instantly adding biome modes
-  - biome routes are now earned by taking the compass to `Desert`, `Jungle`, `Frozen Peaks`, and `Mushroom Fields` and right-clicking there to inscribe each field bearing
-  - structure routes are now earned later through the pilgrim contract `Roadmarks for the Compass`
-- Reworked `Roadmarks for the Compass` away from a paper-and-ink turn-in into a real roadside-imprinting contract:
-  - the player now carries the compass to a `Village`, `Pillager Outpost`, `Woodland Mansion`, and `Swamp Hut`
-  - each roadmark is inscribed on-site with a right-click on the compass
-- Added short contextual chat hints while carrying the compass so players are told when a valid biome or structure can currently be inscribed.
-- `Home` on the `Wayfinder's Compass` now asks for a second confirming right-click within `10` seconds before teleporting, so accidental taps no longer trigger an unwanted return.
-- `Apiary Charter` now carries a stronger second after-effect besides its farming-reputation bonus: it gives the Questmaster enough trusted landmarks to calibrate the `Wayfinder's Compass` against the land.
-- Added dedicated structure-tag resources for the pilgrim roadmark contract so village/outpost/mansion/swamp-hut imprint checks stay explicit and maintainable.
-- The pilgrim now spends the first `15` seconds after spawning trying to path toward the player they arrived for, then falls back to the normal idle wandering behavior.
-- The questmaster now also spends the first `5` seconds after spawning trying to path toward the player they arrived for, then falls back to the normal idle wandering behavior.
-- Both the pilgrim and the questmaster now visibly carry a torch by night whenever they are not currently in sword-drawn self-defense.
-- Their night-torch presentation now also uses a raised blocking-style arm pose on the client, so the torch reads more like active light-carrying than a loose item hanging at the side.
-- `Night Bells` no longer sits in the visible `Questmaster` story lane; the main village-core arc chain now ends after `Restless Pens`, and `Watch Bell` is derived automatically once all four village-core stories are complete.
-- Dangerous `Roadside Watch` work now begins only after that derived `Watch Bell` unlock and stays fully with the `Pilgrim` instead of re-entering the `Questmaster` story flow.
-- The pilgrim roadside lane was simplified again so it reads more like a late optional daily:
-  - `Roadmarks for the Compass` is now a one-time special pilgrim contract and, when available, temporarily replaces the ordinary combat rumor instead of sitting beside it
-  - once `Watch Bell` is unlocked and `Roadmarks` is no longer pending, the pilgrim now offers exactly `1` dangerous roadside rumor per day instead of a two-choice combat menu
-- Simplified several quest tracker lines that had become too system-visible or redundant:
-  - `The Silent Forge` tool chapter now shows one clear per-item completion state instead of separate crafted and carried sub-states
-  - `The Silent Forge` finale now breaks the blade proof into three explicit steps: `Sharpness Book Bought`, `Diamond Sword Sharpened`, and `Finished Blade Carried`
-  - short inventory checks such as honey, ledger, hay, wool, and the compass pickaxe now use direct item labels instead of `On Hand` / `im Inventar`
-- Added a quieter in-world clarity note to the journal flow page and to the relevant forge/compass quest text explaining that ledgers asking for forged or crafted proof only accept fresh work made during the active quest, not old stock pulled from a chest.
-- The `Wayfinder's Compass` relic reward was tuned down from `10` to `3` `Netherite Ingots`.
-- Corrected the German journal entry for the `Wayfinder's Compass` so it now matches the actual staged flow:
-  - first `Home`
-  - then `Field Bearings` at the `Questmaster`
-  - then `Roadmarks for the Compass` at the `Pilgrim`
-- Shortened and tightened the journal relic text for the `Wayfinder's Compass` in both languages so it reads more like a concise in-world note and less like a technical manual.
-- Expanded the `Provisions Satchel` shop text so it now explicitly tells players it always carries `32 Golden Carrots` plus one or two rotating bonus finds such as ingots, emeralds, diamonds, torches, cooked beef, coal, and on rare days a golden apple.
-- Reworked the pilgrim rumor-contract selector away from small icon chips over the gold arrow:
-  - multiple contract choices now render as full-width text buttons in the upper rumor panel
-  - the lower rumor body can now start higher and read more cleanly without the old icon overlap
-- Shop offers in the pilgrim detail panel now actually render their own description text in the lower body area instead of burning most of the space on the old generic wallet hint.
-- Shortened the `Provisions Satchel` description again so it fits cleanly inside the pilgrim shop detail box without truncating.
-- The pilgrim shop detail body now has its own scroll field for longer offer text, and the `Provisions Satchel` wording now starts with `Contains ...` / `Enthaelt ...`.
-- The rumor selector buttons were enlarged again to better fill the upper panel, and the lower rumor scroll body was moved slightly downward so it no longer starts too close to the divider.
-- The pilgrim `Rumor` view was then corrected back onto the same base board layout as the normal trade tab after the separate quest-board experiment broke the geometry:
-  - the `Rumor` tab now sits on the regular pilgrim board again instead of a mismatched overlay
-  - the upper contract buttons stay enlarged inside the normal right-hand panel
-  - the lower rumor scroll body keeps the tighter text spacing without switching to a second board texture
-- The rumor geometry was then tightened again on that shared board:
-  - the `Rumor` tab sits a touch further left for cleaner alignment
-  - the stacked contract choices sit slightly higher and closer together
-  - the lower rumor text body starts slightly lower so the status and first paragraph stop grazing the upper edge
-- The pilgrim UI then got a cleaner split between shop and rumor presentation:
-  - the normal shop detail text no longer has the stray horizontal divider line above it
-  - shop description text now starts a little higher again after that line removal
-  - rumor now swaps to a dedicated board texture derived from the normal pilgrim layout, so the old gold arrow is gone without changing the overall board geometry
-  - the `Rumor` tab was nudged almost flush with the right edge, and the two quest buttons were lifted a little higher again
-- The pilgrim shop detail text was then nudged a little higher again so the lower lines stop clipping above the buy button.
-- The pilgrim rumor panel now also uses the same top selection-button presentation even when only a single rumor contract is available, so every pilgrim quest renders with a clear top button instead of dropping into a special no-button layout.
-- The `Rumor` tab itself was nudged one more pixel to the right for cleaner alignment against the board edge.
-- The journal active-page empty-state hint now points at the built-in `Questmaster` button below instead of telling the player to type `/questmaster`.
-- Weekly quests now mirror dailies with cancel support:
-  - the journal shows a red `X` for the active weekly
-  - the Questmaster board now exposes `Cancel` for active weeklies
-  - canceling a weekly clears only the accepted state and weekly progress, but keeps the same weekly contract for that week instead of rerolling
-- The pilgrim rumor selection text inside the upper quest buttons was nudged again:
-  - slightly larger
-  - horizontally cleaner
-  - vertically more centered inside the button
-- Added a proper multi-page repo wiki under `docs/wiki/` for the current local development branch:
-  - `Wiki Home`
-  - `Getting Started`
-  - `Core Progression`
-  - `Stories and Village Projects`
-  - `Relics, Wayfinder, and Magic Shards`
-  - `Pilgrim and Roadside Watch`
-  - `Quest Reference`
-  - `Commands and Admin Tools`
-- Linked that wiki from the root `README.md` so the repo now has a discoverable central documentation entry point beyond the release notes and memory files.
-- The `Wayfinder's Compass` unlock steps were tightened without shrinking the finished relic:
-  - `Field Bearings` and `Roadmarks for the Compass` still only ask for `4` calibration targets each
-  - but once each step is completed, the compass now unlocks the broader old mode roster again instead of staying limited to those four quest targets
-  - the finished biome roster once again includes:
-    - `Forest`
-    - `Plains`
-    - `Taiga`
-    - `Snowy Plains`
-    - `Mountain`
-    - `Meadow`
-    - `Cherry Grove`
-    - `Jungle`
-    - `Desert`
-    - `Frozen Peaks`
-    - `Savanna`
-    - `Swamp`
-    - `Badlands`
-    - `Beach`
-    - `River`
-    - `Ocean`
-    - `Mushroom Fields`
-  - the finished structure roster once again includes:
-    - `Village`
-    - `Pillager Outpost`
-    - `Stronghold`
-    - `Trial Chamber`
-    - `Woodland Mansion`
-    - `Ocean Monument`
-    - `Jungle Temple`
-    - `Swamp Hut`
-    - `Mineshaft`
-    - `Shipwreck`
-    - `Ruined Portal`
-  - `Field Bearings` is now also visibly blocked until the player is actually carrying the `Wayfinder's Compass`
-- Expanded the `Pilgrim` roadside combat lane into a fuller late-game rumor rotation:
-  - existing overworld rumors were simplified into single-mob protection jobs
-  - added new dangerous-road rumors for:
-    - `Tracks in the Dark`
-    - `Fangs by the Hedgerow`
-    - `Ash on the Pass`
-    - `Smoke over Blackstone`
-    - `Stillness beyond the Gate`
+  - pilgrim contracts now pay whole levels instead of raw XP
+- Reworked the `Wayfinder's Compass` into a staged relic:
+  - base relic now starts with `Home`
+  - `Field Bearings` calibrates the compass through `Desert`, `Jungle`, `Frozen Peaks`, and `Mushroom Fields`
+  - `Roadmarks for the Compass` calibrates the compass through `Village`, `Pillager Outpost`, `Woodland Mansion`, and `Swamp Hut`
+  - each step unlocks the broader finished biome / structure mode rosters after calibration is complete
+  - `Home` now asks for a second confirming right-click within `10` seconds
+  - the relic reward was tuned from `10` down to `3` `Netherite Ingots`
+- Added contextual chat hints for valid compass imprint locations and cleaner tracker text for forge, inventory, and turn-in proof steps.
+- `Questmaster` and `Pilgrim` now briefly path toward the player after spawning, carry torches by night, and use a raised torch pose on the client.
+- Polished the journal, quest tracker, and pilgrim UI:
+  - rumor contracts now use clearer top buttons instead of overlapping icon chips
+  - shop text and rumor text areas scroll and fit more cleanly
+  - the journal empty-state now points to the built-in `Questmaster` button
+  - weeklies now support canceling without rerolling the weekly for that week
+- Added a full repo wiki under `docs/wiki/` and linked it from the root `README.md`.
+- Build validation for the full release batch succeeded with Java 21:
+  - `.\gradlew.bat build`
   - overworld rumors stay lighter, while `Nether` and especially `End` roadside jobs now pay clearly higher money, `Roadside Watch`, and level rewards
 - Pilgrim contract presentation now also uses lane colors for faster recognition:
   - overworld roadside work renders in green
