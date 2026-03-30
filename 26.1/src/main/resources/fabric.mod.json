@@ -1,0 +1,31 @@
+{
+	"schemaVersion": 1,
+	"id": "village-quest",
+	"version": "${version}",
+	"name": "Village Quest",
+	"description": "Adds village daily quests, a journal, a quest block, a digital wallet, and the traveling Pilgrim trader.",
+	"authors": [
+		"TopasMusic",
+		"Landschaftswart"
+	],
+	"license": "MIT",
+	"icon": "assets/village-quest/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"de.quest.VillageQuest"
+		],
+		"client": [
+			"de.quest.client.VillageQuestClient"
+		]
+	},
+	"mixins": [
+		"village-quest.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.18.5",
+		"minecraft": "~26.1",
+		"java": ">=25",
+		"fabric-api": ">=0.144.3+26.1"
+	}
+}
