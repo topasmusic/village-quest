@@ -1,17 +1,15 @@
 # Village Quest Wiki
 
-This wiki documents the current shipped baseline of `Village Quest`.
+This wiki covers the current shipped baseline of `Village Quest` for Minecraft `26.1`.
 
-Important note:
-- the current published version is `1.20.0`
-- this wiki now reflects the shipped `1.20.0` baseline and can continue forward from there
+Current release:
+- `1.20.1`
 
-`Village Quest` is a village-centered progression mod for Minecraft `1.21.11`.
-Its core loop is:
+The core loop is:
 - help a village through grounded daily and weekly work
 - earn trust and reputation
 - unlock story arcs and long-term village projects
-- earn relics and quiet magical tools
+- earn relics and magical tools
 - take on optional roadside and outer-world work through the `Pilgrim`
 
 ## Quick Navigation
