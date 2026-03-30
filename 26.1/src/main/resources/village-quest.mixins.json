@@ -1,0 +1,27 @@
+{
+  "required": true,
+  "package": "de.quest.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "AbstractFurnaceScreenHandlerMixin",
+    "AnvilScreenHandlerMixin",
+    "AnimalEntityMixin",
+    "BrewedPotionCriterionMixin",
+    "FurnaceOutputSlotMixin",
+    "ForgingScreenHandlerAccessor",
+    "ForgingScreenHandlerMixin",
+    "ItemEntityMixin",
+    "MerchantEntityAccessor",
+    "SheepMixin",
+    "TradeOutputSlotMixin",
+    "WanderingTraderEntityInvoker"
+  ],
+  "client": [
+    "HandledScreenAccessor",
+    "HandledScreenMixin",
+    "InventoryScreenMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

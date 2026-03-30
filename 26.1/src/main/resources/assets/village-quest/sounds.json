@@ -1,0 +1,7 @@
+{
+  "shulker_idle6": {
+    "sounds": [
+      { "name": "minecraft:entity/shulker/ambient6" }
+    ]
+  }
+}
