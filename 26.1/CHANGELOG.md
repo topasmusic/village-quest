@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased - Minecraft 26.1 Update
+## 1.20.1 - Minecraft 26.1 Update
+
+Release date: 2026-03-30
 
 - Village Quest has been updated for Minecraft `26.1`.
 - The inventory journal bookmark now renders more cleanly again.
