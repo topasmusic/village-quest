@@ -28,12 +28,3 @@
 **/*.hprof
 **/*.jfr
 **/run_verbose.log
-
-# local session files
-**/MEMORY.md
-**/NEXT_SESSION_PROMPT.txt
-**/Custom Pictures/
-**/Custom Paintings/
-
-# migration scratch
-.migration-backup/
