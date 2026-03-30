@@ -44,6 +44,19 @@ java {
 
 def releaseArchivesBaseName = project.archives_base_name
 def releaseVersion = project.version.toString()
+def releaseMinecraftVersion = project.minecraft_version.toString()
+def releaseFileStem = "${releaseArchivesBaseName}-${releaseVersion}-mc${releaseMinecraftVersion}"
+
+tasks.named("jar").configure {
+    archiveBaseName = releaseFileStem
+    archiveVersion = ""
+}
+
+tasks.named("sourcesJar").configure {
+    archiveBaseName = releaseFileStem
+    archiveClassifier = "sources"
+    archiveVersion = ""
+}
 
 tasks.register("pruneOldBuildLibs") {
     doLast {
@@ -52,7 +65,7 @@ tasks.register("pruneOldBuildLibs") {
             return
         }
 
-        def currentPrefix = "${releaseArchivesBaseName}-${releaseVersion}"
+        def currentPrefix = releaseFileStem
         def jarFiles = libsDir.listFiles()?.findAll { file ->
             file.isFile() && file.name.startsWith("${releaseArchivesBaseName}-") && file.name.endsWith(".jar")
         } ?: []
