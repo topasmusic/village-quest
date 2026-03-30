@@ -1,161 +1,88 @@
 # Changelog
 
-Hotfix-heavy polish phases are grouped into version ranges to keep this file readable. Major content and larger technical changes keep their own entries.
+Dieser Changelog ist bewusst spielerfreundlich gehalten. Rein technische Build-, Mapping- und Session-Notizen stehen in `MEMORY.md` und `NEXT_SESSION_PROMPT.txt`.
+
+## Unreleased - Legacy Follow-Up Polish
+
+- `Smoke over Blackstone` zeigt jetzt direkt die echten Ziele statt der missverstaendlichen alten Formulierung.
 
 ## 1.20.0 - Village Stories Foundation And Progression Clarity Rework
 
 Release date: 2026-03-29
 
-### Village Stories Foundation
-
-- Added a full `Story` layer to the `Questmaster` with sequential multi-step village arcs instead of dumping every long-form quest on the player at once.
-- Added the visible village-core story chain:
+- Der `Questmaster` erhielt seine grosse `Story`-Erweiterung mit vier sichtbaren Dorf-Storylines:
   - `The Failing Harvest`
   - `The Silent Forge`
   - `Market Road Troubles`
   - `Restless Pens`
-- Added persistent `Village Projects` to the journal and progression layer:
+- Neue dauerhafte `Village Projects` wurden eingefuehrt:
   - `Village Ledger`
   - `Apiary Charter`
   - `Forge Charter`
   - `Market Charter`
   - `Pasture Charter`
   - `Watch Bell`
-- Added `Market Rounds` as a second `Trade` daily so trade reputation is less bottlenecked.
-- Story chapters now send a one-time `ready to turn in` message when complete.
-- `Story` now unlocks after the first normal daily completion, while `Special` unlocks after the first real reputation gain.
-- Relic quests are now tied to both reputation and their matching story arc, so special commissions appear as earned follow-ups to village work.
-- Added lore-style chat hints and stronger journal / reward-state support for story arcs, village projects, and late special progression.
-- Added admin helpers to inspect/reset story progress and to show/unlock/lock village projects for testing.
-
-### Progression Clarity Rework
-
-- Reworked the current local batch to clarify roles instead of adding more overlapping systems.
-- `Questmaster` is now more clearly the center of village-core progression:
-  - normal `Daily` and `Weekly` rotation no longer includes combat quests
-  - `Story` now surfaces only the active arc or next available arc
-  - reward previews are clearer about reputation and project-aware follow-up effects
-- Reframed the old combat lane into `Roadside Watch` and moved late dangerous road work fully to the `Pilgrim`.
-- `Night Bells` no longer sits in the visible `Questmaster` story lane; `Watch Bell` is now derived automatically once all four visible village-core stories are complete.
-- `Pilgrim` contracts were simplified and sharpened:
-  - `Roadmarks for the Compass` is now a one-time special contract
-  - once `Watch Bell` is unlocked and `Roadmarks` is no longer pending, the pilgrim now offers exactly `1` dangerous roadside rumor per day
-  - the late roadside rumor pool now includes overworld, nether, and end work with stronger rewards for higher danger
-- `Village Projects` now have clearer identities instead of feeling like near-identical passive bonuses:
-  - `Apiary Charter` -> `+5 Farming Reputation` and `Wayfinder` field-bearing calibration
-  - `Forge Charter` -> `+2 levels` on crafting rewards
-  - `Market Charter` -> unlocks pilgrim roadmark teaching for the `Wayfinder's Compass`
-  - `Pasture Charter` -> `+2 Silvermarks` on animals rewards
-  - `Watch Bell` -> `+5 Roadside Watch Reputation` and late dangerous pilgrim road work
-- Reworked quest rewards away from raw XP points into direct level rewards:
-  - dailies now pay `2 / 4 / 6` levels by difficulty
-  - weeklies now pay `14 / 16 / 18` levels by effort tier
-  - story chapters now pay `4 / 6 / 8 / 10` levels
-  - pilgrim contracts now pay whole levels instead of raw XP
-- Reworked the `Wayfinder's Compass` into a staged relic:
-  - base relic now starts with `Home`
-  - `Field Bearings` calibrates the compass through `Desert`, `Jungle`, `Frozen Peaks`, and `Mushroom Fields`
-  - `Roadmarks for the Compass` calibrates the compass through `Village`, `Pillager Outpost`, `Woodland Mansion`, and `Swamp Hut`
-  - each step unlocks the broader finished biome / structure mode rosters after calibration is complete
-  - `Home` now asks for a second confirming right-click within `10` seconds
-  - the relic reward was tuned from `10` down to `3` `Netherite Ingots`
-- Added contextual chat hints for valid compass imprint locations and cleaner tracker text for forge, inventory, and turn-in proof steps.
-- `Questmaster` and `Pilgrim` now briefly path toward the player after spawning, carry torches by night, and use a raised torch pose on the client.
-- Polished the journal, quest tracker, and pilgrim UI:
-  - rumor contracts now use clearer top buttons instead of overlapping icon chips
-  - shop text and rumor text areas scroll and fit more cleanly
-  - the journal empty-state now points to the built-in `Questmaster` button
-  - weeklies now support canceling without rerolling the weekly for that week
-- Added a full repo wiki under `docs/wiki/` and linked it from the root `README.md`.
-- Build validation for the full release batch succeeded with Java 21:
-  - `.\gradlew.bat build`
-  - overworld rumors stay lighter, while `Nether` and especially `End` roadside jobs now pay clearly higher money, `Roadside Watch`, and level rewards
-- Pilgrim contract presentation now also uses lane colors for faster recognition:
-  - overworld roadside work renders in green
-  - nether roadside work renders in red
-  - end roadside work renders in purple
-  - the one-time `Roadmarks for the Compass` contract keeps its own blue-green accent
-- Build validation for the full local rework batch succeeded with Java 21:
-  - `.\gradlew.bat build`
+- `Market Rounds` kam als zweite Handels-Daily dazu.
+- `Story` schaltet sich jetzt nach der ersten normalen Daily frei, `Special` nach dem ersten echten Reputation-Gewinn.
+- Reliktquests fuehlen sich nun staerker wie verdiente Folgeauftraege an, weil sie an Reputation und Story-Fortschritt gebunden sind.
+- Die Dorf-Progression wurde klarer aufgeteilt:
+  - der `Questmaster` konzentriert sich staerker auf Dorfkern-Arbeit
+  - spaete gefaehrliche Strassenauftraege wurden zum `Pilgrim` verschoben
+  - `Watch Bell` wird automatisch freigeschaltet, sobald die vier Dorfkern-Storys abgeschlossen sind
+- Der `Pilgrim` wurde gestrafft:
+  - `Roadmarks for the Compass` ist jetzt ein einmaliger Sondervertrag
+  - spaeter gibt es pro Tag genau ein gefaehrliches Weggeruecht
+- Der `Wayfinder's Compass` wurde zu einem gestuften Relikt mit `Home`, `Field Bearings` und `Roadmarks` ausgebaut.
+- Questbelohnungen wurden von rohen XP-Werten auf direkte Levelgewinne umgestellt.
+- Journal, Quest-Tracker, Questmaster-UI, Pilgrim-UI und NPC-Auftritt wurden deutlich aufpoliert.
+- Viele kleinere Fortschritts-, Turn-in- und UI-Probleme wurden bereinigt.
 
 ## 1.19.5 - Quest Progress Hotfixes
 
-- Hotfixed villager-trade quest progress so completed villager deals again count reliably even when the trade result is quick-moved with `Shift`-click.
-- Emerald-income objectives tied to villager trades now also read the actual completed `TradeOffer`, so earned emerald payouts are credited reliably again.
-- Audited the remaining quest hooks for the same progress-loss pattern and added a dedicated anvil quick-move hook so the shard relic's anvil-enchant step also survives `Shift`-click output pickup.
-- Tightened the `Pet Collar` daily so it only counts real collar recolors on the player's own tamed `Wolf` or `Cat`, ignoring unrelated tameables and same-color no-op dye uses.
+- Villager-Trade-Quests zaehlen wieder zuverlaessig, auch bei schnellem Einsammeln per `Shift`-Klick.
+- Die Amboss-Stufe der Shard-Quest zaehlt nun ebenfalls verlaesslicher.
+- `Pet Collar` ist strenger geworden und zaehlt nur echte Umfaerbungen am eigenen gezahmten Wolf oder an der eigenen Katze.
 
 ## 1.19.4 - NPC Self-Defense Update
 
-- Added a short self-defense mode for the `Pilgrim` and `Questmaster` when they are attacked by players, including warning lines, retaliation lines, and temporary sword draw behavior.
-- The `Pilgrim` now retaliates earlier than the `Questmaster`, while both still remain killable and only turn hostile toward the attacking player.
-- Added visible held-weapon rendering and a reliable close-range hit flow so retaliation now actually draws a sword and lands hits instead of only body-checking.
-- Expanded the warning/retaliation line pool and slowed line repetition down so the NPC chatter stays more varied and less spammy.
-- Tuned the self-defense balance down so both NPCs chase and swing more slowly and deal less damage.
-- The `Questmaster` now closes active interactions before defending and blocks fresh conversations while in combat.
-- If a player kills the `Questmaster`, only that player is locked out from `/questmaster` for `5` minutes.
-- Added persistent per-player storage plus summon feedback text for that personal `Questmaster` cooldown.
+- `Questmaster` und `Pilgrim` koennen sich nun verteidigen, wenn sie vom Spieler angegriffen werden.
+- Beide bekamen Warnungen, Kampfzeilen und sichtbares Waffenverhalten.
+- Wer den `Questmaster` toetet, bekommt eine persoenliche Beschwoer-Pause.
 
 ## 1.19.3 - Furnace Quest Hook Fixes
 
-- Fixed furnace-based quest progress so taking cooked items from the output slot now counts reliably again.
-- Added a second furnace screen-handler hook so output collected via `Shift`-click / quick-move also grants quest progress.
-- This restores reliable progress for furnace-based objectives such as `Bakehouse Stock`, `River Meal`, and `Smith Smelting`.
-- Added explicit turn-in consumption for crafted/cooked quest items so they are actually pulled from the inventory on completion instead of only counting progress.
-- This now covers `Bakehouse Stock`, `Wheat Harvest`, `River Meal`, `Smith Smelting`, `Harvest for the Village`, and `Smith Week`.
-- The `Surveyor's Compass` relic quest continues to consume the plain crafted `Netherite Pickaxe` on claim.
-- Reworked the `Provisions Satchel` away from plain bread-and-torches into a better random travel bundle with guaranteed `Golden Carrots`, a low-chance `Golden Apple`, and weighted bonus loot rolls such as ingots, emeralds, diamonds, coal, torches, and cooked food.
+- Ofen-basierte Quests zaehlen wieder sauber, auch wenn fertige Items schnell aus dem Ergebnis-Slot genommen werden.
+- Mehrere Koch- und Schmiede-Quests verbrauchen ihre Abgabe-Items nun korrekt.
+- Die `Provisions Satchel` wurde als Reisebelohnung aufgewertet.
 
 ## 1.19.2 - Inventory Compat Follow-Up
 
-- The journal bookmark tab now uses the right-side inventory edge as its normal placement again.
-- Added a compatibility fallback for `Status Effect Bars`: when that mod is loaded and the player currently has active status effects, the journal tab automatically moves to the upper-right bookmark position instead of fighting the effect panel.
-- Kept the animated hidden-behind-inventory presentation so the tab only peeks out at rest and slides outward on hover.
-- Fine-tuned the upper-right fallback tab position slightly downward so it sits more naturally against the vanilla inventory frame.
+- Das Journal-Bookmark sitzt wieder besser an der Inventarkante.
+- Es gibt einen besseren Ausweichmodus fuer Mods mit Status-Effekt-Leisten.
 
 ## 1.19.1 - Questmaster And Inventory Polish
 
-- The `Questmaster` summon logic now searches around the player's current height first, so the NPC can appear in underground bases and caves instead of only surfacing above ground.
-- Fixed breeding progress so quests that ask for `2` animals bred now count real breeding pairs once, instead of double-counting both parents during the same pairing.
-- Reworked the inventory journal access into an animated bookmark tab on the right edge of the vanilla inventory UI.
-- The bookmark tab now sits behind the inventory panel so only its edge peeks out at rest, then slides outward on hover before opening the journal on click.
-- Improved compatibility with `Better Inventory` by moving the journal access away from the old top-right floating button area.
+- Der `Questmaster` kann nun auch in Hoehlen und Untergrund-Basen sinnvoll erscheinen.
+- Zucht-Quests zaehlen echte Tierpaare nun sauberer.
+- Das Journal im Inventar wurde zum animierten Bookmark-Tab umgebaut.
 
 ## 1.19.0 - Reputation Expansion Batch
 
-- Added the fifth reputation track `Monster Hunting` and extended the journal and reputation views to show it cleanly even when no unlocks are tied to a track yet.
-- Added `4` monster-hunting daily quests to the main pool:
+- Die neue Reputation `Monster Hunting` wurde eingefuehrt.
+- Vier Monster-Dailies kamen dazu:
   - `Zombie Cull`
   - `Skeleton Patrol`
   - `Spider Sweep`
   - `Creeper Watch`
-- Wired monster kills into the daily system while keeping the existing weekly combat hooks active.
-- Added the missing farming relic questline `Apiarist's Smoker` at `200` `Farming` reputation.
-- Added the missing crafting relic questline `Surveyor's Compass` at `200` `Crafting` reputation.
-- Raised all reputation-gated relic unlock thresholds from `120` to `200`, including `Merchant's Seal` and `Shepherd's Flute`.
-- `Apiarist's Smoker` now tracks real hive harvesting progress and rewards a relic that can once per in-game day ready a hive for harvest and calm nearby bees.
-- `Surveyor's Compass` now requires mining `16` redstone ore, crafting a `Netherite Pickaxe` after accepting the quest, and turning in exactly one plain unenchanted `Netherite Pickaxe`.
-- The crafting relic quest never consumes an enchanted pickaxe and additionally rewards `10 Netherite Ingots`.
-- Added intuitive non-command `Surveyor's Compass` behavior:
-  - sneak-use cycles target modes
-  - normal use binds the compass toward nearby villages, trial chambers, or selected biomes
-- Added the two new relic items, their custom textures/models, Questmaster entries, `/setquest` aliases, and full German/English localization.
-- Follow-up `1.19.0` hotfixes:
-  - the `Special` quest list in the Questmaster now scrolls when the entry column grows taller than the panel
-  - the journal reputation view now spans two pages so `Monster Hunting` is visible instead of being cut off at the bottom
-  - `Apiarist's Smoker` now supports up to `10` hive uses per in-game day and reports the remaining daily uses in feedback text
-  - `Surveyor's Compass` was reworked in presentation and behavior into a home-focused `Wayfinder's Compass`
-  - the compass keeps its dedicated `Home` mode and roughly `30` minute return cooldown, but now again supports a broad list of biome and structure target modes
-  - the Pilgrim unlock curve is now staged across the full reputation ladder, including new `120` unlocks for `Farming`, `Animals`, and `Village Trade`
-  - `Monster Hunting` now has its own full Pilgrim unlock path at `25`, `60`, `120`, and `200`
-  - the journal now adds a relic page that only appears while the player is currently carrying at least one special/relic item
-  - relic and special item names now use a consistent gold presentation across item names and Questmaster reward lines
-  - the Wayfinder compass lore/reward description was shortened so it fits more reliably in the UI info areas
+- Die Reliktquests `Apiarist's Smoker` und `Surveyor's Compass` kamen dazu.
+- Relikt-Freischaltungen wurden auf `200` Reputation angehoben.
+- `Surveyor's Compass` wurde spaeter zum `Wayfinder's Compass` weiterentwickelt.
+- Spezial- und Relikt-Items wurden in Journal und UI besser praesentiert.
 
 ## 1.18.0 - Weekly Quest System
 
-- Added the full weekly-quest module with persistent per-player state, weekly choice rotation, claim flow, save data, and Questmaster session handling.
-- Added `7` real weekly quests:
+- Das Wochensystem wurde eingefuehrt.
+- Sieben Weekly-Quests kamen dazu:
   - `Harvest for the Village`
   - `Bakehouse Stock`
   - `Smith Week`
@@ -163,236 +90,174 @@ Release date: 2026-03-29
   - `Market Week`
   - `Night Watch`
   - `Road Warden`
-- The two combat weeklies now provide the heavier reward tier requested for monster hunting: `2 Crowns` and `2 Magic Shards`.
-- Integrated `Weekly` fully into the Questmaster UI, journal active-quest page, tracker HUD, and Questmaster reset footer timer.
-- Added weekly admin helpers:
-  - `/questadmin resetweekly [player]`
-  - `/questadmin nextweekly [player]`
-  - `/questadmin completeweekly [player]`
-- Moved the shared reset timing to the new `06:00 Europe/Berlin` boundary, and weekly rotation now resets on Monday `06:00` Berlin time.
+- Weeklies wurden in Questmaster, Journal und Tracker eingebunden.
 
 ## 1.17.5-1.17.2 - Questmaster And Pilgrim UI Hotfixes
 
-- Added the Questmaster daily reset timer and then polished its footer position, clipping, spacing, and header fit so it reads cleanly inside the new board.
-- Fixed Questmaster detail scrolling and clipping for long special-quest text, improved header text wrapping, and cleaned up relic status placement for entries like `Whispers of the Shards`, `Merchant's Seal`, and `Shepherd's Flute`.
-- Added the first custom-board Pilgrim UI pass based on `Custom Pictures/pilgrim ui.png` and aligned the existing wallet strip, trade detail area, price line, buy button, footer text, and timer to the new template.
-- Removed the extra code-drawn trade arrow so the template's built-in arrow remains the only directional indicator in the Pilgrim trade view.
-- Continued the Pilgrim template polish by raising and shrinking the footer text, moving the buy button deeper into the intended lower slot, and lifting the right-side price line into a cleaner position inside the upper trade box.
-- Replaced the extra drawn Pilgrim buy-button frame with a direct `Buy` label rendered on the template slot itself, closer to the Questmaster UI style.
-- Nudged the Pilgrim footer hint and despawn timer upward again so both texts sit more cleanly inside the lower parchment field.
-- Lowered the Pilgrim footer hint and despawn timer again after review so they sit deeper in the bottom field instead of floating too high above it.
-- Lowered the Pilgrim footer hint and despawn timer a final step further after screenshot review so both lines sit noticeably deeper in the footer field.
-- Nudged the Pilgrim footer hint and despawn timer slightly back upward after that deeper pass so they sit more naturally in the footer strip.
+- Mehrere UI-Paesse verbesserten Texte, Buttons, Scrolling, Timer und das allgemeine Layout von `Questmaster` und `Pilgrim`.
 
 ## 1.17.1 - Guaranteed First Magic Shard
 
-- The first quest a player ever completes now guarantees `1` `Magic Shard`.
-- After that first reward, the normal `10%` shard drop chance resumes for regular daily quest completions.
-- Added a persistent per-player flag plus a migration heuristic so established saves do not wrongly get a fresh starter shard.
+- Die erste abgeschlossene Quest garantiert jetzt einen `Magic Shard`.
+- Danach gilt wieder die normale Shard-Chance.
 
 ## 1.17.0 - Questmaster UI V2 And Decline Removal
 
-- Switched the Questmaster to the `Quest UI v2` board art from `Custom Pictures`.
-- Reworked the footer into a single adaptive action button instead of separate `Accept` and `Decline` buttons.
-- Removed the decline flow from active gameplay and commands, including `/dailyquest decline`.
-- Cancelling an active daily now returns it to an available state instead of locking the player out for the rest of the day.
+- Der `Questmaster` bekam die zweite grosse Board-UI.
+- Das taegliche Annehmen/Abbrechen wurde vereinfacht.
+- Das alte Decline-Lockout wurde entfernt.
 
 ## 1.16.9-1.16.1 - Questmaster UI Polish Cycle
 
-- Repeatedly refined the first Questmaster UI with smaller layout, cleaner column balance, improved category slots, safer click hitboxes, and better overall spacing.
-- Added scroll support, tooltip support for truncated quest names, proper detail clipping, and clearer header/status separation.
-- Imported and stabilized the custom Questmaster board art, including fixes for oversized/cropped texture rendering, centering, scaling, and template alignment.
-- Prevented the Questmaster from despawning while a player still has the UI open.
+- Die erste Questmaster-UI erhielt viele Layout-, Tooltip-, Scroll- und Darstellungsverbesserungen.
+- Der `Questmaster` despawnt nicht mehr, waehrend jemand die UI offen hat.
 
 ## 1.16.0 - Questmaster UI Foundation
 
-- Replaced the Questmaster's old chat-only interaction with a real custom quest window.
-- Added the long-term `Daily`, `Weekly`, and `Special` category structure.
-- Made `Daily` and `Special` fully usable through the UI, including accept, claim, cancel, shard bonus handling, and live state refresh.
-- Added the networking/session plumbing needed to open, update, act on, and close Questmaster UI sessions correctly.
+- Die alte Chat-Interaktion des `Questmaster` wurde durch ein richtiges Questfenster ersetzt.
+- Die Struktur `Daily`, `Weekly` und `Special` wurde aufgebaut.
 
 ## 1.15.7-1.15.1 - Merchant's Seal Stabilization
 
-- Stabilized `Merchant's Seal` after the initial relic rollout by fixing double-chat callbacks, broken interaction paths, and no-op use cases.
-- Restored reliable sneak-use rerolls on the Pilgrim and later extended the seal to the vanilla wandering trader as well.
-- Fixed the wandering-trader accessor/mixin crash so the client starts cleanly while keeping the new reroll support intact.
+- `Merchant's Seal` wurde stabilisiert und spaeter auch fuer den fahrenden Haendler nutzbar gemacht.
 
 ## 1.15.0 - Relic Questlines Pack 1
 
-- Added two reputation-gated special relic questlines: `Merchant's Seal` and `Shepherd's Flute`.
-- Added both new relic reward items with local custom textures and persistent per-player quest-state saving.
-- Added a shared special-quest routing layer so the Questmaster, journal, tracker, and quest flow can support multiple relic questlines.
-- `Merchant's Seal` is earned through villager trading, emerald income, and one Pilgrim purchase; it rerolls merchant wares once per day.
-- `Shepherd's Flute` is earned through breeding, shearing, and wool gathering; it pulls nearby animals toward the player for a short time.
+- Die ersten beiden Relikt-Questreihen kamen dazu:
+  - `Merchant's Seal`
+  - `Shepherd's Flute`
 
 ## 1.14.0 - Reputation Unlocks And Pilgrim Progression
 
-- Added real reputation ranks and next-unlock hints on top of the new reputation system.
-- Made the Pilgrim's offer pool depend on player reputation and block purchases of still-locked wares.
-- Added the first real unlock paths for `Farming`, `Animals`, `Crafting`, and `Village Trade`.
-- Added admin-only reputation debug commands for testing and balance work.
+- Reputation bekam klarere Freischaltstufen.
+- Der `Pilgrim` begann, Angebote an Spielerfortschritt und Ruf zu koppeln.
 
 ## 1.13.0 - Village Reputation Foundation
 
-- Added four persistent reputation tracks: `Farming`, `Crafting`, `Animals`, and `Village Trade`.
-- Daily quests now award reputation in addition to wallet currency and XP.
-- Added `/reputation` and a dedicated journal page for reputation display.
+- Die ersten vier Reputationstracks wurden eingefuehrt:
+  - `Farming`
+  - `Crafting`
+  - `Animals`
+  - `Village Trade`
 
 ## 1.12.9 - Leather Daily Removal
 
-- Removed the leather daily from the active quest pool and from `/setquest`.
-- Removed its active localized quest text and gameplay hooks while leaving the old peace-armor recipe content untouched.
+- Die Leder-Daily wurde aus dem aktiven Pool entfernt.
 
 ## 1.12.8-1.12.2 - Inventory Journal Button Rollout
 
-- Added a direct Journal button to the vanilla inventory screen.
-- Replaced and tuned the icon art multiple times using assets from `Custom Pictures`.
-- Fixed the associated crashes and rendering bugs by moving to the correct screen hooks and accessor mixins.
-- Final result: a visible, clickable inventory Journal shortcut with stable position and texture sampling.
+- Das Journal bekam erstmals einen direkten Button im Inventar.
+- Position, Grafik und Stabilitaet wurden mehrfach verbessert.
 
 ## 1.12.1 - Journal Player Command Overhaul
 
-- Reordered the journal so active quests are shown first.
-- Replaced the older generic help content with a fuller player command reference.
-- Added clearer coverage for `/questmaster`, `/wallet`, `/journal`, `/dailyquest accept`, and `/questtracker`.
+- Das Journal wurde neu sortiert und die Spieler-Kommandoueberblicksseite verbessert.
 
 ## 1.12.0 - Quest Progress Feedback And Tracker
 
-- Added direct quest progress feedback in the action bar.
-- Added milestone chat/sound feedback for larger quest steps.
-- Added the optional persistent quest tracker HUD with `/questtracker`, `/questtracker on`, and `/questtracker off`.
+- Questfortschritt erscheint nun direkt in der Actionbar.
+- Zusaetzlich kamen Meilenstein-Feedback und der Quest-Tracker dazu.
 
 ## 1.11.7-1.11.5 - Starreach Ring Texture Iteration
 
-- Tested multiple texture passes for the `Starreach Ring`, including a cleaned smaller texture and a second source variant from `Custom Pictures`.
-- Reverted when the newer processed version looked worse in practice.
-- Left the ring asset pipeline simple so future cleanup can happen at the source image level.
+- Der `Starreach Ring` bekam mehrere Grafik- und Feinschliff-Paesse.
 
 ## 1.11.4-1.11.1 - Secret Shard Quest Debug And Fix Pass
 
-- Added OP-only debug commands to jump to or teleport to the hidden shard cache for testing.
-- Tightened the hidden buried-cache search radius around the treasure-map marker.
-- Changed cache generation to a lazy spawn flow so the Questmaster no longer causes heavy lag while binding the cache.
-- Fixed secret-quest enchant progress so valid anvil enchantments count, while rename/repair-only anvil uses do not.
-- Shortened `Magic Shard` lore in both languages.
+- Die geheime Shard-Quest und ihr Cache-Verhalten wurden robuster gemacht.
+- Der Text des `Magic Shard` wurde verkuerzt.
 
 ## 1.11.0 - Secret Shard Quest And Starreach Ring
 
-- Added the full hidden `10 Magic Shard` questline `Whispers of the Shards`.
-- The trial tracks amethyst, potion, enchantment, Ender Pearl, and Blaze Rod objectives before sending the player back to the Questmaster.
-- Returning to the Questmaster now gives a real treasure map to a buried, owner-protected relic cache in the Overworld.
-- Added `Starreach Ring` as the relic reward; it grants `+2` block interaction range while held in the offhand.
-- Extended journal and shard lore so the two shard uses are explained and tracked properly.
+- Die geheime Quest `Whispers of the Shards` kam dazu.
+- Als Belohnung wurde der `Starreach Ring` eingefuehrt.
 
 ## 1.10.2-1.10.1 - Magic Shard Bonus Daily And Daily Reopen
 
-- Added the first real `Magic Shard` use: a second same-day bonus daily offered through the Questmaster after the normal daily is completed.
-- Spending `1` shard rolls exactly one extra daily for that day, and that bonus daily does not drop another shard.
-- Adjusted the old decline behavior so players could reopen the same daily later instead of being locked out for the whole day.
+- `Magic Shards` koennen seitdem eine zusaetzliche Daily am selben Tag freischalten.
+- Dailies lassen sich spaeter am selben Tag wieder oeffnen, statt sofort verloren zu sein.
 
 ## 1.10.0 - Questmaster NPC Replaces Quest Block
 
-- Replaced the old quest block with a summonable `Questmaster` NPC with its own skin and renderer.
-- Added `/questmaster` for all players.
-- The Questmaster now handles daily offers, progress, completion checks, and interaction flow; only one can exist within roughly `20` blocks.
-- Removed old quest block assets, recipes, loot, and related release references.
+- Der alte Questblock wurde durch den beschwoerbaren `Questmaster` ersetzt.
 
 ## 1.9.15-1.9.14 - Magic Shard Introduction
 
-- Added the `Magic Shard` item with custom art, model, lore, and a `10%` daily-completion drop chance.
-- Added the missing modern item-definition file so the shard no longer appears as a purple missing-model block.
+- Der `Magic Shard` wurde eingefuehrt.
 
 ## 1.9.13-1.9.10 - Release Cleanup And Command Pruning
 
-- Removed extra item payouts from daily quests so regular dailies now pay wallet currency and XP only.
-- Pruned release-facing commands and documentation to match the slimmer production command set.
-- Cleaned release metadata, README/checklist content, and outdated Fabric example-template leftovers.
+- Die Standard-Daily-Belohnungen wurden auf Wallet-Geld und XP verschlankt.
+- Alte Release-Reste und ueberfluessige Kommandos wurden bereinigt.
 
 ## 1.9.9-1.9.1 - Pilgrim Economy And Presentation Polish
 
-- Added the Pilgrim departure timer and a natural respawn cooldown; later tuned natural spawn odds.
-- Polished the Pilgrim wallet strip, slot backgrounds, coin scales, button text alignment, and other UI details.
-- Fixed placed-painting hover-name issues without breaking client startup.
+- Der `Pilgrim` bekam Abreise-/Respawn-Timer und mehrere Praesentationsverbesserungen.
 
 ## 1.9.0 - Painting Size Rebalance And Two-Currency Overhaul
 
-- Reworked the active wallet economy into `Silvermark` and `Crown` with a `10 Silvermarks = 1 Crown` ratio.
-- Added new local coin art from `Custom Pictures`.
-- Rebuilt and repriced the Pilgrim paintings around the new economy, including `Happy Doge`.
+- Die Wallet-Waehrung wurde auf `Silvermark` und `Crown` umgebaut.
+- Pilgrim-Gemaelde und Preise wurden neu ausbalanciert.
 
 ## 1.8.2-1.8.0 - Painting Expansion And Currency Naming Cleanup
 
-- Added a larger batch of custom Pilgrim paintings with German and English titles/descriptions.
-- Rebalanced painting sizes and prices after the first pass.
-- Cleaned up currency naming so player-facing names settled toward `Copper Penny`, `Iron Mark`, and `Gold Crown`, while old aliases stayed usable where needed.
+- Weitere Pilgrim-Gemaelde kamen hinzu.
+- Groessen, Preise und Waehrungsnamen wurden aufgeraeumt.
 
 ## 1.7.8-1.7.1 - Pilgrim UI And Trade Polish
 
-- Iteratively refined the Pilgrim trade screen with better text fit, hover cards, stronger selection states, and cleaner layout.
-- Fixed the Pilgrim to pause properly during trade and use the intended custom skin.
-- Moved the shop away from a vanilla-feeling trader window toward a custom parchment-and-wood market UI.
+- Die Pilgrim-Handelsansicht erhielt mehrere Layout- und Lesbarkeitsverbesserungen.
 
 ## 1.7.0 - Pilgrim Trader
 
-- Added the traveling Pilgrim merchant entity with spawn/despawn behavior and a custom player-skin renderer.
-- Added the wallet-based Pilgrim shop flow and the first rotating offer pool.
-- Added admin spawn/despawn commands for testing.
+- Der reisende `Pilgrim`-Haendler wurde eingefuehrt.
 
 ## 1.6.2-1.6.0 - Digital Wallet And Journal Basics
 
-- Replaced daily coin-item payouts with a persistent digital wallet stored per player.
-- Added `/wallet`, journal balance display, admin wallet helpers, and an early `/shop` framework.
-- Fixed journal line wrapping so longer dynamic entries stay inside the page.
+- Muenz-Items wurden durch das digitale Wallet ersetzt.
+- Wallet-Anzeige und Journal-Basics kamen dazu.
 
 ## 1.5.10-1.5.8 - Wolkensprung Split
 
-- Built the extraction boundary for the Wolkensprung storyline and then scaffolded it as a separate standalone mod.
-- Removed Wolkensprung runtime hooks, entities, commands, persistence, and journal integration from `Village Quest`.
-- During the split, daily acceptance/decline routing moved to `/dailyquest accept|decline` to avoid command collisions.
+- `Wolkensprung` wurde aus `Village Quest` herausgeloest und als eigenes Mod-Projekt getrennt.
 
 ## 1.5.7-1.5.1 - Daily Admin, Balance, And Selection Polish
 
-- Added several admin helpers for daily testing, including status/progress views, force-complete, next-daily simulation, and reset support.
-- Added daily difficulty tiers and centralized reward balancing.
-- Improved daily selection so the next day avoids repeating the same quest or category when possible.
+- Daily-Testwerkzeuge, Balancing und Rotationslogik wurden verbessert.
 
 ## 1.5.0 - Daily Wave 2
 
-- Added five more action-based dailies: river meal, autumn harvest, smith smelting, stall breeding, and village trading.
-- Added the required furnace, villager-trade, and breeding hooks plus updated aliases, admin text, and localization.
+- Fuenf weitere actionbasierte Dailies kamen dazu:
+  - `River Meal`
+  - `Autumn Harvest`
+  - `Smith Smelting`
+  - `Stall Breeding`
+  - `Village Trading`
 
 ## 1.4.4-1.4.1 - Project Continuity And Cleanup
 
-- Added `MEMORY.md` and `CHANGELOG.md` for restart continuity.
-- Cleaned up legacy compatibility registration and model warnings.
-- Added defensive translation/tag cleanup during the early 1.21.11 porting phase.
+- Projektkontinuitaet und fruehe Aufraeumarbeiten wurden eingefuehrt.
 
 ## 1.4.0 - Daily Wave 1
 
-- Added the first five action-based dailies and extended aliases, admin text, and localization around them.
+- Die ersten actionbasierten Dailies kamen ins Spiel.
 
 ## 1.3.1-1.3.0 - Daily Refactor And Reset Command
 
-- Refactored daily quests into per-quest classes with shared dispatching.
-- Added `/questadmin resetdaily` for admin testing.
+- Das Daily-System wurde neu strukturiert.
 
 ## 1.2.1-1.2.0 - Compatibility And Localization
 
-- Added legacy item registrations for older worlds/stats.
-- Localized the core player-facing quest, journal, and reward flows.
+- Fruehe Kompatibilitaets- und Lokalisierungsarbeit wurde nachgezogen.
 
 ## 1.1.2-1.1.0 - Early Daily-State And Peace-Armor Cleanup
 
-- Localized peace-armor names/lore and cleaned up related translations.
-- Restricted `/setquest` to OP/admin and fixed missing internal tag translations.
-- Migrated daily progress to a generic key-based state model with save migration support.
+- Fruehe Questzustands- und Textbereinigungen wurden umgesetzt.
 
 ## 1.0.5-1.0.1 - Early 1.21.11 Compatibility Fixes
 
-- Fixed recipe tags, ingredient parsing, and result-component issues for older peace-armor content.
-- Removed an early missing-sound warning and updated basic metadata/API usage during the first porting pass.
+- Fruehe Kompatibilitaetsprobleme des ersten `1.21.11`-Stands wurden behoben.
 
 ## 1.0.0 - Baseline
 
-- Project brought onto Minecraft `1.21.11`.
-- Build verified on Java 21.
+- Grundlinie auf Minecraft `1.21.11`.
