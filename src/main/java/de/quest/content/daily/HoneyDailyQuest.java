@@ -1,7 +1,7 @@
 package de.quest.content.daily;
 
-import de.quest.quest.daily.DailyQuestDefinition;
 import de.quest.quest.daily.DailyQuestCompletion;
+import de.quest.quest.daily.DailyQuestDefinition;
 import de.quest.quest.daily.DailyQuestKeys;
 import de.quest.quest.daily.DailyQuestService;
 import net.minecraft.block.BeehiveBlock;
@@ -69,56 +69,6 @@ public final class HoneyDailyQuest implements DailyQuestDefinition {
     }
 
     @Override
-    public void onServerTick(ServerWorld world, ServerPlayerEntity player) {
-        UUID playerId = player.getUuid();
-
-        int curHoney = DailyQuestService.countInventoryItem(player, Items.HONEY_BOTTLE);
-        int lastHoney = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.LAST_HONEY_COUNT);
-        if (lastHoney == 0) {
-            lastHoney = curHoney;
-        }
-        int expectedHoney = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.EXPECTED_HONEY);
-        if (expectedHoney > 0) {
-            int delta = curHoney - lastHoney;
-            if (delta > 0 && DailyQuestService.isAcceptedToday(world, playerId)) {
-                int credit = Math.min(delta, expectedHoney);
-                DailyQuestService.addQuestInt(world, playerId, DailyQuestKeys.HONEY_PROGRESS, credit);
-                DailyQuestService.setQuestInt(world, playerId, DailyQuestKeys.EXPECTED_HONEY, expectedHoney - credit);
-                DailyQuestService.completeIfEligible(world, player);
-                DailyQuestService.sendCurrentProgressActionbar(world, player);
-            }
-        }
-        DailyQuestService.setQuestInt(world, playerId, DailyQuestKeys.LAST_HONEY_COUNT, curHoney);
-
-        int curComb = DailyQuestService.countInventoryItem(player, Items.HONEYCOMB);
-        int lastComb = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.LAST_COMB_COUNT);
-        if (lastComb == 0) {
-            lastComb = curComb;
-        }
-        int expectedComb = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.EXPECTED_COMB);
-        if (expectedComb > 0) {
-            int delta = curComb - lastComb;
-            if (delta > 0 && DailyQuestService.isAcceptedToday(world, playerId)) {
-                int credit = Math.min(delta, expectedComb);
-                DailyQuestService.addQuestInt(world, playerId, DailyQuestKeys.COMB_PROGRESS, credit);
-                DailyQuestService.setQuestInt(world, playerId, DailyQuestKeys.EXPECTED_COMB, expectedComb - credit);
-                DailyQuestService.completeIfEligible(world, player);
-                DailyQuestService.sendCurrentProgressActionbar(world, player);
-            }
-        }
-        DailyQuestService.setQuestInt(world, playerId, DailyQuestKeys.LAST_COMB_COUNT, curComb);
-
-        int left = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.EXPECTED_EXPIRE_TICKS) - 1;
-        if (left <= 0) {
-            DailyQuestService.setQuestInt(world, playerId, DailyQuestKeys.EXPECTED_HONEY, 0);
-            DailyQuestService.setQuestInt(world, playerId, DailyQuestKeys.EXPECTED_COMB, 0);
-            DailyQuestService.setQuestInt(world, playerId, DailyQuestKeys.EXPECTED_EXPIRE_TICKS, 0);
-        } else {
-            DailyQuestService.setQuestInt(world, playerId, DailyQuestKeys.EXPECTED_EXPIRE_TICKS, left);
-        }
-    }
-
-    @Override
     public void onBeeNestInteract(ServerWorld world, ServerPlayerEntity player, BlockState state, ItemStack inHand) {
         if (DailyQuestService.hasCompletedToday(world, player.getUuid())) return;
         if (!DailyQuestService.isAcceptedToday(world, player.getUuid())) return;
@@ -129,19 +79,13 @@ public final class HoneyDailyQuest implements DailyQuestDefinition {
 
         UUID playerId = player.getUuid();
         if (inHand.isOf(Items.GLASS_BOTTLE)) {
-            DailyQuestService.addQuestInt(world, playerId, DailyQuestKeys.EXPECTED_HONEY, 1);
-            if (DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.LAST_HONEY_COUNT) == 0) {
-                DailyQuestService.setQuestInt(world, playerId, DailyQuestKeys.LAST_HONEY_COUNT,
-                        DailyQuestService.countInventoryItem(player, Items.HONEY_BOTTLE));
-            }
-            DailyQuestService.setQuestInt(world, playerId, DailyQuestKeys.EXPECTED_EXPIRE_TICKS, 200);
+            DailyQuestService.addQuestInt(world, playerId, DailyQuestKeys.HONEY_PROGRESS, 1);
+            DailyQuestService.completeIfEligible(world, player);
+            DailyQuestService.sendCurrentProgressActionbar(world, player);
         } else if (inHand.isOf(Items.SHEARS)) {
-            DailyQuestService.addQuestInt(world, playerId, DailyQuestKeys.EXPECTED_COMB, 1);
-            if (DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.LAST_COMB_COUNT) == 0) {
-                DailyQuestService.setQuestInt(world, playerId, DailyQuestKeys.LAST_COMB_COUNT,
-                        DailyQuestService.countInventoryItem(player, Items.HONEYCOMB));
-            }
-            DailyQuestService.setQuestInt(world, playerId, DailyQuestKeys.EXPECTED_EXPIRE_TICKS, 200);
+            DailyQuestService.addQuestInt(world, playerId, DailyQuestKeys.COMB_PROGRESS, 1);
+            DailyQuestService.completeIfEligible(world, player);
+            DailyQuestService.sendCurrentProgressActionbar(world, player);
         }
     }
 }

@@ -11,6 +11,7 @@ import de.quest.questmaster.QuestMasterService;
 import de.quest.questmaster.QuestMasterUiService;
 import de.quest.quest.QuestBookHelper;
 import de.quest.quest.daily.DailyQuestService;
+import de.quest.quest.special.AdminCoreTestQuestService;
 import de.quest.quest.special.ShardRelicQuestService;
 import de.quest.quest.special.SpecialQuestService;
 import de.quest.quest.story.StoryQuestService;
@@ -208,6 +209,28 @@ public final class QuestCommands {
                                             ctx.getSource(),
                                             EntityArgumentType.getPlayer(ctx, "player")
                                     ))))
+                    .then(literal("coretest")
+                            .then(literal("start")
+                                    .executes(ctx -> startCoreTestForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
+                                    .then(argument("player", EntityArgumentType.player())
+                                            .executes(ctx -> startCoreTestForPlayer(
+                                                    ctx.getSource(),
+                                                    EntityArgumentType.getPlayer(ctx, "player")
+                                            ))))
+                            .then(literal("reset")
+                                    .executes(ctx -> resetCoreTestForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
+                                    .then(argument("player", EntityArgumentType.player())
+                                            .executes(ctx -> resetCoreTestForPlayer(
+                                                    ctx.getSource(),
+                                                    EntityArgumentType.getPlayer(ctx, "player")
+                                            ))))
+                            .then(literal("show")
+                                    .executes(ctx -> showCoreTestForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
+                                    .then(argument("player", EntityArgumentType.player())
+                                            .executes(ctx -> showCoreTestForPlayer(
+                                                    ctx.getSource(),
+                                                    EntityArgumentType.getPlayer(ctx, "player")
+                                            )))))
                     .then(literal("pilgrim")
                             .then(literal("spawn")
                                     .executes(ctx -> spawnPilgrimForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
@@ -790,6 +813,67 @@ public final class QuestCommands {
 
         source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.shardcachetp.other", target.getDisplayName()).formatted(Formatting.GREEN), false);
         target.sendMessage(Text.translatable("command.village-quest.questadmin.shardcachetp.notify").formatted(Formatting.GRAY), false);
+        return 1;
+    }
+
+    private static int startCoreTestForPlayer(ServerCommandSource source, ServerPlayerEntity target) {
+        if (target == null) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            return 0;
+        }
+
+        var world = source.getServer().getOverworld();
+        if (!AdminCoreTestQuestService.adminStart(world, target)) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.coretest.show.none", target.getDisplayName()).formatted(Formatting.RED), false);
+            return 0;
+        }
+
+        source.sendFeedback(() -> Text.translatable(
+                "command.village-quest.questadmin.coretest.start",
+                target.getDisplayName()
+        ).formatted(Formatting.GREEN), false);
+        return 1;
+    }
+
+    private static int resetCoreTestForPlayer(ServerCommandSource source, ServerPlayerEntity target) {
+        if (target == null) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            return 0;
+        }
+
+        var world = source.getServer().getOverworld();
+        AdminCoreTestQuestService.adminReset(world, target);
+        source.sendFeedback(() -> Text.translatable(
+                "command.village-quest.questadmin.coretest.reset",
+                target.getDisplayName()
+        ).formatted(Formatting.GREEN), false);
+        return 1;
+    }
+
+    private static int showCoreTestForPlayer(ServerCommandSource source, ServerPlayerEntity target) {
+        if (target == null) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            return 0;
+        }
+
+        var world = source.getServer().getOverworld();
+        var status = AdminCoreTestQuestService.openStatus(world, target.getUuid());
+        if (status == null) {
+            source.sendFeedback(() -> Text.translatable(
+                    "command.village-quest.questadmin.coretest.show.none",
+                    target.getDisplayName()
+            ).formatted(Formatting.RED), false);
+            return 0;
+        }
+
+        source.sendFeedback(() -> Text.translatable(
+                "command.village-quest.questadmin.coretest.show.header",
+                target.getDisplayName()
+        ).formatted(Formatting.GOLD), false);
+        source.sendFeedback(() -> status.title().copy().formatted(Formatting.AQUA), false);
+        for (Text line : status.lines()) {
+            source.sendFeedback(() -> line, false);
+        }
         return 1;
     }
 

@@ -3,6 +3,14 @@
 ## Unreleased - Legacy Follow-Up Polish
 
 - `Smoke over Blackstone` now shows its real objectives directly instead of the old unclear wording.
+- Several gathering, mining, and shearing quests were updated:
+  - self-earned progress is tracked more reliably
+  - `Fortune` bonus yield now counts properly where it makes sense
+  - several hand-in quests now truly require their materials again at turn-in
+- Relevant hand-in quests now show a clear red hint when progress is finished but the required turn-in items are no longer in the inventory.
+- `Wayfinder's Compass` now asks for `Redstone Dust` from your own mining instead of the old ore-only wording.
+- `Whispers of the Shards` now tracks `Amethyst Shards` in the clearer modern form.
+- Several quest texts in English and German were cleaned up so progress lines and offers better match the real objectives.
 
 ## 1.20.0 - Village Stories Foundation And Progression Clarity Rework
 

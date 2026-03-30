@@ -28,6 +28,8 @@ public interface DailyQuestDefinition {
 
     default boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) { return true; }
 
+    default Text claimBlockedMessage(ServerWorld world, ServerPlayerEntity player) { return null; }
+
     default void onAccepted(ServerWorld world, ServerPlayerEntity player) {}
 
     default void onServerTick(ServerWorld world, ServerPlayerEntity player) {}
@@ -37,6 +39,8 @@ public interface DailyQuestDefinition {
     default void onBeeNestInteract(ServerWorld world, ServerPlayerEntity player, BlockState state, ItemStack inHand) {}
 
     default void onEntityUse(ServerWorld world, ServerPlayerEntity player, Entity entity, ItemStack inHand) {}
+
+    default void onTrackedItemPickup(ServerWorld world, ServerPlayerEntity player, ItemStack stack, int count) {}
 
     default void onFurnaceOutput(ServerWorld world, ServerPlayerEntity player, ItemStack stack) {}
 

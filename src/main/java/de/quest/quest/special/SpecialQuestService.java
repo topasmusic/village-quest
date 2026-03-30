@@ -105,6 +105,9 @@ public final class SpecialQuestService {
 
     public static int activeCount(ServerWorld world, UUID playerId) {
         int count = 0;
+        if (AdminCoreTestQuestService.isActive(world, playerId)) {
+            count++;
+        }
         if (ShardRelicQuestService.isActive(world, playerId)) {
             count++;
         }
@@ -124,7 +127,11 @@ public final class SpecialQuestService {
     }
 
     public static SpecialQuestStatus openStatus(ServerWorld world, UUID playerId) {
-        SpecialQuestStatus status = ShardRelicQuestService.openStatus(world, playerId);
+        SpecialQuestStatus status = AdminCoreTestQuestService.openStatus(world, playerId);
+        if (status != null) {
+            return status;
+        }
+        status = ShardRelicQuestService.openStatus(world, playerId);
         if (status != null) {
             return status;
         }
@@ -150,6 +157,7 @@ public final class SpecialQuestService {
     }
 
     public static ActionResult onUseBlock(ServerWorld world, ServerPlayerEntity player, BlockPos pos) {
+        AdminCoreTestQuestService.onUseBlock(world, player, pos);
         return ShardRelicQuestService.onUseBlock(world, player, pos);
     }
 
@@ -158,8 +166,16 @@ public final class SpecialQuestService {
     }
 
     public static void onBlockBreak(ServerWorld world, ServerPlayerEntity player, BlockPos pos, BlockState state) {
+        AdminCoreTestQuestService.onBlockBreak(world, player, pos, state);
         ShardRelicQuestService.onBlockBreak(world, player, pos, state);
         SurveyorCompassQuestService.onBlockBreak(world, player, pos, state);
+    }
+
+    public static void onTrackedItemPickup(ServerWorld world, ServerPlayerEntity player, ItemStack stack, int count) {
+        AdminCoreTestQuestService.onTrackedItemPickup(world, player, stack, count);
+        ShardRelicQuestService.onTrackedItemPickup(world, player, stack, count);
+        ShepherdFluteQuestService.onTrackedItemPickup(world, player, stack, count);
+        SurveyorCompassQuestService.onTrackedItemPickup(world, player, stack, count);
     }
 
     public static ActionResult onUseEntity(ServerWorld world, ServerPlayerEntity player, Hand hand, Entity entity, ItemStack stack) {
@@ -175,22 +191,43 @@ public final class SpecialQuestService {
                 return sealResult;
             }
         }
+        AdminCoreTestQuestService.onEntityUse(world, player, entity, stack);
         return ShepherdFluteQuestService.onEntityUse(world, player, entity, stack);
     }
 
+    public static void onFurnaceOutput(ServerWorld world, ServerPlayerEntity player, ItemStack stack) {
+        AdminCoreTestQuestService.onFurnaceOutput(world, player, stack);
+    }
+
     public static void onVillagerTrade(ServerWorld world, ServerPlayerEntity player, ItemStack stack) {
+        AdminCoreTestQuestService.onVillagerTrade(world, player, stack);
         MerchantSealQuestService.onVillagerTrade(world, player, stack);
     }
 
     public static void onAnimalLove(ServerWorld world, ServerPlayerEntity player, AnimalEntity animal) {
+        AdminCoreTestQuestService.onAnimalLove(world, player, animal);
         ShepherdFluteQuestService.onAnimalLove(world, player, animal);
     }
 
     public static void onBeeNestInteract(ServerWorld world, ServerPlayerEntity player, BlockState state, ItemStack stack) {
+        AdminCoreTestQuestService.onBeeNestInteract(world, player, state, stack);
         ApiaristSmokerQuestService.onBeeNestInteract(world, player, state, stack);
     }
 
     public static void onPilgrimPurchase(ServerWorld world, ServerPlayerEntity player, String offerId) {
+        AdminCoreTestQuestService.onPilgrimPurchase(world, player, offerId);
         MerchantSealQuestService.onPilgrimPurchase(world, player, offerId);
+    }
+
+    public static void onAnvilOutput(ServerWorld world,
+                                     ServerPlayerEntity player,
+                                     ItemStack leftInput,
+                                     ItemStack rightInput,
+                                     ItemStack output) {
+        AdminCoreTestQuestService.onAnvilOutput(world, player, leftInput, rightInput, output);
+    }
+
+    public static void onMonsterKill(ServerWorld world, ServerPlayerEntity player, Entity killedEntity) {
+        AdminCoreTestQuestService.onMonsterKill(world, player, killedEntity);
     }
 }

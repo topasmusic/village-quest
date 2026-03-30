@@ -5,9 +5,12 @@ import de.quest.quest.weekly.WeeklyQuestDefinition;
 import de.quest.quest.weekly.WeeklyQuestKeys;
 import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.reputation.ReputationService;
+import de.quest.quest.daily.DailyQuestService;
+import de.quest.util.Texts;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.passive.AnimalEntity;
 import net.minecraft.entity.passive.SheepEntity;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -19,6 +22,13 @@ import java.util.List;
 import java.util.UUID;
 
 public final class StallAndPastureWeeklyQuest implements WeeklyQuestDefinition {
+    private static final Item[] WOOL_ITEMS = new Item[] {
+            Items.WHITE_WOOL, Items.LIGHT_GRAY_WOOL, Items.GRAY_WOOL, Items.BLACK_WOOL,
+            Items.BROWN_WOOL, Items.RED_WOOL, Items.ORANGE_WOOL, Items.YELLOW_WOOL,
+            Items.LIME_WOOL, Items.GREEN_WOOL, Items.CYAN_WOOL, Items.LIGHT_BLUE_WOOL,
+            Items.BLUE_WOOL, Items.PURPLE_WOOL, Items.MAGENTA_WOOL, Items.PINK_WOOL
+    };
+
     @Override
     public WeeklyQuestService.WeeklyQuestType type() {
         return WeeklyQuestService.WeeklyQuestType.STALL_AND_PASTURE;
@@ -41,20 +51,21 @@ public final class StallAndPastureWeeklyQuest implements WeeklyQuestDefinition {
 
     @Override
     public List<Text> progressLines(ServerWorld world, UUID playerId) {
-        return List.of(
-                Text.translatable(
-                        "quest.village-quest.weekly.pasture.progress.1",
-                        WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_BREED),
-                        WeeklyQuestService.pastureBreedTarget(),
-                        WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_SHEAR),
-                        WeeklyQuestService.pastureShearTarget()
-                ).formatted(Formatting.GRAY),
-                Text.translatable(
-                        "quest.village-quest.weekly.pasture.progress.2",
-                        WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_WOOL),
-                        WeeklyQuestService.pastureWoolTarget()
-                ).formatted(Formatting.GRAY)
-        );
+        Text line1 = Text.translatable(
+                "quest.village-quest.weekly.pasture.progress.1",
+                WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_BREED),
+                WeeklyQuestService.pastureBreedTarget(),
+                WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_SHEAR),
+                WeeklyQuestService.pastureShearTarget()
+        ).formatted(Formatting.GRAY);
+        Text line2 = Text.translatable(
+                "quest.village-quest.weekly.pasture.progress.2",
+                WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_WOOL),
+                WeeklyQuestService.pastureWoolTarget()
+        ).formatted(Formatting.GRAY);
+        ServerPlayerEntity player = world == null ? null : world.getServer().getPlayerManager().getPlayer(playerId);
+        Text blocked = player == null ? null : claimBlockedMessage(world, player);
+        return blocked == null ? List.of(line1, line2) : List.of(line1, line2, blocked);
     }
 
     @Override
@@ -62,7 +73,33 @@ public final class StallAndPastureWeeklyQuest implements WeeklyQuestDefinition {
         UUID playerId = player.getUuid();
         return WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_BREED) >= WeeklyQuestService.pastureBreedTarget()
                 && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_SHEAR) >= WeeklyQuestService.pastureShearTarget()
-                && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_WOOL) >= WeeklyQuestService.pastureWoolTarget();
+                && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_WOOL) >= WeeklyQuestService.pastureWoolTarget()
+                && countInventoryWool(player) >= WeeklyQuestService.pastureWoolTarget();
+    }
+
+    @Override
+    public boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) {
+        return consumeInventoryWool(player, WeeklyQuestService.pastureWoolTarget());
+    }
+
+    @Override
+    public Text claimBlockedMessage(ServerWorld world, ServerPlayerEntity player) {
+        if (player == null || world == null) {
+            return null;
+        }
+        UUID playerId = player.getUuid();
+        int woolTarget = WeeklyQuestService.pastureWoolTarget();
+        if (WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_BREED) < WeeklyQuestService.pastureBreedTarget()
+                || WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_SHEAR) < WeeklyQuestService.pastureShearTarget()
+                || WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_WOOL) < woolTarget
+                || countInventoryWool(player) >= woolTarget) {
+            return null;
+        }
+        return Texts.turnInMissing(
+                Text.translatable("text.village-quest.turnin.label.wool"),
+                countInventoryWool(player),
+                woolTarget
+        );
     }
 
     @Override
@@ -82,46 +119,15 @@ public final class StallAndPastureWeeklyQuest implements WeeklyQuestDefinition {
     }
 
     @Override
-    public void onAccepted(ServerWorld world, ServerPlayerEntity player) {
-        UUID playerId = player.getUuid();
-        WeeklyQuestService.setQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_LAST_WOOL, WeeklyQuestService.totalWoolPickedUp(player) + 1);
-        WeeklyQuestService.setQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_EXPECTED_WOOL, 0);
-        WeeklyQuestService.setQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_EXPECTED_WOOL_EXPIRE, 0);
-    }
-
-    @Override
-    public void onServerTick(ServerWorld world, ServerPlayerEntity player) {
+    public void onTrackedItemPickup(ServerWorld world, ServerPlayerEntity player, ItemStack stack, int count) {
         if (!WeeklyQuestService.isAcceptedThisWeek(world, player.getUuid()) || WeeklyQuestService.hasCompletedThisWeek(world, player.getUuid())) {
             return;
         }
-
-        UUID playerId = player.getUuid();
-        int currentPickedUp = WeeklyQuestService.totalWoolPickedUp(player);
-        int storedLastPickedUp = WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_LAST_WOOL);
-        if (storedLastPickedUp == 0) {
-            WeeklyQuestService.setQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_LAST_WOOL, currentPickedUp + 1);
+        if (!isWool(stack)) {
             return;
         }
-
-        int expectedWool = WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_EXPECTED_WOOL);
-        int delta = currentPickedUp - (storedLastPickedUp - 1);
-        if (expectedWool > 0 && delta > 0) {
-            int credit = Math.min(delta, expectedWool);
-            if (credit > 0) {
-                WeeklyQuestService.addQuestIntClamped(world, playerId, WeeklyQuestKeys.PASTURE_WOOL, credit, WeeklyQuestService.pastureWoolTarget());
-                WeeklyQuestService.setQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_EXPECTED_WOOL, Math.max(0, expectedWool - credit));
-                WeeklyQuestService.completeIfEligible(world, player);
-            }
-        }
-        WeeklyQuestService.setQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_LAST_WOOL, currentPickedUp + 1);
-
-        int left = WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_EXPECTED_WOOL_EXPIRE) - 1;
-        if (left <= 0) {
-            WeeklyQuestService.setQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_EXPECTED_WOOL, 0);
-            WeeklyQuestService.setQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_EXPECTED_WOOL_EXPIRE, 0);
-        } else {
-            WeeklyQuestService.setQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_EXPECTED_WOOL_EXPIRE, left);
-        }
+        WeeklyQuestService.addQuestIntClamped(world, player.getUuid(), WeeklyQuestKeys.PASTURE_WOOL, count, WeeklyQuestService.pastureWoolTarget());
+        WeeklyQuestService.completeIfEligible(world, player);
     }
 
     @Override
@@ -145,9 +151,23 @@ public final class StallAndPastureWeeklyQuest implements WeeklyQuestDefinition {
 
         UUID playerId = player.getUuid();
         WeeklyQuestService.addQuestIntClamped(world, playerId, WeeklyQuestKeys.PASTURE_SHEAR, 1, WeeklyQuestService.pastureShearTarget());
-        WeeklyQuestService.addQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_EXPECTED_WOOL, 3);
-        WeeklyQuestService.setQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_EXPECTED_WOOL_EXPIRE, 40);
-        WeeklyQuestService.setQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_LAST_WOOL, WeeklyQuestService.totalWoolPickedUp(player) + 1);
         WeeklyQuestService.completeIfEligible(world, player);
+    }
+
+    private boolean isWool(ItemStack stack) {
+        for (Item woolItem : WOOL_ITEMS) {
+            if (stack.isOf(woolItem)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private int countInventoryWool(ServerPlayerEntity player) {
+        return DailyQuestService.countInventoryItems(player, WOOL_ITEMS);
+    }
+
+    private boolean consumeInventoryWool(ServerPlayerEntity player, int amount) {
+        return DailyQuestService.consumeInventoryItems(player, amount, WOOL_ITEMS);
     }
 }

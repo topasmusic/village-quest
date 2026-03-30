@@ -4,6 +4,8 @@ import de.quest.quest.daily.DailyQuestCompletion;
 import de.quest.quest.daily.DailyQuestDefinition;
 import de.quest.quest.daily.DailyQuestKeys;
 import de.quest.quest.daily.DailyQuestService;
+import de.quest.util.Texts;
+import java.util.UUID;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.CropBlock;
@@ -14,8 +16,6 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
-
-import java.util.UUID;
 
 public final class WheatHarvestDailyQuest implements DailyQuestDefinition {
     @Override
@@ -40,6 +40,14 @@ public final class WheatHarvestDailyQuest implements DailyQuestDefinition {
 
     @Override
     public Text progressLine(ServerWorld world, UUID playerId) {
+        ServerPlayerEntity player = world == null ? null : world.getServer().getPlayerManager().getPlayer(playerId);
+        if (player != null) {
+            Text blocked = claimBlockedMessage(world, player);
+            if (blocked != null) {
+                return blocked;
+            }
+        }
+
         return Text.translatable(
                 "quest.village-quest.daily.wheat.progress",
                 DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.WHEAT_PROGRESS),
@@ -54,7 +62,7 @@ public final class WheatHarvestDailyQuest implements DailyQuestDefinition {
         UUID playerId = player.getUuid();
         return DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.WHEAT_PROGRESS) >= DailyQuestService.wheatTarget()
                 && DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.BREAD_PROGRESS) >= DailyQuestService.breadTarget()
-                && DailyQuestService.countInventoryItem(player, Items.BREAD) >= DailyQuestService.breadTarget();
+                && hasTurnInItems(player);
     }
 
     @Override
@@ -72,7 +80,34 @@ public final class WheatHarvestDailyQuest implements DailyQuestDefinition {
 
     @Override
     public boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) {
-        return DailyQuestService.consumeInventoryItem(player, Items.BREAD, DailyQuestService.breadTarget());
+        if (!hasTurnInItems(player)) {
+            return false;
+        }
+        return DailyQuestService.consumeInventoryItem(player, Items.WHEAT, DailyQuestService.wheatTarget())
+                && DailyQuestService.consumeInventoryItem(player, Items.BREAD, DailyQuestService.breadTarget());
+    }
+
+    @Override
+    public Text claimBlockedMessage(ServerWorld world, ServerPlayerEntity player) {
+        if (player == null || world == null) {
+            return null;
+        }
+        UUID playerId = player.getUuid();
+        int wheatTarget = DailyQuestService.wheatTarget();
+        int breadTarget = DailyQuestService.breadTarget();
+        if (DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.WHEAT_PROGRESS) < wheatTarget
+                || DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.BREAD_PROGRESS) < breadTarget
+                || hasTurnInItems(player)) {
+            return null;
+        }
+        return Texts.turnInMissing(
+                Items.WHEAT.getName(),
+                DailyQuestService.countInventoryItem(player, Items.WHEAT),
+                wheatTarget,
+                Items.BREAD.getName(),
+                DailyQuestService.countInventoryItem(player, Items.BREAD),
+                breadTarget
+        );
     }
 
     @Override
@@ -127,5 +162,10 @@ public final class WheatHarvestDailyQuest implements DailyQuestDefinition {
         DailyQuestService.setQuestInt(world, playerId, DailyQuestKeys.WHEAT_PROGRESS, Math.min(DailyQuestService.wheatTarget(), current + 1));
         DailyQuestService.completeIfEligible(world, player);
         DailyQuestService.sendCurrentProgressActionbar(world, player);
+    }
+
+    private boolean hasTurnInItems(ServerPlayerEntity player) {
+        return DailyQuestService.countInventoryItem(player, Items.WHEAT) >= DailyQuestService.wheatTarget()
+                && DailyQuestService.countInventoryItem(player, Items.BREAD) >= DailyQuestService.breadTarget();
     }
 }

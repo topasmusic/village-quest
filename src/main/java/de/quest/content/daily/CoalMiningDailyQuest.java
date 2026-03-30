@@ -4,16 +4,14 @@ import de.quest.quest.daily.DailyQuestCompletion;
 import de.quest.quest.daily.DailyQuestDefinition;
 import de.quest.quest.daily.DailyQuestKeys;
 import de.quest.quest.daily.DailyQuestService;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
+import de.quest.util.Texts;
+import java.util.UUID;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
-import net.minecraft.util.math.BlockPos;
-
-import java.util.UUID;
 
 public final class CoalMiningDailyQuest implements DailyQuestDefinition {
     @Override
@@ -38,12 +36,24 @@ public final class CoalMiningDailyQuest implements DailyQuestDefinition {
 
     @Override
     public Text progressLine(ServerWorld world, UUID playerId) {
+        ServerPlayerEntity player = world == null ? null : world.getServer().getPlayerManager().getPlayer(playerId);
+        int ironProgress = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.IRON_PROGRESS);
+        int coalProgress = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.SMITH_COAL_PROGRESS);
+        int ironTarget = DailyQuestService.ironTarget();
+        int coalTarget = DailyQuestService.smithCoalTarget();
+        if (player != null) {
+            Text blocked = claimBlockedMessage(world, player);
+            if (blocked != null) {
+                return blocked;
+            }
+        }
+
         return Text.translatable(
                 "quest.village-quest.daily.coal.progress",
-                DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.IRON_PROGRESS),
-                DailyQuestService.ironTarget(),
-                DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.SMITH_COAL_PROGRESS),
-                DailyQuestService.smithCoalTarget()
+                ironProgress,
+                ironTarget,
+                coalProgress,
+                coalTarget
         ).formatted(Formatting.GRAY);
     }
 
@@ -51,7 +61,42 @@ public final class CoalMiningDailyQuest implements DailyQuestDefinition {
     public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
         UUID playerId = player.getUuid();
         return DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.IRON_PROGRESS) >= DailyQuestService.ironTarget()
-                && DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.SMITH_COAL_PROGRESS) >= DailyQuestService.smithCoalTarget();
+                && DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.SMITH_COAL_PROGRESS) >= DailyQuestService.smithCoalTarget()
+                && hasTurnInItems(player);
+    }
+
+    @Override
+    public boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) {
+        if (!hasTurnInItems(player)) {
+            return false;
+        }
+        return DailyQuestService.consumeInventoryItem(player, Items.RAW_IRON, DailyQuestService.ironTarget())
+                && DailyQuestService.consumeInventoryItem(player, Items.COAL, DailyQuestService.smithCoalTarget());
+    }
+
+    @Override
+    public Text claimBlockedMessage(ServerWorld world, ServerPlayerEntity player) {
+        if (player == null || world == null) {
+            return null;
+        }
+
+        UUID playerId = player.getUuid();
+        int ironTarget = DailyQuestService.ironTarget();
+        int coalTarget = DailyQuestService.smithCoalTarget();
+        if (DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.IRON_PROGRESS) < ironTarget
+                || DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.SMITH_COAL_PROGRESS) < coalTarget
+                || hasTurnInItems(player)) {
+            return null;
+        }
+
+        return Texts.turnInMissing(
+                Items.RAW_IRON.getName(),
+                DailyQuestService.countInventoryItem(player, Items.RAW_IRON),
+                ironTarget,
+                Items.COAL.getName(),
+                DailyQuestService.countInventoryItem(player, Items.COAL),
+                coalTarget
+        );
     }
 
     @Override
@@ -68,24 +113,29 @@ public final class CoalMiningDailyQuest implements DailyQuestDefinition {
     }
 
     @Override
-    public void onBlockBreak(ServerWorld world, ServerPlayerEntity player, BlockPos pos, BlockState state) {
+    public void onTrackedItemPickup(ServerWorld world, ServerPlayerEntity player, ItemStack stack, int count) {
         if (DailyQuestService.hasCompletedToday(world, player.getUuid())) return;
         if (!DailyQuestService.isAcceptedToday(world, player.getUuid())) return;
-        if (state.isOf(Blocks.IRON_ORE) || state.isOf(Blocks.DEEPSLATE_IRON_ORE)) {
-            incrementProgress(world, player, DailyQuestKeys.IRON_PROGRESS, DailyQuestService.ironTarget());
-        } else if (state.isOf(Blocks.COAL_ORE) || state.isOf(Blocks.DEEPSLATE_COAL_ORE)) {
-            incrementProgress(world, player, DailyQuestKeys.SMITH_COAL_PROGRESS, DailyQuestService.smithCoalTarget());
+        if (stack.isOf(Items.RAW_IRON)) {
+            incrementProgress(world, player, DailyQuestKeys.IRON_PROGRESS, DailyQuestService.ironTarget(), count);
+        } else if (stack.isOf(Items.COAL)) {
+            incrementProgress(world, player, DailyQuestKeys.SMITH_COAL_PROGRESS, DailyQuestService.smithCoalTarget(), count);
         }
     }
 
-    private void incrementProgress(ServerWorld world, ServerPlayerEntity player, String key, int target) {
+    private void incrementProgress(ServerWorld world, ServerPlayerEntity player, String key, int target, int amount) {
         UUID playerId = player.getUuid();
         int current = DailyQuestService.getQuestInt(world, playerId, key);
         if (current >= target) {
             return;
         }
-        DailyQuestService.setQuestInt(world, playerId, key, Math.min(target, current + 1));
+        DailyQuestService.setQuestInt(world, playerId, key, Math.min(target, current + amount));
         DailyQuestService.completeIfEligible(world, player);
         DailyQuestService.sendCurrentProgressActionbar(world, player);
+    }
+
+    private boolean hasTurnInItems(ServerPlayerEntity player) {
+        return DailyQuestService.countInventoryItem(player, Items.RAW_IRON) >= DailyQuestService.ironTarget()
+                && DailyQuestService.countInventoryItem(player, Items.COAL) >= DailyQuestService.smithCoalTarget();
     }
 }
