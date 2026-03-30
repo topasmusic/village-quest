@@ -4,17 +4,14 @@ import de.quest.quest.daily.DailyQuestCompletion;
 import de.quest.quest.daily.DailyQuestDefinition;
 import de.quest.quest.daily.DailyQuestKeys;
 import de.quest.quest.daily.DailyQuestService;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
+import de.quest.util.Texts;
+import java.util.UUID;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
-import net.minecraft.util.math.BlockPos;
-
-import java.util.UUID;
 
 public final class SmithSmeltingDailyQuest implements DailyQuestDefinition {
     @Override
@@ -39,6 +36,14 @@ public final class SmithSmeltingDailyQuest implements DailyQuestDefinition {
 
     @Override
     public Text progressLine(ServerWorld world, UUID playerId) {
+        ServerPlayerEntity player = world == null ? null : world.getServer().getPlayerManager().getPlayer(playerId);
+        if (player != null) {
+            Text blocked = claimBlockedMessage(world, player);
+            if (blocked != null) {
+                return blocked;
+            }
+        }
+
         return Text.translatable(
                 "quest.village-quest.daily.smelt.progress",
                 DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.SMITH_SMELT_ORE_PROGRESS),
@@ -53,7 +58,7 @@ public final class SmithSmeltingDailyQuest implements DailyQuestDefinition {
         UUID playerId = player.getUuid();
         return DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.SMITH_SMELT_ORE_PROGRESS) >= DailyQuestService.smithSmeltOreTarget()
                 && DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.SMITH_SMELT_INGOT_PROGRESS) >= DailyQuestService.smithSmeltIngotTarget()
-                && DailyQuestService.countInventoryItem(player, Items.IRON_INGOT) >= DailyQuestService.smithSmeltIngotTarget();
+                && hasTurnInItems(player);
     }
 
     @Override
@@ -71,18 +76,45 @@ public final class SmithSmeltingDailyQuest implements DailyQuestDefinition {
 
     @Override
     public boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) {
-        return DailyQuestService.consumeInventoryItem(player, Items.IRON_INGOT, DailyQuestService.smithSmeltIngotTarget());
+        if (!hasTurnInItems(player)) {
+            return false;
+        }
+        return DailyQuestService.consumeInventoryItem(player, Items.RAW_IRON, DailyQuestService.smithSmeltOreTarget())
+                && DailyQuestService.consumeInventoryItem(player, Items.IRON_INGOT, DailyQuestService.smithSmeltIngotTarget());
     }
 
     @Override
-    public void onBlockBreak(ServerWorld world, ServerPlayerEntity player, BlockPos pos, BlockState state) {
+    public Text claimBlockedMessage(ServerWorld world, ServerPlayerEntity player) {
+        if (player == null || world == null) {
+            return null;
+        }
+        UUID playerId = player.getUuid();
+        int oreTarget = DailyQuestService.smithSmeltOreTarget();
+        int ingotTarget = DailyQuestService.smithSmeltIngotTarget();
+        if (DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.SMITH_SMELT_ORE_PROGRESS) < oreTarget
+                || DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.SMITH_SMELT_INGOT_PROGRESS) < ingotTarget
+                || hasTurnInItems(player)) {
+            return null;
+        }
+        return Texts.turnInMissing(
+                Items.RAW_IRON.getName(),
+                DailyQuestService.countInventoryItem(player, Items.RAW_IRON),
+                oreTarget,
+                Items.IRON_INGOT.getName(),
+                DailyQuestService.countInventoryItem(player, Items.IRON_INGOT),
+                ingotTarget
+        );
+    }
+
+    @Override
+    public void onTrackedItemPickup(ServerWorld world, ServerPlayerEntity player, ItemStack stack, int count) {
         if (DailyQuestService.hasCompletedToday(world, player.getUuid())) return;
         if (!DailyQuestService.isAcceptedToday(world, player.getUuid())) return;
-        if (!state.isOf(Blocks.IRON_ORE) && !state.isOf(Blocks.DEEPSLATE_IRON_ORE)) {
+        if (!stack.isOf(Items.RAW_IRON)) {
             return;
         }
 
-        incrementProgress(world, player, DailyQuestKeys.SMITH_SMELT_ORE_PROGRESS, DailyQuestService.smithSmeltOreTarget(), 1);
+        incrementProgress(world, player, DailyQuestKeys.SMITH_SMELT_ORE_PROGRESS, DailyQuestService.smithSmeltOreTarget(), count);
     }
 
     @Override
@@ -106,5 +138,10 @@ public final class SmithSmeltingDailyQuest implements DailyQuestDefinition {
         DailyQuestService.setQuestInt(world, playerId, key, Math.min(target, current + amount));
         DailyQuestService.completeIfEligible(world, player);
         DailyQuestService.sendCurrentProgressActionbar(world, player);
+    }
+
+    private boolean hasTurnInItems(ServerPlayerEntity player) {
+        return DailyQuestService.countInventoryItem(player, Items.RAW_IRON) >= DailyQuestService.smithSmeltOreTarget()
+                && DailyQuestService.countInventoryItem(player, Items.IRON_INGOT) >= DailyQuestService.smithSmeltIngotTarget();
     }
 }

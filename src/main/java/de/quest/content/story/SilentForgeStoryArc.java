@@ -10,6 +10,7 @@ import de.quest.quest.story.StoryQuestKeys;
 import de.quest.quest.story.StoryQuestService;
 import de.quest.quest.story.VillageProjectType;
 import de.quest.reputation.ReputationService;
+import de.quest.util.Texts;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.component.DataComponentTypes;
@@ -150,20 +151,21 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
 
         @Override
         public List<Text> progressLines(ServerWorld world, UUID playerId) {
-            return List.of(
-                    Text.translatable(
-                            "quest.village-quest.story.silent_forge.chapter_1.progress.1",
-                            progress(world, playerId, StoryQuestKeys.SILENT_FORGE_IRON_ORE),
-                            COLD_HEARTH_IRON_TARGET,
-                            progress(world, playerId, StoryQuestKeys.SILENT_FORGE_COAL_ORE),
-                            COLD_HEARTH_COAL_TARGET
-                    ).formatted(Formatting.GRAY),
-                    Text.translatable(
-                            "quest.village-quest.story.silent_forge.chapter_1.progress.2",
-                            progress(world, playerId, StoryQuestKeys.SILENT_FORGE_DIAMOND_ORE),
-                            COLD_HEARTH_DIAMOND_TARGET
-                    ).formatted(Formatting.GRAY)
-            );
+            Text line1 = Text.translatable(
+                    "quest.village-quest.story.silent_forge.chapter_1.progress.1",
+                    progress(world, playerId, StoryQuestKeys.SILENT_FORGE_IRON_ORE),
+                    COLD_HEARTH_IRON_TARGET,
+                    progress(world, playerId, StoryQuestKeys.SILENT_FORGE_COAL_ORE),
+                    COLD_HEARTH_COAL_TARGET
+            ).formatted(Formatting.GRAY);
+            Text line2 = Text.translatable(
+                    "quest.village-quest.story.silent_forge.chapter_1.progress.2",
+                    progress(world, playerId, StoryQuestKeys.SILENT_FORGE_DIAMOND_ORE),
+                    COLD_HEARTH_DIAMOND_TARGET
+            ).formatted(Formatting.GRAY);
+            ServerPlayerEntity player = world == null ? null : world.getServer().getPlayerManager().getPlayer(playerId);
+            Text blocked = player == null ? null : claimBlockedMessage(world, player);
+            return blocked == null ? List.of(line1, line2) : List.of(line1, line2, blocked);
         }
 
         @Override
@@ -171,7 +173,49 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
             UUID playerId = player.getUuid();
             return progress(world, playerId, StoryQuestKeys.SILENT_FORGE_IRON_ORE) >= COLD_HEARTH_IRON_TARGET
                     && progress(world, playerId, StoryQuestKeys.SILENT_FORGE_COAL_ORE) >= COLD_HEARTH_COAL_TARGET
-                    && progress(world, playerId, StoryQuestKeys.SILENT_FORGE_DIAMOND_ORE) >= COLD_HEARTH_DIAMOND_TARGET;
+                    && progress(world, playerId, StoryQuestKeys.SILENT_FORGE_DIAMOND_ORE) >= COLD_HEARTH_DIAMOND_TARGET
+                    && hasItem(player, Items.RAW_IRON, COLD_HEARTH_IRON_TARGET)
+                    && hasItem(player, Items.COAL, COLD_HEARTH_COAL_TARGET)
+                    && hasItem(player, Items.DIAMOND, COLD_HEARTH_DIAMOND_TARGET);
+        }
+
+        @Override
+        public boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) {
+            if (!hasItem(player, Items.RAW_IRON, COLD_HEARTH_IRON_TARGET)
+                    || !hasItem(player, Items.COAL, COLD_HEARTH_COAL_TARGET)
+                    || !hasItem(player, Items.DIAMOND, COLD_HEARTH_DIAMOND_TARGET)) {
+                return false;
+            }
+            return consumeItem(player, Items.RAW_IRON, COLD_HEARTH_IRON_TARGET)
+                    && consumeItem(player, Items.COAL, COLD_HEARTH_COAL_TARGET)
+                    && consumeItem(player, Items.DIAMOND, COLD_HEARTH_DIAMOND_TARGET);
+        }
+
+        @Override
+        public Text claimBlockedMessage(ServerWorld world, ServerPlayerEntity player) {
+            if (player == null || world == null) {
+                return null;
+            }
+            UUID playerId = player.getUuid();
+            if (progress(world, playerId, StoryQuestKeys.SILENT_FORGE_IRON_ORE) < COLD_HEARTH_IRON_TARGET
+                    || progress(world, playerId, StoryQuestKeys.SILENT_FORGE_COAL_ORE) < COLD_HEARTH_COAL_TARGET
+                    || progress(world, playerId, StoryQuestKeys.SILENT_FORGE_DIAMOND_ORE) < COLD_HEARTH_DIAMOND_TARGET
+                    || (hasItem(player, Items.RAW_IRON, COLD_HEARTH_IRON_TARGET)
+                    && hasItem(player, Items.COAL, COLD_HEARTH_COAL_TARGET)
+                    && hasItem(player, Items.DIAMOND, COLD_HEARTH_DIAMOND_TARGET))) {
+                return null;
+            }
+            return Texts.turnInMissing(
+                    Items.RAW_IRON.getDefaultStack().toHoverableText(),
+                    DailyQuestService.countInventoryItem(player, Items.RAW_IRON),
+                    COLD_HEARTH_IRON_TARGET,
+                    Items.COAL.getDefaultStack().toHoverableText(),
+                    DailyQuestService.countInventoryItem(player, Items.COAL),
+                    COLD_HEARTH_COAL_TARGET,
+                    Items.DIAMOND.getDefaultStack().toHoverableText(),
+                    DailyQuestService.countInventoryItem(player, Items.DIAMOND),
+                    COLD_HEARTH_DIAMOND_TARGET
+            );
         }
 
         @Override
@@ -190,13 +234,13 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
         }
 
         @Override
-        public void onBlockBreak(ServerWorld world, ServerPlayerEntity player, BlockPos pos, BlockState state) {
-            if (state.isOf(Blocks.IRON_ORE) || state.isOf(Blocks.DEEPSLATE_IRON_ORE)) {
-                addProgress(world, player, StoryQuestKeys.SILENT_FORGE_IRON_ORE, 1, COLD_HEARTH_IRON_TARGET);
-            } else if (state.isOf(Blocks.COAL_ORE) || state.isOf(Blocks.DEEPSLATE_COAL_ORE)) {
-                addProgress(world, player, StoryQuestKeys.SILENT_FORGE_COAL_ORE, 1, COLD_HEARTH_COAL_TARGET);
-            } else if (state.isOf(Blocks.DIAMOND_ORE) || state.isOf(Blocks.DEEPSLATE_DIAMOND_ORE)) {
-                addProgress(world, player, StoryQuestKeys.SILENT_FORGE_DIAMOND_ORE, 1, COLD_HEARTH_DIAMOND_TARGET);
+        public void onTrackedItemPickup(ServerWorld world, ServerPlayerEntity player, ItemStack stack, int count) {
+            if (stack.isOf(Items.RAW_IRON)) {
+                addProgress(world, player, StoryQuestKeys.SILENT_FORGE_IRON_ORE, count, COLD_HEARTH_IRON_TARGET);
+            } else if (stack.isOf(Items.COAL)) {
+                addProgress(world, player, StoryQuestKeys.SILENT_FORGE_COAL_ORE, count, COLD_HEARTH_COAL_TARGET);
+            } else if (stack.isOf(Items.DIAMOND)) {
+                addProgress(world, player, StoryQuestKeys.SILENT_FORGE_DIAMOND_ORE, count, COLD_HEARTH_DIAMOND_TARGET);
             }
         }
     }

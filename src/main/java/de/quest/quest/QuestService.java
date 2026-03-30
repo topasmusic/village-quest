@@ -11,6 +11,7 @@ import de.quest.quest.story.StoryQuestService;
 import de.quest.quest.weekly.WeeklyQuestService;
 import net.fabricmc.fabric.api.entity.event.v1.ServerEntityCombatEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
@@ -25,11 +26,13 @@ public final class QuestService {
     public static void registerEvents() {
         ServerLifecycleEvents.SERVER_STARTED.register(server -> QuestState.get(server).applyToRuntime());
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
+            QuestDropTracker.clear();
             QuestState state = QuestState.get(server);
             state.updateFromRuntime();
             server.getOverworld().getPersistentStateManager().save();
         });
 
+        ServerTickEvents.END_SERVER_TICK.register(QuestDropTracker::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(DailyQuestService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(WeeklyQuestService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(StoryQuestService::onServerTick);
@@ -69,9 +72,19 @@ public final class QuestService {
 
         PlayerBlockBreakEvents.BEFORE.register((world, player, pos, state, blockEntity) -> {
             if (world instanceof ServerWorld sw && player instanceof net.minecraft.server.network.ServerPlayerEntity sp) {
-                return SpecialQuestService.allowBlockBreak(sw, sp, pos);
+                boolean allowed = SpecialQuestService.allowBlockBreak(sw, sp, pos);
+                if (allowed) {
+                    QuestDropTracker.onBlockBreakStart(sw, sp, pos, state, blockEntity);
+                }
+                return allowed;
             }
             return true;
+        });
+
+        PlayerBlockBreakEvents.CANCELED.register((world, player, pos, state, blockEntity) -> {
+            if (world instanceof ServerWorld sw && player instanceof net.minecraft.server.network.ServerPlayerEntity sp) {
+                QuestDropTracker.onBlockBreakCanceled(sw, sp, pos);
+            }
         });
 
         PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, blockEntity) -> {
@@ -79,8 +92,11 @@ public final class QuestService {
                 DailyQuestService.onBlockBreak(sw, sp, pos, state);
                 StoryQuestService.onBlockBreak(sw, sp, pos, state);
                 SpecialQuestService.onBlockBreak(sw, sp, pos, state);
+                QuestDropTracker.onBlockBreakFinished(sw, sp, pos);
             }
         });
+
+        ServerEntityEvents.ENTITY_LOAD.register(QuestDropTracker::onEntityLoad);
 
         UseEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
             if (world instanceof ServerWorld sw && player instanceof net.minecraft.server.network.ServerPlayerEntity sp) {
@@ -89,6 +105,7 @@ public final class QuestService {
                 if (specialResult != ActionResult.PASS) {
                     return specialResult;
                 }
+                QuestDropTracker.onEntityUse(sw, sp, entity, stack);
                 DailyQuestService.onEntityUse(sw, sp, entity, stack);
                 StoryQuestService.onEntityUse(sw, sp, entity, stack);
                 PilgrimContractService.onEntityUse(sw, sp, entity, stack);
@@ -98,8 +115,10 @@ public final class QuestService {
 
         ServerEntityCombatEvents.AFTER_KILLED_OTHER_ENTITY.register((world, entity, killedEntity, damageSource) -> {
             if (world instanceof ServerWorld sw && entity instanceof net.minecraft.server.network.ServerPlayerEntity sp) {
+                QuestDropTracker.onKilledOtherEntity(sw, sp, killedEntity);
                 DailyQuestService.onMonsterKill(sw, sp, killedEntity);
                 StoryQuestService.onMonsterKill(sw, sp, killedEntity);
+                SpecialQuestService.onMonsterKill(sw, sp, killedEntity);
                 PilgrimContractService.onMonsterKill(sw, sp, killedEntity);
             }
         });

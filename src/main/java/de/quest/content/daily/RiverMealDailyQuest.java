@@ -4,6 +4,8 @@ import de.quest.quest.daily.DailyQuestCompletion;
 import de.quest.quest.daily.DailyQuestDefinition;
 import de.quest.quest.daily.DailyQuestKeys;
 import de.quest.quest.daily.DailyQuestService;
+import de.quest.util.Texts;
+import java.util.UUID;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -11,8 +13,6 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.stat.Stats;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
-
-import java.util.UUID;
 
 public final class RiverMealDailyQuest implements DailyQuestDefinition {
     @Override
@@ -37,6 +37,14 @@ public final class RiverMealDailyQuest implements DailyQuestDefinition {
 
     @Override
     public Text progressLine(ServerWorld world, UUID playerId) {
+        ServerPlayerEntity player = world == null ? null : world.getServer().getPlayerManager().getPlayer(playerId);
+        if (player != null) {
+            Text blocked = claimBlockedMessage(world, player);
+            if (blocked != null) {
+                return blocked;
+            }
+        }
+
         return Text.translatable(
                 "quest.village-quest.daily.river.progress",
                 DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.RIVER_FISH_PROGRESS),
@@ -70,6 +78,25 @@ public final class RiverMealDailyQuest implements DailyQuestDefinition {
     @Override
     public boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) {
         return DailyQuestService.consumeInventoryItems(player, DailyQuestService.riverCookedFishTarget(), Items.COOKED_COD, Items.COOKED_SALMON);
+    }
+
+    @Override
+    public Text claimBlockedMessage(ServerWorld world, ServerPlayerEntity player) {
+        if (player == null || world == null) {
+            return null;
+        }
+        UUID playerId = player.getUuid();
+        int fishTarget = DailyQuestService.riverCookedFishTarget();
+        if (DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.RIVER_FISH_PROGRESS) < DailyQuestService.riverFishTarget()
+                || DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.RIVER_COOKED_FISH_PROGRESS) < fishTarget
+                || DailyQuestService.countInventoryItems(player, Items.COOKED_COD, Items.COOKED_SALMON) >= fishTarget) {
+            return null;
+        }
+        return Texts.turnInMissing(
+                Text.translatable("text.village-quest.turnin.label.cooked_fish"),
+                DailyQuestService.countInventoryItems(player, Items.COOKED_COD, Items.COOKED_SALMON),
+                fishTarget
+        );
     }
 
     @Override

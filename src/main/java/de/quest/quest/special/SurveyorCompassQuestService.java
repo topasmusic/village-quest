@@ -56,7 +56,7 @@ import java.util.concurrent.ConcurrentMap;
 public final class SurveyorCompassQuestService {
     public static final int REQUIRED_CRAFTING_REPUTATION = 200;
 
-    private static final int REDSTONE_TARGET = 16;
+    private static final int REDSTONE_TARGET = 64;
     private static final int CRAFTED_TARGET = 1;
     private static final int PICKAXE_READY_TARGET = 1;
     private static final int BIOME_SEARCH_RADIUS = 6400;
@@ -526,14 +526,15 @@ public final class SurveyorCompassQuestService {
     }
 
     public static void onBlockBreak(ServerWorld world, ServerPlayerEntity player, BlockPos pos, BlockState state) {
-        if (world == null || player == null || state == null) {
+        // Progress is granted on tracked redstone dust pickups.
+    }
+
+    public static void onTrackedItemPickup(ServerWorld world, ServerPlayerEntity player, ItemStack stack, int count) {
+        if (world == null || player == null || stack == null || count <= 0) {
             return;
         }
         PlayerQuestData data = data(world, player.getUuid());
-        if (data.getSurveyorCompassQuestStage() != RelicQuestStage.ACTIVE) {
-            return;
-        }
-        if (!state.isOf(Blocks.REDSTONE_ORE) && !state.isOf(Blocks.DEEPSLATE_REDSTONE_ORE)) {
+        if (data.getSurveyorCompassQuestStage() != RelicQuestStage.ACTIVE || !stack.isOf(Items.REDSTONE)) {
             return;
         }
 
@@ -541,7 +542,7 @@ public final class SurveyorCompassQuestService {
         int beforeCrafted = data.getSurveyorCompassCraftedProgress();
         int beforeReady = data.getSurveyorCompassPickaxeReadyProgress();
         RelicQuestStage beforeStage = data.getSurveyorCompassQuestStage();
-        data.setSurveyorCompassRedstoneProgress(Math.min(REDSTONE_TARGET, beforeRedstone + 1));
+        data.setSurveyorCompassRedstoneProgress(Math.min(REDSTONE_TARGET, beforeRedstone + count));
         updateReadyState(data);
         markDirty(world);
         sendProgressFeedback(world, player, data, beforeRedstone, beforeCrafted, beforeReady, beforeStage);

@@ -152,7 +152,14 @@ public final class StoryQuestService {
         }
 
         StoryChapterDefinition chapter = currentChapter(world, player.getUuid());
-        if (chapter == null || !chapter.isComplete(world, player)) {
+        if (chapter == null) {
+            return false;
+        }
+        if (!chapter.isComplete(world, player)) {
+            Text blocked = chapter.claimBlockedMessage(world, player);
+            if (blocked != null) {
+                player.sendMessage(blocked, false);
+            }
             return false;
         }
         if (!chapter.consumeCompletionRequirements(world, player)) {
@@ -437,6 +444,13 @@ public final class StoryQuestService {
         StoryChapterDefinition chapter = currentChapter(world, player.getUuid());
         if (chapter != null) {
             chapter.onEntityUse(world, player, entity, inHand);
+        }
+    }
+
+    public static void onTrackedItemPickup(ServerWorld world, ServerPlayerEntity player, ItemStack stack, int count) {
+        StoryChapterDefinition chapter = currentChapter(world, player.getUuid());
+        if (chapter != null) {
+            chapter.onTrackedItemPickup(world, player, stack, count);
         }
     }
 

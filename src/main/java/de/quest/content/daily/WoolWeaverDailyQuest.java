@@ -4,8 +4,11 @@ import de.quest.quest.daily.DailyQuestCompletion;
 import de.quest.quest.daily.DailyQuestDefinition;
 import de.quest.quest.daily.DailyQuestKeys;
 import de.quest.quest.daily.DailyQuestService;
+import de.quest.util.Texts;
+import java.util.UUID;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.passive.SheepEntity;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -13,16 +16,14 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
-import java.util.UUID;
-
 public final class WoolWeaverDailyQuest implements DailyQuestDefinition {
-    private static final ItemStack[] WOOL_ITEMS = new ItemStack[] {
-            new ItemStack(Items.WHITE_WOOL), new ItemStack(Items.LIGHT_GRAY_WOOL), new ItemStack(Items.GRAY_WOOL),
-            new ItemStack(Items.BLACK_WOOL), new ItemStack(Items.BROWN_WOOL), new ItemStack(Items.RED_WOOL),
-            new ItemStack(Items.ORANGE_WOOL), new ItemStack(Items.YELLOW_WOOL), new ItemStack(Items.LIME_WOOL),
-            new ItemStack(Items.GREEN_WOOL), new ItemStack(Items.CYAN_WOOL), new ItemStack(Items.LIGHT_BLUE_WOOL),
-            new ItemStack(Items.BLUE_WOOL), new ItemStack(Items.PURPLE_WOOL), new ItemStack(Items.MAGENTA_WOOL),
-            new ItemStack(Items.PINK_WOOL)
+    private static final Item[] WOOL_ITEMS = new Item[] {
+            Items.WHITE_WOOL, Items.LIGHT_GRAY_WOOL, Items.GRAY_WOOL,
+            Items.BLACK_WOOL, Items.BROWN_WOOL, Items.RED_WOOL,
+            Items.ORANGE_WOOL, Items.YELLOW_WOOL, Items.LIME_WOOL,
+            Items.GREEN_WOOL, Items.CYAN_WOOL, Items.LIGHT_BLUE_WOOL,
+            Items.BLUE_WOOL, Items.PURPLE_WOOL, Items.MAGENTA_WOOL,
+            Items.PINK_WOOL
     };
 
     @Override
@@ -47,6 +48,14 @@ public final class WoolWeaverDailyQuest implements DailyQuestDefinition {
 
     @Override
     public Text progressLine(ServerWorld world, UUID playerId) {
+        ServerPlayerEntity player = world == null ? null : world.getServer().getPlayerManager().getPlayer(playerId);
+        if (player != null) {
+            Text blocked = claimBlockedMessage(world, player);
+            if (blocked != null) {
+                return blocked;
+            }
+        }
+
         return Text.translatable(
                 "quest.village-quest.daily.wool.progress",
                 DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.SHEEP_PROGRESS),
@@ -60,7 +69,32 @@ public final class WoolWeaverDailyQuest implements DailyQuestDefinition {
     public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
         UUID playerId = player.getUuid();
         return DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.SHEEP_PROGRESS) >= DailyQuestService.sheepTarget()
-                && DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.WOOL_PROGRESS) >= DailyQuestService.woolTarget();
+                && DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.WOOL_PROGRESS) >= DailyQuestService.woolTarget()
+                && DailyQuestService.countInventoryItems(player, WOOL_ITEMS) >= DailyQuestService.woolTarget();
+    }
+
+    @Override
+    public boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) {
+        return DailyQuestService.consumeInventoryItems(player, DailyQuestService.woolTarget(), WOOL_ITEMS);
+    }
+
+    @Override
+    public Text claimBlockedMessage(ServerWorld world, ServerPlayerEntity player) {
+        if (player == null || world == null) {
+            return null;
+        }
+        UUID playerId = player.getUuid();
+        int woolTarget = DailyQuestService.woolTarget();
+        if (DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.SHEEP_PROGRESS) < DailyQuestService.sheepTarget()
+                || DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.WOOL_PROGRESS) < woolTarget
+                || DailyQuestService.countInventoryItems(player, WOOL_ITEMS) >= woolTarget) {
+            return null;
+        }
+        return Texts.turnInMissing(
+                Text.translatable("text.village-quest.turnin.label.wool"),
+                DailyQuestService.countInventoryItems(player, WOOL_ITEMS),
+                woolTarget
+        );
     }
 
     @Override
@@ -77,46 +111,20 @@ public final class WoolWeaverDailyQuest implements DailyQuestDefinition {
     }
 
     @Override
-    public void onAccepted(ServerWorld world, ServerPlayerEntity player) {
-        DailyQuestService.setQuestInt(world, player.getUuid(), DailyQuestKeys.LAST_WOOL_PICKED_UP, totalWoolPickedUp(player) + 1);
-        DailyQuestService.setQuestInt(world, player.getUuid(), DailyQuestKeys.EXPECTED_WOOL, 0);
-        DailyQuestService.setQuestInt(world, player.getUuid(), DailyQuestKeys.EXPECTED_WOOL_EXPIRE_TICKS, 0);
-    }
-
-    @Override
-    public void onServerTick(ServerWorld world, ServerPlayerEntity player) {
+    public void onTrackedItemPickup(ServerWorld world, ServerPlayerEntity player, ItemStack stack, int count) {
         if (DailyQuestService.hasCompletedToday(world, player.getUuid())) return;
         if (!DailyQuestService.isAcceptedToday(world, player.getUuid())) return;
-
-        UUID playerId = player.getUuid();
-        int currentPickedUp = totalWoolPickedUp(player);
-        int storedLastPickedUp = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.LAST_WOOL_PICKED_UP);
-        if (storedLastPickedUp == 0) {
-            DailyQuestService.setQuestInt(world, playerId, DailyQuestKeys.LAST_WOOL_PICKED_UP, currentPickedUp + 1);
+        if (!isWool(stack)) {
             return;
         }
-        int lastPickedUp = storedLastPickedUp - 1;
 
-        int expectedWool = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.EXPECTED_WOOL);
-        int delta = currentPickedUp - lastPickedUp;
-        if (expectedWool > 0 && delta > 0) {
-            int currentProgress = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.WOOL_PROGRESS);
-            int credit = Math.min(delta, Math.min(expectedWool, DailyQuestService.woolTarget() - currentProgress));
-            if (credit > 0) {
-                DailyQuestService.addQuestInt(world, playerId, DailyQuestKeys.WOOL_PROGRESS, credit);
-                DailyQuestService.setQuestInt(world, playerId, DailyQuestKeys.EXPECTED_WOOL, expectedWool - credit);
-                DailyQuestService.completeIfEligible(world, player);
-                DailyQuestService.sendCurrentProgressActionbar(world, player);
-            }
-        }
-        DailyQuestService.setQuestInt(world, playerId, DailyQuestKeys.LAST_WOOL_PICKED_UP, currentPickedUp + 1);
-
-        int left = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.EXPECTED_WOOL_EXPIRE_TICKS) - 1;
-        if (left <= 0) {
-            DailyQuestService.setQuestInt(world, playerId, DailyQuestKeys.EXPECTED_WOOL, 0);
-            DailyQuestService.setQuestInt(world, playerId, DailyQuestKeys.EXPECTED_WOOL_EXPIRE_TICKS, 0);
-        } else {
-            DailyQuestService.setQuestInt(world, playerId, DailyQuestKeys.EXPECTED_WOOL_EXPIRE_TICKS, left);
+        UUID playerId = player.getUuid();
+        int currentProgress = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.WOOL_PROGRESS);
+        int credit = Math.min(count, DailyQuestService.woolTarget() - currentProgress);
+        if (credit > 0) {
+            DailyQuestService.addQuestInt(world, playerId, DailyQuestKeys.WOOL_PROGRESS, credit);
+            DailyQuestService.completeIfEligible(world, player);
+            DailyQuestService.sendCurrentProgressActionbar(world, player);
         }
     }
 
@@ -132,18 +140,16 @@ public final class WoolWeaverDailyQuest implements DailyQuestDefinition {
         if (currentSheep < DailyQuestService.sheepTarget()) {
             DailyQuestService.setQuestInt(world, playerId, DailyQuestKeys.SHEEP_PROGRESS, Math.min(DailyQuestService.sheepTarget(), currentSheep + 1));
         }
-        DailyQuestService.addQuestInt(world, playerId, DailyQuestKeys.EXPECTED_WOOL, 3);
-        DailyQuestService.setQuestInt(world, playerId, DailyQuestKeys.EXPECTED_WOOL_EXPIRE_TICKS, 40);
-        DailyQuestService.setQuestInt(world, playerId, DailyQuestKeys.LAST_WOOL_PICKED_UP, totalWoolPickedUp(player) + 1);
         DailyQuestService.completeIfEligible(world, player);
         DailyQuestService.sendCurrentProgressActionbar(world, player);
     }
 
-    private int totalWoolPickedUp(ServerPlayerEntity player) {
-        int total = 0;
-        for (ItemStack stack : WOOL_ITEMS) {
-            total += DailyQuestService.getPickedUpStat(player, stack.getItem());
+    private boolean isWool(ItemStack stack) {
+        for (Item woolItem : WOOL_ITEMS) {
+            if (stack.isOf(woolItem)) {
+                return true;
+            }
         }
-        return total;
+        return false;
     }
 }

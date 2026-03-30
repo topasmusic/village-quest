@@ -1168,6 +1168,16 @@ public final class DailyQuestService {
         WeeklyQuestService.onEntityUse(world, player, entity, inHand);
     }
 
+    public static void onTrackedItemPickup(ServerWorld world, ServerPlayerEntity player, ItemStack stack, int count) {
+        DailyQuestDefinition definition = activeDefinition(world, player.getUuid());
+        if (definition != null) {
+            definition.onTrackedItemPickup(world, player, stack, count);
+        }
+        WeeklyQuestService.onTrackedItemPickup(world, player, stack, count);
+        StoryQuestService.onTrackedItemPickup(world, player, stack, count);
+        SpecialQuestService.onTrackedItemPickup(world, player, stack, count);
+    }
+
     public static void onFurnaceOutput(ServerWorld world, ServerPlayerEntity player, ItemStack stack) {
         DailyQuestDefinition definition = activeDefinition(world, player.getUuid());
         if (definition != null) {
@@ -1175,6 +1185,7 @@ public final class DailyQuestService {
         }
         StoryQuestService.onFurnaceOutput(world, player, stack);
         WeeklyQuestService.onFurnaceOutput(world, player, stack);
+        SpecialQuestService.onFurnaceOutput(world, player, stack);
         PilgrimContractService.onFurnaceOutput(world, player, stack);
     }
 
@@ -1217,7 +1228,14 @@ public final class DailyQuestService {
         }
 
         DailyQuestDefinition definition = activeDefinition(world, playerId);
-        if (definition == null || !definition.isComplete(world, player)) {
+        if (definition == null) {
+            return false;
+        }
+        if (!definition.isComplete(world, player)) {
+            Text blocked = definition.claimBlockedMessage(world, player);
+            if (blocked != null) {
+                player.sendMessage(blocked, false);
+            }
             return false;
         }
         if (!definition.consumeCompletionRequirements(world, player)) {

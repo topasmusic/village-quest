@@ -51,7 +51,7 @@ import java.util.UUID;
 
 public final class ShardRelicQuestService {
     private static final int REQUIRED_SHARDS = 10;
-    private static final int AMETHYST_TARGET = 4;
+    private static final int AMETHYST_TARGET = 16;
     private static final int POTION_TARGET = 3;
     private static final int ENCHANT_TARGET = 1;
     private static final int ENDER_PEARL_TARGET = 1;
@@ -297,19 +297,39 @@ public final class ShardRelicQuestService {
     }
 
     public static void onBlockBreak(ServerWorld world, ServerPlayerEntity player, BlockPos pos, BlockState state) {
-        if (world == null || player == null || state == null) {
+        // Progress is granted on tracked amethyst shard pickups.
+    }
+
+    public static void onTrackedItemPickup(ServerWorld world, ServerPlayerEntity player, ItemStack stack, int count) {
+        if (world == null || player == null || stack == null || count <= 0) {
             return;
         }
+
         PlayerQuestData data = data(world, player.getUuid());
-        if (data.getShardRelicQuestStage() != ShardRelicQuestStage.TRIAL_ACTIVE || !state.isOf(Blocks.AMETHYST_CLUSTER)) {
+        if (data.getShardRelicQuestStage() != ShardRelicQuestStage.TRIAL_ACTIVE) {
             return;
         }
+
         TrialSnapshot before = captureTrialSnapshot(data);
-        int next = Math.min(AMETHYST_TARGET, data.getShardRelicAmethystProgress() + 1);
-        if (next == data.getShardRelicAmethystProgress()) {
+        boolean changed = false;
+
+        if (stack.isOf(Items.AMETHYST_SHARD)) {
+            int next = Math.min(AMETHYST_TARGET, data.getShardRelicAmethystProgress() + count);
+            if (next != data.getShardRelicAmethystProgress()) {
+                data.setShardRelicAmethystProgress(next);
+                changed = true;
+            }
+        } else if (stack.isOf(Items.ENDER_PEARL) && data.getShardRelicEnderPearlProgress() < ENDER_PEARL_TARGET) {
+            data.setShardRelicEnderPearlProgress(ENDER_PEARL_TARGET);
+            changed = true;
+        } else if (stack.isOf(Items.BLAZE_ROD) && data.getShardRelicBlazeRodProgress() < BLAZE_ROD_TARGET) {
+            data.setShardRelicBlazeRodProgress(BLAZE_ROD_TARGET);
+            changed = true;
+        }
+
+        if (!changed) {
             return;
         }
-        data.setShardRelicAmethystProgress(next);
         updateReadyState(world, player, data, true);
         markDirty(world);
         sendTrialProgressFeedback(world, player, before, data);
@@ -542,8 +562,8 @@ public final class ShardRelicQuestService {
         data.setShardRelicEnderPearlProgress(0);
         data.setShardRelicBlazeRodProgress(0);
         data.setShardRelicEnchantBaseline(DailyQuestService.getCustomStat(player, Stats.ENCHANT_ITEM));
-        data.setShardRelicEnderPearlBaseline(DailyQuestService.getPickedUpStat(player, Items.ENDER_PEARL));
-        data.setShardRelicBlazeRodBaseline(DailyQuestService.getPickedUpStat(player, Items.BLAZE_ROD));
+        data.setShardRelicEnderPearlBaseline(0);
+        data.setShardRelicBlazeRodBaseline(0);
         data.setShardRelicChestX(0);
         data.setShardRelicChestY(Integer.MIN_VALUE);
         data.setShardRelicChestZ(0);
@@ -561,18 +581,6 @@ public final class ShardRelicQuestService {
         int enchant = Math.min(ENCHANT_TARGET, Math.max(data.getShardRelicEnchantProgress(), enchantFromStat));
         if (enchant != data.getShardRelicEnchantProgress()) {
             data.setShardRelicEnchantProgress(enchant);
-            changed = true;
-        }
-
-        int enderPearls = Math.min(ENDER_PEARL_TARGET, Math.max(0, DailyQuestService.getPickedUpStat(player, Items.ENDER_PEARL) - data.getShardRelicEnderPearlBaseline()));
-        if (enderPearls != data.getShardRelicEnderPearlProgress()) {
-            data.setShardRelicEnderPearlProgress(enderPearls);
-            changed = true;
-        }
-
-        int blazeRods = Math.min(BLAZE_ROD_TARGET, Math.max(0, DailyQuestService.getPickedUpStat(player, Items.BLAZE_ROD) - data.getShardRelicBlazeRodBaseline()));
-        if (blazeRods != data.getShardRelicBlazeRodProgress()) {
-            data.setShardRelicBlazeRodProgress(blazeRods);
             changed = true;
         }
 

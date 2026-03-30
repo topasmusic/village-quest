@@ -5,6 +5,7 @@ import de.quest.quest.weekly.WeeklyQuestDefinition;
 import de.quest.quest.weekly.WeeklyQuestKeys;
 import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.reputation.ReputationService;
+import de.quest.util.Texts;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -38,20 +39,21 @@ public final class BakehouseStockWeeklyQuest implements WeeklyQuestDefinition {
 
     @Override
     public List<Text> progressLines(ServerWorld world, UUID playerId) {
-        return List.of(
-                Text.translatable(
-                        "quest.village-quest.weekly.bakehouse.progress.1",
-                        WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.BAKEHOUSE_BREAD),
-                        WeeklyQuestService.bakehouseBreadTarget(),
-                        WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.BAKEHOUSE_PIE),
-                        WeeklyQuestService.bakehousePieTarget()
-                ).formatted(Formatting.GRAY),
-                Text.translatable(
-                        "quest.village-quest.weekly.bakehouse.progress.2",
-                        WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.BAKEHOUSE_POTATO),
-                        WeeklyQuestService.bakehousePotatoTarget()
-                ).formatted(Formatting.GRAY)
-        );
+        Text line1 = Text.translatable(
+                "quest.village-quest.weekly.bakehouse.progress.1",
+                WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.BAKEHOUSE_BREAD),
+                WeeklyQuestService.bakehouseBreadTarget(),
+                WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.BAKEHOUSE_PIE),
+                WeeklyQuestService.bakehousePieTarget()
+        ).formatted(Formatting.GRAY);
+        Text line2 = Text.translatable(
+                "quest.village-quest.weekly.bakehouse.progress.2",
+                WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.BAKEHOUSE_POTATO),
+                WeeklyQuestService.bakehousePotatoTarget()
+        ).formatted(Formatting.GRAY);
+        ServerPlayerEntity player = world == null ? null : world.getServer().getPlayerManager().getPlayer(playerId);
+        Text blocked = player == null ? null : claimBlockedMessage(world, player);
+        return blocked == null ? List.of(line1, line2) : List.of(line1, line2, blocked);
     }
 
     @Override
@@ -91,6 +93,36 @@ public final class BakehouseStockWeeklyQuest implements WeeklyQuestDefinition {
         return WeeklyQuestService.consumeInventoryItem(player, Items.BREAD, WeeklyQuestService.bakehouseBreadTarget())
                 && WeeklyQuestService.consumeInventoryItem(player, Items.PUMPKIN_PIE, WeeklyQuestService.bakehousePieTarget())
                 && WeeklyQuestService.consumeInventoryItem(player, Items.BAKED_POTATO, WeeklyQuestService.bakehousePotatoTarget());
+    }
+
+    @Override
+    public Text claimBlockedMessage(ServerWorld world, ServerPlayerEntity player) {
+        if (player == null || world == null) {
+            return null;
+        }
+        UUID playerId = player.getUuid();
+        int breadTarget = WeeklyQuestService.bakehouseBreadTarget();
+        int pieTarget = WeeklyQuestService.bakehousePieTarget();
+        int potatoTarget = WeeklyQuestService.bakehousePotatoTarget();
+        if (WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.BAKEHOUSE_BREAD) < breadTarget
+                || WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.BAKEHOUSE_PIE) < pieTarget
+                || WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.BAKEHOUSE_POTATO) < potatoTarget
+                || (WeeklyQuestService.countInventoryItem(player, Items.BREAD) >= breadTarget
+                && WeeklyQuestService.countInventoryItem(player, Items.PUMPKIN_PIE) >= pieTarget
+                && WeeklyQuestService.countInventoryItem(player, Items.BAKED_POTATO) >= potatoTarget)) {
+            return null;
+        }
+        return Texts.turnInMissing(
+                Items.BREAD.getDefaultStack().toHoverableText(),
+                WeeklyQuestService.countInventoryItem(player, Items.BREAD),
+                breadTarget,
+                Items.PUMPKIN_PIE.getDefaultStack().toHoverableText(),
+                WeeklyQuestService.countInventoryItem(player, Items.PUMPKIN_PIE),
+                pieTarget,
+                Items.BAKED_POTATO.getDefaultStack().toHoverableText(),
+                WeeklyQuestService.countInventoryItem(player, Items.BAKED_POTATO),
+                potatoTarget
+        );
     }
 
     @Override

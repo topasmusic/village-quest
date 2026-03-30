@@ -1,5 +1,6 @@
 package de.quest.mixin;
 
+import de.quest.quest.special.SpecialQuestService;
 import de.quest.quest.special.ShardRelicQuestService;
 import de.quest.quest.story.StoryQuestService;
 import net.minecraft.entity.player.PlayerEntity;
@@ -57,6 +58,7 @@ public abstract class ForgingScreenHandlerMixin {
             }
 
             StoryQuestService.onAnvilOutput((ServerWorld) serverPlayer.getEntityWorld(), serverPlayer, villageQuest$anvilQuickMoveLeftInput, villageQuest$anvilQuickMoveRightInput, output.copy());
+            SpecialQuestService.onAnvilOutput((ServerWorld) serverPlayer.getEntityWorld(), serverPlayer, villageQuest$anvilQuickMoveLeftInput, villageQuest$anvilQuickMoveRightInput, output.copy());
             ShardRelicQuestService.onAnvilOutput(serverPlayer, villageQuest$anvilQuickMoveLeftInput, villageQuest$anvilQuickMoveRightInput, output.copy());
         } finally {
             villageQuest$clearAnvilQuickMoveInputs();

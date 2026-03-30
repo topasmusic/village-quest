@@ -27,6 +27,8 @@ public interface StoryChapterDefinition {
 
     default boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) { return true; }
 
+    default Text claimBlockedMessage(ServerWorld world, ServerPlayerEntity player) { return null; }
+
     default void onAccepted(ServerWorld world, ServerPlayerEntity player) {}
 
     default void onServerTick(ServerWorld world, ServerPlayerEntity player) {}
@@ -36,6 +38,8 @@ public interface StoryChapterDefinition {
     default void onBlockBreak(ServerWorld world, ServerPlayerEntity player, BlockPos pos, BlockState state) {}
 
     default void onEntityUse(ServerWorld world, ServerPlayerEntity player, Entity entity, ItemStack inHand) {}
+
+    default void onTrackedItemPickup(ServerWorld world, ServerPlayerEntity player, ItemStack stack, int count) {}
 
     default void onFurnaceOutput(ServerWorld world, ServerPlayerEntity player, ItemStack stack) {}
 

@@ -10,7 +10,10 @@
     "FurnaceOutputSlotMixin",
     "ForgingScreenHandlerAccessor",
     "ForgingScreenHandlerMixin",
+    "ItemEntityMixin",
+    "LivingEntityShearingInvoker",
     "MerchantEntityAccessor",
+    "SheepEntityMixin",
     "TradeOutputSlotMixin",
     "WanderingTraderEntityInvoker"
   ],

@@ -62,23 +62,7 @@ public final class ShepherdFluteQuestService {
     }
 
     public static void onServerTick(MinecraftServer server) {
-        ServerWorld world = server.getOverworld();
-        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-            PlayerQuestData data = data(world, player.getUuid());
-            if (data.getShepherdFluteQuestStage() != RelicQuestStage.ACTIVE) {
-                continue;
-            }
-            int progress = Math.min(WOOL_TARGET, Math.max(0, totalWoolPickedUp(player) - data.getShepherdFluteWoolBaseline()));
-            if (progress == data.getShepherdFluteWoolProgress()) {
-                continue;
-            }
-
-            int beforeBreed = data.getShepherdFluteBreedProgress();
-            int beforeShear = data.getShepherdFluteShearProgress();
-            int beforeWool = data.getShepherdFluteWoolProgress();
-            data.setShepherdFluteWoolProgress(progress);
-            updateProgress(world, player, data, beforeBreed, beforeShear, beforeWool);
-        }
+        // Wool progress is granted on tracked pickups.
     }
 
     public static boolean handleQuestMasterInteraction(ServerWorld world, ServerPlayerEntity player, boolean skipOffer) {
@@ -93,8 +77,7 @@ public final class ShepherdFluteQuestService {
                 yield true;
             }
             case READY -> {
-                completeQuest(world, player, data);
-                yield true;
+                yield completeQuest(world, player, data);
             }
             case COMPLETED -> false;
             case NONE -> {
@@ -120,7 +103,7 @@ public final class ShepherdFluteQuestService {
 
         data.resetShepherdFluteQuest();
         data.setShepherdFluteQuestStage(RelicQuestStage.ACTIVE);
-        data.setShepherdFluteWoolBaseline(totalWoolPickedUp(player));
+        data.setShepherdFluteWoolBaseline(0);
         markDirty(world);
         player.sendMessage(Texts.acceptedTitle(title(), Formatting.AQUA), false);
         QuestTrackerService.enableForAcceptedQuest(world, player);
@@ -160,7 +143,7 @@ public final class ShepherdFluteQuestService {
         if (stage != RelicQuestStage.ACTIVE && stage != RelicQuestStage.READY) {
             return null;
         }
-        return new SpecialQuestStatus(title(), progressLines(data));
+        return new SpecialQuestStatus(title(), progressLines(data, world.getServer().getPlayerManager().getPlayer(playerId)));
     }
 
     public static boolean claimFromQuestMaster(ServerWorld world, ServerPlayerEntity player) {
@@ -171,8 +154,7 @@ public final class ShepherdFluteQuestService {
         if (data.getShepherdFluteQuestStage() != RelicQuestStage.READY) {
             return false;
         }
-        completeQuest(world, player, data);
-        return true;
+        return completeQuest(world, player, data);
     }
 
     public static void onAnimalLove(ServerWorld world, ServerPlayerEntity player, AnimalEntity animal) {
@@ -209,6 +191,23 @@ public final class ShepherdFluteQuestService {
         data.setShepherdFluteShearProgress(Math.min(SHEAR_TARGET, beforeShear + 1));
         updateProgress(world, player, data, beforeBreed, beforeShear, beforeWool);
         return ActionResult.PASS;
+    }
+
+    public static void onTrackedItemPickup(ServerWorld world, ServerPlayerEntity player, ItemStack stack, int count) {
+        if (world == null || player == null || stack == null || count <= 0) {
+            return;
+        }
+
+        PlayerQuestData data = data(world, player.getUuid());
+        if (data.getShepherdFluteQuestStage() != RelicQuestStage.ACTIVE || !isWool(stack.getItem())) {
+            return;
+        }
+
+        int beforeBreed = data.getShepherdFluteBreedProgress();
+        int beforeShear = data.getShepherdFluteShearProgress();
+        int beforeWool = data.getShepherdFluteWoolProgress();
+        data.setShepherdFluteWoolProgress(Math.min(WOOL_TARGET, beforeWool + count));
+        updateProgress(world, player, data, beforeBreed, beforeShear, beforeWool);
     }
 
     public static boolean useFlute(ServerWorld world, ServerPlayerEntity player) {
@@ -266,17 +265,17 @@ public final class ShepherdFluteQuestService {
 
     private static void showProgress(ServerPlayerEntity player, PlayerQuestData data) {
         player.sendMessage(Texts.dailyTitle(title(), Formatting.AQUA), false);
-        for (Text line : progressLines(data)) {
+        for (Text line : progressLines(data, player)) {
             player.sendMessage(line, false);
         }
     }
 
-    private static List<Text> progressLines(PlayerQuestData data) {
-        return List.of(
-                Text.translatable("quest.village-quest.special.flute.progress.breed", data.getShepherdFluteBreedProgress(), BREED_TARGET).formatted(Formatting.GRAY),
-                Text.translatable("quest.village-quest.special.flute.progress.shear", data.getShepherdFluteShearProgress(), SHEAR_TARGET).formatted(Formatting.GRAY),
-                Text.translatable("quest.village-quest.special.flute.progress.wool", data.getShepherdFluteWoolProgress(), WOOL_TARGET).formatted(Formatting.GRAY)
-        );
+    private static List<Text> progressLines(PlayerQuestData data, ServerPlayerEntity player) {
+        Text line1 = Text.translatable("quest.village-quest.special.flute.progress.breed", data.getShepherdFluteBreedProgress(), BREED_TARGET).formatted(Formatting.GRAY);
+        Text line2 = Text.translatable("quest.village-quest.special.flute.progress.shear", data.getShepherdFluteShearProgress(), SHEAR_TARGET).formatted(Formatting.GRAY);
+        Text line3 = Text.translatable("quest.village-quest.special.flute.progress.wool", data.getShepherdFluteWoolProgress(), WOOL_TARGET).formatted(Formatting.GRAY);
+        Text blocked = missingWoolTurnInLine(data, player);
+        return blocked == null ? List.of(line1, line2, line3) : List.of(line1, line2, line3, blocked);
     }
 
     private static boolean isComplete(PlayerQuestData data) {
@@ -324,7 +323,13 @@ public final class ShepherdFluteQuestService {
         refreshQuestUi(world, player);
     }
 
-    private static void completeQuest(ServerWorld world, ServerPlayerEntity player, PlayerQuestData data) {
+    private static boolean completeQuest(ServerWorld world, ServerPlayerEntity player, PlayerQuestData data) {
+        if (countInventoryWool(player) < WOOL_TARGET || !consumeInventoryWool(player, WOOL_TARGET)) {
+            player.sendMessage(Text.translatable("message.village-quest.special.flute.wool_missing").formatted(Formatting.RED), false);
+            refreshQuestUi(world, player);
+            return false;
+        }
+
         giveOrDrop(player, new ItemStack(ModItems.SHEPHERD_FLUTE));
         data.setPendingSpecialOfferKind(null);
         data.setShepherdFluteQuestStage(RelicQuestStage.COMPLETED);
@@ -343,10 +348,39 @@ public final class ShepherdFluteQuestService {
         player.sendMessage(body, false);
         world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 0.8f, 1.15f);
         refreshQuestUi(world, player);
+        return true;
     }
 
-    private static int totalWoolPickedUp(ServerPlayerEntity player) {
-        return DailyQuestService.sumPickedUpStats(player, WOOL_ITEMS);
+    private static boolean isWool(Item item) {
+        for (Item woolItem : WOOL_ITEMS) {
+            if (woolItem == item) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static int countInventoryWool(ServerPlayerEntity player) {
+        return DailyQuestService.countInventoryItems(player, WOOL_ITEMS);
+    }
+
+    private static Text missingWoolTurnInLine(PlayerQuestData data, ServerPlayerEntity player) {
+        if (player == null
+                || data.getShepherdFluteBreedProgress() < BREED_TARGET
+                || data.getShepherdFluteShearProgress() < SHEAR_TARGET
+                || data.getShepherdFluteWoolProgress() < WOOL_TARGET
+                || countInventoryWool(player) >= WOOL_TARGET) {
+            return null;
+        }
+        return Texts.turnInMissing(
+                Text.translatable("text.village-quest.turnin.label.wool"),
+                countInventoryWool(player),
+                WOOL_TARGET
+        );
+    }
+
+    private static boolean consumeInventoryWool(ServerPlayerEntity player, int amount) {
+        return DailyQuestService.consumeInventoryItems(player, amount, WOOL_ITEMS);
     }
 
     private static void giveOrDrop(ServerPlayerEntity player, ItemStack stack) {

@@ -316,7 +316,14 @@ public final class WeeklyQuestService {
         }
 
         WeeklyQuestDefinition definition = WeeklyQuestGenerator.definition(previewQuestChoice(world, playerId));
-        if (definition == null || !definition.isComplete(world, player)) {
+        if (definition == null) {
+            return false;
+        }
+        if (!definition.isComplete(world, player)) {
+            Text blocked = definition.claimBlockedMessage(world, player);
+            if (blocked != null) {
+                player.sendMessage(blocked, false);
+            }
             return false;
         }
         if (!definition.consumeCompletionRequirements(world, player)) {
@@ -485,6 +492,13 @@ public final class WeeklyQuestService {
         WeeklyQuestDefinition definition = activeDefinition(world, player.getUuid());
         if (definition != null) {
             definition.onEntityUse(world, player, entity, inHand);
+        }
+    }
+
+    public static void onTrackedItemPickup(ServerWorld world, ServerPlayerEntity player, ItemStack stack, int count) {
+        WeeklyQuestDefinition definition = activeDefinition(world, player.getUuid());
+        if (definition != null) {
+            definition.onTrackedItemPickup(world, player, stack, count);
         }
     }
 

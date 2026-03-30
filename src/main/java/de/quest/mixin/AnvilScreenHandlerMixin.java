@@ -1,5 +1,6 @@
 package de.quest.mixin;
 
+import de.quest.quest.special.SpecialQuestService;
 import de.quest.quest.special.ShardRelicQuestService;
 import de.quest.quest.story.StoryQuestService;
 import net.minecraft.entity.player.PlayerEntity;
@@ -25,6 +26,7 @@ public abstract class AnvilScreenHandlerMixin {
         ItemStack rightInput = accessor.villageQuest$getInput().getStack(1).copy();
         ServerWorld world = (ServerWorld) serverPlayer.getEntityWorld();
         StoryQuestService.onAnvilOutput(world, serverPlayer, leftInput, rightInput, stack.copy());
+        SpecialQuestService.onAnvilOutput(world, serverPlayer, leftInput, rightInput, stack.copy());
         ShardRelicQuestService.onAnvilOutput(serverPlayer, leftInput, rightInput, stack.copy());
     }
 }
