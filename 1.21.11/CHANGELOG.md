@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased - Legacy Follow-Up Polish
+## 1.20.1 - Legacy Follow-Up Polish
+
+Release date: 2026-03-30
 
 - `Smoke over Blackstone` now shows its real objectives directly instead of the old unclear wording.
 - Several gathering, mining, and shearing quests were updated:
