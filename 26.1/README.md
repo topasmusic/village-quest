@@ -70,10 +70,6 @@ These are intended for server admins, pack makers, and testing only:
 - `/questadmin wallet remove <player> <amount> [silvermark|crown]`
 - `/questadmin wallet set <player> <amount> [silvermark|crown]`
 
-## Manual Release Checklist
-
-See [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for the final in-game verification pass before shipping a jar.
-
 ## License
 
 This project is licensed under the `MIT` License. See [LICENSE](LICENSE) for details.
