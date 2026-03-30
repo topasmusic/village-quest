@@ -1,0 +1,29 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    "minecraft:leather_chestplate",
+    "minecraft:feather",
+    "minecraft:white_dye",
+    "#village-quest:white_flowers"
+  ],
+  "result": {
+    "id": "minecraft:leather_chestplate",
+    "count": 1,
+    "components": {
+      "minecraft:custom_name": {
+        "translate": "item.village-quest.friedens_brustplatte",
+        "fallback": "Brustplatte des Friedens",
+        "color": "white",
+        "italic": false
+      },
+      "minecraft:lore": [
+        {
+          "translate": "item.village-quest.friedens_ruestung.lore",
+          "fallback": "Ruestung des Friedens",
+          "color": "gray",
+          "italic": false
+        }
+      ]
+    }
+  }
+}

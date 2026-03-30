@@ -1,0 +1,39 @@
+# editors
+.vscode/
+.settings/
+**/.idea/
+**/*.iml
+**/*.ipr
+**/*.iws
+**/*.launch
+**/.classpath
+**/.project
+**/bin/
+
+# gradle / build
+**/.gradle/
+**/build/
+**/out/
+**/classes/
+
+# fabric run data
+**/run/
+
+# platform files
+**/.DS_Store
+
+# java crash / profiling
+**/hs_err_*.log
+**/replay_*.log
+**/*.hprof
+**/*.jfr
+**/run_verbose.log
+
+# local session files
+**/MEMORY.md
+**/NEXT_SESSION_PROMPT.txt
+**/Custom Pictures/
+**/Custom Paintings/
+
+# migration scratch
+.migration-backup/
