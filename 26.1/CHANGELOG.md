@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.20.2 - Story Turn-In And Painting Fixes
+
+Release date: 2026-04-01
+
+- `The Failing Harvest` now truly requires and consumes the final `Bread` and `Baked Potato` turn-in items.
+- `The Silent Forge` received several hand-in fixes:
+  - chapter 2 now also consumes the required `Iron Ingots`
+  - chapter 3 now only accepts fresh undamaged crafted tools instead of also taking used ones
+  - chapter 4 now recognizes bought `Sharpness` enchanted books reliably again
+- The `Surveyor's Compass` netherite pickaxe hand-in was tightened as well so only undamaged tools count.
+- Custom `Village Quest` paintings now preserve their correct custom item when broken instead of turning back into a normal vanilla painting.
+- `Questmaster` summon placement now scores nearby spawn spots by both horizontal and vertical distance so indoor summons stay closer to the player's actual floor.
+- Interacting with the `Questmaster` now refreshes his full 30 second despawn timer so he does not vanish immediately after closing the UI.
+- The `Magic Shard` item texture was reduced from the old oversized render to a smaller, more vanilla-like icon.
+
 ## 1.20.1 - Minecraft 26.1 Update
 
 Release date: 2026-03-30

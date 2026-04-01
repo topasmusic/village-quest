@@ -3,6 +3,7 @@ package de.quest.quest.daily;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.economy.CurrencyService;
+import de.quest.painting.PaintingStackFactory;
 import de.quest.pilgrim.PilgrimContractService;
 import de.quest.quest.QuestBookHelper;
 import de.quest.quest.QuestTrackerService;
@@ -18,19 +19,13 @@ import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.registry.ModItems;
 import de.quest.util.Texts;
 import de.quest.util.TimeUtil;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.LoreComponent;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.passive.AnimalEntity;
-import net.minecraft.entity.decoration.painting.PaintingVariant;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryKeys;
-import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.stat.Stats;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -1563,21 +1558,7 @@ public final class DailyQuestService {
     }
 
     public static ItemStack createCompanionPainting(ServerWorld world, boolean cat) {
-        ItemStack stack = new ItemStack(Items.PAINTING);
-        Text title = Text.translatable(cat
-                ? "item.village-quest.painting.eure_majestaet"
-                : "item.village-quest.painting.treuer_begleiter");
-        Identifier variantId = Identifier.of("village-quest", cat ? "eure_majestaet" : "treuer_begleiter");
-        RegistryKey<PaintingVariant> variantKey = RegistryKey.of(RegistryKeys.PAINTING_VARIANT, variantId);
-        RegistryEntry<PaintingVariant> variantEntry = world.getRegistryManager()
-                .getOrThrow(RegistryKeys.PAINTING_VARIANT)
-                .getOrThrow(variantKey);
-        stack.set(DataComponentTypes.PAINTING_VARIANT, variantEntry);
-        stack.set(DataComponentTypes.ITEM_NAME, title.copy().formatted(Formatting.GREEN));
-        stack.set(DataComponentTypes.LORE, new LoreComponent(List.of(
-                Text.translatable("item.village-quest.painting.companion.lore").formatted(Formatting.GRAY)
-        )));
-        return stack;
+        return PaintingStackFactory.create(world, cat ? "eure_majestaet" : "treuer_begleiter");
     }
 
     public static int honeyTarget() {

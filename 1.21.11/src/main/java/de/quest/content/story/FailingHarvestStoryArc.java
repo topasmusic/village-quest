@@ -10,6 +10,7 @@ import de.quest.quest.story.StoryQuestKeys;
 import de.quest.quest.story.StoryQuestService;
 import de.quest.quest.story.VillageProjectType;
 import de.quest.reputation.ReputationService;
+import de.quest.util.Texts;
 import net.minecraft.block.BeehiveBlock;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -73,6 +74,14 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
 
         protected int progress(ServerWorld world, UUID playerId, String key) {
             return StoryQuestService.getQuestInt(world, playerId, key);
+        }
+
+        protected boolean hasItem(ServerPlayerEntity player, net.minecraft.item.Item item, int amount) {
+            return DailyQuestService.countInventoryItem(player, item) >= amount;
+        }
+
+        protected boolean consumeItem(ServerPlayerEntity player, net.minecraft.item.Item item, int amount) {
+            return DailyQuestService.consumeInventoryItem(player, item, amount);
         }
     }
 
@@ -224,20 +233,56 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
 
         @Override
         public List<Text> progressLines(ServerWorld world, UUID playerId) {
-            return List.of(Text.translatable(
+            Text line = Text.translatable(
                     "quest.village-quest.story.failing_harvest.chapter_3.progress",
                     progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_BREAD),
                     BREAD_BREAD_TARGET,
                     progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_BAKED_POTATO),
                     BREAD_POTATO_TARGET
-            ).formatted(Formatting.GRAY));
+            ).formatted(Formatting.GRAY);
+            ServerPlayerEntity player = world == null ? null : world.getServer().getPlayerManager().getPlayer(playerId);
+            Text blocked = player == null ? null : claimBlockedMessage(world, player);
+            return blocked == null ? List.of(line) : List.of(line, blocked);
         }
 
         @Override
         public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
             UUID playerId = player.getUuid();
             return progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_BREAD) >= BREAD_BREAD_TARGET
-                    && progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_BAKED_POTATO) >= BREAD_POTATO_TARGET;
+                    && progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_BAKED_POTATO) >= BREAD_POTATO_TARGET
+                    && hasItem(player, Items.BREAD, BREAD_BREAD_TARGET)
+                    && hasItem(player, Items.BAKED_POTATO, BREAD_POTATO_TARGET);
+        }
+
+        @Override
+        public boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) {
+            if (!isComplete(world, player)) {
+                return false;
+            }
+            return consumeItem(player, Items.BREAD, BREAD_BREAD_TARGET)
+                    && consumeItem(player, Items.BAKED_POTATO, BREAD_POTATO_TARGET);
+        }
+
+        @Override
+        public Text claimBlockedMessage(ServerWorld world, ServerPlayerEntity player) {
+            if (player == null || world == null) {
+                return null;
+            }
+            UUID playerId = player.getUuid();
+            if (progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_BREAD) < BREAD_BREAD_TARGET
+                    || progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_BAKED_POTATO) < BREAD_POTATO_TARGET
+                    || (hasItem(player, Items.BREAD, BREAD_BREAD_TARGET)
+                    && hasItem(player, Items.BAKED_POTATO, BREAD_POTATO_TARGET))) {
+                return null;
+            }
+            return Texts.turnInMissing(
+                    Items.BREAD.getDefaultStack().toHoverableText(),
+                    DailyQuestService.countInventoryItem(player, Items.BREAD),
+                    BREAD_BREAD_TARGET,
+                    Items.BAKED_POTATO.getDefaultStack().toHoverableText(),
+                    DailyQuestService.countInventoryItem(player, Items.BAKED_POTATO),
+                    BREAD_POTATO_TARGET
+            );
         }
 
         @Override

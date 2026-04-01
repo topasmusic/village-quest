@@ -3,6 +3,7 @@ package de.quest.quest.daily;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.economy.CurrencyService;
+import de.quest.painting.PaintingStackFactory;
 import de.quest.pilgrim.PilgrimContractService;
 import de.quest.quest.QuestBookHelper;
 import de.quest.quest.QuestTrackerService;
@@ -1562,21 +1563,7 @@ public final class DailyQuestService {
     }
 
     public static ItemStack createCompanionPainting(ServerLevel world, boolean cat) {
-        ItemStack stack = new ItemStack(Items.PAINTING);
-        Component title = Component.translatable(cat
-                ? "item.village-quest.painting.eure_majestaet"
-                : "item.village-quest.painting.treuer_begleiter");
-        Identifier variantId = Identifier.fromNamespaceAndPath("village-quest", cat ? "eure_majestaet" : "treuer_begleiter");
-        ResourceKey<PaintingVariant> variantKey = ResourceKey.create(Registries.PAINTING_VARIANT, variantId);
-        Holder<PaintingVariant> variantEntry = world.registryAccess()
-                .lookupOrThrow(Registries.PAINTING_VARIANT)
-                .getOrThrow(variantKey);
-        stack.set(DataComponents.PAINTING_VARIANT, variantEntry);
-        stack.set(DataComponents.ITEM_NAME, title.copy().withStyle(ChatFormatting.GREEN));
-        stack.set(DataComponents.LORE, new ItemLore(List.of(
-                Component.translatable("item.village-quest.painting.companion.lore").withStyle(ChatFormatting.GRAY)
-        )));
-        return stack;
+        return PaintingStackFactory.create(world, cat ? "eure_majestaet" : "treuer_begleiter");
     }
 
     public static int honeyTarget() {
