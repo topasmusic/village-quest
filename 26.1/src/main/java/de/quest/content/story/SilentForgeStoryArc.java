@@ -16,6 +16,7 @@ import java.util.UUID;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -26,6 +27,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
+import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -96,6 +98,46 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
             return DailyQuestService.consumeInventoryItems(player, amount, items);
         }
 
+        protected boolean hasPristineItem(ServerPlayer player, Item item, int amount) {
+            return countPristineItems(player, item) >= amount;
+        }
+
+        protected int countPristineItems(ServerPlayer player, Item item) {
+            if (player == null || item == null) {
+                return 0;
+            }
+
+            int total = 0;
+            for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+                ItemStack stack = player.getInventory().getItem(i);
+                if (isPristineTurnInItem(stack, item)) {
+                    total += stack.getCount();
+                }
+            }
+            return total;
+        }
+
+        protected boolean consumePristineItem(ServerPlayer player, Item item, int amount) {
+            if (!hasPristineItem(player, item, amount)) {
+                return false;
+            }
+
+            int remaining = amount;
+            for (int i = 0; i < player.getInventory().getContainerSize() && remaining > 0; i++) {
+                ItemStack stack = player.getInventory().getItem(i);
+                if (!isPristineTurnInItem(stack, item)) {
+                    continue;
+                }
+
+                int removed = Math.min(remaining, stack.getCount());
+                stack.shrink(removed);
+                remaining -= removed;
+            }
+
+            player.containerMenu.broadcastChanges();
+            return remaining <= 0;
+        }
+
         protected void updateCraftProgress(ServerLevel world,
                                            ServerPlayer player,
                                            String baselineKey,
@@ -122,10 +164,18 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
         }
 
         protected boolean hasSharpness(ServerLevel world, ItemStack stack) {
-            return world != null
-                    && stack != null
-                    && !stack.isEmpty()
-                    && EnchantmentHelper.getItemEnchantmentLevel(sharpness(world), stack) > 0;
+            if (world == null || stack == null || stack.isEmpty()) {
+                return false;
+            }
+
+            Holder<Enchantment> sharpness = sharpness(world);
+            ItemEnchantments directEnchantments = stack.getOrDefault(DataComponents.ENCHANTMENTS, ItemEnchantments.EMPTY);
+            if (directEnchantments.getLevel(sharpness) > 0) {
+                return true;
+            }
+
+            ItemEnchantments storedEnchantments = stack.getOrDefault(DataComponents.STORED_ENCHANTMENTS, ItemEnchantments.EMPTY);
+            return storedEnchantments.getLevel(sharpness) > 0;
         }
 
         protected int findSharpDiamondSwordSlot(ServerPlayer player, ServerLevel world) {
@@ -136,6 +186,13 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
                 }
             }
             return -1;
+        }
+
+        private boolean isPristineTurnInItem(ItemStack stack, Item item) {
+            return stack != null
+                    && !stack.isEmpty()
+                    && stack.is(item)
+                    && (!stack.isDamageableItem() || !stack.isDamaged());
         }
     }
 
@@ -272,37 +329,64 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
             ServerPlayer player = world.getServer().getPlayerList().getPlayer(playerId);
             int blastFurnace = player == null ? 0 : DailyQuestService.countInventoryItem(player, Items.BLAST_FURNACE);
             int cauldron = player == null ? 0 : DailyQuestService.countInventoryItem(player, Items.CAULDRON);
-            return List.of(
-                    Component.translatable(
-                            "quest.village-quest.story.silent_forge.chapter_2.progress.1",
-                            progress(world, playerId, StoryQuestKeys.SILENT_FORGE_IRON_INGOT),
-                            BELLOWS_IRON_TARGET
-                    ).withStyle(ChatFormatting.GRAY),
-                    Component.translatable(
-                            "quest.village-quest.story.silent_forge.chapter_2.progress.2",
-                            Math.min(blastFurnace, 1),
-                            1,
-                            Math.min(cauldron, 1),
-                            1
-                    ).withStyle(ChatFormatting.GRAY)
-            );
+            Component line1 = Component.translatable(
+                    "quest.village-quest.story.silent_forge.chapter_2.progress.1",
+                    progress(world, playerId, StoryQuestKeys.SILENT_FORGE_IRON_INGOT),
+                    BELLOWS_IRON_TARGET
+            ).withStyle(ChatFormatting.GRAY);
+            Component line2 = Component.translatable(
+                    "quest.village-quest.story.silent_forge.chapter_2.progress.2",
+                    Math.min(blastFurnace, 1),
+                    1,
+                    Math.min(cauldron, 1),
+                    1
+            ).withStyle(ChatFormatting.GRAY);
+            Component blocked = player == null ? null : claimBlockedMessage(world, player);
+            return blocked == null ? List.of(line1, line2) : List.of(line1, line2, blocked);
         }
 
         @Override
         public boolean isComplete(ServerLevel world, ServerPlayer player) {
             UUID playerId = player.getUUID();
             return progress(world, playerId, StoryQuestKeys.SILENT_FORGE_IRON_INGOT) >= BELLOWS_IRON_TARGET
+                    && hasItem(player, Items.IRON_INGOT, BELLOWS_IRON_TARGET)
                     && hasItem(player, Items.BLAST_FURNACE, 1)
                     && hasItem(player, Items.CAULDRON, 1);
         }
 
         @Override
         public boolean consumeCompletionRequirements(ServerLevel world, ServerPlayer player) {
-            if (!hasItem(player, Items.BLAST_FURNACE, 1) || !hasItem(player, Items.CAULDRON, 1)) {
+            if (!isComplete(world, player)) {
                 return false;
             }
-            return consumeItem(player, Items.BLAST_FURNACE, 1)
+            return consumeItem(player, Items.IRON_INGOT, BELLOWS_IRON_TARGET)
+                    && consumeItem(player, Items.BLAST_FURNACE, 1)
                     && consumeItem(player, Items.CAULDRON, 1);
+        }
+
+        @Override
+        public Component claimBlockedMessage(ServerLevel world, ServerPlayer player) {
+            if (player == null || world == null) {
+                return null;
+            }
+            UUID playerId = player.getUUID();
+            if (progress(world, playerId, StoryQuestKeys.SILENT_FORGE_IRON_INGOT) < BELLOWS_IRON_TARGET
+                    || (hasItem(player, Items.IRON_INGOT, BELLOWS_IRON_TARGET)
+                    && hasItem(player, Items.BLAST_FURNACE, 1)
+                    && hasItem(player, Items.CAULDRON, 1))) {
+                return null;
+            }
+            return Texts.turnInMissing(
+                    Items.IRON_INGOT.getDefaultInstance().getHoverName(),
+                    DailyQuestService.countInventoryItem(player, Items.IRON_INGOT),
+                    BELLOWS_IRON_TARGET,
+                    Items.BLAST_FURNACE.getDefaultInstance().getHoverName(),
+                    DailyQuestService.countInventoryItem(player, Items.BLAST_FURNACE),
+                    1,
+                    Items.CAULDRON.getDefaultInstance().getHoverName(),
+                    DailyQuestService.countInventoryItem(player, Items.CAULDRON),
+                    1
+            );
         }
 
         @Override
@@ -367,32 +451,32 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
             ServerPlayer player = world.getServer().getPlayerList().getPlayer(playerId);
             int pickaxeReady = progress(world, playerId, StoryQuestKeys.SILENT_FORGE_PICKAXE_CRAFTED) >= 1
                     && player != null
-                    && hasItem(player, Items.IRON_PICKAXE, 1) ? 1 : 0;
+                    && hasPristineItem(player, Items.IRON_PICKAXE, 1) ? 1 : 0;
             int bucketReady = progress(world, playerId, StoryQuestKeys.SILENT_FORGE_BUCKET_CRAFTED) >= 1
                     && player != null
-                    && hasItem(player, Items.BUCKET, 1) ? 1 : 0;
+                    && hasPristineItem(player, Items.BUCKET, 1) ? 1 : 0;
             int shearsReady = progress(world, playerId, StoryQuestKeys.SILENT_FORGE_SHEARS_CRAFTED) >= 1
                     && player != null
-                    && hasItem(player, Items.SHEARS, 1) ? 1 : 0;
+                    && hasPristineItem(player, Items.SHEARS, 1) ? 1 : 0;
             int shieldReady = progress(world, playerId, StoryQuestKeys.SILENT_FORGE_SHIELD_CRAFTED) >= 1
                     && player != null
-                    && hasItem(player, Items.SHIELD, 1) ? 1 : 0;
-            return List.of(
-                    Component.translatable(
-                            "quest.village-quest.story.silent_forge.chapter_3.progress.1",
-                            pickaxeReady,
-                            1,
-                            bucketReady,
-                            1
-                    ).withStyle(ChatFormatting.GRAY),
-                    Component.translatable(
-                            "quest.village-quest.story.silent_forge.chapter_3.progress.2",
-                            shearsReady,
-                            1,
-                            shieldReady,
-                            1
-                    ).withStyle(ChatFormatting.GRAY)
-            );
+                    && hasPristineItem(player, Items.SHIELD, 1) ? 1 : 0;
+            Component line1 = Component.translatable(
+                    "quest.village-quest.story.silent_forge.chapter_3.progress.1",
+                    pickaxeReady,
+                    1,
+                    bucketReady,
+                    1
+            ).withStyle(ChatFormatting.GRAY);
+            Component line2 = Component.translatable(
+                    "quest.village-quest.story.silent_forge.chapter_3.progress.2",
+                    shearsReady,
+                    1,
+                    shieldReady,
+                    1
+            ).withStyle(ChatFormatting.GRAY);
+            Component blocked = player == null ? null : claimBlockedMessage(world, player);
+            return blocked == null ? List.of(line1, line2) : List.of(line1, line2, blocked);
         }
 
         @Override
@@ -402,10 +486,10 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
                     && progress(world, playerId, StoryQuestKeys.SILENT_FORGE_BUCKET_CRAFTED) >= 1
                     && progress(world, playerId, StoryQuestKeys.SILENT_FORGE_SHEARS_CRAFTED) >= 1
                     && progress(world, playerId, StoryQuestKeys.SILENT_FORGE_SHIELD_CRAFTED) >= 1
-                    && hasItem(player, Items.IRON_PICKAXE, 1)
-                    && hasItem(player, Items.BUCKET, 1)
-                    && hasItem(player, Items.SHEARS, 1)
-                    && hasItem(player, Items.SHIELD, 1);
+                    && hasPristineItem(player, Items.IRON_PICKAXE, 1)
+                    && hasPristineItem(player, Items.BUCKET, 1)
+                    && hasPristineItem(player, Items.SHEARS, 1)
+                    && hasPristineItem(player, Items.SHIELD, 1);
         }
 
         @Override
@@ -413,10 +497,42 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
             if (!isComplete(world, player)) {
                 return false;
             }
-            return consumeItem(player, Items.IRON_PICKAXE, 1)
-                    && consumeItem(player, Items.BUCKET, 1)
-                    && consumeItem(player, Items.SHEARS, 1)
-                    && consumeItem(player, Items.SHIELD, 1);
+            return consumePristineItem(player, Items.IRON_PICKAXE, 1)
+                    && consumePristineItem(player, Items.BUCKET, 1)
+                    && consumePristineItem(player, Items.SHEARS, 1)
+                    && consumePristineItem(player, Items.SHIELD, 1);
+        }
+
+        @Override
+        public Component claimBlockedMessage(ServerLevel world, ServerPlayer player) {
+            if (player == null || world == null) {
+                return null;
+            }
+            UUID playerId = player.getUUID();
+            if (progress(world, playerId, StoryQuestKeys.SILENT_FORGE_PICKAXE_CRAFTED) < 1
+                    || progress(world, playerId, StoryQuestKeys.SILENT_FORGE_BUCKET_CRAFTED) < 1
+                    || progress(world, playerId, StoryQuestKeys.SILENT_FORGE_SHEARS_CRAFTED) < 1
+                    || progress(world, playerId, StoryQuestKeys.SILENT_FORGE_SHIELD_CRAFTED) < 1
+                    || (hasPristineItem(player, Items.IRON_PICKAXE, 1)
+                    && hasPristineItem(player, Items.BUCKET, 1)
+                    && hasPristineItem(player, Items.SHEARS, 1)
+                    && hasPristineItem(player, Items.SHIELD, 1))) {
+                return null;
+            }
+            return Texts.turnInMissing(
+                    Items.IRON_PICKAXE.getDefaultInstance().getHoverName(),
+                    countPristineItems(player, Items.IRON_PICKAXE),
+                    1,
+                    Items.BUCKET.getDefaultInstance().getHoverName(),
+                    countPristineItems(player, Items.BUCKET),
+                    1,
+                    Items.SHEARS.getDefaultInstance().getHoverName(),
+                    countPristineItems(player, Items.SHEARS),
+                    1,
+                    Items.SHIELD.getDefaultInstance().getHoverName(),
+                    countPristineItems(player, Items.SHIELD),
+                    1
+            );
         }
 
         @Override

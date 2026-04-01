@@ -2,6 +2,7 @@ package de.quest.shop;
 
 import de.quest.VillageQuest;
 import de.quest.economy.CurrencyService;
+import de.quest.painting.PaintingStackFactory;
 import de.quest.quest.daily.DailyQuestService;
 import de.quest.quest.special.SpecialQuestService;
 import de.quest.quest.weekly.WeeklyQuestService;
@@ -409,20 +410,7 @@ public final class ShopService {
     }
 
     private static ItemStack createPaintingStack(ServerLevel world, String variantPath, String titleKey, String loreKey) {
-        ItemStack stack = new ItemStack(Items.PAINTING);
-        ResourceKey<PaintingVariant> variantKey = ResourceKey.create(
-                Registries.PAINTING_VARIANT,
-                Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, variantPath)
-        );
-        Holder<PaintingVariant> variantEntry = world.registryAccess()
-                .lookupOrThrow(Registries.PAINTING_VARIANT)
-                .getOrThrow(variantKey);
-        stack.set(DataComponents.PAINTING_VARIANT, variantEntry);
-        stack.set(DataComponents.ITEM_NAME, Component.translatable(titleKey).withStyle(ChatFormatting.GREEN));
-        stack.set(DataComponents.LORE, new ItemLore(List.of(
-                Component.translatable(loreKey).withStyle(ChatFormatting.GRAY)
-        )));
-        return stack;
+        return PaintingStackFactory.create(world, variantPath);
     }
 
     private static void giveOrDrop(ServerPlayer player, ItemStack stack) {

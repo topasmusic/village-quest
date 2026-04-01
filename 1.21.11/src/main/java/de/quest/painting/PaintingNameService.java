@@ -1,10 +1,8 @@
 package de.quest.painting;
 
-import de.quest.VillageQuest;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.decoration.painting.PaintingEntity;
 import net.minecraft.entity.decoration.painting.PaintingVariant;
-import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
@@ -47,11 +45,6 @@ public final class PaintingNameService {
 
     private static boolean isVillageQuestPainting(PaintingEntity painting) {
         RegistryEntry<PaintingVariant> variant = painting.getVariant();
-        if (variant == null) {
-            return false;
-        }
-
-        RegistryKey<PaintingVariant> key = variant.getKey().orElse(null);
-        return key != null && VillageQuest.MOD_ID.equals(key.getValue().getNamespace());
+        return PaintingStackFactory.isVillageQuestPainting(variant);
     }
 }

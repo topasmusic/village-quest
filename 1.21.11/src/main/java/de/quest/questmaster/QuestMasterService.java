@@ -12,11 +12,13 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.Heightmap;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.UUID;
 
 public final class QuestMasterService {
@@ -24,6 +26,8 @@ public final class QuestMasterService {
     private static final int MAX_SPAWN_DISTANCE = 10;
     private static final int MAX_SPAWN_ATTEMPTS = 12;
     private static final int VERTICAL_SEARCH_RADIUS = 12;
+    private static final int VERTICAL_SCORE_WEIGHT = 10;
+    private static final int SURFACE_FALLBACK_PENALTY = 24;
     private static final long PLAYER_SUMMON_COOLDOWN_TICKS = 20L * 60L * 5L;
     private static final double MAX_INTERACT_DISTANCE_SQUARED = 64.0;
     private static final double NEARBY_QUESTMASTER_DISTANCE_SQUARED = 400.0;
@@ -52,12 +56,7 @@ public final class QuestMasterService {
             return null;
         }
 
-        for (int attempt = 0; attempt < MAX_SPAWN_ATTEMPTS; attempt++) {
-            BlockPos spawnPos = findSpawnPos(world, anchor);
-            if (spawnPos == null) {
-                continue;
-            }
-
+        for (BlockPos spawnPos : findSpawnCandidates(world, anchor)) {
             QuestMasterEntity questMaster = new QuestMasterEntity(ModEntities.QUEST_MASTER, world);
             float yaw = world.random.nextFloat() * 360.0f;
             questMaster.refreshPositionAndAngles(
@@ -158,25 +157,36 @@ public final class QuestMasterService {
         return Text.translatable("text.village-quest.duration.seconds", seconds);
     }
 
-    private static BlockPos findSpawnPos(ServerWorld world, ServerPlayerEntity anchor) {
+    private static List<BlockPos> findSpawnCandidates(ServerWorld world, ServerPlayerEntity anchor) {
         BlockPos origin = anchor.getBlockPos();
-        for (int attempt = 0; attempt < MAX_SPAWN_ATTEMPTS; attempt++) {
-            double angle = world.random.nextDouble() * Math.PI * 2.0;
-            int distance = MathHelper.nextInt(world.random, MIN_SPAWN_DISTANCE, MAX_SPAWN_DISTANCE);
-            int x = origin.getX() + MathHelper.floor(Math.cos(angle) * distance);
-            int z = origin.getZ() + MathHelper.floor(Math.sin(angle) * distance);
-            BlockPos localPos = findNearbyVerticalSpawnPos(world, origin.getY(), x, z);
-            if (localPos != null) {
-                return localPos;
-            }
+        int minDistanceSquared = MIN_SPAWN_DISTANCE * MIN_SPAWN_DISTANCE;
+        int maxDistanceSquared = MAX_SPAWN_DISTANCE * MAX_SPAWN_DISTANCE;
+        Map<BlockPos, SpawnCandidate> candidates = new HashMap<>();
 
-            int surfaceY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
-            BlockPos surfacePos = validateSpawnPos(world, new BlockPos(x, surfaceY, z));
-            if (surfacePos != null) {
-                return surfacePos;
+        for (int dx = -MAX_SPAWN_DISTANCE; dx <= MAX_SPAWN_DISTANCE; dx++) {
+            for (int dz = -MAX_SPAWN_DISTANCE; dz <= MAX_SPAWN_DISTANCE; dz++) {
+                int horizontalDistanceSquared = dx * dx + dz * dz;
+                if (horizontalDistanceSquared < minDistanceSquared || horizontalDistanceSquared > maxDistanceSquared) {
+                    continue;
+                }
+
+                int x = origin.getX() + dx;
+                int z = origin.getZ() + dz;
+                addCandidate(candidates, origin, findNearbyVerticalSpawnPos(world, origin.getY(), x, z), 0, world.random.nextInt());
+
+                int surfaceY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
+                addCandidate(candidates, origin, validateSpawnPos(world, new BlockPos(x, surfaceY, z)), SURFACE_FALLBACK_PENALTY, world.random.nextInt());
             }
         }
-        return null;
+
+        return candidates.values().stream()
+                .sorted(Comparator
+                        .comparingInt(SpawnCandidate::score)
+                        .thenComparingInt(SpawnCandidate::verticalDistance)
+                        .thenComparingInt(SpawnCandidate::tieBreaker))
+                .limit(MAX_SPAWN_ATTEMPTS)
+                .map(SpawnCandidate::pos)
+                .toList();
     }
 
     private static BlockPos findNearbyVerticalSpawnPos(ServerWorld world, int originY, int x, int z) {
@@ -215,4 +225,29 @@ public final class QuestMasterService {
         }
         return feetPos;
     }
+
+    private static void addCandidate(Map<BlockPos, SpawnCandidate> candidates,
+                                     BlockPos origin,
+                                     BlockPos candidatePos,
+                                     int extraPenalty,
+                                     int tieBreaker) {
+        if (candidatePos == null) {
+            return;
+        }
+
+        int dx = candidatePos.getX() - origin.getX();
+        int dy = candidatePos.getY() - origin.getY();
+        int dz = candidatePos.getZ() - origin.getZ();
+        int score = dx * dx + dz * dz + Math.abs(dy) * VERTICAL_SCORE_WEIGHT + extraPenalty;
+        int verticalDistance = Math.abs(dy);
+
+        SpawnCandidate current = candidates.get(candidatePos);
+        if (current == null
+                || score < current.score()
+                || (score == current.score() && verticalDistance < current.verticalDistance())) {
+            candidates.put(candidatePos, new SpawnCandidate(candidatePos, score, verticalDistance, tieBreaker));
+        }
+    }
+
+    private record SpawnCandidate(BlockPos pos, int score, int verticalDistance, int tieBreaker) {}
 }

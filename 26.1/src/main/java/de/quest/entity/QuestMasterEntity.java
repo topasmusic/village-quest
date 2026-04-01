@@ -268,6 +268,7 @@ public final class QuestMasterEntity extends PathfinderMob {
     public void beginInteraction(ServerPlayer customer) {
         this.customerUuid = customer == null ? null : customer.getUUID();
         this.customerHoldTicks = CUSTOMER_HOLD_TICKS;
+        this.despawnTicks = DEFAULT_DESPAWN_TICKS;
     }
 
     public void beginArrivalTracking(ServerPlayer player) {

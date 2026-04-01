@@ -38,8 +38,11 @@ public abstract class TradeOutputSlotMixin {
             return;
         }
         ServerLevel serverWorld = (ServerLevel) serverPlayer.level();
-        MerchantOffer offer = this.slots.getActiveOffer();
-        ItemStack rewardStack = offer == null ? ItemStack.EMPTY : offer.assemble();
+        ItemStack rewardStack = stack == null ? ItemStack.EMPTY : stack.copy();
+        if (rewardStack.isEmpty()) {
+            MerchantOffer offer = this.slots.getActiveOffer();
+            rewardStack = offer == null ? ItemStack.EMPTY : offer.assemble();
+        }
 
         DailyQuestService.onVillagerTrade(serverWorld, serverPlayer, rewardStack);
     }

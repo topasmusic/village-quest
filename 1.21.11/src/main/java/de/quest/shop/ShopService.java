@@ -2,24 +2,19 @@ package de.quest.shop;
 
 import de.quest.VillageQuest;
 import de.quest.economy.CurrencyService;
+import de.quest.painting.PaintingStackFactory;
 import de.quest.quest.daily.DailyQuestService;
 import de.quest.quest.special.SpecialQuestService;
 import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.reputation.ReputationService;
 import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.LoreComponent;
-import net.minecraft.entity.decoration.painting.PaintingVariant;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryKeys;
-import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
-import net.minecraft.util.Identifier;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -410,20 +405,7 @@ public final class ShopService {
     }
 
     private static ItemStack createPaintingStack(ServerWorld world, String variantPath, String titleKey, String loreKey) {
-        ItemStack stack = new ItemStack(Items.PAINTING);
-        RegistryKey<PaintingVariant> variantKey = RegistryKey.of(
-                RegistryKeys.PAINTING_VARIANT,
-                Identifier.of(VillageQuest.MOD_ID, variantPath)
-        );
-        RegistryEntry<PaintingVariant> variantEntry = world.getRegistryManager()
-                .getOrThrow(RegistryKeys.PAINTING_VARIANT)
-                .getOrThrow(variantKey);
-        stack.set(DataComponentTypes.PAINTING_VARIANT, variantEntry);
-        stack.set(DataComponentTypes.ITEM_NAME, Text.translatable(titleKey).formatted(Formatting.GREEN));
-        stack.set(DataComponentTypes.LORE, new LoreComponent(List.of(
-                Text.translatable(loreKey).formatted(Formatting.GRAY)
-        )));
-        return stack;
+        return PaintingStackFactory.create(world, variantPath);
     }
 
     private static void giveOrDrop(ServerPlayerEntity player, ItemStack stack) {

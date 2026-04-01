@@ -13,6 +13,7 @@
     "ItemEntityMixin",
     "LivingEntityShearingInvoker",
     "MerchantEntityAccessor",
+    "PaintingEntityMixin",
     "SheepEntityMixin",
     "TradeOutputSlotMixin",
     "WanderingTraderEntityInvoker"

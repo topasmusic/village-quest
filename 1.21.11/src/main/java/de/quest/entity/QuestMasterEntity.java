@@ -269,6 +269,7 @@ public final class QuestMasterEntity extends PathAwareEntity {
     public void beginInteraction(ServerPlayerEntity customer) {
         this.customerUuid = customer == null ? null : customer.getUuid();
         this.customerHoldTicks = CUSTOMER_HOLD_TICKS;
+        this.despawnTicks = DEFAULT_DESPAWN_TICKS;
     }
 
     public void beginArrivalTracking(ServerPlayerEntity player) {

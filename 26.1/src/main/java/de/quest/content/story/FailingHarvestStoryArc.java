@@ -10,6 +10,7 @@ import de.quest.quest.story.StoryQuestKeys;
 import de.quest.quest.story.StoryQuestService;
 import de.quest.quest.story.VillageProjectType;
 import de.quest.reputation.ReputationService;
+import de.quest.util.Texts;
 import java.util.List;
 import java.util.UUID;
 import net.minecraft.ChatFormatting;
@@ -17,6 +18,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.BeehiveBlock;
@@ -72,6 +74,14 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
 
         protected int progress(ServerLevel world, UUID playerId, String key) {
             return StoryQuestService.getQuestInt(world, playerId, key);
+        }
+
+        protected boolean hasItem(ServerPlayer player, Item item, int amount) {
+            return DailyQuestService.countInventoryItem(player, item) >= amount;
+        }
+
+        protected boolean consumeItem(ServerPlayer player, Item item, int amount) {
+            return DailyQuestService.consumeInventoryItem(player, item, amount);
         }
     }
 
@@ -223,20 +233,56 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
 
         @Override
         public List<Component> progressLines(ServerLevel world, UUID playerId) {
-            return List.of(Component.translatable(
+            Component line = Component.translatable(
                     "quest.village-quest.story.failing_harvest.chapter_3.progress",
                     progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_BREAD),
                     BREAD_BREAD_TARGET,
                     progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_BAKED_POTATO),
                     BREAD_POTATO_TARGET
-            ).withStyle(ChatFormatting.GRAY));
+            ).withStyle(ChatFormatting.GRAY);
+            ServerPlayer player = world == null ? null : world.getServer().getPlayerList().getPlayer(playerId);
+            Component blocked = player == null ? null : claimBlockedMessage(world, player);
+            return blocked == null ? List.of(line) : List.of(line, blocked);
         }
 
         @Override
         public boolean isComplete(ServerLevel world, ServerPlayer player) {
             UUID playerId = player.getUUID();
             return progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_BREAD) >= BREAD_BREAD_TARGET
-                    && progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_BAKED_POTATO) >= BREAD_POTATO_TARGET;
+                    && progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_BAKED_POTATO) >= BREAD_POTATO_TARGET
+                    && hasItem(player, Items.BREAD, BREAD_BREAD_TARGET)
+                    && hasItem(player, Items.BAKED_POTATO, BREAD_POTATO_TARGET);
+        }
+
+        @Override
+        public boolean consumeCompletionRequirements(ServerLevel world, ServerPlayer player) {
+            if (!isComplete(world, player)) {
+                return false;
+            }
+            return consumeItem(player, Items.BREAD, BREAD_BREAD_TARGET)
+                    && consumeItem(player, Items.BAKED_POTATO, BREAD_POTATO_TARGET);
+        }
+
+        @Override
+        public Component claimBlockedMessage(ServerLevel world, ServerPlayer player) {
+            if (player == null || world == null) {
+                return null;
+            }
+            UUID playerId = player.getUUID();
+            if (progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_BREAD) < BREAD_BREAD_TARGET
+                    || progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_BAKED_POTATO) < BREAD_POTATO_TARGET
+                    || (hasItem(player, Items.BREAD, BREAD_BREAD_TARGET)
+                    && hasItem(player, Items.BAKED_POTATO, BREAD_POTATO_TARGET))) {
+                return null;
+            }
+            return Texts.turnInMissing(
+                    Items.BREAD.getDefaultInstance().getHoverName(),
+                    DailyQuestService.countInventoryItem(player, Items.BREAD),
+                    BREAD_BREAD_TARGET,
+                    Items.BAKED_POTATO.getDefaultInstance().getHoverName(),
+                    DailyQuestService.countInventoryItem(player, Items.BAKED_POTATO),
+                    BREAD_POTATO_TARGET
+            );
         }
 
         @Override

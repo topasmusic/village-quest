@@ -12,6 +12,7 @@
     "ForgingScreenHandlerMixin",
     "ItemEntityMixin",
     "MerchantEntityAccessor",
+    "PaintingEntityMixin",
     "SheepMixin",
     "TradeOutputSlotMixin",
     "WanderingTraderEntityInvoker"

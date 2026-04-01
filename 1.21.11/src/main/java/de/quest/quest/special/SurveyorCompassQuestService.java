@@ -1134,6 +1134,7 @@ public final class SurveyorCompassQuestService {
         return stack != null
                 && !stack.isEmpty()
                 && stack.isOf(Items.NETHERITE_PICKAXE)
+                && !stack.isDamaged()
                 && !stack.hasEnchantments();
     }
 

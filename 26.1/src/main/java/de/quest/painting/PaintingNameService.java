@@ -1,8 +1,6 @@
 package de.quest.painting;
 
-import de.quest.VillageQuest;
 import net.minecraft.core.Holder;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
@@ -47,11 +45,6 @@ public final class PaintingNameService {
 
     private static boolean isVillageQuestPainting(Painting painting) {
         Holder<PaintingVariant> variant = painting.getVariant();
-        if (variant == null) {
-            return false;
-        }
-
-        ResourceKey<PaintingVariant> key = variant.unwrapKey().orElse(null);
-        return key != null && VillageQuest.MOD_ID.equals(key.identifier().getNamespace());
+        return PaintingStackFactory.isVillageQuestPainting(variant);
     }
 }
