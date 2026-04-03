@@ -1,18 +1,18 @@
-# Village Quest for Minecraft 26.1
+# Village Quest for Minecraft 26.1.1
 
 `Village Quest` is a Fabric mod built around village progression. Take on daily and weekly work, build reputation, unlock story arcs and village projects, and later deal with the `Pilgrim` and the road beyond the village.
 
 ## Requirements
 
-- Minecraft `26.1`
-- Fabric Loader `0.18.5+`
-- Fabric API `0.144.3+26.1`
+- Minecraft `26.1.1`
+- Fabric Loader `0.18.6+`
+- Fabric API `0.145.3+26.1.1`
 - Java `25`
 
 ## Installation
 
-1. Install Fabric Loader for Minecraft `26.1`.
-2. Put `village-quest-<version>-mc26.1.jar` into your `mods` folder.
+1. Install Fabric Loader for Minecraft `26.1.1`.
+2. Put `village-quest-<version>-mc26.1.1.jar` into your `mods` folder.
 3. Put the matching Fabric API jar into the same `mods` folder.
 4. Start the game with Java `25`.
 
