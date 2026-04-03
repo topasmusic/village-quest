@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.20.3 - Minecraft 26.1.1 Hotfix Update
+
+Release date: 2026-04-03
+
+- Village Quest has been updated for Minecraft `26.1.1`.
+- The Fabric stack was refreshed to the latest stable loader and Fabric API builds for `26.1.1`.
+- No gameplay or content changes were made in this hotfix release.
+
 ## 1.20.2 - Story Turn-In And Painting Fixes
 
 Release date: 2026-04-01
