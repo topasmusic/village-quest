@@ -107,7 +107,7 @@ public final class StallAndPastureWeeklyQuest implements WeeklyQuestDefinition {
                 Component.translatable("quest.village-quest.weekly.pasture.completion.1").withStyle(ChatFormatting.GRAY),
                 Component.translatable("quest.village-quest.weekly.pasture.completion.2").withStyle(ChatFormatting.GRAY),
                 Component.translatable("quest.village-quest.weekly.pasture.completion.3").withStyle(ChatFormatting.GRAY),
-                WeeklyQuestService.reward(1, 18),
+                WeeklyQuestService.reward(2, 8),
                 WeeklyQuestService.magicShardReward(1),
                 ItemStack.EMPTY,
                 14,

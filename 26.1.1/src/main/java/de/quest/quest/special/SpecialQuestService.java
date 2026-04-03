@@ -10,6 +10,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.npc.wanderingtrader.WanderingTrader;
 import net.minecraft.world.item.ItemStack;
@@ -150,8 +151,10 @@ public final class SpecialQuestService {
     }
 
     public static void onServerTick(MinecraftServer server) {
+        AdminCoreTestQuestService.onServerTick(server);
         ShardRelicQuestService.onServerTick(server);
         ShepherdFluteQuestService.onServerTick(server);
+        ApiaristSmokerQuestService.onServerTick(server);
         SurveyorCompassQuestService.onServerTick(server);
     }
 
@@ -206,6 +209,12 @@ public final class SpecialQuestService {
     public static void onAnimalLove(ServerLevel world, ServerPlayer player, Animal animal) {
         AdminCoreTestQuestService.onAnimalLove(world, player, animal);
         ShepherdFluteQuestService.onAnimalLove(world, player, animal);
+        ApiaristSmokerQuestService.onAnimalLove(world, player, animal);
+    }
+
+    public static void onAnimalTamed(ServerLevel world, ServerPlayer player, TamableAnimal animal) {
+        AdminCoreTestQuestService.onAnimalTamed(world, player, animal);
+        ShepherdFluteQuestService.onAnimalTamed(world, player, animal);
     }
 
     public static void onBeeNestInteract(ServerLevel world, ServerPlayer player, BlockState state, ItemStack stack) {

@@ -17,11 +17,13 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.animal.bee.Bee;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -32,8 +34,10 @@ import net.minecraft.world.phys.AABB;
 
 public final class ApiaristSmokerQuestService {
     public static final int REQUIRED_FARMING_REPUTATION = 200;
-    private static final int HONEY_TARGET = 8;
-    private static final int COMB_TARGET = 4;
+    private static final int HONEY_TARGET = 10;
+    private static final int COMB_TARGET = 10;
+    private static final int BEE_BREED_TARGET = 4;
+    private static final int HONEY_BLOCK_TARGET = 5;
     private static final int MAX_DAILY_USES = 10;
 
     private ApiaristSmokerQuestService() {}
@@ -61,6 +65,22 @@ public final class ApiaristSmokerQuestService {
         QuestMasterUiService.refreshIfOpen(world, player);
     }
 
+    public static void onServerTick(MinecraftServer server) {
+        if (server == null) {
+            return;
+        }
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            if (!(player.level() instanceof ServerLevel world)) {
+                continue;
+            }
+            PlayerQuestData data = data(world, player.getUUID());
+            if (data.getApiaristSmokerQuestStage() != RelicQuestStage.ACTIVE) {
+                continue;
+            }
+            updateHoneyBlockProgress(world, player, data);
+        }
+    }
+
     public static boolean handleQuestMasterInteraction(ServerLevel world, ServerPlayer player, boolean skipOffer) {
         if (world == null || player == null) {
             return false;
@@ -69,7 +89,7 @@ public final class ApiaristSmokerQuestService {
         PlayerQuestData data = data(world, player.getUUID());
         return switch (data.getApiaristSmokerQuestStage()) {
             case ACTIVE -> {
-                showProgress(player, data);
+                showProgress(world, player, data);
                 yield true;
             }
             case READY -> {
@@ -100,10 +120,11 @@ public final class ApiaristSmokerQuestService {
 
         data.resetApiaristSmokerQuest();
         data.setApiaristSmokerQuestStage(RelicQuestStage.ACTIVE);
+        data.setApiaristSmokerHoneyBlockBaseline(DailyQuestService.getCraftedStat(player, Items.HONEY_BLOCK));
         markDirty(world);
         player.sendSystemMessage(Texts.acceptedTitle(title(), ChatFormatting.GREEN), false);
         QuestTrackerService.enableForAcceptedQuest(world, player);
-        showProgress(player, data);
+        showProgress(world, player, data);
         refreshQuestUi(world, player);
         return true;
     }
@@ -139,7 +160,8 @@ public final class ApiaristSmokerQuestService {
         if (stage != RelicQuestStage.ACTIVE && stage != RelicQuestStage.READY) {
             return null;
         }
-        return new SpecialQuestStatus(title(), progressLines(data));
+        ServerPlayer player = world.getServer().getPlayerList().getPlayer(playerId);
+        return new SpecialQuestStatus(title(), progressLines(data, player));
     }
 
     public static boolean claimFromQuestMaster(ServerLevel world, ServerPlayer player) {
@@ -173,6 +195,8 @@ public final class ApiaristSmokerQuestService {
 
         int beforeHoney = data.getApiaristSmokerHoneyProgress();
         int beforeComb = data.getApiaristSmokerCombProgress();
+        int beforeBeeBreed = data.getApiaristSmokerBeeBreedProgress();
+        int beforeHoneyBlocks = data.getApiaristSmokerHoneyBlockProgress();
         if (inHand.is(Items.GLASS_BOTTLE)) {
             data.setApiaristSmokerHoneyProgress(Math.min(HONEY_TARGET, beforeHoney + 1));
         } else if (inHand.is(Items.SHEARS)) {
@@ -180,7 +204,24 @@ public final class ApiaristSmokerQuestService {
         } else {
             return;
         }
-        updateProgress(world, player, data, beforeHoney, beforeComb);
+        updateProgress(world, player, data, beforeHoney, beforeComb, beforeBeeBreed, beforeHoneyBlocks);
+    }
+
+    public static void onAnimalLove(ServerLevel world, ServerPlayer player, Animal animal) {
+        if (world == null || player == null || !(animal instanceof Bee)) {
+            return;
+        }
+        PlayerQuestData data = data(world, player.getUUID());
+        if (data.getApiaristSmokerQuestStage() != RelicQuestStage.ACTIVE) {
+            return;
+        }
+
+        int beforeHoney = data.getApiaristSmokerHoneyProgress();
+        int beforeComb = data.getApiaristSmokerCombProgress();
+        int beforeBeeBreed = data.getApiaristSmokerBeeBreedProgress();
+        int beforeHoneyBlocks = data.getApiaristSmokerHoneyBlockProgress();
+        data.setApiaristSmokerBeeBreedProgress(Math.min(BEE_BREED_TARGET, beforeBeeBreed + 1));
+        updateProgress(world, player, data, beforeHoney, beforeComb, beforeBeeBreed, beforeHoneyBlocks);
     }
 
     public static InteractionResult useSmoker(ServerLevel world, ServerPlayer player, BlockPos pos, BlockState state) {
@@ -225,6 +266,22 @@ public final class ApiaristSmokerQuestService {
         return InteractionResult.SUCCESS;
     }
 
+    private static void updateHoneyBlockProgress(ServerLevel world, ServerPlayer player, PlayerQuestData data) {
+        int crafted = DailyQuestService.getCraftedStat(player, Items.HONEY_BLOCK);
+        int baseline = data.getApiaristSmokerHoneyBlockBaseline();
+        int progress = Math.min(HONEY_BLOCK_TARGET, Math.max(0, crafted - baseline));
+        if (progress == data.getApiaristSmokerHoneyBlockProgress()) {
+            return;
+        }
+
+        int beforeHoney = data.getApiaristSmokerHoneyProgress();
+        int beforeComb = data.getApiaristSmokerCombProgress();
+        int beforeBeeBreed = data.getApiaristSmokerBeeBreedProgress();
+        int beforeHoneyBlocks = data.getApiaristSmokerHoneyBlockProgress();
+        data.setApiaristSmokerHoneyBlockProgress(progress);
+        updateProgress(world, player, data, beforeHoney, beforeComb, beforeBeeBreed, beforeHoneyBlocks);
+    }
+
     private static void calmNearbyBees(ServerLevel world, BlockPos pos) {
         AABB area = new AABB(pos).inflate(12.0);
         for (Bee bee : world.getEntitiesOfClass(Bee.class, area, bee -> bee.isAlive() && !bee.isRemoved())) {
@@ -261,26 +318,60 @@ public final class ApiaristSmokerQuestService {
         player.sendSystemMessage(body, false);
     }
 
-    private static void showProgress(ServerPlayer player, PlayerQuestData data) {
+    private static void showProgress(ServerLevel world, ServerPlayer player, PlayerQuestData data) {
         player.sendSystemMessage(Texts.dailyTitle(title(), ChatFormatting.GREEN), false);
-        for (Component line : progressLines(data)) {
+        for (Component line : progressLines(data, player)) {
             player.sendSystemMessage(line, false);
         }
     }
 
-    private static List<Component> progressLines(PlayerQuestData data) {
-        return List.of(
-                Component.translatable("quest.village-quest.special.apiarist_smoker.progress.honey", data.getApiaristSmokerHoneyProgress(), HONEY_TARGET).withStyle(ChatFormatting.GRAY),
-                Component.translatable("quest.village-quest.special.apiarist_smoker.progress.comb", data.getApiaristSmokerCombProgress(), COMB_TARGET).withStyle(ChatFormatting.GRAY)
+    private static List<Component> progressLines(PlayerQuestData data, ServerPlayer player) {
+        Component honey = Component.translatable("quest.village-quest.special.apiarist_smoker.progress.honey", data.getApiaristSmokerHoneyProgress(), HONEY_TARGET).withStyle(ChatFormatting.GRAY);
+        Component comb = Component.translatable("quest.village-quest.special.apiarist_smoker.progress.comb", data.getApiaristSmokerCombProgress(), COMB_TARGET).withStyle(ChatFormatting.GRAY);
+        Component bees = Component.translatable("quest.village-quest.special.apiarist_smoker.progress.bees", data.getApiaristSmokerBeeBreedProgress(), BEE_BREED_TARGET).withStyle(ChatFormatting.GRAY);
+        Component honeyBlocks = Component.translatable("quest.village-quest.special.apiarist_smoker.progress.honey_blocks", data.getApiaristSmokerHoneyBlockProgress(), HONEY_BLOCK_TARGET).withStyle(ChatFormatting.GRAY);
+        Component blocked = player == null ? null : turnInBlockedMessage(data, player);
+        return blocked == null ? List.of(honey, comb, bees, honeyBlocks) : List.of(honey, comb, bees, honeyBlocks, blocked);
+    }
+
+    private static Component turnInBlockedMessage(PlayerQuestData data, ServerPlayer player) {
+        if (player == null || !isComplete(data) || hasTurnInItems(player)) {
+            return null;
+        }
+        return Texts.turnInMissing(
+                Items.HONEY_BOTTLE.getDefaultInstance().getHoverName(),
+                DailyQuestService.countInventoryItem(player, Items.HONEY_BOTTLE),
+                HONEY_TARGET,
+                Items.HONEYCOMB.getDefaultInstance().getHoverName(),
+                DailyQuestService.countInventoryItem(player, Items.HONEYCOMB),
+                COMB_TARGET,
+                Items.HONEY_BLOCK.getDefaultInstance().getHoverName(),
+                DailyQuestService.countInventoryItem(player, Items.HONEY_BLOCK),
+                HONEY_BLOCK_TARGET
         );
+    }
+
+    private static boolean hasTurnInItems(ServerPlayer player) {
+        return player != null
+                && DailyQuestService.countInventoryItem(player, Items.HONEY_BOTTLE) >= HONEY_TARGET
+                && DailyQuestService.countInventoryItem(player, Items.HONEYCOMB) >= COMB_TARGET
+                && DailyQuestService.countInventoryItem(player, Items.HONEY_BLOCK) >= HONEY_BLOCK_TARGET;
     }
 
     private static boolean isComplete(PlayerQuestData data) {
         return data.getApiaristSmokerHoneyProgress() >= HONEY_TARGET
-                && data.getApiaristSmokerCombProgress() >= COMB_TARGET;
+                && data.getApiaristSmokerCombProgress() >= COMB_TARGET
+                && data.getApiaristSmokerBeeBreedProgress() >= BEE_BREED_TARGET
+                && data.getApiaristSmokerHoneyBlockProgress() >= HONEY_BLOCK_TARGET;
     }
 
-    private static void updateProgress(ServerLevel world, ServerPlayer player, PlayerQuestData data, int beforeHoney, int beforeComb) {
+    private static void updateProgress(ServerLevel world,
+                                       ServerPlayer player,
+                                       PlayerQuestData data,
+                                       int beforeHoney,
+                                       int beforeComb,
+                                       int beforeBeeBreed,
+                                       int beforeHoneyBlocks) {
         Component actionbar = null;
         boolean completedStep = false;
         if (beforeHoney != data.getApiaristSmokerHoneyProgress()) {
@@ -293,6 +384,20 @@ public final class ApiaristSmokerQuestService {
         if (beforeComb != data.getApiaristSmokerCombProgress()) {
             actionbar = Component.translatable("quest.village-quest.special.apiarist_smoker.progress.comb", data.getApiaristSmokerCombProgress(), COMB_TARGET).withStyle(ChatFormatting.GREEN);
             if (beforeComb < COMB_TARGET && data.getApiaristSmokerCombProgress() >= COMB_TARGET) {
+                player.sendSystemMessage(Component.translatable("message.village-quest.quest.progress.step_complete", actionbar.copy()).withStyle(ChatFormatting.GREEN), false);
+                completedStep = true;
+            }
+        }
+        if (beforeBeeBreed != data.getApiaristSmokerBeeBreedProgress()) {
+            actionbar = Component.translatable("quest.village-quest.special.apiarist_smoker.progress.bees", data.getApiaristSmokerBeeBreedProgress(), BEE_BREED_TARGET).withStyle(ChatFormatting.GREEN);
+            if (beforeBeeBreed < BEE_BREED_TARGET && data.getApiaristSmokerBeeBreedProgress() >= BEE_BREED_TARGET) {
+                player.sendSystemMessage(Component.translatable("message.village-quest.quest.progress.step_complete", actionbar.copy()).withStyle(ChatFormatting.GREEN), false);
+                completedStep = true;
+            }
+        }
+        if (beforeHoneyBlocks != data.getApiaristSmokerHoneyBlockProgress()) {
+            actionbar = Component.translatable("quest.village-quest.special.apiarist_smoker.progress.honey_blocks", data.getApiaristSmokerHoneyBlockProgress(), HONEY_BLOCK_TARGET).withStyle(ChatFormatting.GREEN);
+            if (beforeHoneyBlocks < HONEY_BLOCK_TARGET && data.getApiaristSmokerHoneyBlockProgress() >= HONEY_BLOCK_TARGET) {
                 player.sendSystemMessage(Component.translatable("message.village-quest.quest.progress.step_complete", actionbar.copy()).withStyle(ChatFormatting.GREEN), false);
                 completedStep = true;
             }
@@ -313,11 +418,28 @@ public final class ApiaristSmokerQuestService {
     }
 
     private static void completeQuest(ServerLevel world, ServerPlayer player, PlayerQuestData data) {
+        if (!hasTurnInItems(player)) {
+            Component blocked = turnInBlockedMessage(data, player);
+            if (blocked != null) {
+                player.sendSystemMessage(blocked, false);
+            }
+            refreshQuestUi(world, player);
+            return;
+        }
+        if (!DailyQuestService.consumeInventoryItem(player, Items.HONEY_BOTTLE, HONEY_TARGET)
+                || !DailyQuestService.consumeInventoryItem(player, Items.HONEYCOMB, COMB_TARGET)
+                || !DailyQuestService.consumeInventoryItem(player, Items.HONEY_BLOCK, HONEY_BLOCK_TARGET)) {
+            refreshQuestUi(world, player);
+            return;
+        }
+
         giveOrDrop(player, new ItemStack(ModItems.APIARISTS_SMOKER));
         data.setPendingSpecialOfferKind(null);
         data.setApiaristSmokerQuestStage(RelicQuestStage.COMPLETED);
         data.setApiaristSmokerHoneyProgress(HONEY_TARGET);
         data.setApiaristSmokerCombProgress(COMB_TARGET);
+        data.setApiaristSmokerBeeBreedProgress(BEE_BREED_TARGET);
+        data.setApiaristSmokerHoneyBlockProgress(HONEY_BLOCK_TARGET);
         markDirty(world);
 
         Component divider = Component.literal("------------------------------").withStyle(ChatFormatting.GRAY);

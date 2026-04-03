@@ -8,6 +8,8 @@ import de.quest.quest.daily.DailyQuestService;
 import de.quest.questmaster.QuestMasterUiService;
 import de.quest.registry.ModItems;
 import de.quest.util.Texts;
+import java.util.List;
+import java.util.UUID;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
@@ -19,25 +21,19 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.animal.Animal;
-import net.minecraft.world.entity.animal.sheep.Sheep;
-import net.minecraft.world.item.Item;
+import net.minecraft.world.entity.animal.feline.Cat;
+import net.minecraft.world.entity.animal.parrot.Parrot;
+import net.minecraft.world.entity.animal.wolf.Wolf;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import java.util.List;
-import java.util.UUID;
 
 public final class ShepherdFluteQuestService {
     public static final int REQUIRED_ANIMAL_REPUTATION = 200;
-    private static final int BREED_TARGET = 4;
-    private static final int SHEAR_TARGET = 3;
-    private static final int WOOL_TARGET = 8;
-    private static final Item[] WOOL_ITEMS = new Item[] {
-            Items.WHITE_WOOL, Items.LIGHT_GRAY_WOOL, Items.GRAY_WOOL, Items.BLACK_WOOL,
-            Items.BROWN_WOOL, Items.RED_WOOL, Items.ORANGE_WOOL, Items.YELLOW_WOOL,
-            Items.LIME_WOOL, Items.GREEN_WOOL, Items.CYAN_WOOL, Items.LIGHT_BLUE_WOOL,
-            Items.BLUE_WOOL, Items.PURPLE_WOOL, Items.MAGENTA_WOOL, Items.PINK_WOOL
-    };
+    private static final int BREED_TARGET = 20;
+    private static final String TAME_WOLF_FLAG = "special.shepherd_flute.tamed_wolf";
+    private static final String TAME_CAT_FLAG = "special.shepherd_flute.tamed_cat";
+    private static final String TAME_PARROT_FLAG = "special.shepherd_flute.tamed_parrot";
 
     private ShepherdFluteQuestService() {}
 
@@ -61,7 +57,7 @@ public final class ShepherdFluteQuestService {
     }
 
     public static void onServerTick(MinecraftServer server) {
-        // Wool progress is granted on tracked pickups, so there is no passive stat polling anymore.
+        // Progress is driven by breeding and taming hooks.
     }
 
     public static boolean handleQuestMasterInteraction(ServerLevel world, ServerPlayer player, boolean skipOffer) {
@@ -102,7 +98,7 @@ public final class ShepherdFluteQuestService {
 
         data.resetShepherdFluteQuest();
         data.setShepherdFluteQuestStage(RelicQuestStage.ACTIVE);
-        data.setShepherdFluteWoolBaseline(0);
+        clearTamingFlags(data);
         markDirty(world);
         player.sendSystemMessage(Texts.acceptedTitle(title(), ChatFormatting.AQUA), false);
         QuestTrackerService.enableForAcceptedQuest(world, player);
@@ -142,8 +138,7 @@ public final class ShepherdFluteQuestService {
         if (stage != RelicQuestStage.ACTIVE && stage != RelicQuestStage.READY) {
             return null;
         }
-        ServerPlayer player = world.getServer().getPlayerList().getPlayer(playerId);
-        return new SpecialQuestStatus(title(), progressLines(data, player));
+        return new SpecialQuestStatus(title(), progressLines(data));
     }
 
     public static boolean claimFromQuestMaster(ServerLevel world, ServerPlayer player) {
@@ -167,47 +162,46 @@ public final class ShepherdFluteQuestService {
         }
 
         int beforeBreed = data.getShepherdFluteBreedProgress();
-        int beforeShear = data.getShepherdFluteShearProgress();
-        int beforeWool = data.getShepherdFluteWoolProgress();
+        boolean beforeWolf = data.hasMilestoneFlag(TAME_WOLF_FLAG);
+        boolean beforeCat = data.hasMilestoneFlag(TAME_CAT_FLAG);
+        boolean beforeParrot = data.hasMilestoneFlag(TAME_PARROT_FLAG);
         data.setShepherdFluteBreedProgress(Math.min(BREED_TARGET, beforeBreed + 1));
-        updateProgress(world, player, data, beforeBreed, beforeShear, beforeWool);
+        updateProgress(world, player, data, beforeBreed, beforeWolf, beforeCat, beforeParrot);
     }
 
-    public static InteractionResult onEntityUse(ServerLevel world, ServerPlayer player, Entity entity, ItemStack inHand) {
-        if (world == null || player == null || !(entity instanceof Sheep sheep) || inHand == null) {
-            return InteractionResult.PASS;
+    public static void onAnimalTamed(ServerLevel world, ServerPlayer player, TamableAnimal animal) {
+        if (world == null || player == null || animal == null) {
+            return;
         }
         PlayerQuestData data = data(world, player.getUUID());
         if (data.getShepherdFluteQuestStage() != RelicQuestStage.ACTIVE) {
-            return InteractionResult.PASS;
-        }
-        if (!inHand.is(Items.SHEARS) || !sheep.readyForShearing()) {
-            return InteractionResult.PASS;
+            return;
         }
 
         int beforeBreed = data.getShepherdFluteBreedProgress();
-        int beforeShear = data.getShepherdFluteShearProgress();
-        int beforeWool = data.getShepherdFluteWoolProgress();
-        data.setShepherdFluteShearProgress(Math.min(SHEAR_TARGET, beforeShear + 1));
-        updateProgress(world, player, data, beforeBreed, beforeShear, beforeWool);
+        boolean beforeWolf = data.hasMilestoneFlag(TAME_WOLF_FLAG);
+        boolean beforeCat = data.hasMilestoneFlag(TAME_CAT_FLAG);
+        boolean beforeParrot = data.hasMilestoneFlag(TAME_PARROT_FLAG);
+
+        if (animal instanceof Wolf) {
+            data.setMilestoneFlag(TAME_WOLF_FLAG, true);
+        } else if (animal instanceof Cat) {
+            data.setMilestoneFlag(TAME_CAT_FLAG, true);
+        } else if (animal instanceof Parrot) {
+            data.setMilestoneFlag(TAME_PARROT_FLAG, true);
+        } else {
+            return;
+        }
+
+        updateProgress(world, player, data, beforeBreed, beforeWolf, beforeCat, beforeParrot);
+    }
+
+    public static InteractionResult onEntityUse(ServerLevel world, ServerPlayer player, Entity entity, ItemStack inHand) {
         return InteractionResult.PASS;
     }
 
     public static void onTrackedItemPickup(ServerLevel world, ServerPlayer player, ItemStack stack, int count) {
-        if (world == null || player == null || stack == null || count <= 0) {
-            return;
-        }
-
-        PlayerQuestData data = data(world, player.getUUID());
-        if (data.getShepherdFluteQuestStage() != RelicQuestStage.ACTIVE || !isWool(stack.getItem())) {
-            return;
-        }
-
-        int beforeBreed = data.getShepherdFluteBreedProgress();
-        int beforeShear = data.getShepherdFluteShearProgress();
-        int beforeWool = data.getShepherdFluteWoolProgress();
-        data.setShepherdFluteWoolProgress(Math.min(WOOL_TARGET, beforeWool + count));
-        updateProgress(world, player, data, beforeBreed, beforeShear, beforeWool);
+        // No tracked-drop objective for this quest anymore.
     }
 
     public static boolean useFlute(ServerLevel world, ServerPlayer player) {
@@ -265,28 +259,37 @@ public final class ShepherdFluteQuestService {
 
     private static void showProgress(ServerPlayer player, PlayerQuestData data) {
         player.sendSystemMessage(Texts.dailyTitle(title(), ChatFormatting.AQUA), false);
-        for (Component line : progressLines(data, player)) {
+        for (Component line : progressLines(data)) {
             player.sendSystemMessage(line, false);
         }
     }
 
-    private static List<Component> progressLines(PlayerQuestData data, ServerPlayer player) {
-        Component line1 = Component.translatable("quest.village-quest.special.flute.progress.breed", data.getShepherdFluteBreedProgress(), BREED_TARGET).withStyle(ChatFormatting.GRAY);
-        Component line2 = Component.translatable("quest.village-quest.special.flute.progress.shear", data.getShepherdFluteShearProgress(), SHEAR_TARGET).withStyle(ChatFormatting.GRAY);
-        Component line3 = Component.translatable("quest.village-quest.special.flute.progress.wool", data.getShepherdFluteWoolProgress(), WOOL_TARGET).withStyle(ChatFormatting.GRAY);
-        Component blocked = missingWoolTurnInLine(data, player);
-        return blocked == null ? List.of(line1, line2, line3) : List.of(line1, line2, line3, blocked);
+    private static List<Component> progressLines(PlayerQuestData data) {
+        return List.of(
+                Component.translatable("quest.village-quest.special.flute.progress.breed", data.getShepherdFluteBreedProgress(), BREED_TARGET).withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.special.flute.progress.wolf", data.hasMilestoneFlag(TAME_WOLF_FLAG) ? 1 : 0, 1).withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.special.flute.progress.cat", data.hasMilestoneFlag(TAME_CAT_FLAG) ? 1 : 0, 1).withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.special.flute.progress.parrot", data.hasMilestoneFlag(TAME_PARROT_FLAG) ? 1 : 0, 1).withStyle(ChatFormatting.GRAY)
+        );
     }
 
     private static boolean isComplete(PlayerQuestData data) {
         return data.getShepherdFluteBreedProgress() >= BREED_TARGET
-                && data.getShepherdFluteShearProgress() >= SHEAR_TARGET
-                && data.getShepherdFluteWoolProgress() >= WOOL_TARGET;
+                && data.hasMilestoneFlag(TAME_WOLF_FLAG)
+                && data.hasMilestoneFlag(TAME_CAT_FLAG)
+                && data.hasMilestoneFlag(TAME_PARROT_FLAG);
     }
 
-    private static void updateProgress(ServerLevel world, ServerPlayer player, PlayerQuestData data, int beforeBreed, int beforeShear, int beforeWool) {
+    private static void updateProgress(ServerLevel world,
+                                       ServerPlayer player,
+                                       PlayerQuestData data,
+                                       int beforeBreed,
+                                       boolean beforeWolf,
+                                       boolean beforeCat,
+                                       boolean beforeParrot) {
         Component actionbar = null;
         boolean completedStep = false;
+
         if (beforeBreed != data.getShepherdFluteBreedProgress()) {
             actionbar = Component.translatable("quest.village-quest.special.flute.progress.breed", data.getShepherdFluteBreedProgress(), BREED_TARGET).withStyle(ChatFormatting.AQUA);
             if (beforeBreed < BREED_TARGET && data.getShepherdFluteBreedProgress() >= BREED_TARGET) {
@@ -294,19 +297,20 @@ public final class ShepherdFluteQuestService {
                 completedStep = true;
             }
         }
-        if (beforeShear != data.getShepherdFluteShearProgress()) {
-            actionbar = Component.translatable("quest.village-quest.special.flute.progress.shear", data.getShepherdFluteShearProgress(), SHEAR_TARGET).withStyle(ChatFormatting.AQUA);
-            if (beforeShear < SHEAR_TARGET && data.getShepherdFluteShearProgress() >= SHEAR_TARGET) {
-                player.sendSystemMessage(Component.translatable("message.village-quest.quest.progress.step_complete", actionbar.copy()).withStyle(ChatFormatting.AQUA), false);
-                completedStep = true;
-            }
+        if (beforeWolf != data.hasMilestoneFlag(TAME_WOLF_FLAG)) {
+            actionbar = Component.translatable("quest.village-quest.special.flute.progress.wolf", data.hasMilestoneFlag(TAME_WOLF_FLAG) ? 1 : 0, 1).withStyle(ChatFormatting.AQUA);
+            player.sendSystemMessage(Component.translatable("message.village-quest.quest.progress.step_complete", actionbar.copy()).withStyle(ChatFormatting.AQUA), false);
+            completedStep = true;
         }
-        if (beforeWool != data.getShepherdFluteWoolProgress()) {
-            actionbar = Component.translatable("quest.village-quest.special.flute.progress.wool", data.getShepherdFluteWoolProgress(), WOOL_TARGET).withStyle(ChatFormatting.AQUA);
-            if (beforeWool < WOOL_TARGET && data.getShepherdFluteWoolProgress() >= WOOL_TARGET) {
-                player.sendSystemMessage(Component.translatable("message.village-quest.quest.progress.step_complete", actionbar.copy()).withStyle(ChatFormatting.AQUA), false);
-                completedStep = true;
-            }
+        if (beforeCat != data.hasMilestoneFlag(TAME_CAT_FLAG)) {
+            actionbar = Component.translatable("quest.village-quest.special.flute.progress.cat", data.hasMilestoneFlag(TAME_CAT_FLAG) ? 1 : 0, 1).withStyle(ChatFormatting.AQUA);
+            player.sendSystemMessage(Component.translatable("message.village-quest.quest.progress.step_complete", actionbar.copy()).withStyle(ChatFormatting.AQUA), false);
+            completedStep = true;
+        }
+        if (beforeParrot != data.hasMilestoneFlag(TAME_PARROT_FLAG)) {
+            actionbar = Component.translatable("quest.village-quest.special.flute.progress.parrot", data.hasMilestoneFlag(TAME_PARROT_FLAG) ? 1 : 0, 1).withStyle(ChatFormatting.AQUA);
+            player.sendSystemMessage(Component.translatable("message.village-quest.quest.progress.step_complete", actionbar.copy()).withStyle(ChatFormatting.AQUA), false);
+            completedStep = true;
         }
 
         if (data.getShepherdFluteQuestStage() == RelicQuestStage.ACTIVE && isComplete(data)) {
@@ -324,18 +328,13 @@ public final class ShepherdFluteQuestService {
     }
 
     private static boolean completeQuest(ServerLevel world, ServerPlayer player, PlayerQuestData data) {
-        if (countInventoryWool(player) < WOOL_TARGET || !consumeInventoryWool(player, WOOL_TARGET)) {
-            player.sendSystemMessage(Component.translatable("message.village-quest.special.flute.wool_missing").withStyle(ChatFormatting.RED), false);
-            refreshQuestUi(world, player);
-            return false;
-        }
-
         giveOrDrop(player, new ItemStack(ModItems.SHEPHERD_FLUTE));
         data.setPendingSpecialOfferKind(null);
         data.setShepherdFluteQuestStage(RelicQuestStage.COMPLETED);
         data.setShepherdFluteBreedProgress(BREED_TARGET);
-        data.setShepherdFluteShearProgress(SHEAR_TARGET);
-        data.setShepherdFluteWoolProgress(WOOL_TARGET);
+        data.setMilestoneFlag(TAME_WOLF_FLAG, true);
+        data.setMilestoneFlag(TAME_CAT_FLAG, true);
+        data.setMilestoneFlag(TAME_PARROT_FLAG, true);
         markDirty(world);
 
         Component divider = Component.literal("------------------------------").withStyle(ChatFormatting.GRAY);
@@ -351,36 +350,10 @@ public final class ShepherdFluteQuestService {
         return true;
     }
 
-    private static boolean isWool(Item item) {
-        for (Item woolItem : WOOL_ITEMS) {
-            if (woolItem == item) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static int countInventoryWool(ServerPlayer player) {
-        return DailyQuestService.countInventoryItems(player, WOOL_ITEMS);
-    }
-
-    private static Component missingWoolTurnInLine(PlayerQuestData data, ServerPlayer player) {
-        if (player == null
-                || data.getShepherdFluteBreedProgress() < BREED_TARGET
-                || data.getShepherdFluteShearProgress() < SHEAR_TARGET
-                || data.getShepherdFluteWoolProgress() < WOOL_TARGET
-                || countInventoryWool(player) >= WOOL_TARGET) {
-            return null;
-        }
-        return Texts.turnInMissing(
-                Component.translatable("text.village-quest.turnin.label.wool"),
-                countInventoryWool(player),
-                WOOL_TARGET
-        );
-    }
-
-    private static boolean consumeInventoryWool(ServerPlayer player, int amount) {
-        return DailyQuestService.consumeInventoryItems(player, amount, WOOL_ITEMS);
+    private static void clearTamingFlags(PlayerQuestData data) {
+        data.setMilestoneFlag(TAME_WOLF_FLAG, false);
+        data.setMilestoneFlag(TAME_CAT_FLAG, false);
+        data.setMilestoneFlag(TAME_PARROT_FLAG, false);
     }
 
     private static void giveOrDrop(ServerPlayer player, ItemStack stack) {

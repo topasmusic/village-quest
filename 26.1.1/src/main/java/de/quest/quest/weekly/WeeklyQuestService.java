@@ -72,27 +72,28 @@ public final class WeeklyQuestService {
     private static final int HARVEST_POTATO_TARGET = 32;
     private static final int HARVEST_BREAD_TARGET = 16;
 
-    private static final int BAKEHOUSE_BREAD_TARGET = 24;
-    private static final int BAKEHOUSE_PIE_TARGET = 12;
-    private static final int BAKEHOUSE_POTATO_TARGET = 12;
+    private static final int BAKEHOUSE_BREAD_TARGET = 32;
+    private static final int BAKEHOUSE_PIE_TARGET = 24;
+    private static final int BAKEHOUSE_POTATO_TARGET = 24;
 
-    private static final int SMITH_ORE_TARGET = 48;
-    private static final int SMITH_IRON_TARGET = 32;
-    private static final int SMITH_GOLD_TARGET = 8;
+    private static final int SMITH_ORE_TARGET = 50;
+    private static final int SMITH_IRON_TARGET = 50;
+    private static final int SMITH_GOLD_ORE_TARGET = 20;
+    private static final int SMITH_GOLD_TARGET = 20;
 
-    private static final int PASTURE_BREED_TARGET = 12;
-    private static final int PASTURE_SHEAR_TARGET = 6;
-    private static final int PASTURE_WOOL_TARGET = 12;
+    private static final int PASTURE_BREED_TARGET = 32;
+    private static final int PASTURE_SHEAR_TARGET = 20;
+    private static final int PASTURE_WOOL_TARGET = 40;
 
-    private static final int MARKET_TRADE_TARGET = 12;
-    private static final int MARKET_EMERALD_TARGET = 24;
-    private static final int MARKET_PILGRIM_PURCHASE_TARGET = 2;
+    private static final int MARKET_TRADE_TARGET = 30;
+    private static final int MARKET_EMERALD_TARGET = 64;
+    private static final int MARKET_PILGRIM_PURCHASE_TARGET = 3;
 
-    private static final int NIGHTWATCH_ZOMBIE_TARGET = 20;
-    private static final int NIGHTWATCH_SKELETON_TARGET = 10;
+    private static final int NIGHTWATCH_ZOMBIE_TARGET = 30;
+    private static final int NIGHTWATCH_SKELETON_TARGET = 20;
 
-    private static final int ROADWARDEN_HOSTILE_TARGET = 24;
-    private static final int ROADWARDEN_CREEPER_TARGET = 6;
+    private static final int ROADWARDEN_HOSTILE_TARGET = 30;
+    private static final int ROADWARDEN_CREEPER_TARGET = 10;
 
     private WeeklyQuestService() {}
 
@@ -595,6 +596,7 @@ public final class WeeklyQuestService {
     public static int bakehousePotatoTarget() { return BAKEHOUSE_POTATO_TARGET; }
     public static int smithOreTarget() { return SMITH_ORE_TARGET; }
     public static int smithIronTarget() { return SMITH_IRON_TARGET; }
+    public static int smithGoldOreTarget() { return SMITH_GOLD_ORE_TARGET; }
     public static int smithGoldTarget() { return SMITH_GOLD_TARGET; }
     public static int pastureBreedTarget() { return PASTURE_BREED_TARGET; }
     public static int pastureShearTarget() { return PASTURE_SHEAR_TARGET; }
