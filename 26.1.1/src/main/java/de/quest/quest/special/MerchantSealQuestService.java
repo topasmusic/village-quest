@@ -35,9 +35,10 @@ import net.minecraft.world.item.Items;
 
 public final class MerchantSealQuestService {
     public static final int REQUIRED_TRADE_REPUTATION = 200;
-    private static final int TRADE_TARGET = 5;
-    private static final int EMERALD_TARGET = 8;
-    private static final int PILGRIM_PURCHASE_TARGET = 1;
+    private static final int TRADE_TARGET = 20;
+    private static final int EMERALD_TARGET = 128;
+    private static final int VILLAGER_PURCHASE_TARGET = 10;
+    private static final int PILGRIM_PURCHASE_TARGET = 2;
     private static final ConcurrentMap<UUID, Long> LAST_PILGRIM_SEAL_USE_TICK = new ConcurrentHashMap<>();
 
     private MerchantSealQuestService() {}
@@ -169,12 +170,15 @@ public final class MerchantSealQuestService {
 
         int beforeTrades = data.getMerchantSealTradeProgress();
         int beforeEmeralds = data.getMerchantSealEmeraldProgress();
+        int beforeVillagerPurchases = data.getMerchantSealVillagerPurchaseProgress();
         int beforePilgrim = data.getMerchantSealPilgrimPurchaseProgress();
         data.setMerchantSealTradeProgress(Math.min(TRADE_TARGET, beforeTrades + 1));
         if (stack != null && stack.is(Items.EMERALD)) {
             data.setMerchantSealEmeraldProgress(Math.min(EMERALD_TARGET, beforeEmeralds + stack.getCount()));
+        } else if (stack != null && !stack.isEmpty()) {
+            data.setMerchantSealVillagerPurchaseProgress(Math.min(VILLAGER_PURCHASE_TARGET, beforeVillagerPurchases + 1));
         }
-        updateProgress(world, player, data, beforeTrades, beforeEmeralds, beforePilgrim);
+        updateProgress(world, player, data, beforeTrades, beforeEmeralds, beforeVillagerPurchases, beforePilgrim);
     }
 
     public static void onPilgrimPurchase(ServerLevel world, ServerPlayer player, String offerId) {
@@ -187,9 +191,10 @@ public final class MerchantSealQuestService {
         }
         int beforeTrades = data.getMerchantSealTradeProgress();
         int beforeEmeralds = data.getMerchantSealEmeraldProgress();
+        int beforeVillagerPurchases = data.getMerchantSealVillagerPurchaseProgress();
         int beforePilgrim = data.getMerchantSealPilgrimPurchaseProgress();
         data.setMerchantSealPilgrimPurchaseProgress(Math.min(PILGRIM_PURCHASE_TARGET, beforePilgrim + 1));
-        updateProgress(world, player, data, beforeTrades, beforeEmeralds, beforePilgrim);
+        updateProgress(world, player, data, beforeTrades, beforeEmeralds, beforeVillagerPurchases, beforePilgrim);
     }
 
     public static InteractionResult tryUseOnPilgrim(ServerLevel world, ServerPlayer player, PilgrimEntity pilgrim, ItemStack stack) {
@@ -292,6 +297,7 @@ public final class MerchantSealQuestService {
         return List.of(
                 Component.translatable("quest.village-quest.special.merchant.progress.trades", data.getMerchantSealTradeProgress(), TRADE_TARGET).withStyle(ChatFormatting.GRAY),
                 Component.translatable("quest.village-quest.special.merchant.progress.emeralds", data.getMerchantSealEmeraldProgress(), EMERALD_TARGET).withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.special.merchant.progress.villager_purchases", data.getMerchantSealVillagerPurchaseProgress(), VILLAGER_PURCHASE_TARGET).withStyle(ChatFormatting.GRAY),
                 Component.translatable("quest.village-quest.special.merchant.progress.pilgrim", data.getMerchantSealPilgrimPurchaseProgress(), PILGRIM_PURCHASE_TARGET).withStyle(ChatFormatting.GRAY)
         );
     }
@@ -299,10 +305,17 @@ public final class MerchantSealQuestService {
     private static boolean isComplete(PlayerQuestData data) {
         return data.getMerchantSealTradeProgress() >= TRADE_TARGET
                 && data.getMerchantSealEmeraldProgress() >= EMERALD_TARGET
+                && data.getMerchantSealVillagerPurchaseProgress() >= VILLAGER_PURCHASE_TARGET
                 && data.getMerchantSealPilgrimPurchaseProgress() >= PILGRIM_PURCHASE_TARGET;
     }
 
-    private static void updateProgress(ServerLevel world, ServerPlayer player, PlayerQuestData data, int beforeTrades, int beforeEmeralds, int beforePilgrim) {
+    private static void updateProgress(ServerLevel world,
+                                       ServerPlayer player,
+                                       PlayerQuestData data,
+                                       int beforeTrades,
+                                       int beforeEmeralds,
+                                       int beforeVillagerPurchases,
+                                       int beforePilgrim) {
         Component actionbar = null;
         boolean completedStep = false;
         if (beforeTrades != data.getMerchantSealTradeProgress()) {
@@ -315,6 +328,18 @@ public final class MerchantSealQuestService {
         if (beforeEmeralds != data.getMerchantSealEmeraldProgress()) {
             actionbar = Component.translatable("quest.village-quest.special.merchant.progress.emeralds", data.getMerchantSealEmeraldProgress(), EMERALD_TARGET).withStyle(ChatFormatting.GOLD);
             if (beforeEmeralds < EMERALD_TARGET && data.getMerchantSealEmeraldProgress() >= EMERALD_TARGET) {
+                player.sendSystemMessage(Component.translatable("message.village-quest.quest.progress.step_complete", actionbar.copy()).withStyle(ChatFormatting.GOLD), false);
+                completedStep = true;
+            }
+        }
+        if (beforeVillagerPurchases != data.getMerchantSealVillagerPurchaseProgress()) {
+            actionbar = Component.translatable(
+                    "quest.village-quest.special.merchant.progress.villager_purchases",
+                    data.getMerchantSealVillagerPurchaseProgress(),
+                    VILLAGER_PURCHASE_TARGET
+            ).withStyle(ChatFormatting.GOLD);
+            if (beforeVillagerPurchases < VILLAGER_PURCHASE_TARGET
+                    && data.getMerchantSealVillagerPurchaseProgress() >= VILLAGER_PURCHASE_TARGET) {
                 player.sendSystemMessage(Component.translatable("message.village-quest.quest.progress.step_complete", actionbar.copy()).withStyle(ChatFormatting.GOLD), false);
                 completedStep = true;
             }
@@ -347,6 +372,7 @@ public final class MerchantSealQuestService {
         data.setMerchantSealQuestStage(RelicQuestStage.COMPLETED);
         data.setMerchantSealTradeProgress(TRADE_TARGET);
         data.setMerchantSealEmeraldProgress(EMERALD_TARGET);
+        data.setMerchantSealVillagerPurchaseProgress(VILLAGER_PURCHASE_TARGET);
         data.setMerchantSealPilgrimPurchaseProgress(PILGRIM_PURCHASE_TARGET);
         markDirty(world);
 

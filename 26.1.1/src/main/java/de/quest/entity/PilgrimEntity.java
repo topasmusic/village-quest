@@ -255,6 +255,10 @@ public class PilgrimEntity extends PathfinderMob {
         return offerId != null && this.offerIds.contains(offerId);
     }
 
+    public boolean removeOffer(String offerId) {
+        return offerId != null && this.offerIds.remove(offerId);
+    }
+
     public void setOfferIds(Collection<String> offerIds) {
         this.offerIds.clear();
         if (offerIds != null) {

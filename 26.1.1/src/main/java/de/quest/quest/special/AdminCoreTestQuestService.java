@@ -4,6 +4,7 @@ import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.quest.QuestBookHelper;
 import de.quest.quest.QuestTrackerService;
+import de.quest.quest.daily.DailyQuestService;
 import de.quest.questmaster.QuestMasterUiService;
 import de.quest.util.Texts;
 import java.util.ArrayList;
@@ -12,14 +13,19 @@ import java.util.UUID;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.entity.animal.feline.Cat;
+import net.minecraft.world.entity.animal.parrot.Parrot;
 import net.minecraft.world.entity.animal.sheep.Sheep;
+import net.minecraft.world.entity.animal.wolf.Wolf;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -36,14 +42,22 @@ public final class AdminCoreTestQuestService {
     private static final String WOOL_FLAG = "admin_core_test.wool";
     private static final String BREED_FLAG = "admin_core_test.breed";
     private static final String RAW_IRON_FLAG = "admin_core_test.raw_iron";
+    private static final String RAW_GOLD_FLAG = "admin_core_test.raw_gold";
     private static final String SMELT_FLAG = "admin_core_test.smelt";
     private static final String REDSTONE_FLAG = "admin_core_test.redstone";
+    private static final String LAPIS_FLAG = "admin_core_test.lapis";
     private static final String HONEY_FLAG = "admin_core_test.honey";
+    private static final String HONEY_BLOCK_FLAG = "admin_core_test.honey_block";
     private static final String TRADE_FLAG = "admin_core_test.trade";
+    private static final String VILLAGER_PURCHASE_FLAG = "admin_core_test.villager_purchase";
     private static final String BELL_FLAG = "admin_core_test.bell";
     private static final String PILGRIM_FLAG = "admin_core_test.pilgrim";
     private static final String ANVIL_FLAG = "admin_core_test.anvil";
     private static final String KILL_FLAG = "admin_core_test.kill";
+    private static final String TAME_WOLF_FLAG = "admin_core_test.tame_wolf";
+    private static final String TAME_CAT_FLAG = "admin_core_test.tame_cat";
+    private static final String TAME_PARROT_FLAG = "admin_core_test.tame_parrot";
+    private static final String HONEY_BLOCK_BASELINE_KEY = "admin_core_test.honey_block_baseline";
 
     private static final Item[] WOOL_ITEMS = new Item[] {
             Items.WHITE_WOOL, Items.LIGHT_GRAY_WOOL, Items.GRAY_WOOL,
@@ -75,6 +89,22 @@ public final class AdminCoreTestQuestService {
         QuestMasterUiService.refreshIfOpen(world, player);
     }
 
+    public static void onServerTick(MinecraftServer server) {
+        if (server == null) {
+            return;
+        }
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            if (!(player.level() instanceof ServerLevel world) || !isActive(world, player.getUUID())) {
+                continue;
+            }
+            PlayerQuestData data = data(world, player.getUUID());
+            int baseline = data.getPilgrimInt(HONEY_BLOCK_BASELINE_KEY);
+            if (DailyQuestService.getCraftedStat(player, Items.HONEY_BLOCK) > baseline) {
+                completeObjective(world, player, HONEY_BLOCK_FLAG, progressLine("quest.village-quest.special.admin_core_test.progress.honey_block", true));
+            }
+        }
+    }
+
     public static boolean isActive(ServerLevel world, UUID playerId) {
         return world != null && playerId != null && data(world, playerId).hasMilestoneFlag(ACTIVE_FLAG);
     }
@@ -93,6 +123,7 @@ public final class AdminCoreTestQuestService {
 
         PlayerQuestData data = data(world, player.getUUID());
         clearFlags(data);
+        data.setPilgrimInt(HONEY_BLOCK_BASELINE_KEY, DailyQuestService.getCraftedStat(player, Items.HONEY_BLOCK));
         data.setMilestoneFlag(ACTIVE_FLAG, true);
         markDirty(world);
 
@@ -148,14 +179,30 @@ public final class AdminCoreTestQuestService {
         if (stack.is(Items.RAW_IRON)) {
             completeObjective(world, player, RAW_IRON_FLAG, progressLine("quest.village-quest.special.admin_core_test.progress.raw_iron", true));
         }
+        if (stack.is(Items.RAW_GOLD)) {
+            completeObjective(world, player, RAW_GOLD_FLAG, progressLine("quest.village-quest.special.admin_core_test.progress.raw_gold", true));
+        }
         if (stack.is(Items.REDSTONE)) {
             completeObjective(world, player, REDSTONE_FLAG, progressLine("quest.village-quest.special.admin_core_test.progress.redstone", true));
+        }
+        if (stack.is(Items.LAPIS_LAZULI)) {
+            completeObjective(world, player, LAPIS_FLAG, progressLine("quest.village-quest.special.admin_core_test.progress.lapis", true));
         }
     }
 
     public static void onAnimalLove(ServerLevel world, ServerPlayer player, Animal animal) {
         if (animal != null) {
             completeObjective(world, player, BREED_FLAG, progressLine("quest.village-quest.special.admin_core_test.progress.breed", true));
+        }
+    }
+
+    public static void onAnimalTamed(ServerLevel world, ServerPlayer player, TamableAnimal animal) {
+        if (animal instanceof Wolf) {
+            completeObjective(world, player, TAME_WOLF_FLAG, progressLine("quest.village-quest.special.admin_core_test.progress.tame_wolf", true));
+        } else if (animal instanceof Cat) {
+            completeObjective(world, player, TAME_CAT_FLAG, progressLine("quest.village-quest.special.admin_core_test.progress.tame_cat", true));
+        } else if (animal instanceof Parrot) {
+            completeObjective(world, player, TAME_PARROT_FLAG, progressLine("quest.village-quest.special.admin_core_test.progress.tame_parrot", true));
         }
     }
 
@@ -182,8 +229,12 @@ public final class AdminCoreTestQuestService {
     }
 
     public static void onVillagerTrade(ServerLevel world, ServerPlayer player, ItemStack stack) {
-        if (stack != null && !stack.isEmpty()) {
-            completeObjective(world, player, TRADE_FLAG, progressLine("quest.village-quest.special.admin_core_test.progress.trade", true));
+        if (stack == null || stack.isEmpty()) {
+            return;
+        }
+        completeObjective(world, player, TRADE_FLAG, progressLine("quest.village-quest.special.admin_core_test.progress.trade", true));
+        if (!stack.is(Items.EMERALD)) {
+            completeObjective(world, player, VILLAGER_PURCHASE_FLAG, progressLine("quest.village-quest.special.admin_core_test.progress.villager_purchase", true));
         }
     }
 
@@ -243,14 +294,21 @@ public final class AdminCoreTestQuestService {
                 && data.hasMilestoneFlag(WOOL_FLAG)
                 && data.hasMilestoneFlag(BREED_FLAG)
                 && data.hasMilestoneFlag(RAW_IRON_FLAG)
+                && data.hasMilestoneFlag(RAW_GOLD_FLAG)
                 && data.hasMilestoneFlag(SMELT_FLAG)
                 && data.hasMilestoneFlag(REDSTONE_FLAG)
+                && data.hasMilestoneFlag(LAPIS_FLAG)
                 && data.hasMilestoneFlag(HONEY_FLAG)
+                && data.hasMilestoneFlag(HONEY_BLOCK_FLAG)
                 && data.hasMilestoneFlag(TRADE_FLAG)
+                && data.hasMilestoneFlag(VILLAGER_PURCHASE_FLAG)
                 && data.hasMilestoneFlag(BELL_FLAG)
                 && data.hasMilestoneFlag(PILGRIM_FLAG)
                 && data.hasMilestoneFlag(ANVIL_FLAG)
-                && data.hasMilestoneFlag(KILL_FLAG);
+                && data.hasMilestoneFlag(KILL_FLAG)
+                && data.hasMilestoneFlag(TAME_WOLF_FLAG)
+                && data.hasMilestoneFlag(TAME_CAT_FLAG)
+                && data.hasMilestoneFlag(TAME_PARROT_FLAG);
     }
 
     private static List<Component> progressLines(PlayerQuestData data) {
@@ -260,14 +318,21 @@ public final class AdminCoreTestQuestService {
         lines.add(progressLine("quest.village-quest.special.admin_core_test.progress.wool", data.hasMilestoneFlag(WOOL_FLAG)));
         lines.add(progressLine("quest.village-quest.special.admin_core_test.progress.breed", data.hasMilestoneFlag(BREED_FLAG)));
         lines.add(progressLine("quest.village-quest.special.admin_core_test.progress.raw_iron", data.hasMilestoneFlag(RAW_IRON_FLAG)));
+        lines.add(progressLine("quest.village-quest.special.admin_core_test.progress.raw_gold", data.hasMilestoneFlag(RAW_GOLD_FLAG)));
         lines.add(progressLine("quest.village-quest.special.admin_core_test.progress.smelt", data.hasMilestoneFlag(SMELT_FLAG)));
         lines.add(progressLine("quest.village-quest.special.admin_core_test.progress.redstone", data.hasMilestoneFlag(REDSTONE_FLAG)));
+        lines.add(progressLine("quest.village-quest.special.admin_core_test.progress.lapis", data.hasMilestoneFlag(LAPIS_FLAG)));
         lines.add(progressLine("quest.village-quest.special.admin_core_test.progress.honey", data.hasMilestoneFlag(HONEY_FLAG)));
+        lines.add(progressLine("quest.village-quest.special.admin_core_test.progress.honey_block", data.hasMilestoneFlag(HONEY_BLOCK_FLAG)));
         lines.add(progressLine("quest.village-quest.special.admin_core_test.progress.trade", data.hasMilestoneFlag(TRADE_FLAG)));
+        lines.add(progressLine("quest.village-quest.special.admin_core_test.progress.villager_purchase", data.hasMilestoneFlag(VILLAGER_PURCHASE_FLAG)));
         lines.add(progressLine("quest.village-quest.special.admin_core_test.progress.bell", data.hasMilestoneFlag(BELL_FLAG)));
         lines.add(progressLine("quest.village-quest.special.admin_core_test.progress.pilgrim", data.hasMilestoneFlag(PILGRIM_FLAG)));
         lines.add(progressLine("quest.village-quest.special.admin_core_test.progress.anvil", data.hasMilestoneFlag(ANVIL_FLAG)));
         lines.add(progressLine("quest.village-quest.special.admin_core_test.progress.kill", data.hasMilestoneFlag(KILL_FLAG)));
+        lines.add(progressLine("quest.village-quest.special.admin_core_test.progress.tame_wolf", data.hasMilestoneFlag(TAME_WOLF_FLAG)));
+        lines.add(progressLine("quest.village-quest.special.admin_core_test.progress.tame_cat", data.hasMilestoneFlag(TAME_CAT_FLAG)));
+        lines.add(progressLine("quest.village-quest.special.admin_core_test.progress.tame_parrot", data.hasMilestoneFlag(TAME_PARROT_FLAG)));
         if (data.hasMilestoneFlag(COMPLETE_FLAG)) {
             lines.add(Component.translatable("quest.village-quest.special.admin_core_test.progress.complete").withStyle(ChatFormatting.GOLD));
         }
@@ -295,14 +360,22 @@ public final class AdminCoreTestQuestService {
                 || data.hasMilestoneFlag(WOOL_FLAG)
                 || data.hasMilestoneFlag(BREED_FLAG)
                 || data.hasMilestoneFlag(RAW_IRON_FLAG)
+                || data.hasMilestoneFlag(RAW_GOLD_FLAG)
                 || data.hasMilestoneFlag(SMELT_FLAG)
                 || data.hasMilestoneFlag(REDSTONE_FLAG)
+                || data.hasMilestoneFlag(LAPIS_FLAG)
                 || data.hasMilestoneFlag(HONEY_FLAG)
+                || data.hasMilestoneFlag(HONEY_BLOCK_FLAG)
                 || data.hasMilestoneFlag(TRADE_FLAG)
+                || data.hasMilestoneFlag(VILLAGER_PURCHASE_FLAG)
                 || data.hasMilestoneFlag(BELL_FLAG)
                 || data.hasMilestoneFlag(PILGRIM_FLAG)
                 || data.hasMilestoneFlag(ANVIL_FLAG)
-                || data.hasMilestoneFlag(KILL_FLAG);
+                || data.hasMilestoneFlag(KILL_FLAG)
+                || data.hasMilestoneFlag(TAME_WOLF_FLAG)
+                || data.hasMilestoneFlag(TAME_CAT_FLAG)
+                || data.hasMilestoneFlag(TAME_PARROT_FLAG)
+                || data.getPilgrimInt(HONEY_BLOCK_BASELINE_KEY) > 0;
     }
 
     private static void clearFlags(PlayerQuestData data) {
@@ -313,14 +386,22 @@ public final class AdminCoreTestQuestService {
         data.setMilestoneFlag(WOOL_FLAG, false);
         data.setMilestoneFlag(BREED_FLAG, false);
         data.setMilestoneFlag(RAW_IRON_FLAG, false);
+        data.setMilestoneFlag(RAW_GOLD_FLAG, false);
         data.setMilestoneFlag(SMELT_FLAG, false);
         data.setMilestoneFlag(REDSTONE_FLAG, false);
+        data.setMilestoneFlag(LAPIS_FLAG, false);
         data.setMilestoneFlag(HONEY_FLAG, false);
+        data.setMilestoneFlag(HONEY_BLOCK_FLAG, false);
         data.setMilestoneFlag(TRADE_FLAG, false);
+        data.setMilestoneFlag(VILLAGER_PURCHASE_FLAG, false);
         data.setMilestoneFlag(BELL_FLAG, false);
         data.setMilestoneFlag(PILGRIM_FLAG, false);
         data.setMilestoneFlag(ANVIL_FLAG, false);
         data.setMilestoneFlag(KILL_FLAG, false);
+        data.setMilestoneFlag(TAME_WOLF_FLAG, false);
+        data.setMilestoneFlag(TAME_CAT_FLAG, false);
+        data.setMilestoneFlag(TAME_PARROT_FLAG, false);
+        data.setPilgrimInt(HONEY_BLOCK_BASELINE_KEY, 0);
     }
 
     private static Component title() {

@@ -932,11 +932,13 @@ public final class QuestCommands {
                 CurrencyService.formatDelta(finalDelta),
                 CurrencyService.formatBalance(newBalance)
         ).withStyle(ChatFormatting.GREEN), false);
-        target.sendSystemMessage(Component.translatable(
-                "command.village-quest.questadmin.wallet.adjust.notify",
-                CurrencyService.formatDelta(finalDelta),
-                CurrencyService.formatBalance(newBalance)
-        ).withStyle(ChatFormatting.GRAY), false);
+        if (shouldNotifyWalletTarget(source, target)) {
+            target.sendSystemMessage(Component.translatable(
+                    "command.village-quest.questadmin.wallet.adjust.notify",
+                    CurrencyService.formatDelta(finalDelta),
+                    CurrencyService.formatBalance(newBalance)
+            ).withStyle(ChatFormatting.GRAY), false);
+        }
         return 1;
     }
 
@@ -960,11 +962,18 @@ public final class QuestCommands {
                 target.getDisplayName(),
                 CurrencyService.formatBalance(newBalance)
         ).withStyle(ChatFormatting.GREEN), false);
-        target.sendSystemMessage(Component.translatable(
-                "command.village-quest.questadmin.wallet.set.notify",
-                CurrencyService.formatBalance(newBalance)
-        ).withStyle(ChatFormatting.GRAY), false);
+        if (shouldNotifyWalletTarget(source, target)) {
+            target.sendSystemMessage(Component.translatable(
+                    "command.village-quest.questadmin.wallet.set.notify",
+                    CurrencyService.formatBalance(newBalance)
+            ).withStyle(ChatFormatting.GRAY), false);
+        }
         return 1;
+    }
+
+    private static boolean shouldNotifyWalletTarget(CommandSourceStack source, ServerPlayer target) {
+        ServerPlayer executor = source.getPlayer();
+        return executor == null || !executor.getUUID().equals(target.getUUID());
     }
 
     private static int spawnPilgrimForPlayer(CommandSourceStack source, ServerPlayer target) {
