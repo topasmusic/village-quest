@@ -57,6 +57,7 @@ public final class SurveyorCompassQuestService {
     public static final int REQUIRED_CRAFTING_REPUTATION = 200;
 
     private static final int REDSTONE_TARGET = 64;
+    private static final int LAPIS_TARGET = 64;
     private static final int CRAFTED_TARGET = 1;
     private static final int PICKAXE_READY_TARGET = 1;
     private static final int BIOME_SEARCH_RADIUS = 6400;
@@ -526,26 +527,34 @@ public final class SurveyorCompassQuestService {
     }
 
     public static void onBlockBreak(ServerWorld world, ServerPlayerEntity player, BlockPos pos, BlockState state) {
-        // Progress is granted on tracked redstone dust pickups.
+        // Progress is granted on tracked ore drops.
     }
 
     public static void onTrackedItemPickup(ServerWorld world, ServerPlayerEntity player, ItemStack stack, int count) {
         if (world == null || player == null || stack == null || count <= 0) {
             return;
         }
+        if (!stack.isOf(Items.REDSTONE) && !stack.isOf(Items.LAPIS_LAZULI)) {
+            return;
+        }
         PlayerQuestData data = data(world, player.getUuid());
-        if (data.getSurveyorCompassQuestStage() != RelicQuestStage.ACTIVE || !stack.isOf(Items.REDSTONE)) {
+        if (data.getSurveyorCompassQuestStage() != RelicQuestStage.ACTIVE) {
             return;
         }
 
         int beforeRedstone = data.getSurveyorCompassRedstoneProgress();
+        int beforeLapis = data.getSurveyorCompassLapisProgress();
         int beforeCrafted = data.getSurveyorCompassCraftedProgress();
         int beforeReady = data.getSurveyorCompassPickaxeReadyProgress();
         RelicQuestStage beforeStage = data.getSurveyorCompassQuestStage();
-        data.setSurveyorCompassRedstoneProgress(Math.min(REDSTONE_TARGET, beforeRedstone + count));
+        if (stack.isOf(Items.REDSTONE)) {
+            data.setSurveyorCompassRedstoneProgress(Math.min(REDSTONE_TARGET, beforeRedstone + count));
+        } else {
+            data.setSurveyorCompassLapisProgress(Math.min(LAPIS_TARGET, beforeLapis + count));
+        }
         updateReadyState(data);
         markDirty(world);
-        sendProgressFeedback(world, player, data, beforeRedstone, beforeCrafted, beforeReady, beforeStage);
+        sendProgressFeedback(world, player, data, beforeRedstone, beforeLapis, beforeCrafted, beforeReady, beforeStage);
     }
 
     public static boolean claimFromQuestMaster(ServerWorld world, ServerPlayerEntity player) {
@@ -637,6 +646,7 @@ public final class SurveyorCompassQuestService {
 
     private static void tickCompassQuestProgress(ServerWorld world, ServerPlayerEntity player, PlayerQuestData data, RelicQuestStage stage) {
         int beforeRedstone = data.getSurveyorCompassRedstoneProgress();
+        int beforeLapis = data.getSurveyorCompassLapisProgress();
         int beforeCrafted = data.getSurveyorCompassCraftedProgress();
         int beforeReady = data.getSurveyorCompassPickaxeReadyProgress();
         RelicQuestStage beforeStage = stage;
@@ -652,7 +662,7 @@ public final class SurveyorCompassQuestService {
                 || beforeReady != data.getSurveyorCompassPickaxeReadyProgress()
                 || beforeStage != data.getSurveyorCompassQuestStage()) {
             markDirty(world);
-            sendProgressFeedback(world, player, data, beforeRedstone, beforeCrafted, beforeReady, beforeStage);
+            sendProgressFeedback(world, player, data, beforeRedstone, beforeLapis, beforeCrafted, beforeReady, beforeStage);
         }
     }
 
@@ -1038,6 +1048,7 @@ public final class SurveyorCompassQuestService {
     private static List<Text> progressLines(PlayerQuestData data) {
         return List.of(
                 Text.translatable("quest.village-quest.special.surveyor_compass.progress.redstone", data.getSurveyorCompassRedstoneProgress(), REDSTONE_TARGET).formatted(Formatting.GRAY),
+                Text.translatable("quest.village-quest.special.surveyor_compass.progress.lapis", data.getSurveyorCompassLapisProgress(), LAPIS_TARGET).formatted(Formatting.GRAY),
                 Text.translatable("quest.village-quest.special.surveyor_compass.progress.crafted", data.getSurveyorCompassCraftedProgress(), CRAFTED_TARGET).formatted(Formatting.GRAY),
                 Text.translatable("quest.village-quest.special.surveyor_compass.progress.pickaxe", data.getSurveyorCompassPickaxeReadyProgress(), PICKAXE_READY_TARGET).formatted(Formatting.GRAY)
         );
@@ -1101,6 +1112,7 @@ public final class SurveyorCompassQuestService {
 
     private static boolean isComplete(PlayerQuestData data) {
         return data.getSurveyorCompassRedstoneProgress() >= REDSTONE_TARGET
+                && data.getSurveyorCompassLapisProgress() >= LAPIS_TARGET
                 && data.getSurveyorCompassCraftedProgress() >= CRAFTED_TARGET
                 && data.getSurveyorCompassPickaxeReadyProgress() >= PICKAXE_READY_TARGET;
     }
@@ -1142,6 +1154,7 @@ public final class SurveyorCompassQuestService {
                                              ServerPlayerEntity player,
                                              PlayerQuestData data,
                                              int beforeRedstone,
+                                             int beforeLapis,
                                              int beforeCrafted,
                                              int beforeReady,
                                              RelicQuestStage beforeStage) {
@@ -1150,6 +1163,13 @@ public final class SurveyorCompassQuestService {
         if (beforeRedstone != data.getSurveyorCompassRedstoneProgress()) {
             actionbar = Text.translatable("quest.village-quest.special.surveyor_compass.progress.redstone", data.getSurveyorCompassRedstoneProgress(), REDSTONE_TARGET).formatted(Formatting.GOLD);
             if (beforeRedstone < REDSTONE_TARGET && data.getSurveyorCompassRedstoneProgress() >= REDSTONE_TARGET) {
+                player.sendMessage(Text.translatable("message.village-quest.quest.progress.step_complete", actionbar.copy()).formatted(Formatting.GOLD), false);
+                completedStep = true;
+            }
+        }
+        if (beforeLapis != data.getSurveyorCompassLapisProgress()) {
+            actionbar = Text.translatable("quest.village-quest.special.surveyor_compass.progress.lapis", data.getSurveyorCompassLapisProgress(), LAPIS_TARGET).formatted(Formatting.GOLD);
+            if (beforeLapis < LAPIS_TARGET && data.getSurveyorCompassLapisProgress() >= LAPIS_TARGET) {
                 player.sendMessage(Text.translatable("message.village-quest.quest.progress.step_complete", actionbar.copy()).formatted(Formatting.GOLD), false);
                 completedStep = true;
             }
@@ -1189,6 +1209,7 @@ public final class SurveyorCompassQuestService {
         data.setPendingSpecialOfferKind(null);
         data.setSurveyorCompassQuestStage(RelicQuestStage.COMPLETED);
         data.setSurveyorCompassRedstoneProgress(REDSTONE_TARGET);
+        data.setSurveyorCompassLapisProgress(LAPIS_TARGET);
         data.setSurveyorCompassCraftedProgress(CRAFTED_TARGET);
         data.setSurveyorCompassPickaxeReadyProgress(PICKAXE_READY_TARGET);
         markDirty(world);

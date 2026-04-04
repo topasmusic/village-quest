@@ -15,7 +15,7 @@ import net.minecraft.util.Formatting;
 import java.util.UUID;
 
 public final class SpiderSweepDailyQuest implements DailyQuestDefinition {
-    private static final int TARGET = 6;
+    private static final int TARGET = 16;
 
     @Override
     public DailyQuestService.DailyQuestType type() {

@@ -109,7 +109,7 @@ public final class StallAndPastureWeeklyQuest implements WeeklyQuestDefinition {
                 Text.translatable("quest.village-quest.weekly.pasture.completion.1").formatted(Formatting.GRAY),
                 Text.translatable("quest.village-quest.weekly.pasture.completion.2").formatted(Formatting.GRAY),
                 Text.translatable("quest.village-quest.weekly.pasture.completion.3").formatted(Formatting.GRAY),
-                WeeklyQuestService.reward(1, 18),
+                WeeklyQuestService.reward(2, 8),
                 WeeklyQuestService.magicShardReward(1),
                 ItemStack.EMPTY,
                 14,

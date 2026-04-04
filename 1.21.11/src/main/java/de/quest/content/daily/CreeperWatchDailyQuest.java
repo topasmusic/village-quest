@@ -15,7 +15,7 @@ import net.minecraft.util.Formatting;
 import java.util.UUID;
 
 public final class CreeperWatchDailyQuest implements DailyQuestDefinition {
-    private static final int TARGET = 4;
+    private static final int TARGET = 12;
 
     @Override
     public DailyQuestService.DailyQuestType type() {

@@ -79,7 +79,7 @@ public final class HarvestForVillageWeeklyQuest implements WeeklyQuestDefinition
                 Text.translatable("quest.village-quest.weekly.harvest.completion.1").formatted(Formatting.GRAY),
                 Text.translatable("quest.village-quest.weekly.harvest.completion.2").formatted(Formatting.GRAY),
                 Text.translatable("quest.village-quest.weekly.harvest.completion.3").formatted(Formatting.GRAY),
-                WeeklyQuestService.reward(1, 18),
+                WeeklyQuestService.reward(2, 8),
                 WeeklyQuestService.magicShardReward(1),
                 ItemStack.EMPTY,
                 14,

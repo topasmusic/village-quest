@@ -14,6 +14,7 @@ public final class WeeklyQuestKeys {
     public static final String BAKEHOUSE_LAST_PIE = "weekly.bakehouse.last_pie";
 
     public static final String SMITH_ORE = "weekly.smith.ore";
+    public static final String SMITH_GOLD_ORE = "weekly.smith.gold_ore";
     public static final String SMITH_IRON = "weekly.smith.iron";
     public static final String SMITH_GOLD = "weekly.smith.gold";
 

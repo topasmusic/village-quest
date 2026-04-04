@@ -6,6 +6,7 @@ import de.quest.entity.PilgrimEntity;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.passive.AnimalEntity;
+import net.minecraft.entity.passive.TameableEntity;
 import net.minecraft.entity.passive.WanderingTraderEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.MinecraftServer;
@@ -151,8 +152,10 @@ public final class SpecialQuestService {
     }
 
     public static void onServerTick(MinecraftServer server) {
+        AdminCoreTestQuestService.onServerTick(server);
         ShardRelicQuestService.onServerTick(server);
         ShepherdFluteQuestService.onServerTick(server);
+        ApiaristSmokerQuestService.onServerTick(server);
         SurveyorCompassQuestService.onServerTick(server);
     }
 
@@ -207,6 +210,12 @@ public final class SpecialQuestService {
     public static void onAnimalLove(ServerWorld world, ServerPlayerEntity player, AnimalEntity animal) {
         AdminCoreTestQuestService.onAnimalLove(world, player, animal);
         ShepherdFluteQuestService.onAnimalLove(world, player, animal);
+        ApiaristSmokerQuestService.onAnimalLove(world, player, animal);
+    }
+
+    public static void onAnimalTamed(ServerWorld world, ServerPlayerEntity player, TameableEntity animal) {
+        AdminCoreTestQuestService.onAnimalTamed(world, player, animal);
+        ShepherdFluteQuestService.onAnimalTamed(world, player, animal);
     }
 
     public static void onBeeNestInteract(ServerWorld world, ServerPlayerEntity player, BlockState state, ItemStack stack) {

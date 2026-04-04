@@ -3,7 +3,7 @@
 This wiki covers the current shipped baseline of `Village Quest` for Minecraft `1.21.11`.
 
 Current release:
-- `1.20.1`
+- `1.20.4`
 
 The core loop is:
 - help a village through grounded daily and weekly work

@@ -346,8 +346,10 @@ public final class QuestDropTracker {
     private static boolean isTrackedBlockDrop(Item item) {
         return item == Items.COAL
                 || item == Items.RAW_IRON
+                || item == Items.RAW_GOLD
                 || item == Items.DIAMOND
                 || item == Items.REDSTONE
+                || item == Items.LAPIS_LAZULI
                 || item == Items.AMETHYST_SHARD;
     }
 

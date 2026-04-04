@@ -15,6 +15,7 @@
     "MerchantEntityAccessor",
     "PaintingEntityMixin",
     "SheepEntityMixin",
+    "TamableAnimalMixin",
     "TradeOutputSlotMixin",
     "WanderingTraderEntityInvoker"
   ],
