@@ -932,11 +932,13 @@ public final class QuestCommands {
                 CurrencyService.formatDelta(finalDelta),
                 CurrencyService.formatBalance(newBalance)
         ).formatted(Formatting.GREEN), false);
-        target.sendMessage(Text.translatable(
-                "command.village-quest.questadmin.wallet.adjust.notify",
-                CurrencyService.formatDelta(finalDelta),
-                CurrencyService.formatBalance(newBalance)
-        ).formatted(Formatting.GRAY), false);
+        if (shouldNotifyWalletTarget(source, target)) {
+            target.sendMessage(Text.translatable(
+                    "command.village-quest.questadmin.wallet.adjust.notify",
+                    CurrencyService.formatDelta(finalDelta),
+                    CurrencyService.formatBalance(newBalance)
+            ).formatted(Formatting.GRAY), false);
+        }
         return 1;
     }
 
@@ -960,11 +962,17 @@ public final class QuestCommands {
                 target.getDisplayName(),
                 CurrencyService.formatBalance(newBalance)
         ).formatted(Formatting.GREEN), false);
-        target.sendMessage(Text.translatable(
-                "command.village-quest.questadmin.wallet.set.notify",
-                CurrencyService.formatBalance(newBalance)
-        ).formatted(Formatting.GRAY), false);
+        if (shouldNotifyWalletTarget(source, target)) {
+            target.sendMessage(Text.translatable(
+                    "command.village-quest.questadmin.wallet.set.notify",
+                    CurrencyService.formatBalance(newBalance)
+            ).formatted(Formatting.GRAY), false);
+        }
         return 1;
+    }
+
+    private static boolean shouldNotifyWalletTarget(ServerCommandSource source, ServerPlayerEntity target) {
+        return !(source.getEntity() instanceof ServerPlayerEntity executor) || !executor.getUuid().equals(target.getUuid());
     }
 
     private static int spawnPilgrimForPlayer(ServerCommandSource source, ServerPlayerEntity target) {

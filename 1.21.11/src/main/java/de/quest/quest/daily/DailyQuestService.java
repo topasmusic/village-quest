@@ -94,27 +94,27 @@ public final class DailyQuestService {
         }
     }
 
-    private static final int HONEY_TARGET = 3;
-    private static final int COMB_TARGET = 1;
-    private static final int WHEAT_TARGET = 12;
-    private static final int BREAD_TARGET = 3;
-    private static final int POTATO_TARGET = 10;
-    private static final int CARROT_TARGET = 10;
-    private static final int WOOD_TARGET = 8;
-    private static final int COAL_TARGET = 8;
-    private static final int IRON_TARGET = 6;
-    private static final int SMITH_COAL_TARGET = 8;
-    private static final int SHEEP_TARGET = 3;
+    private static final int HONEY_TARGET = 5;
+    private static final int COMB_TARGET = 2;
+    private static final int WHEAT_TARGET = 24;
+    private static final int BREAD_TARGET = 6;
+    private static final int POTATO_TARGET = 30;
+    private static final int CARROT_TARGET = 30;
+    private static final int WOOD_TARGET = 64;
+    private static final int COAL_TARGET = 32;
+    private static final int IRON_TARGET = 40;
+    private static final int SMITH_COAL_TARGET = 50;
+    private static final int SHEEP_TARGET = 10;
     private static final int WOOL_TARGET = 6;
-    private static final int RIVER_FISH_TARGET = 3;
-    private static final int RIVER_COOKED_FISH_TARGET = 3;
-    private static final int AUTUMN_PUMPKIN_TARGET = 6;
-    private static final int AUTUMN_MELON_TARGET = 6;
-    private static final int SMITH_SMELT_ORE_TARGET = 8;
-    private static final int SMITH_SMELT_INGOT_TARGET = 8;
-    private static final int STALL_BREED_TARGET = 2;
-    private static final int VILLAGE_TRADE_TARGET = 2;
-    private static final int VILLAGE_TRADE_EMERALD_TARGET = 1;
+    private static final int RIVER_FISH_TARGET = 10;
+    private static final int RIVER_COOKED_FISH_TARGET = 5;
+    private static final int AUTUMN_PUMPKIN_TARGET = 12;
+    private static final int AUTUMN_MELON_TARGET = 12;
+    private static final int SMITH_SMELT_ORE_TARGET = 50;
+    private static final int SMITH_SMELT_INGOT_TARGET = 50;
+    private static final int STALL_BREED_TARGET = 10;
+    private static final int VILLAGE_TRADE_TARGET = 20;
+    private static final int VILLAGE_TRADE_EMERALD_TARGET = 30;
     private static final float MAGIC_SHARD_DROP_CHANCE = 0.10f;
 
     private enum ActiveQuestSlot {

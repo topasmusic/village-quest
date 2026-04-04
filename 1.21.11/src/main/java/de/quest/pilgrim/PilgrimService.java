@@ -215,7 +215,10 @@ public final class PilgrimService {
             return;
         }
 
-        ShopService.buy(world, player, payload.offerId());
+        int purchased = ShopService.buy(world, player, payload.offerId());
+        if (purchased > 0) {
+            pilgrim.removeOffer(payload.offerId());
+        }
         refreshTrade(world, player, pilgrim);
     }
 

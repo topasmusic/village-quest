@@ -10,39 +10,41 @@ import de.quest.quest.story.StoryQuestKeys;
 import de.quest.quest.story.StoryQuestService;
 import de.quest.quest.story.VillageProjectType;
 import de.quest.reputation.ReputationService;
+import de.quest.util.Texts;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.passive.AbstractHorseEntity;
 import net.minecraft.entity.passive.AnimalEntity;
 import net.minecraft.entity.passive.ChickenEntity;
 import net.minecraft.entity.passive.CowEntity;
 import net.minecraft.entity.passive.GoatEntity;
+import net.minecraft.entity.passive.LlamaEntity;
 import net.minecraft.entity.passive.PigEntity;
 import net.minecraft.entity.passive.SheepEntity;
-import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
-import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.stat.Stats;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
-import net.minecraft.village.VillagerProfession;
 
 import java.util.List;
 import java.util.UUID;
 
 public final class RestlessPensStoryArc implements StoryArcDefinition {
-    private static final int EMPTY_TROUGHS_BREED_TARGET = 4;
-    private static final int EMPTY_TROUGHS_HAY_TARGET = 2;
-    private static final int WOOL_BEFORE_WEATHER_SHEAR_TARGET = 4;
-    private static final int WOOL_BEFORE_WEATHER_WOOL_TARGET = 12;
-    private static final int WORDS_AT_THE_PENS_TARGET = 3;
+    private static final int EMPTY_TROUGHS_BREED_TARGET = 20;
+    private static final int EMPTY_TROUGHS_HAY_TARGET = 64;
+    private static final int WOOL_BEFORE_WEATHER_SHEAR_TARGET = 32;
+    private static final int WOOL_BEFORE_WEATHER_WOOL_TARGET = 64;
+    private static final int NEW_PASTURES_RIDE_TARGET_CM = 100_000;
+    private static final int NEW_PASTURES_RIDE_TARGET_BLOCKS = 1_000;
     private static final int SHEPHERDS_CALL_TARGET = 1;
-    private static final int SHEPHERDS_CALL_ANIMAL_TARGET = 6;
+    private static final int SHEPHERDS_CALL_ANIMAL_TARGET = 10;
     private static final Item[] WOOL_ITEMS = new Item[] {
             Items.WHITE_WOOL, Items.LIGHT_GRAY_WOOL, Items.GRAY_WOOL, Items.BLACK_WOOL,
             Items.BROWN_WOOL, Items.RED_WOOL, Items.ORANGE_WOOL, Items.YELLOW_WOOL,
@@ -53,7 +55,7 @@ public final class RestlessPensStoryArc implements StoryArcDefinition {
     private final List<StoryChapterDefinition> chapters = List.of(
             new EmptyTroughsChapter(),
             new WoolBeforeWeatherChapter(),
-            new WordsAtThePensChapter(),
+            new NewPasturesChapter(),
             new ShepherdsCallChapter()
     );
 
@@ -134,26 +136,17 @@ public final class RestlessPensStoryArc implements StoryArcDefinition {
             return total;
         }
 
-        protected boolean isAnimalVillager(Entity entity) {
-            if (!(entity instanceof VillagerEntity villager) || villager.isBaby()) {
-                return false;
-            }
-            RegistryEntry<VillagerProfession> profession = villager.getVillagerData().profession();
-            return profession.matchesKey(VillagerProfession.FARMER)
-                    || profession.matchesKey(VillagerProfession.SHEPHERD)
-                    || profession.matchesKey(VillagerProfession.BUTCHER)
-                    || profession.matchesKey(VillagerProfession.LEATHERWORKER);
-        }
-
         protected boolean isPastureAnimal(Entity entity) {
-            if (!(entity instanceof AnimalEntity animal) || animal.isBaby()) {
+            if (!(entity instanceof AnimalEntity animal)) {
                 return false;
             }
             return animal instanceof SheepEntity
                     || animal instanceof CowEntity
                     || animal instanceof PigEntity
                     || animal instanceof ChickenEntity
-                    || animal instanceof GoatEntity;
+                    || animal instanceof GoatEntity
+                    || animal instanceof AbstractHorseEntity
+                    || animal instanceof LlamaEntity;
         }
     }
 
@@ -209,8 +202,8 @@ public final class RestlessPensStoryArc implements StoryArcDefinition {
                     Text.translatable("quest.village-quest.story.restless_pens.chapter_1.complete.1").formatted(Formatting.GRAY),
                     Text.translatable("quest.village-quest.story.restless_pens.chapter_1.complete.2").formatted(Formatting.GRAY),
                     Text.translatable("quest.village-quest.story.restless_pens.chapter_1.complete.3").formatted(Formatting.GRAY),
-                    CurrencyService.SILVERMARK * 4L,
-                    4,
+                    CurrencyService.SILVERMARK * 8L,
+                    8,
                     ReputationService.ReputationTrack.ANIMALS,
                     10,
                     null
@@ -243,18 +236,18 @@ public final class RestlessPensStoryArc implements StoryArcDefinition {
         public List<Text> progressLines(ServerWorld world, UUID playerId) {
             ServerPlayerEntity player = world.getServer().getPlayerManager().getPlayer(playerId);
             int woolReady = player == null ? 0 : countTotalWool(player);
-            return List.of(
-                    Text.translatable(
-                            "quest.village-quest.story.restless_pens.chapter_2.progress.1",
-                            progress(world, playerId, StoryQuestKeys.RESTLESS_PENS_SHEARS),
-                            WOOL_BEFORE_WEATHER_SHEAR_TARGET
-                    ).formatted(Formatting.GRAY),
-                    Text.translatable(
-                            "quest.village-quest.story.restless_pens.chapter_2.progress.2",
-                            woolReady,
-                            WOOL_BEFORE_WEATHER_WOOL_TARGET
-                    ).formatted(Formatting.GRAY)
-            );
+            Text line1 = Text.translatable(
+                    "quest.village-quest.story.restless_pens.chapter_2.progress.1",
+                    progress(world, playerId, StoryQuestKeys.RESTLESS_PENS_SHEARS),
+                    WOOL_BEFORE_WEATHER_SHEAR_TARGET
+            ).formatted(Formatting.GRAY);
+            Text line2 = Text.translatable(
+                    "quest.village-quest.story.restless_pens.chapter_2.progress.2",
+                    woolReady,
+                    WOOL_BEFORE_WEATHER_WOOL_TARGET
+            ).formatted(Formatting.GRAY);
+            Text blocked = player == null ? null : claimBlockedMessage(world, player);
+            return blocked == null ? List.of(line1, line2) : List.of(line1, line2, blocked);
         }
 
         @Override
@@ -269,14 +262,28 @@ public final class RestlessPensStoryArc implements StoryArcDefinition {
         }
 
         @Override
+        public Text claimBlockedMessage(ServerWorld world, ServerPlayerEntity player) {
+            if (player == null || world == null
+                    || progress(world, player.getUuid(), StoryQuestKeys.RESTLESS_PENS_SHEARS) < WOOL_BEFORE_WEATHER_SHEAR_TARGET
+                    || hasTotalWool(player, WOOL_BEFORE_WEATHER_WOOL_TARGET)) {
+                return null;
+            }
+            return Texts.turnInMissing(
+                    Text.translatable("text.village-quest.turnin.label.wool"),
+                    countTotalWool(player),
+                    WOOL_BEFORE_WEATHER_WOOL_TARGET
+            );
+        }
+
+        @Override
         public StoryChapterCompletion buildCompletion() {
             return new StoryChapterCompletion(
                     title(),
                     Text.translatable("quest.village-quest.story.restless_pens.chapter_2.complete.1").formatted(Formatting.GRAY),
                     Text.translatable("quest.village-quest.story.restless_pens.chapter_2.complete.2").formatted(Formatting.GRAY),
                     Text.translatable("quest.village-quest.story.restless_pens.chapter_2.complete.3").formatted(Formatting.GRAY),
-                    CurrencyService.SILVERMARK * 5L,
-                    6,
+                    CurrencyService.CROWN,
+                    10,
                     ReputationService.ReputationTrack.ANIMALS,
                     12,
                     null
@@ -292,7 +299,7 @@ public final class RestlessPensStoryArc implements StoryArcDefinition {
         }
     }
 
-    private static final class WordsAtThePensChapter extends RestlessPensChapter {
+    private static final class NewPasturesChapter extends RestlessPensChapter {
         @Override
         public Text title() {
             return Text.translatable("quest.village-quest.story.restless_pens.chapter_3.title");
@@ -309,19 +316,46 @@ public final class RestlessPensStoryArc implements StoryArcDefinition {
         }
 
         @Override
+        public void onAccepted(ServerWorld world, ServerPlayerEntity player) {
+            StoryQuestService.setQuestInt(
+                    world,
+                    player.getUuid(),
+                    StoryQuestKeys.RESTLESS_PENS_RIDE_BASELINE,
+                    DailyQuestService.getCustomStat(player, Stats.HORSE_ONE_CM) + 1
+            );
+        }
+
+        @Override
+        public void onServerTick(ServerWorld world, ServerPlayerEntity player) {
+            int baseline = StoryQuestService.getQuestInt(world, player.getUuid(), StoryQuestKeys.RESTLESS_PENS_RIDE_BASELINE);
+            int ridden = DailyQuestService.getCustomStat(player, Stats.HORSE_ONE_CM);
+            if (baseline == 0) {
+                StoryQuestService.setQuestInt(world, player.getUuid(), StoryQuestKeys.RESTLESS_PENS_RIDE_BASELINE, ridden + 1);
+                return;
+            }
+
+            int delta = Math.max(0, ridden - (baseline - 1));
+            int rideProgress = Math.min(NEW_PASTURES_RIDE_TARGET_CM, delta);
+            if (rideProgress != StoryQuestService.getQuestInt(world, player.getUuid(), StoryQuestKeys.RESTLESS_PENS_RIDE)) {
+                StoryQuestService.setQuestInt(world, player.getUuid(), StoryQuestKeys.RESTLESS_PENS_RIDE, rideProgress);
+                StoryQuestService.completeIfEligible(world, player);
+            }
+        }
+
+        @Override
         public List<Text> progressLines(ServerWorld world, UUID playerId) {
             return List.of(
                     Text.translatable(
                             "quest.village-quest.story.restless_pens.chapter_3.progress",
-                            progress(world, playerId, StoryQuestKeys.RESTLESS_PENS_VOICES),
-                            WORDS_AT_THE_PENS_TARGET
+                            progress(world, playerId, StoryQuestKeys.RESTLESS_PENS_RIDE) / 100,
+                            NEW_PASTURES_RIDE_TARGET_BLOCKS
                     ).formatted(Formatting.GRAY)
             );
         }
 
         @Override
         public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
-            return progress(world, player.getUuid(), StoryQuestKeys.RESTLESS_PENS_VOICES) >= WORDS_AT_THE_PENS_TARGET;
+            return progress(world, player.getUuid(), StoryQuestKeys.RESTLESS_PENS_RIDE) >= NEW_PASTURES_RIDE_TARGET_CM;
         }
 
         @Override
@@ -331,29 +365,12 @@ public final class RestlessPensStoryArc implements StoryArcDefinition {
                     Text.translatable("quest.village-quest.story.restless_pens.chapter_3.complete.1").formatted(Formatting.GRAY),
                     Text.translatable("quest.village-quest.story.restless_pens.chapter_3.complete.2").formatted(Formatting.GRAY),
                     Text.translatable("quest.village-quest.story.restless_pens.chapter_3.complete.3").formatted(Formatting.GRAY),
-                    CurrencyService.SILVERMARK * 6L,
-                    8,
+                    CurrencyService.CROWN + (CurrencyService.SILVERMARK * 4L),
+                    12,
                     ReputationService.ReputationTrack.ANIMALS,
                     15,
                     null
             );
-        }
-
-        @Override
-        public void onEntityUse(ServerWorld world, ServerPlayerEntity player, Entity entity, ItemStack inHand) {
-            if (!isAnimalVillager(entity)) {
-                return;
-            }
-            String heardFlag = StoryQuestKeys.RESTLESS_PENS_VOICE_PREFIX + entity.getUuidAsString();
-            if (StoryQuestService.hasStoryFlag(world, player.getUuid(), heardFlag)) {
-                return;
-            }
-            StoryQuestService.setStoryFlag(world, player.getUuid(), heardFlag, true);
-            int before = progress(world, player.getUuid(), StoryQuestKeys.RESTLESS_PENS_VOICES);
-            addProgress(world, player, StoryQuestKeys.RESTLESS_PENS_VOICES, 1, WORDS_AT_THE_PENS_TARGET);
-            if (before < WORDS_AT_THE_PENS_TARGET && progress(world, player.getUuid(), StoryQuestKeys.RESTLESS_PENS_VOICES) >= WORDS_AT_THE_PENS_TARGET) {
-                player.sendMessage(Text.translatable("message.village-quest.story.restless_pens.yard_settles").formatted(Formatting.GREEN), false);
-            }
         }
     }
 
@@ -374,19 +391,35 @@ public final class RestlessPensStoryArc implements StoryArcDefinition {
         }
 
         @Override
+        public void onServerTick(ServerWorld world, ServerPlayerEntity player) {
+            if (progress(world, player.getUuid(), StoryQuestKeys.RESTLESS_PENS_CALL) >= SHEPHERDS_CALL_TARGET
+                    && hasItem(player, Items.DIAMOND_HORSE_ARMOR, 1)) {
+                StoryQuestService.completeIfEligible(world, player);
+            }
+        }
+
+        @Override
         public List<Text> progressLines(ServerWorld world, UUID playerId) {
+            ServerPlayerEntity player = world.getServer().getPlayerManager().getPlayer(playerId);
+            int horseArmorReady = player != null && hasItem(player, Items.DIAMOND_HORSE_ARMOR, 1) ? 1 : 0;
             return List.of(
                     Text.translatable(
-                            "quest.village-quest.story.restless_pens.chapter_4.progress",
+                            "quest.village-quest.story.restless_pens.chapter_4.progress.1",
                             progress(world, playerId, StoryQuestKeys.RESTLESS_PENS_CALL),
                             SHEPHERDS_CALL_TARGET
+                    ).formatted(Formatting.GRAY),
+                    Text.translatable(
+                            "quest.village-quest.story.restless_pens.chapter_4.progress.2",
+                            horseArmorReady,
+                            1
                     ).formatted(Formatting.GRAY)
             );
         }
 
         @Override
         public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
-            return progress(world, player.getUuid(), StoryQuestKeys.RESTLESS_PENS_CALL) >= SHEPHERDS_CALL_TARGET;
+            return progress(world, player.getUuid(), StoryQuestKeys.RESTLESS_PENS_CALL) >= SHEPHERDS_CALL_TARGET
+                    && hasItem(player, Items.DIAMOND_HORSE_ARMOR, 1);
         }
 
         @Override
@@ -396,10 +429,10 @@ public final class RestlessPensStoryArc implements StoryArcDefinition {
                     Text.translatable("quest.village-quest.story.restless_pens.chapter_4.complete.1").formatted(Formatting.GRAY),
                     Text.translatable("quest.village-quest.story.restless_pens.chapter_4.complete.2").formatted(Formatting.GRAY),
                     Text.translatable("quest.village-quest.story.restless_pens.chapter_4.complete.3").formatted(Formatting.GRAY),
-                    CurrencyService.CROWN,
-                    10,
-                    ReputationService.ReputationTrack.ANIMALS,
+                    CurrencyService.CROWN * 2L,
                     20,
+                    ReputationService.ReputationTrack.ANIMALS,
+                    40,
                     VillageProjectType.PASTURE_CHARTER
             );
         }

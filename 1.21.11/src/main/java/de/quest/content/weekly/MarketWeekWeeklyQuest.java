@@ -69,7 +69,7 @@ public final class MarketWeekWeeklyQuest implements WeeklyQuestDefinition {
                 Text.translatable("quest.village-quest.weekly.market.completion.1").formatted(Formatting.GRAY),
                 Text.translatable("quest.village-quest.weekly.market.completion.2").formatted(Formatting.GRAY),
                 Text.translatable("quest.village-quest.weekly.market.completion.3").formatted(Formatting.GRAY),
-                WeeklyQuestService.reward(2, 20),
+                WeeklyQuestService.reward(4, 0),
                 WeeklyQuestService.magicShardReward(1),
                 ItemStack.EMPTY,
                 16,

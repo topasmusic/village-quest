@@ -27,14 +27,14 @@ import java.util.List;
 import java.util.UUID;
 
 public final class FailingHarvestStoryArc implements StoryArcDefinition {
-    private static final int THIN_FIELDS_WHEAT_TARGET = 16;
-    private static final int THIN_FIELDS_POTATO_TARGET = 8;
-    private static final int QUIET_HIVES_HONEY_TARGET = 3;
-    private static final int QUIET_HIVES_COMB_TARGET = 1;
-    private static final int BREAD_BREAD_TARGET = 6;
-    private static final int BREAD_POTATO_TARGET = 4;
-    private static final int MARKET_TRADES_TARGET = 2;
-    private static final int MARKET_EMERALDS_TARGET = 4;
+    private static final int THIN_FIELDS_WHEAT_TARGET = 128;
+    private static final int THIN_FIELDS_POTATO_TARGET = 128;
+    private static final int QUIET_HIVES_HONEY_TARGET = 20;
+    private static final int QUIET_HIVES_COMB_TARGET = 15;
+    private static final int BREAD_BREAD_TARGET = 60;
+    private static final int BREAD_POTATO_TARGET = 60;
+    private static final int MARKET_TRADES_TARGET = 30;
+    private static final int MARKET_EMERALDS_TARGET = 128;
 
     private final List<StoryChapterDefinition> chapters = List.of(
             new ThinFieldsChapter(),
@@ -126,8 +126,8 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
                     Text.translatable("quest.village-quest.story.failing_harvest.chapter_1.complete.1").formatted(Formatting.GRAY),
                     Text.translatable("quest.village-quest.story.failing_harvest.chapter_1.complete.2").formatted(Formatting.GRAY),
                     Text.translatable("quest.village-quest.story.failing_harvest.chapter_1.complete.3").formatted(Formatting.GRAY),
-                    CurrencyService.SILVERMARK * 4L,
-                    4,
+                    CurrencyService.SILVERMARK * 8L,
+                    8,
                     ReputationService.ReputationTrack.FARMING,
                     10,
                     null
@@ -191,8 +191,8 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
                     Text.translatable("quest.village-quest.story.failing_harvest.chapter_2.complete.1").formatted(Formatting.GRAY),
                     Text.translatable("quest.village-quest.story.failing_harvest.chapter_2.complete.2").formatted(Formatting.GRAY),
                     Text.translatable("quest.village-quest.story.failing_harvest.chapter_2.complete.3").formatted(Formatting.GRAY),
-                    CurrencyService.SILVERMARK * 5L,
-                    6,
+                    CurrencyService.CROWN,
+                    10,
                     ReputationService.ReputationTrack.FARMING,
                     12,
                     null
@@ -292,8 +292,8 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
                     Text.translatable("quest.village-quest.story.failing_harvest.chapter_3.complete.1").formatted(Formatting.GRAY),
                     Text.translatable("quest.village-quest.story.failing_harvest.chapter_3.complete.2").formatted(Formatting.GRAY),
                     Text.translatable("quest.village-quest.story.failing_harvest.chapter_3.complete.3").formatted(Formatting.GRAY),
-                    CurrencyService.SILVERMARK * 7L,
-                    8,
+                    CurrencyService.CROWN + (CurrencyService.SILVERMARK * 4L),
+                    12,
                     ReputationService.ReputationTrack.FARMING,
                     15,
                     null
@@ -378,10 +378,10 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
                     Text.translatable("quest.village-quest.story.failing_harvest.chapter_4.complete.1").formatted(Formatting.GRAY),
                     Text.translatable("quest.village-quest.story.failing_harvest.chapter_4.complete.2").formatted(Formatting.GRAY),
                     Text.translatable("quest.village-quest.story.failing_harvest.chapter_4.complete.3").formatted(Formatting.GRAY),
-                    CurrencyService.CROWN,
-                    10,
-                    ReputationService.ReputationTrack.FARMING,
+                    CurrencyService.CROWN * 2L,
                     20,
+                    ReputationService.ReputationTrack.FARMING,
+                    40,
                     VillageProjectType.APIARY_CHARTER
             );
         }

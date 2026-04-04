@@ -72,6 +72,7 @@ public final class PlayerQuestData {
     private int shardRelicChestZ;
     private int merchantSealTradeProgress;
     private int merchantSealEmeraldProgress;
+    private int merchantSealVillagerPurchaseProgress;
     private int merchantSealPilgrimPurchaseProgress;
     private long merchantSealLastUseDay = UNSET_DAY;
     private int shepherdFluteBreedProgress;
@@ -80,9 +81,13 @@ public final class PlayerQuestData {
     private int shepherdFluteWoolBaseline;
     private int apiaristSmokerHoneyProgress;
     private int apiaristSmokerCombProgress;
+    private int apiaristSmokerBeeBreedProgress;
+    private int apiaristSmokerHoneyBlockProgress;
+    private int apiaristSmokerHoneyBlockBaseline;
     private long apiaristSmokerLastUseDay = UNSET_DAY;
     private int apiaristSmokerUsesToday;
     private int surveyorCompassRedstoneProgress;
+    private int surveyorCompassLapisProgress;
     private int surveyorCompassCraftedProgress;
     private int surveyorCompassPickaxeReadyProgress;
     private int surveyorCompassPickaxeBaseline;
@@ -804,6 +809,14 @@ public final class PlayerQuestData {
         this.merchantSealEmeraldProgress = Math.max(0, merchantSealEmeraldProgress);
     }
 
+    public int getMerchantSealVillagerPurchaseProgress() {
+        return merchantSealVillagerPurchaseProgress;
+    }
+
+    public void setMerchantSealVillagerPurchaseProgress(int merchantSealVillagerPurchaseProgress) {
+        this.merchantSealVillagerPurchaseProgress = Math.max(0, merchantSealVillagerPurchaseProgress);
+    }
+
     public int getMerchantSealPilgrimPurchaseProgress() {
         return merchantSealPilgrimPurchaseProgress;
     }
@@ -868,6 +881,30 @@ public final class PlayerQuestData {
         this.apiaristSmokerCombProgress = Math.max(0, apiaristSmokerCombProgress);
     }
 
+    public int getApiaristSmokerBeeBreedProgress() {
+        return apiaristSmokerBeeBreedProgress;
+    }
+
+    public void setApiaristSmokerBeeBreedProgress(int apiaristSmokerBeeBreedProgress) {
+        this.apiaristSmokerBeeBreedProgress = Math.max(0, apiaristSmokerBeeBreedProgress);
+    }
+
+    public int getApiaristSmokerHoneyBlockProgress() {
+        return apiaristSmokerHoneyBlockProgress;
+    }
+
+    public void setApiaristSmokerHoneyBlockProgress(int apiaristSmokerHoneyBlockProgress) {
+        this.apiaristSmokerHoneyBlockProgress = Math.max(0, apiaristSmokerHoneyBlockProgress);
+    }
+
+    public int getApiaristSmokerHoneyBlockBaseline() {
+        return apiaristSmokerHoneyBlockBaseline;
+    }
+
+    public void setApiaristSmokerHoneyBlockBaseline(int apiaristSmokerHoneyBlockBaseline) {
+        this.apiaristSmokerHoneyBlockBaseline = Math.max(0, apiaristSmokerHoneyBlockBaseline);
+    }
+
     public long getApiaristSmokerLastUseDay() {
         return apiaristSmokerLastUseDay;
     }
@@ -890,6 +927,14 @@ public final class PlayerQuestData {
 
     public void setSurveyorCompassRedstoneProgress(int surveyorCompassRedstoneProgress) {
         this.surveyorCompassRedstoneProgress = Math.max(0, surveyorCompassRedstoneProgress);
+    }
+
+    public int getSurveyorCompassLapisProgress() {
+        return surveyorCompassLapisProgress;
+    }
+
+    public void setSurveyorCompassLapisProgress(int surveyorCompassLapisProgress) {
+        this.surveyorCompassLapisProgress = Math.max(0, surveyorCompassLapisProgress);
     }
 
     public int getSurveyorCompassCraftedProgress() {
@@ -1035,6 +1080,7 @@ public final class PlayerQuestData {
         this.merchantSealQuestStage = RelicQuestStage.NONE;
         this.merchantSealTradeProgress = 0;
         this.merchantSealEmeraldProgress = 0;
+        this.merchantSealVillagerPurchaseProgress = 0;
         this.merchantSealPilgrimPurchaseProgress = 0;
     }
 
@@ -1056,6 +1102,9 @@ public final class PlayerQuestData {
         this.apiaristSmokerQuestStage = RelicQuestStage.NONE;
         this.apiaristSmokerHoneyProgress = 0;
         this.apiaristSmokerCombProgress = 0;
+        this.apiaristSmokerBeeBreedProgress = 0;
+        this.apiaristSmokerHoneyBlockProgress = 0;
+        this.apiaristSmokerHoneyBlockBaseline = 0;
         this.apiaristSmokerLastUseDay = UNSET_DAY;
         this.apiaristSmokerUsesToday = 0;
     }
@@ -1066,6 +1115,7 @@ public final class PlayerQuestData {
         }
         this.surveyorCompassQuestStage = RelicQuestStage.NONE;
         this.surveyorCompassRedstoneProgress = 0;
+        this.surveyorCompassLapisProgress = 0;
         this.surveyorCompassCraftedProgress = 0;
         this.surveyorCompassPickaxeReadyProgress = 0;
         this.surveyorCompassPickaxeBaseline = 0;
@@ -1093,6 +1143,7 @@ public final class PlayerQuestData {
                 || this.merchantSealQuestStage != RelicQuestStage.NONE
                 || this.merchantSealTradeProgress > 0
                 || this.merchantSealEmeraldProgress > 0
+                || this.merchantSealVillagerPurchaseProgress > 0
                 || this.merchantSealPilgrimPurchaseProgress > 0
                 || this.merchantSealLastUseDay != UNSET_DAY;
     }
@@ -1111,6 +1162,9 @@ public final class PlayerQuestData {
                 || this.apiaristSmokerQuestStage != RelicQuestStage.NONE
                 || this.apiaristSmokerHoneyProgress > 0
                 || this.apiaristSmokerCombProgress > 0
+                || this.apiaristSmokerBeeBreedProgress > 0
+                || this.apiaristSmokerHoneyBlockProgress > 0
+                || this.apiaristSmokerHoneyBlockBaseline > 0
                 || this.apiaristSmokerLastUseDay != UNSET_DAY
                 || this.apiaristSmokerUsesToday > 0;
     }
@@ -1119,6 +1173,7 @@ public final class PlayerQuestData {
         return this.pendingSpecialOfferKind == SpecialQuestKind.SURVEYOR_COMPASS
                 || this.surveyorCompassQuestStage != RelicQuestStage.NONE
                 || this.surveyorCompassRedstoneProgress > 0
+                || this.surveyorCompassLapisProgress > 0
                 || this.surveyorCompassCraftedProgress > 0
                 || this.surveyorCompassPickaxeReadyProgress > 0
                 || this.surveyorCompassPickaxeBaseline > 0

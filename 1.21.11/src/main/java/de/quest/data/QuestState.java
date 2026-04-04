@@ -654,6 +654,7 @@ public final class QuestState extends PersistentState {
             }
             data.setMerchantSealTradeProgress(item.getInt("trades", 0));
             data.setMerchantSealEmeraldProgress(item.getInt("emeralds", 0));
+            data.setMerchantSealVillagerPurchaseProgress(item.getInt("villagerPurchases", 0));
             data.setMerchantSealPilgrimPurchaseProgress(item.getInt("pilgrimPurchases", 0));
             data.setMerchantSealLastUseDay(item.getLong("lastUseDay", PlayerQuestData.UNSET_DAY));
         }
@@ -665,6 +666,7 @@ public final class QuestState extends PersistentState {
         item.putString("stage", data.getMerchantSealQuestStage().name());
         item.putInt("trades", data.getMerchantSealTradeProgress());
         item.putInt("emeralds", data.getMerchantSealEmeraldProgress());
+        item.putInt("villagerPurchases", data.getMerchantSealVillagerPurchaseProgress());
         item.putInt("pilgrimPurchases", data.getMerchantSealPilgrimPurchaseProgress());
         item.putLong("lastUseDay", data.getMerchantSealLastUseDay());
         return item;
@@ -718,6 +720,9 @@ public final class QuestState extends PersistentState {
             }
             data.setApiaristSmokerHoneyProgress(item.getInt("honey", 0));
             data.setApiaristSmokerCombProgress(item.getInt("comb", 0));
+            data.setApiaristSmokerBeeBreedProgress(item.getInt("beeBreed", 0));
+            data.setApiaristSmokerHoneyBlockProgress(item.getInt("honeyBlock", 0));
+            data.setApiaristSmokerHoneyBlockBaseline(item.getInt("honeyBlockBaseline", 0));
             data.setApiaristSmokerLastUseDay(item.getLong("lastUseDay", PlayerQuestData.UNSET_DAY));
             data.setApiaristSmokerUsesToday(item.getInt("usesToday", 0));
         }
@@ -729,6 +734,9 @@ public final class QuestState extends PersistentState {
         item.putString("stage", data.getApiaristSmokerQuestStage().name());
         item.putInt("honey", data.getApiaristSmokerHoneyProgress());
         item.putInt("comb", data.getApiaristSmokerCombProgress());
+        item.putInt("beeBreed", data.getApiaristSmokerBeeBreedProgress());
+        item.putInt("honeyBlock", data.getApiaristSmokerHoneyBlockProgress());
+        item.putInt("honeyBlockBaseline", data.getApiaristSmokerHoneyBlockBaseline());
         item.putLong("lastUseDay", data.getApiaristSmokerLastUseDay());
         item.putInt("usesToday", data.getApiaristSmokerUsesToday());
         return item;
@@ -749,6 +757,7 @@ public final class QuestState extends PersistentState {
                 data.setSurveyorCompassQuestStage(RelicQuestStage.NONE);
             }
             data.setSurveyorCompassRedstoneProgress(item.getInt("redstone", 0));
+            data.setSurveyorCompassLapisProgress(item.getInt("lapis", 0));
             data.setSurveyorCompassCraftedProgress(item.getInt("crafted", 0));
             data.setSurveyorCompassPickaxeReadyProgress(item.getInt("pickaxeReady", 0));
             data.setSurveyorCompassPickaxeBaseline(item.getInt("pickaxeBaseline", 0));
@@ -763,6 +772,7 @@ public final class QuestState extends PersistentState {
         item.putString("id", id.toString());
         item.putString("stage", data.getSurveyorCompassQuestStage().name());
         item.putInt("redstone", data.getSurveyorCompassRedstoneProgress());
+        item.putInt("lapis", data.getSurveyorCompassLapisProgress());
         item.putInt("crafted", data.getSurveyorCompassCraftedProgress());
         item.putInt("pickaxeReady", data.getSurveyorCompassPickaxeReadyProgress());
         item.putInt("pickaxeBaseline", data.getSurveyorCompassPickaxeBaseline());

@@ -41,7 +41,9 @@ public final class SmithWeekWeeklyQuest implements WeeklyQuestDefinition {
         Text line1 = Text.translatable(
                 "quest.village-quest.weekly.smith.progress.1",
                 WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.SMITH_ORE),
-                WeeklyQuestService.smithOreTarget()
+                WeeklyQuestService.smithOreTarget(),
+                WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.SMITH_GOLD_ORE),
+                WeeklyQuestService.smithGoldOreTarget()
         ).formatted(Formatting.GRAY);
         Text line2 = Text.translatable(
                 "quest.village-quest.weekly.smith.progress.2",
@@ -59,6 +61,7 @@ public final class SmithWeekWeeklyQuest implements WeeklyQuestDefinition {
     public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
         UUID playerId = player.getUuid();
         return WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.SMITH_ORE) >= WeeklyQuestService.smithOreTarget()
+                && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.SMITH_GOLD_ORE) >= WeeklyQuestService.smithGoldOreTarget()
                 && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.SMITH_IRON) >= WeeklyQuestService.smithIronTarget()
                 && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.SMITH_GOLD) >= WeeklyQuestService.smithGoldTarget()
                 && hasTurnInItems(player);
@@ -71,7 +74,7 @@ public final class SmithWeekWeeklyQuest implements WeeklyQuestDefinition {
                 Text.translatable("quest.village-quest.weekly.smith.completion.1").formatted(Formatting.GRAY),
                 Text.translatable("quest.village-quest.weekly.smith.completion.2").formatted(Formatting.GRAY),
                 Text.translatable("quest.village-quest.weekly.smith.completion.3").formatted(Formatting.GRAY),
-                WeeklyQuestService.reward(1, 20),
+                WeeklyQuestService.reward(3, 0),
                 WeeklyQuestService.magicShardReward(1),
                 ItemStack.EMPTY,
                 16,
@@ -86,6 +89,7 @@ public final class SmithWeekWeeklyQuest implements WeeklyQuestDefinition {
             return false;
         }
         return WeeklyQuestService.consumeInventoryItem(player, Items.RAW_IRON, WeeklyQuestService.smithOreTarget())
+                && WeeklyQuestService.consumeInventoryItem(player, Items.RAW_GOLD, WeeklyQuestService.smithGoldOreTarget())
                 && WeeklyQuestService.consumeInventoryItem(player, Items.IRON_INGOT, WeeklyQuestService.smithIronTarget())
                 && WeeklyQuestService.consumeInventoryItem(player, Items.GOLD_INGOT, WeeklyQuestService.smithGoldTarget());
     }
@@ -97,9 +101,11 @@ public final class SmithWeekWeeklyQuest implements WeeklyQuestDefinition {
         }
         UUID playerId = player.getUuid();
         int oreTarget = WeeklyQuestService.smithOreTarget();
+        int goldOreTarget = WeeklyQuestService.smithGoldOreTarget();
         int ironTarget = WeeklyQuestService.smithIronTarget();
         int goldTarget = WeeklyQuestService.smithGoldTarget();
         if (WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.SMITH_ORE) < oreTarget
+                || WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.SMITH_GOLD_ORE) < goldOreTarget
                 || WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.SMITH_IRON) < ironTarget
                 || WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.SMITH_GOLD) < goldTarget
                 || hasTurnInItems(player)) {
@@ -109,6 +115,9 @@ public final class SmithWeekWeeklyQuest implements WeeklyQuestDefinition {
                 Items.RAW_IRON.getDefaultStack().toHoverableText(),
                 WeeklyQuestService.countInventoryItem(player, Items.RAW_IRON),
                 oreTarget,
+                Items.RAW_GOLD.getDefaultStack().toHoverableText(),
+                WeeklyQuestService.countInventoryItem(player, Items.RAW_GOLD),
+                goldOreTarget,
                 Items.IRON_INGOT.getDefaultStack().toHoverableText(),
                 WeeklyQuestService.countInventoryItem(player, Items.IRON_INGOT),
                 ironTarget,
@@ -123,10 +132,14 @@ public final class SmithWeekWeeklyQuest implements WeeklyQuestDefinition {
         if (!WeeklyQuestService.isAcceptedThisWeek(world, player.getUuid()) || WeeklyQuestService.hasCompletedThisWeek(world, player.getUuid())) {
             return;
         }
-        if (!stack.isOf(Items.RAW_IRON)) {
+        if (!stack.isOf(Items.RAW_IRON) && !stack.isOf(Items.RAW_GOLD)) {
             return;
         }
-        WeeklyQuestService.addQuestIntClamped(world, player.getUuid(), WeeklyQuestKeys.SMITH_ORE, count, WeeklyQuestService.smithOreTarget());
+        if (stack.isOf(Items.RAW_IRON)) {
+            WeeklyQuestService.addQuestIntClamped(world, player.getUuid(), WeeklyQuestKeys.SMITH_ORE, count, WeeklyQuestService.smithOreTarget());
+        } else {
+            WeeklyQuestService.addQuestIntClamped(world, player.getUuid(), WeeklyQuestKeys.SMITH_GOLD_ORE, count, WeeklyQuestService.smithGoldOreTarget());
+        }
         WeeklyQuestService.completeIfEligible(world, player);
     }
 
@@ -149,6 +162,7 @@ public final class SmithWeekWeeklyQuest implements WeeklyQuestDefinition {
 
     private boolean hasTurnInItems(ServerPlayerEntity player) {
         return WeeklyQuestService.countInventoryItem(player, Items.RAW_IRON) >= WeeklyQuestService.smithOreTarget()
+                && WeeklyQuestService.countInventoryItem(player, Items.RAW_GOLD) >= WeeklyQuestService.smithGoldOreTarget()
                 && WeeklyQuestService.countInventoryItem(player, Items.IRON_INGOT) >= WeeklyQuestService.smithIronTarget()
                 && WeeklyQuestService.countInventoryItem(player, Items.GOLD_INGOT) >= WeeklyQuestService.smithGoldTarget();
     }

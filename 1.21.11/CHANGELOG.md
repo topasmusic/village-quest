@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.20.4 - Quest Balance And Systems Update
+
+Release date: 2026-04-03
+
+- Daily, weekly, story, and special quests received a broad balance pass across the full `1.21.11` content set.
+- Story rewards were normalized by chapter and several story chapters were redesigned or expanded:
+  - `The Silent Forge` now includes a much larger mining/smithing ramp and a full enchanted sword-and-armor finale.
+  - `Market Road Troubles` now leans harder into crafted ledgers, named professions, and a large village bell finale.
+  - `Restless Pens` now pivots its third chapter into horseback exploration and its finale into a herd-and-horse-armor readiness check.
+- Special quests were expanded:
+  - `Merchant's Seal` now separates villager trading, villager buying, and pilgrim buying requirements.
+  - `Shepherd's Flute` now uses breeding plus taming objectives for `Wolf`, `Cat`, and `Parrot`.
+  - `Apiarist's Smoker` now tracks bee breeding and crafted honey blocks and consumes all required hive goods at turn-in.
+  - `Wayfinder's Compass` now also requires mined `Lapis Lazuli` alongside `Redstone`.
+- Tracked mining drops were expanded so `Raw Gold` and `Lapis Lazuli` count correctly with the same self-earned mining logic.
+- Pilgrim offers are now single-use per spawned pilgrim: once bought, that offer stays unavailable until a new pilgrim appears.
+- The internal `Admin: Core Systems Test` was expanded to cover the new risky hook paths such as taming, crafted honey blocks, villager purchases, and the added mining-drop routes.
+- The admin wallet commands no longer print duplicate chat feedback when an admin adjusts their own wallet.
+- English and German quest texts were updated to match the new objectives and progress labels.
+
+## 1.20.3 - 1.21.11 Line Sync
+
+Release date: 2026-04-03
+
+- Release numbering was aligned with the parallel `1.20.3` branch work.
+- Minecraft remains `1.21.11` on this line; there is no platform jump here.
+- Internal release files and documentation were refreshed so the `1.21.11` branch stays in sync with the newer quest line changes.
+
 ## 1.20.2 - Story Turn-In And Painting Fixes
 
 Release date: 2026-04-01

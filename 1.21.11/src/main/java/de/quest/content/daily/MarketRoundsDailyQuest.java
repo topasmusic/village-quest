@@ -17,8 +17,8 @@ import net.minecraft.village.VillagerProfession;
 import java.util.UUID;
 
 public final class MarketRoundsDailyQuest implements DailyQuestDefinition {
-    private static final int VILLAGER_TARGET = 3;
-    private static final int TRADE_TARGET = 1;
+    private static final int VILLAGER_TARGET = 10;
+    private static final int TRADE_TARGET = 5;
 
     @Override
     public DailyQuestService.DailyQuestType type() {
