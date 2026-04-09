@@ -1033,7 +1033,7 @@ public final class DailyQuestService {
         Text divider = Text.literal("------------------------------").formatted(Formatting.GRAY);
         Text accept = Text.translatable("text.village-quest.daily.offer.accept").styled(style -> style
                 .withColor(Formatting.GRAY)
-                .withClickEvent(new net.minecraft.text.ClickEvent.RunCommand("/dailyquest accept")));
+                .withClickEvent(new net.minecraft.text.ClickEvent.RunCommand("/vq daily accept")));
 
         Text questBody = Text.empty()
                 .append(divider.copy())
@@ -1063,7 +1063,7 @@ public final class DailyQuestService {
         Text paragraph2 = Text.translatable("text.village-quest.daily.shard.body.2");
         Text accept = Text.translatable("text.village-quest.daily.shard.accept").styled(style -> style
                 .withColor(Formatting.GRAY)
-                .withClickEvent(new net.minecraft.text.ClickEvent.RunCommand("/dailyquest accept")));
+                .withClickEvent(new net.minecraft.text.ClickEvent.RunCommand("/vq daily accept")));
 
         Text body = Text.empty()
                 .append(divider.copy())
@@ -1099,7 +1099,7 @@ public final class DailyQuestService {
         Text prefix = Text.translatable("text.village-quest.daily.shard.quest_prefix").formatted(Formatting.LIGHT_PURPLE);
         Text accept = Text.translatable("text.village-quest.daily.offer.accept").styled(style -> style
                 .withColor(Formatting.GRAY)
-                .withClickEvent(new net.minecraft.text.ClickEvent.RunCommand("/dailyquest accept")));
+                .withClickEvent(new net.minecraft.text.ClickEvent.RunCommand("/vq daily accept")));
 
         Text questBody = Text.empty()
                 .append(divider.copy())

@@ -42,11 +42,11 @@ Project docs are available in the local wiki:
 
 ## Player Commands
 
-- `/questmaster`
-- `/journal`
-- `/wallet`
-- `/reputation`
-- `/dailyquest accept`
+- `/vq questmaster`
+- `/vq journal`
+- `/vq wallet`
+- `/vq reputation`
+- `/vq daily accept`
 
 Wallet rate:
 - `10 Silvermarks = 1 Crown`
@@ -57,18 +57,18 @@ The `Pilgrim` is a timed trader with wallet-based purchases, rotating wares, and
 
 These are intended for server admins, pack makers, and testing only:
 
-- `/questadmin resetdaily [player]`
-- `/questadmin nextdaily [player]`
-- `/questadmin completedaily [player]`
-- `/questadmin resetweekly [player]`
-- `/questadmin nextweekly [player]`
-- `/questadmin completeweekly [player]`
-- `/questadmin pilgrim spawn [player]`
-- `/questadmin pilgrim despawn`
-- `/questadmin wallet show [player]`
-- `/questadmin wallet add <player> <amount> [silvermark|crown]`
-- `/questadmin wallet remove <player> <amount> [silvermark|crown]`
-- `/questadmin wallet set <player> <amount> [silvermark|crown]`
+- `/vq admin resetdaily [player]`
+- `/vq admin nextdaily [player]`
+- `/vq admin completedaily [player]`
+- `/vq admin resetweekly [player]`
+- `/vq admin nextweekly [player]`
+- `/vq admin completeweekly [player]`
+- `/vq admin pilgrim spawn [player]`
+- `/vq admin pilgrim despawn`
+- `/vq admin wallet show [player]`
+- `/vq admin wallet add <player> <amount> [silvermark|crown]`
+- `/vq admin wallet remove <player> <amount> [silvermark|crown]`
+- `/vq admin wallet set <player> <amount> [silvermark|crown]`
 
 ## License
 

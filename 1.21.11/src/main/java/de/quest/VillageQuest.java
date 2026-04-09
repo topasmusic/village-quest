@@ -8,11 +8,13 @@ import de.quest.commands.AdminCommands;
 import de.quest.commands.QuestCommands;
 import de.quest.network.QuestNetworking;
 import de.quest.quest.QuestService;
+import de.quest.registry.ModBlocks;
 import de.quest.registry.ModEntities;
 import de.quest.registry.ModItems;
 import de.quest.registry.ModSounds;
 import net.fabricmc.api.ModInitializer;
 import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.LoreComponent;
 import net.minecraft.component.type.ProfileComponent;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -21,6 +23,8 @@ import net.minecraft.util.Formatting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.UUID;
 
 public class VillageQuest implements ModInitializer {
@@ -33,6 +37,7 @@ public class VillageQuest implements ModInitializer {
     public void onInitialize() {
         LOGGER.info("Initializing {}", MOD_ID);
         ModSounds.register();
+        ModBlocks.register();
         ModItems.register();
         ModEntities.register();
         QuestService.registerEvents();
@@ -42,24 +47,41 @@ public class VillageQuest implements ModInitializer {
     }
 
     public static ItemStack createHoneyBarrelHead() {
-        ItemStack stack = new ItemStack(Items.PLAYER_HEAD);
-        var backing = HashMultimap.<String, Property>create();
-        backing.put("textures", new Property("textures", HONIGFASS_TEXTURE));
-        PropertyMap properties = new PropertyMap(backing);
-        GameProfile profile = new GameProfile(UUID.fromString("00000000-0000-0000-0000-000000000000"), "honigfass", properties);
-        stack.set(DataComponentTypes.PROFILE, ProfileComponent.ofStatic(profile));
-        stack.set(DataComponentTypes.CUSTOM_NAME, Text.translatable("item.village-quest.reward.honey_barrel").formatted(Formatting.GREEN));
-        return stack;
+        return createDecorHead("honey_barrel", "item.village-quest.honey_barrel", "item.village-quest.honey_barrel.lore", HONIGFASS_TEXTURE);
     }
 
     public static ItemStack createAltRewardHead() {
+        return createDecorHead("honeycomb_relic", "item.village-quest.honeycomb_relic", "item.village-quest.honeycomb_relic.lore", ALT_REWARD_TEXTURE);
+    }
+
+    public static ItemStack createDecorHead(String profileName, String titleKey, String textureValue) {
+        return createDecorHead(profileName, titleKey, null, textureValue);
+    }
+
+    public static ItemStack createDecorHead(String profileName, String titleKey, String loreKey, String textureValue) {
         ItemStack stack = new ItemStack(Items.PLAYER_HEAD);
         var backing = HashMultimap.<String, Property>create();
-        backing.put("textures", new Property("textures", ALT_REWARD_TEXTURE));
+        backing.put("textures", new Property("textures", textureValue));
         PropertyMap properties = new PropertyMap(backing);
-        GameProfile profile = new GameProfile(UUID.fromString("00000000-0000-0000-0000-000000000001"), "bienenwabe", properties);
+        UUID profileId = UUID.nameUUIDFromBytes((MOD_ID + ":" + profileName).getBytes(StandardCharsets.UTF_8));
+        GameProfile profile = new GameProfile(profileId, packetSafeProfileName(profileName, profileId), properties);
         stack.set(DataComponentTypes.PROFILE, ProfileComponent.ofStatic(profile));
-        stack.set(DataComponentTypes.CUSTOM_NAME, Text.translatable("item.village-quest.reward.honeycomb").formatted(Formatting.GREEN));
+        stack.set(DataComponentTypes.CUSTOM_NAME, Text.translatable(titleKey).formatted(Formatting.GREEN));
+        if (loreKey != null && !loreKey.isBlank()) {
+            stack.set(DataComponentTypes.LORE, new LoreComponent(List.of(
+                    Text.translatable(loreKey).formatted(Formatting.DARK_GRAY)
+            )));
+        }
         return stack;
+    }
+
+    private static String packetSafeProfileName(String profileName, UUID profileId) {
+        if (profileName == null || profileName.isBlank()) {
+            return "vq_" + profileId.toString().replace("-", "").substring(0, 13);
+        }
+        if (profileName.length() <= 16) {
+            return profileName;
+        }
+        return "vq_" + profileId.toString().replace("-", "").substring(0, 13);
     }
 }

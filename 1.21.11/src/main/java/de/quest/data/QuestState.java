@@ -108,6 +108,7 @@ public final class QuestState extends PersistentState {
         readUuidSet(root, "starterShardGranted", id -> getPlayerData(id).setStarterShardGranted(true));
         readUuidStringMap(root, "pendingSpecialOfferType", (id, value) -> getPlayerData(id).setPendingSpecialOfferKind(SpecialQuestKind.fromId(value)));
         readUuidStringMap(root, "activeStoryArc", (id, value) -> getPlayerData(id).setActiveStoryArc(StoryArcType.fromId(value)));
+        readUuidLongMap(root, "storyCooldownUntil", (id, value) -> getPlayerData(id).setStoryCooldownUntil(value));
         readUuidStringMap(root, "pilgrimActiveContract", (id, value) -> getPlayerData(id).setActivePilgrimContractId(value));
         readUuidStringMap(root, "pilgrimOfferedContract", (id, value) -> getPlayerData(id).setOfferedPilgrimContractId(value));
         readUuidStringMap(root, "pilgrimOfferedContractAlt", (id, value) -> getPlayerData(id).setOfferedPilgrimContractAltId(value));
@@ -175,6 +176,7 @@ public final class QuestState extends PersistentState {
         NbtList starterShardGranted = new NbtList();
         NbtList pendingSpecialOfferType = new NbtList();
         NbtList activeStoryArc = new NbtList();
+        NbtList storyCooldownUntil = new NbtList();
         NbtList pilgrimActiveContract = new NbtList();
         NbtList pilgrimOfferedContract = new NbtList();
         NbtList pilgrimOfferedContractAlt = new NbtList();
@@ -305,6 +307,9 @@ public final class QuestState extends PersistentState {
             if (data.getActiveStoryArc() != null) {
                 activeStoryArc.add(entryString(id, data.getActiveStoryArc().id()));
             }
+            if (data.getStoryCooldownUntil() > 0L) {
+                storyCooldownUntil.add(entryLong(id, data.getStoryCooldownUntil()));
+            }
             if (data.getActivePilgrimContractId() != null) {
                 pilgrimActiveContract.add(entryString(id, data.getActivePilgrimContractId()));
             }
@@ -394,6 +399,7 @@ public final class QuestState extends PersistentState {
         root.put("starterShardGranted", starterShardGranted);
         root.put("pendingSpecialOfferType", pendingSpecialOfferType);
         root.put("activeStoryArc", activeStoryArc);
+        root.put("storyCooldownUntil", storyCooldownUntil);
         root.put("pilgrimActiveContract", pilgrimActiveContract);
         root.put("pilgrimOfferedContract", pilgrimOfferedContract);
         root.put("pilgrimOfferedContractAlt", pilgrimOfferedContractAlt);

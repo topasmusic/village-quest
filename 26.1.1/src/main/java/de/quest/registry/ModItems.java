@@ -17,19 +17,26 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.component.ItemLore;
 
 public final class ModItems {
-    public static Item KUPFER_GROSCHEN;
-    public static Item EISEN_GROSCHEN;
-    public static Item GOLD_GROSCHEN;
+    public static Item LEGACY_COPPER_PENNY;
+    public static Item SILVERMARK;
+    public static Item CROWN;
     public static Item MAGIC_SHARD;
     public static Item STARREACH_RING;
     public static Item MERCHANT_SEAL;
     public static Item SHEPHERD_FLUTE;
     public static Item APIARISTS_SMOKER;
     public static Item SURVEYORS_COMPASS;
+    public static Item APIARY_CHARTER_PLAQUE;
+    public static Item VILLAGE_LEDGER_PLAQUE;
+    public static Item FORGE_CHARTER_PLAQUE;
+    public static Item MARKET_CHARTER_PLAQUE;
+    public static Item PASTURE_CHARTER_PLAQUE;
+    public static Item WATCH_BELL_RELIQUARY;
 
     private static Identifier id(String path) {
         return Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, path);
@@ -37,26 +44,26 @@ public final class ModItems {
 
     public static void register() {
 
-        Identifier copperId = id("kupfer_groschen");
+        Identifier copperId = id("legacy_copper_penny");
         ResourceKey<Item> copperKey = ResourceKey.create(Registries.ITEM, copperId);
-        KUPFER_GROSCHEN = new GroschenItem(new Item.Properties()
+        LEGACY_COPPER_PENNY = new GroschenItem(new Item.Properties()
                 .setId(copperKey)
-                .component(DataComponents.LORE, lore("item." + VillageQuest.MOD_ID + ".kupfer_groschen.lore")), ChatFormatting.DARK_GRAY);
-        Registry.register(BuiltInRegistries.ITEM, copperId, KUPFER_GROSCHEN);
+                .component(DataComponents.LORE, lore("item." + VillageQuest.MOD_ID + ".legacy_copper_penny.lore")), ChatFormatting.DARK_GRAY);
+        Registry.register(BuiltInRegistries.ITEM, copperId, LEGACY_COPPER_PENNY);
 
-        Identifier ironId = id("eisen_groschen");
+        Identifier ironId = id("silvermark");
         ResourceKey<Item> ironKey = ResourceKey.create(Registries.ITEM, ironId);
-        EISEN_GROSCHEN = new GroschenItem(new Item.Properties()
+        SILVERMARK = new GroschenItem(new Item.Properties()
                 .setId(ironKey)
-                .component(DataComponents.LORE, lore("item." + VillageQuest.MOD_ID + ".eisen_groschen.lore")), ChatFormatting.GRAY);
-        Registry.register(BuiltInRegistries.ITEM, ironId, EISEN_GROSCHEN);
+                .component(DataComponents.LORE, lore("item." + VillageQuest.MOD_ID + ".silvermark.lore")), ChatFormatting.GRAY);
+        Registry.register(BuiltInRegistries.ITEM, ironId, SILVERMARK);
 
-        Identifier goldId = id("gold_groschen");
+        Identifier goldId = id("crown");
         ResourceKey<Item> goldKey = ResourceKey.create(Registries.ITEM, goldId);
-        GOLD_GROSCHEN = new GroschenItem(new Item.Properties()
+        CROWN = new GroschenItem(new Item.Properties()
                 .setId(goldKey)
-                .component(DataComponents.LORE, lore("item." + VillageQuest.MOD_ID + ".gold_groschen.lore")), ChatFormatting.GOLD);
-        Registry.register(BuiltInRegistries.ITEM, goldId, GOLD_GROSCHEN);
+                .component(DataComponents.LORE, lore("item." + VillageQuest.MOD_ID + ".crown.lore")), ChatFormatting.GOLD);
+        Registry.register(BuiltInRegistries.ITEM, goldId, CROWN);
 
         Identifier shardId = id("magic_shard");
         ResourceKey<Item> shardKey = ResourceKey.create(Registries.ITEM, shardId);
@@ -105,14 +112,29 @@ public final class ModItems {
                 .component(DataComponents.LORE, lore("item." + VillageQuest.MOD_ID + ".surveyors_compass.lore")));
         Registry.register(BuiltInRegistries.ITEM, compassId, SURVEYORS_COMPASS);
 
-        // Kept separate so active gameplay items stay easy to reason about.
-        LegacyCompatibilityItems.registerAll();
+        APIARY_CHARTER_PLAQUE = registerBlockItem("apiary_charter_plaque", ModBlocks.APIARY_CHARTER_PLAQUE);
+        VILLAGE_LEDGER_PLAQUE = registerBlockItem("village_ledger_plaque", ModBlocks.VILLAGE_LEDGER_PLAQUE);
+        FORGE_CHARTER_PLAQUE = registerBlockItem("forge_charter_plaque", ModBlocks.FORGE_CHARTER_PLAQUE);
+        MARKET_CHARTER_PLAQUE = registerBlockItem("market_charter_plaque", ModBlocks.MARKET_CHARTER_PLAQUE);
+        PASTURE_CHARTER_PLAQUE = registerBlockItem("pasture_charter_plaque", ModBlocks.PASTURE_CHARTER_PLAQUE);
+        WATCH_BELL_RELIQUARY = registerBlockItem("watch_bell_reliquary", ModBlocks.WATCH_BELL_RELIQUARY);
 
         VillageQuest.LOGGER.info("Registered items");
     }
 
     private static ItemLore lore(String translationKey) {
         return new ItemLore(List.of(Component.translatable(translationKey).withStyle(ChatFormatting.DARK_GRAY)));
+    }
+
+    private static Item registerBlockItem(String path, net.minecraft.world.level.block.Block block) {
+        Identifier itemId = id(path);
+        ResourceKey<Item> itemKey = ResourceKey.create(Registries.ITEM, itemId);
+        Item item = new BlockItem(block, new Item.Properties()
+                .setId(itemKey)
+                .stacksTo(1)
+                .component(DataComponents.LORE, lore("item." + VillageQuest.MOD_ID + "." + path + ".lore")));
+        Registry.register(BuiltInRegistries.ITEM, itemId, item);
+        return item;
     }
 
 }

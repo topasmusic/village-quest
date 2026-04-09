@@ -14,6 +14,8 @@ When these four are all complete:
 - `Watch Bell` is unlocked automatically as a derived village project
 - the dangerous `Roadside Watch` rumor lane becomes available through the `Pilgrim`
 
+After each fully completed `4`-chapter arc, the next story waits behind a real `3 hour` cooldown. The `Story` tab shows that countdown directly.
+
 `Night Bells` still exists in code as older combat-side story content, but it is no longer part of the visible Questmaster story flow.
 
 ## Story Arc Overview
@@ -144,25 +146,31 @@ Tracker wording is now split into:
 ### Village Ledger
 
 - story arcs and village projects are surfaced in the journal
+- unlocks the matching `Village Ledger Plaque` trophy offer in the `Pilgrim` shop
 
 ### Apiary Charter
 
 - future `Farming` reputation rewards gain `+5`
 - unlocks the `Field Bearings` follow-up for the `Wayfinder's Compass`
+- unlocks the matching `Apiary Charter Plaque` trophy offer in the `Pilgrim` shop
 
 ### Forge Charter
 
 - future `Crafting` rewards gain `+2 levels`
+- unlocks the matching `Forge Charter Plaque` trophy offer in the `Pilgrim` shop
 
 ### Market Charter
 
 - lets the `Pilgrim` later add old roadmarks to the `Wayfinder's Compass`
+- unlocks the matching `Market Charter Plaque` trophy offer in the `Pilgrim` shop
 
 ### Pasture Charter
 
 - future `Animals` rewards gain `+2 Silvermarks`
+- unlocks the matching `Pasture Charter Plaque` trophy offer in the `Pilgrim` shop
 
 ### Watch Bell
 
 - future `Roadside Watch` reputation rewards gain `+5`
 - unlocks the late dangerous `Pilgrim` rumor lane
+- unlocks the `Watch Bell Reliquary` trophy offer in the `Pilgrim` shop

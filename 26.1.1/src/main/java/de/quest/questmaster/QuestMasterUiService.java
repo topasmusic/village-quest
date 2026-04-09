@@ -118,7 +118,8 @@ public final class QuestMasterUiService {
                 entityId,
                 Component.empty(),
                 List.of(),
-                List.of()
+                List.of(),
+                0L
         ));
     }
 
@@ -306,7 +307,8 @@ public final class QuestMasterUiService {
                 questMaster.getId(),
                 questMaster.getDisplayName(),
                 categories,
-                entries
+                entries,
+                StoryQuestService.getStoryCooldownUntil(world, player.getUUID())
         );
     }
 
@@ -538,9 +540,14 @@ public final class QuestMasterUiService {
         }
         UUID playerId = player.getUUID();
         StoryArcType focus = StoryQuestService.activeArcType(world, playerId);
-        if (focus == null) {
-            focus = StoryQuestService.availableArcType(world, playerId);
+        if (focus != null) {
+            Payloads.QuestMasterEntryData entry = buildStoryEntry(world, player, focus);
+            return entry == null ? List.of() : List.of(entry);
         }
+        if (StoryQuestService.isStoryCooldownActive(world, playerId)) {
+            return List.of(buildStoryCooldownEntry());
+        }
+        focus = StoryQuestService.availableArcType(world, playerId);
         if (focus != null) {
             Payloads.QuestMasterEntryData entry = buildStoryEntry(world, player, focus);
             return entry == null ? List.of() : List.of(entry);
@@ -1520,6 +1527,22 @@ public final class QuestMasterUiService {
                         StoryQuestService.completedCount(world, playerId),
                         StoryQuestService.getStoryArcCount()
                 ).withStyle(ChatFormatting.GRAY)),
+                List.of(),
+                List.of(),
+                ActionSpec.NONE,
+                ActionSpec.NONE,
+                false
+        );
+    }
+
+    private static Payloads.QuestMasterEntryData buildStoryCooldownEntry() {
+        return entry(
+                ENTRY_STORY_PREFIX + "cooldown",
+                CATEGORY_STORY,
+                Component.translatable("screen.village-quest.questmaster.story.cooldown.title"),
+                Component.translatable("screen.village-quest.questmaster.subtitle.story"),
+                Component.translatable("screen.village-quest.questmaster.status.info").withStyle(ChatFormatting.AQUA),
+                List.of(Component.translatable("screen.village-quest.questmaster.story.cooldown.body").withStyle(ChatFormatting.GRAY)),
                 List.of(),
                 List.of(),
                 ActionSpec.NONE,

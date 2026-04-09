@@ -588,7 +588,8 @@ public final class Payloads {
             int entityId,
             Text questMasterName,
             List<QuestMasterCategoryData> categories,
-            List<QuestMasterEntryData> entries
+            List<QuestMasterEntryData> entries,
+            long storyCooldownUntil
     ) implements CustomPayload {
         public static final int ACTION_OPEN = 0;
         public static final int ACTION_UPDATE = 1;
@@ -613,7 +614,8 @@ public final class Payloads {
             for (int i = 0; i < entryCount; i++) {
                 entries.add(QuestMasterEntryData.read(buf));
             }
-            return new QuestMasterPayload(action, entityId, questMasterName, categories, entries);
+            long storyCooldownUntil = buf.readLong();
+            return new QuestMasterPayload(action, entityId, questMasterName, categories, entries, storyCooldownUntil);
         }
 
         private static void write(RegistryByteBuf buf, QuestMasterPayload payload) {
@@ -628,6 +630,7 @@ public final class Payloads {
             for (QuestMasterEntryData entry : payload.entries()) {
                 QuestMasterEntryData.write(buf, entry);
             }
+            buf.writeLong(payload.storyCooldownUntil());
         }
 
         @Override

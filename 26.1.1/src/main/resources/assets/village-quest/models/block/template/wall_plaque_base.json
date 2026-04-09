@@ -1,0 +1,76 @@
+{
+  "textures": {
+    "front": "village-quest:block/apiary_charter_plaque_front",
+    "wood": "minecraft:block/dark_oak_planks",
+    "particle": "minecraft:block/dark_oak_planks"
+  },
+  "elements": [
+    {
+      "from": [3.1, 1.2, 0.15],
+      "to": [12.9, 14.8, 0.85],
+      "faces": {
+        "north": { "texture": "#wood" },
+        "south": { "texture": "#wood" },
+        "east": { "texture": "#wood" },
+        "west": { "texture": "#wood" },
+        "up": { "texture": "#wood" },
+        "down": { "texture": "#wood" }
+      }
+    },
+    {
+      "from": [2.25, 0.75, 0.95],
+      "to": [3.55, 15.25, 1.35],
+      "faces": {
+        "north": { "texture": "#wood" },
+        "south": { "texture": "#wood" },
+        "east": { "texture": "#wood" },
+        "west": { "texture": "#wood" },
+        "up": { "texture": "#wood" },
+        "down": { "texture": "#wood" }
+      }
+    },
+    {
+      "from": [12.45, 0.75, 0.95],
+      "to": [13.75, 15.25, 1.35],
+      "faces": {
+        "north": { "texture": "#wood" },
+        "south": { "texture": "#wood" },
+        "east": { "texture": "#wood" },
+        "west": { "texture": "#wood" },
+        "up": { "texture": "#wood" },
+        "down": { "texture": "#wood" }
+      }
+    },
+    {
+      "from": [2.25, 0.75, 0.95],
+      "to": [13.75, 2.15, 1.35],
+      "faces": {
+        "north": { "texture": "#wood" },
+        "south": { "texture": "#wood" },
+        "east": { "texture": "#wood" },
+        "west": { "texture": "#wood" },
+        "up": { "texture": "#wood" },
+        "down": { "texture": "#wood" }
+      }
+    },
+    {
+      "from": [2.25, 13.85, 0.95],
+      "to": [13.75, 15.25, 1.35],
+      "faces": {
+        "north": { "texture": "#wood" },
+        "south": { "texture": "#wood" },
+        "east": { "texture": "#wood" },
+        "west": { "texture": "#wood" },
+        "up": { "texture": "#wood" },
+        "down": { "texture": "#wood" }
+      }
+    },
+    {
+      "from": [2.95, 1.25, 0.91],
+      "to": [13.05, 14.75, 1.02],
+      "faces": {
+        "south": { "texture": "#front" }
+      }
+    }
+  ]
+}

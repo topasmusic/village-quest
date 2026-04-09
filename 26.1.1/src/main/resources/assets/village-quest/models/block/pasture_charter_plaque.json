@@ -1,0 +1,8 @@
+{
+  "parent": "village-quest:block/template/wall_plaque_base",
+  "textures": {
+    "front": "village-quest:block/pasture_charter_plaque",
+    "wood": "minecraft:block/dark_oak_planks",
+    "particle": "minecraft:block/dark_oak_planks"
+  }
+}

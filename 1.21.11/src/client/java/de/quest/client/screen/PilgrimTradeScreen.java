@@ -392,22 +392,29 @@ public class PilgrimTradeScreen extends Screen {
     }
 
     private void drawWalletStrip(DrawContext context, int left, int top) {
-        int stripWidth = 146;
+        String walletLabel = Text.translatable("screen.village-quest.pilgrim.wallet").getString();
+        long crownAmount = data.balance() / CurrencyService.CROWN;
+        long silverAmount = data.balance() % CurrencyService.CROWN;
+        int goldEntryWidth = getWalletEntryWidth(crownAmount);
+        int silverEntryWidth = getWalletEntryWidth(silverAmount);
+        int stripWidth = Math.max(146, 8 + this.textRenderer.getWidth(walletLabel) + 12 + goldEntryWidth + 8 + silverEntryWidth + 8);
         int stripX = left + (WINDOW_WIDTH - stripWidth) / 2;
         int stripY = top + 8;
+        int goldX = stripX + stripWidth - 8 - silverEntryWidth - 8 - goldEntryWidth;
+        int silverX = stripX + stripWidth - 8 - silverEntryWidth;
 
         drawFrame(context, stripX, stripY, stripWidth, 24, FRAME_DARK, FRAME_LIGHT, PARCHMENT_DEEP);
         context.drawText(
                 this.textRenderer,
-                Text.translatable("screen.village-quest.pilgrim.wallet").getString(),
+                walletLabel,
                 stripX + 8,
                 stripY + 8,
                 TITLE,
                 false
         );
 
-        drawWalletEntry(context, stripX + 78, stripY + 4, new ItemStack(ModItems.GOLD_GROSCHEN), data.balance() / CurrencyService.CROWN, 0xFFB07A1C, HEADER_GOLD_COIN_SCALE);
-        drawWalletEntry(context, stripX + 108, stripY + 4, new ItemStack(ModItems.EISEN_GROSCHEN), data.balance() % CurrencyService.CROWN, 0xFF7C8594, HEADER_SILVER_COIN_SCALE);
+        drawWalletEntry(context, goldX, stripY + 4, goldEntryWidth, new ItemStack(ModItems.CROWN), crownAmount, 0xFFB07A1C, HEADER_GOLD_COIN_SCALE);
+        drawWalletEntry(context, silverX, stripY + 4, silverEntryWidth, new ItemStack(ModItems.SILVERMARK), silverAmount, 0xFF7C8594, HEADER_SILVER_COIN_SCALE);
     }
 
     private void drawGoodsPanel(DrawContext context, int left, int top, int mouseX, int mouseY) {
@@ -501,15 +508,16 @@ public class PilgrimTradeScreen extends Screen {
                 1
         );
         currentY -= 2;
-        currentY = drawWrappedScaledLines(
+        String priceText = Text.translatable("screen.village-quest.pilgrim.price", CurrencyService.formatBalance(offer.price())).getString();
+        float priceScale = fitScaleToWidth(priceText, DETAIL_WIDTH - 20, DETAIL_SUBTEXT_SCALE, 0.68f);
+        currentY = drawSingleScaledLine(
                 context,
-                Text.translatable("screen.village-quest.pilgrim.price", CurrencyService.formatBalance(offer.price())).getString(),
+                priceText,
                 textX,
                 currentY,
                 DETAIL_WIDTH - 20,
                 canAfford(offer) ? AFFORD : TOO_EXPENSIVE,
-                DETAIL_SUBTEXT_SCALE,
-                2
+                priceScale
         );
 
         currentY = panelY + 66;
@@ -583,12 +591,18 @@ public class PilgrimTradeScreen extends Screen {
         drawScaledText(context, timerText, timerX, top + WINDOW_HEIGHT - 18, MUTED, 0.85f);
     }
 
-    private void drawWalletEntry(DrawContext context, int x, int y, ItemStack stack, long amount, int countColor, float iconScale) {
+    private void drawWalletEntry(DrawContext context, int x, int y, int entryWidth, ItemStack stack, long amount, int countColor, float iconScale) {
+        String amountText = Long.toString(amount);
         drawFrame(context, x, y, 20, 16, FRAME_MID, FRAME_LIGHT, 0x00000000);
         if (!stack.isEmpty()) {
             drawScaledItem(context, stack, x + 2, y, iconScale);
         }
-        context.drawText(this.textRenderer, Long.toString(amount), x + 22, y + 5, amount > 0L ? countColor : MUTED, false);
+        int amountX = x + entryWidth - 2 - this.textRenderer.getWidth(amountText);
+        context.drawText(this.textRenderer, amountText, amountX, y + 5, amount > 0L ? countColor : MUTED, false);
+    }
+
+    private int getWalletEntryWidth(long amount) {
+        return 28 + this.textRenderer.getWidth(Long.toString(amount));
     }
 
     private void drawTradeSlot(DrawContext context, int x, int y, ItemStack stack, float iconScale) {
@@ -916,6 +930,22 @@ public class PilgrimTradeScreen extends Screen {
         return y + Math.round((this.textRenderer.fontHeight + 2) * scale);
     }
 
+    private float fitScaleToWidth(String text, int maxWidth, float preferredScale, float minimumScale) {
+        if (text == null || text.isBlank()) {
+            return preferredScale;
+        }
+        int textWidth = this.textRenderer.getWidth(text);
+        if (textWidth <= 0) {
+            return preferredScale;
+        }
+        float preferredWidth = textWidth * preferredScale;
+        if (preferredWidth <= maxWidth) {
+            return preferredScale;
+        }
+        float scaled = preferredScale * ((float) maxWidth / preferredWidth);
+        return Math.max(minimumScale, Math.min(preferredScale, scaled));
+    }
+
     private List<ContractDetailLine> buildContractDetailLines(PilgrimContractView contract, int maxWidth, boolean includeStatus) {
         List<ContractDetailLine> lines = new ArrayList<>();
         if (includeStatus) {
@@ -1074,9 +1104,9 @@ public class PilgrimTradeScreen extends Screen {
 
     private ItemStack getPricePreviewStack(long price) {
         if (price >= CurrencyService.CROWN) {
-            return new ItemStack(ModItems.GOLD_GROSCHEN);
+            return new ItemStack(ModItems.CROWN);
         }
-        return new ItemStack(ModItems.EISEN_GROSCHEN);
+        return new ItemStack(ModItems.SILVERMARK);
     }
 
     private String ellipsize(String text, int maxWidth) {

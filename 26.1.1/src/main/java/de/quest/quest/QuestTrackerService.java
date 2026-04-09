@@ -82,7 +82,7 @@ public final class QuestTrackerService {
         }
 
         if (showHint) {
-            MutableComponent command = Component.literal("/questtracker").withStyle(ChatFormatting.AQUA);
+            MutableComponent command = Component.literal("/vq questtracker").withStyle(ChatFormatting.AQUA);
             player.sendSystemMessage(Component.translatable("message.village-quest.questtracker.auto_enabled", command).withStyle(ChatFormatting.GRAY), false);
         }
     }

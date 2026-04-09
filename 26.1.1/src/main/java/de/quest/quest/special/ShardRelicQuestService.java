@@ -537,7 +537,7 @@ public final class ShardRelicQuestService {
         Component divider = Component.literal("------------------------------").withStyle(ChatFormatting.GRAY);
         Component accept = Component.translatable("text.village-quest.special.offer.accept").withStyle(style -> style
                 .withColor(ChatFormatting.GRAY)
-                .withClickEvent(new ClickEvent.RunCommand("/dailyquest accept")));
+                .withClickEvent(new ClickEvent.RunCommand("/vq daily accept")));
 
         Component body = Component.empty()
                 .append(divider.copy())

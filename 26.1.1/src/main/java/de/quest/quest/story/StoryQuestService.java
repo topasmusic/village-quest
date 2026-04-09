@@ -34,6 +34,8 @@ import java.util.UUID;
 
 public final class StoryQuestService {
     private static final String READY_FLAG_PREFIX = "story_ready_";
+    private static final double STORY_CURRENCY_MULTIPLIER = 0.70d;
+    private static final long STORY_ARC_COOLDOWN_MILLIS = 3L * 60L * 60L * 1000L;
 
     private static final Map<StoryArcType, StoryArcDefinition> ARCS = Map.of(
             StoryArcType.FAILING_HARVEST, new FailingHarvestStoryArc(),
@@ -119,7 +121,9 @@ public final class StoryQuestService {
         }
 
         PlayerQuestData data = data(world, player.getUUID());
-        if (data.getActiveStoryArc() != null || isCompleted(world, player.getUUID(), arcType)) {
+        if (data.getActiveStoryArc() != null
+                || isCompleted(world, player.getUUID(), arcType)
+                || isStoryCooldownActive(world, player.getUUID())) {
             return false;
         }
 
@@ -173,11 +177,15 @@ public final class StoryQuestService {
         data.setActiveStoryArc(null);
         int nextChapter = chapterIndex(world, player.getUUID(), arcType) + 1;
         data.setStoryChapterProgress(arcType.id(), nextChapter);
-        if (nextChapter >= definition(arcType).chapterCount()) {
+        boolean completedArc = nextChapter >= definition(arcType).chapterCount();
+        if (completedArc) {
             data.setStoryCompleted(arcType.id(), true);
         }
         QuestState.get(world.getServer()).setDirty();
         syncDerivedProgression(world, player);
+        if (completedArc) {
+            armStoryCooldownIfNeeded(world, player.getUUID());
+        }
         refreshQuestUi(world, player.getUUID());
         return true;
     }
@@ -268,20 +276,27 @@ public final class StoryQuestService {
     }
 
     public static StoryArcType availableArcType(ServerLevel world, UUID playerId) {
+        return availableArcTypeInternal(world, playerId, true);
+    }
+
+    public static StoryArcType availableArcTypeIgnoringCooldown(ServerLevel world, UUID playerId) {
+        return availableArcTypeInternal(world, playerId, false);
+    }
+
+    public static boolean isStoryCooldownActive(ServerLevel world, UUID playerId) {
+        return getStoryCooldownRemainingMillis(world, playerId) > 0L;
+    }
+
+    public static long getStoryCooldownRemainingMillis(ServerLevel world, UUID playerId) {
+        return Math.max(0L, getStoryCooldownUntil(world, playerId) - System.currentTimeMillis());
+    }
+
+    public static long getStoryCooldownUntil(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
-            return null;
+            return 0L;
         }
-        StoryArcType activeArc = activeArcType(world, playerId);
-        if (activeArc != null) {
-            return activeArc;
-        }
-        for (StoryArcType type : StoryArcType.questmasterArcs()) {
-            StoryArcDefinition arc = definition(type);
-            if (arc != null && arc.isUnlocked(world, playerId) && !isCompleted(world, playerId, type)) {
-                return type;
-            }
-        }
-        return null;
+        long cooldownUntil = data(world, playerId).getStoryCooldownUntil();
+        return cooldownUntil > System.currentTimeMillis() ? cooldownUntil : 0L;
     }
 
     public static int chapterIndex(ServerLevel world, UUID playerId, StoryArcType arcType) {
@@ -313,8 +328,9 @@ public final class StoryQuestService {
             return List.of();
         }
         List<Component> rewards = new ArrayList<>();
-        if (completion.currencyReward() > 0L) {
-            rewards.add(Component.translatable("screen.village-quest.questmaster.reward.currency", CurrencyService.formatBalance(completion.currencyReward())).withStyle(ChatFormatting.GOLD));
+        long scaledCurrencyReward = scaledCurrencyReward(completion.currencyReward());
+        if (scaledCurrencyReward > 0L) {
+            rewards.add(Component.translatable("screen.village-quest.questmaster.reward.currency", CurrencyService.formatBalance(scaledCurrencyReward)).withStyle(ChatFormatting.GOLD));
         }
         if (completion.reputationTrack() != null && completion.reputationAmount() > 0) {
             rewards.add(ReputationService.formatRewardLine(completion.reputationTrack(), completion.reputationAmount()));
@@ -398,11 +414,15 @@ public final class StoryQuestService {
         data.setActiveStoryArc(null);
         int nextChapter = chapterIndex(world, player.getUUID(), arcType) + 1;
         data.setStoryChapterProgress(arcType.id(), nextChapter);
-        if (nextChapter >= definition(arcType).chapterCount()) {
+        boolean completedArc = nextChapter >= definition(arcType).chapterCount();
+        if (completedArc) {
             data.setStoryCompleted(arcType.id(), true);
         }
         QuestState.get(world.getServer()).setDirty();
         syncDerivedProgression(world, player);
+        if (completedArc) {
+            armStoryCooldownIfNeeded(world, player.getUUID());
+        }
         refreshQuestUi(world, player.getUUID());
         return true;
     }
@@ -500,7 +520,8 @@ public final class StoryQuestService {
     }
 
     private static void deliverCompletion(ServerLevel world, ServerPlayer player, StoryChapterCompletion completion) {
-        long actualCurrencyReward = completion.currencyReward() + VillageProjectService.bonusCurrency(world, player.getUUID(), completion.reputationTrack());
+        long actualCurrencyReward = scaledCurrencyReward(completion.currencyReward())
+                + VillageProjectService.bonusCurrency(world, player.getUUID(), completion.reputationTrack());
         if (actualCurrencyReward > 0L) {
             CurrencyService.addBalance(world, player.getUUID(), actualCurrencyReward);
         }
@@ -563,8 +584,50 @@ public final class StoryQuestService {
         body.append(Component.empty().append(Component.literal("    ")).append(line)).append(Component.literal("\n"));
     }
 
+    private static long scaledCurrencyReward(long baseCurrencyReward) {
+        if (baseCurrencyReward <= 0L) {
+            return 0L;
+        }
+        return Math.max(0L, Math.round(baseCurrencyReward * STORY_CURRENCY_MULTIPLIER));
+    }
+
     private static String readyFlagKey(StoryArcType arcType, int chapterIndex) {
         return READY_FLAG_PREFIX + arcType.id() + "_" + chapterIndex;
+    }
+
+    private static StoryArcType availableArcTypeInternal(ServerLevel world, UUID playerId, boolean respectCooldown) {
+        if (world == null || playerId == null) {
+            return null;
+        }
+        StoryArcType activeArc = activeArcType(world, playerId);
+        if (activeArc != null) {
+            return activeArc;
+        }
+        if (respectCooldown && isStoryCooldownActive(world, playerId)) {
+            return null;
+        }
+        for (StoryArcType type : StoryArcType.questmasterArcs()) {
+            StoryArcDefinition arc = definition(type);
+            if (arc != null && arc.isUnlocked(world, playerId) && !isCompleted(world, playerId, type)) {
+                return type;
+            }
+        }
+        return null;
+    }
+
+    private static void armStoryCooldownIfNeeded(ServerLevel world, UUID playerId) {
+        if (world == null || playerId == null) {
+            return;
+        }
+        long cooldownUntil = availableArcTypeIgnoringCooldown(world, playerId) == null
+                ? 0L
+                : System.currentTimeMillis() + STORY_ARC_COOLDOWN_MILLIS;
+        PlayerQuestData data = data(world, playerId);
+        if (data.getStoryCooldownUntil() == cooldownUntil) {
+            return;
+        }
+        data.setStoryCooldownUntil(cooldownUntil);
+        QuestState.get(world.getServer()).setDirty();
     }
 
     private static void syncDerivedProgression(ServerLevel world, ServerPlayer player) {

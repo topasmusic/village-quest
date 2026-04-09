@@ -488,10 +488,10 @@ public class JournalScreen extends CompatScreen {
         page.addLine("", gray, BODY_TEXT_SCALE);
         addParagraph(page, gray, Component.translatable("screen.village-quest.journal.commands.intro").getString());
         addParagraph(page, gray, Component.translatable("screen.village-quest.journal.commands.available").getString());
-        addHelpLine(page, blue, "/questmaster", Component.translatable("screen.village-quest.journal.commands.questmaster").getString());
-        addHelpLine(page, blue, "/wallet", Component.translatable("screen.village-quest.journal.commands.wallet").getString());
-        addHelpLine(page, blue, "/reputation", Component.translatable("screen.village-quest.journal.commands.reputation").getString());
-        addHelpLine(page, blue, "/journal", Component.translatable("screen.village-quest.journal.commands.journal").getString());
+        addHelpLine(page, blue, "/vq questmaster", Component.translatable("screen.village-quest.journal.commands.questmaster").getString());
+        addHelpLine(page, blue, "/vq wallet", Component.translatable("screen.village-quest.journal.commands.wallet").getString());
+        addHelpLine(page, blue, "/vq reputation", Component.translatable("screen.village-quest.journal.commands.reputation").getString());
+        addHelpLine(page, blue, "/vq journal", Component.translatable("screen.village-quest.journal.commands.journal").getString());
 
         return page;
     }
@@ -505,10 +505,10 @@ public class JournalScreen extends CompatScreen {
         page.addLine(Component.translatable("screen.village-quest.journal.commands.quest_header").getString(), gold, HEADER_TEXT_SCALE);
         page.addLine("", gray, BODY_TEXT_SCALE);
         addParagraph(page, gray, Component.translatable("screen.village-quest.journal.commands.quest_intro").getString());
-        addHelpLine(page, blue, "/dailyquest accept", Component.translatable("screen.village-quest.journal.commands.accept").getString());
-        addHelpLine(page, blue, "/questtracker", Component.translatable("screen.village-quest.journal.commands.questtracker").getString());
-        addHelpLine(page, blue, "/questtracker on", Component.translatable("screen.village-quest.journal.commands.questtracker_on").getString());
-        addHelpLine(page, blue, "/questtracker off", Component.translatable("screen.village-quest.journal.commands.questtracker_off").getString());
+        addHelpLine(page, blue, "/vq daily accept", Component.translatable("screen.village-quest.journal.commands.accept").getString());
+        addHelpLine(page, blue, "/vq questtracker", Component.translatable("screen.village-quest.journal.commands.questtracker").getString());
+        addHelpLine(page, blue, "/vq questtracker on", Component.translatable("screen.village-quest.journal.commands.questtracker_on").getString());
+        addHelpLine(page, blue, "/vq questtracker off", Component.translatable("screen.village-quest.journal.commands.questtracker_off").getString());
         return page;
     }
 
@@ -902,14 +902,14 @@ public class JournalScreen extends CompatScreen {
         if (this.minecraft == null || this.minecraft.player == null) {
             return;
         }
-        this.minecraft.player.connection.sendCommand("journal");
+        this.minecraft.player.connection.sendCommand("vq journal");
     }
 
     private void summonQuestMasterFromJournal() {
         if (this.minecraft == null || this.minecraft.player == null) {
             return;
         }
-        this.minecraft.player.connection.sendCommand("questmaster");
+        this.minecraft.player.connection.sendCommand("vq questmaster");
         this.onClose();
     }
 

@@ -1,5 +1,41 @@
 # Changelog
 
+## Unreleased
+
+## 1.21.0 - Pilgrim Shop Expansion And Story Cooldown Update
+
+Release date: 2026-04-09
+
+- The pilgrim wallet header now expands its coin spacing so multi-digit `Crown` and `Silvermark` counts no longer overlap the icons.
+- Pilgrim shop prices were raised sharply across the full catalog with a central `3x` pricing pass.
+- Story wallet rewards were reduced to `70%` of their former values so main-story completion no longer funds the shop as quickly by itself.
+- Player and admin commands now also live under the new roots `/villagequest ...` and `/vq ...`.
+- The old direct roots such as `/questadmin`, `/questmaster`, `/dailyquest`, `/wallet`, `/reputation`, `/journal`, and `/questtracker` were removed, so commands now start only with `/villagequest ...` or `/vq ...`.
+- Journal help pages, clickable chat actions, tracker hints, README notes, and command docs were updated to use the new `/vq` command structure.
+- The inventory journal tab now also opens the journal through `/vq journal`, and the remaining live command links were checked so they match the new root structure.
+- The `Merchant's Seal` hover text was shortened in English and German so it fits more cleanly in inventory tooltips.
+- The first Pilgrim shop-overhaul slice added `Road Camp Kit`, `Village Ledger Desk`, `Apiary Supply Crate`, `Smithing Supply Rack`, `Market Stall Kit`, `Pasture Tack Bundle`, and `Watch Post Kit` as new themed bundle wares.
+- `Apiary Charter Plaque` was rebuilt into a real wall-mounted decorative plaque block with depth, custom front art, and proper block placement instead of a flat hanging item.
+- The first plaque follow-up fixed wall placement, restored the proper localized item name, and removed the visible transparent border artifact from the front texture.
+- The second plaque follow-up restored a visible wood backing/frame, forces wood particles for breaking, and adds a second loot-table path safeguard so the plaque should drop back as an item reliably.
+- A second custom-art shop batch added `Village Ledger Plaque`, `Forge Charter Plaque`, `Market Charter Plaque`, `Pasture Charter Plaque`, and `Watch Bell Reliquary`.
+- The temporary standing decor experiment was rolled back, so `Pilgrim Trade Chest`, `Milestone Marker`, and `Weathered Signpost` are no longer part of the active unreleased batch.
+- The pilgrim now offers a broader premium wave of decorative custom heads, including barrels, shelves, utility pieces, and plushies.
+- Decorative custom head wares now cost `5 Crowns`, and each pilgrim can offer at most one of them per visit.
+- The `Skeleton Plushie`, `Zombie Plushie`, and `Creeper Plushie` now unlock only after completing their matching Pilgrim combat contract once.
+- Decorative custom head items now use proper English and German item names plus short hover lore, so bought heads match the shop presentation more cleanly.
+- `Apiary Charter Plaque` now uses the same full plaque artwork style as the later charter plaques so the whole series reads more consistently.
+- Plaque and reliquary wares now cost `3 Crowns 5 Silvermarks`, and their shop text plus item lore were shortened into cleaner trophy-style descriptions.
+- Completing a full four-chapter village story now starts a real `3 hour` cooldown before the next story appears, and the `Story` tab shows both a waiting note and a live countdown timer during that pause.
+- The shared plaque block model now adds a consistent outer wood frame across the whole plaque/reliquary line, so the series reads more uniformly in-world and in inventory.
+- Pilgrim detail prices now shrink to stay on one line, so mixed-currency prices such as `3 Crowns 5 Silvermarks` no longer collide or wrap awkwardly.
+- Plaque art was downscaled to a chunkier raster size, and `Starreach Ring`, `Merchant's Seal`, plus `Shepherd's Flute` were reduced to `32x32` item textures for a more Minecraft-like look.
+- Legacy compatibility junk items such as the old mini blocks, test items, and decorative leftovers were removed from the active registry, and the remaining coin item IDs now use English registry paths: `legacy_copper_penny`, `silvermark`, and `crown`.
+- Bundle quantities were adjusted explicitly so `Bed`, `Spyglass`, `Book and Quill`, and `Lectern` now use the intended `1x` counts without a global bundle rule.
+- All multi-item pilgrim bundles now use the same price as the `Provisions Satchel`, so satchels, kits, crates, desks, and similar bundle wares stay aligned.
+- Pilgrim shop payloads now also shorten long decor-head profile names on `26.1.1`, so custom-head offers no longer risk a packet-encoding disconnect when opening the trader.
+- Pilgrim offer locking now blocks both reputation-gated and village-project-gated wares correctly, including direct-buy paths.
+
 ## 1.20.4 - Quest Balance And Systems Update
 
 Release date: 2026-04-03
