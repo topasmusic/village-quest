@@ -1,33 +1,37 @@
 # Commands and Admin Tools
 
+All commands are available as `/villagequest ...` and the short alias `/vq ...`.
+
+On this legacy line, the older direct roots such as `/questmaster`, `/journal`, `/wallet`, and `/reputation` still exist as compatibility aliases, but `/vq ...` and `/villagequest ...` are the documented forms.
+
 ## Player Commands
 
 ### Core Commands
 
-- `/questmaster`
+- `/vq questmaster`
   Summon the `Questmaster` near you.
 
-- `/journal`
+- `/vq journal`
   Open or close the journal.
 
-- `/wallet`
+- `/vq wallet`
   Show your wallet balance.
 
-- `/reputation`
+- `/vq reputation`
   Show your current reputation.
 
 ### Quest Commands
 
-- `/dailyquest accept`
+- `/vq daily accept`
   Accept the currently pending daily-related offer.
 
-- `/questtracker`
+- `/vq questtracker`
   Toggle the permanent quest tracker.
 
-- `/questtracker on`
+- `/vq questtracker on`
   Force the tracker on.
 
-- `/questtracker off`
+- `/vq questtracker off`
   Force the tracker off.
 
 ## Admin Commands
@@ -36,27 +40,27 @@ These are intended for testing, packmaking, and server administration.
 
 ### Daily
 
-- `/questadmin resetdaily [player]`
-- `/questadmin nextdaily [player]`
-- `/questadmin completedaily [player]`
+- `/vq admin resetdaily [player]`
+- `/vq admin nextdaily [player]`
+- `/vq admin completedaily [player]`
 
 ### Weekly
 
-- `/questadmin resetweekly [player]`
-- `/questadmin nextweekly [player]`
-- `/questadmin completeweekly [player]`
+- `/vq admin resetweekly [player]`
+- `/vq admin nextweekly [player]`
+- `/vq admin completeweekly [player]`
 
 ### Story
 
-- `/questadmin story show [player]`
-- `/questadmin story reset [player]`
-- `/questadmin story complete [player]`
+- `/vq admin story show [player]`
+- `/vq admin story reset [player]`
+- `/vq admin story complete [player]`
 
 ### Village Projects
 
-- `/questadmin project show [player]`
-- `/questadmin project unlock <player> <project>`
-- `/questadmin project lock <player> <project>`
+- `/vq admin project show [player]`
+- `/vq admin project unlock <player> <project>`
+- `/vq admin project lock <player> <project>`
 
 Current unlockable project ids:
 
@@ -68,23 +72,23 @@ Current unlockable project ids:
 
 ### Pilgrim
 
-- `/questadmin pilgrim spawn [player]`
-- `/questadmin pilgrim despawn`
-- `/questadmin pilgrim rumor unlock [player]`
-- `/questadmin pilgrim rumor lock [player]`
+- `/vq admin pilgrim spawn [player]`
+- `/vq admin pilgrim despawn`
+- `/vq admin pilgrim rumor unlock [player]`
+- `/vq admin pilgrim rumor lock [player]`
 
 ### Wallet
 
-- `/questadmin wallet show [player]`
-- `/questadmin wallet add <player> <amount> [silvermark|crown]`
-- `/questadmin wallet remove <player> <amount> [silvermark|crown]`
-- `/questadmin wallet set <player> <amount> [silvermark|crown]`
+- `/vq admin wallet show [player]`
+- `/vq admin wallet add <player> <amount> [silvermark|crown]`
+- `/vq admin wallet remove <player> <amount> [silvermark|crown]`
+- `/vq admin wallet set <player> <amount> [silvermark|crown]`
 
 ### Reputation
 
-- `/questadmin reputation show [player]`
-- `/questadmin reputation add <player> <track> <amount>`
-- `/questadmin reputation set <player> <track> <amount>`
+- `/vq admin reputation show [player]`
+- `/vq admin reputation add <player> <track> <amount>`
+- `/vq admin reputation set <player> <track> <amount>`
 
 Tracks:
 
@@ -100,47 +104,48 @@ Note:
 
 ### Shard Cache
 
-- `/questadmin shardcache [player]`
-- `/questadmin shardcachetp [player]`
+- `/vq admin shardcache [player]`
+- `/vq admin shardcachetp [player]`
 
 ## Useful Testing Patterns
 
 ### Force a new daily
 
 ```mcfunction
-/questadmin resetdaily
-/questadmin nextdaily
-/questmaster
+/vq admin resetdaily
+/vq admin nextdaily
+/vq questmaster
 ```
 
 ### Force a new weekly
 
 ```mcfunction
-/questadmin resetweekly
-/questadmin nextweekly
-/questmaster
+/vq admin resetweekly
+/vq admin nextweekly
+/vq questmaster
 ```
 
 ### Unlock all visible story-core projects quickly
 
 ```mcfunction
-/questadmin project unlock @s apiary_charter
-/questadmin project unlock @s forge_charter
-/questadmin project unlock @s market_charter
-/questadmin project unlock @s pasture_charter
-/questadmin project unlock @s watch_bell
+/vq admin project unlock @s apiary_charter
+/vq admin project unlock @s forge_charter
+/vq admin project unlock @s market_charter
+/vq admin project unlock @s pasture_charter
+/vq admin project unlock @s watch_bell
 ```
 
 ### Spawn the Pilgrim with rumor access
 
 ```mcfunction
-/questadmin pilgrim rumor unlock
-/questadmin pilgrim spawn
+/vq admin pilgrim rumor unlock
+/vq admin pilgrim spawn
 ```
 
 ## Notes for Testers
 
 - `Story` and `Special` start visible but greyed out.
 - `Story` unlocks after the first normal daily completion.
+- after a full `4`-chapter story arc, the next story appears only after a real `3 hour` cooldown and the `Story` tab shows a live timer during that pause
 - `Special` unlocks after the first real reputation gain.
 - `Weekly` cancel now exists and does not reroll a new weekly for the same week.

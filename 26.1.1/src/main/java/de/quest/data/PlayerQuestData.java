@@ -96,6 +96,7 @@ public final class PlayerQuestData {
     private long surveyorCompassHomeConfirmUntil;
     private long questMasterSummonBlockedUntil;
     private StoryArcType activeStoryArc;
+    private long storyCooldownUntil;
     private String activePilgrimContractId;
     private String offeredPilgrimContractId;
     private String offeredPilgrimContractAltId;
@@ -1001,6 +1002,14 @@ public final class PlayerQuestData {
         this.activeStoryArc = activeStoryArc;
     }
 
+    public long getStoryCooldownUntil() {
+        return storyCooldownUntil;
+    }
+
+    public void setStoryCooldownUntil(long storyCooldownUntil) {
+        this.storyCooldownUntil = Math.max(0L, storyCooldownUntil);
+    }
+
     public String getActivePilgrimContractId() {
         return activePilgrimContractId;
     }
@@ -1045,6 +1054,7 @@ public final class PlayerQuestData {
         storyCompleted.clear();
         storyChapterProgressState.clear();
         activeStoryArc = null;
+        storyCooldownUntil = 0L;
     }
 
     public void resetPilgrimContractState() {

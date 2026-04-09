@@ -15,6 +15,7 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(Painting.class)
 public abstract class PaintingEntityMixin {
@@ -44,5 +45,18 @@ public abstract class PaintingEntityMixin {
             self.spawnAtLocation(world, stack, 0.0f);
         }
         ci.cancel();
+    }
+
+    @Inject(method = "getPickResult", at = @At("HEAD"), cancellable = true)
+    private void villageQuest$preserveVariantOnPick(CallbackInfoReturnable<ItemStack> cir) {
+        Holder<PaintingVariant> variant = getVariant();
+        if (!PaintingStackFactory.isVillageQuestPainting(variant)) {
+            return;
+        }
+
+        ItemStack stack = PaintingStackFactory.create(variant);
+        if (!stack.isEmpty()) {
+            cir.setReturnValue(stack);
+        }
     }
 }

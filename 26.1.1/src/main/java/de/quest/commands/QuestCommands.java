@@ -2,7 +2,9 @@ package de.quest.commands;
 
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
+import com.mojang.brigadier.tree.CommandNode;
 import de.quest.economy.CurrencyService;
 import de.quest.pilgrim.PilgrimContractService;
 import de.quest.pilgrim.PilgrimService;
@@ -77,7 +79,7 @@ public final class QuestCommands {
 
     public static void register() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
-            dispatcher.register(literal("setquest")
+            LiteralArgumentBuilder<CommandSourceStack> setQuestCommand = literal("setquest")
                     .requires(AdminCommands::canManageRespawn)
                     .executes(ctx -> {
                         ctx.getSource().sendSuccess(() -> Component.translatable("command.village-quest.setquest.usage").withStyle(ChatFormatting.GRAY), false);
@@ -99,10 +101,11 @@ public final class QuestCommands {
                                     sp.sendSystemMessage(Component.translatable("command.village-quest.setquest.success", DailyQuestService.displayKey(chosen)).withStyle(ChatFormatting.GREEN), false);
                                 }
                                 return 1;
-                            })));
+                            }));
 
-            dispatcher.register(literal("questadmin")
+            LiteralArgumentBuilder<CommandSourceStack> questAdminCommand = literal("admin")
                     .requires(AdminCommands::canManageRespawn)
+                    .then(setQuestCommand)
                     .then(literal("resetdaily")
                             .executes(ctx -> resetDailyForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
                             .then(argument("player", EntityArgument.player())
@@ -258,128 +261,146 @@ public final class QuestCommands {
                                                     )))))
                             .then(literal("despawn")
                                     .executes(ctx -> despawnPilgrims(ctx.getSource()))))
-                    .then(literal("wallet")
-                            .then(literal("show")
-                                    .executes(ctx -> showWalletForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                                    .then(argument("player", EntityArgument.player())
-                                            .executes(ctx -> showWalletForPlayer(
-                                                    ctx.getSource(),
-                                                    EntityArgument.getPlayer(ctx, "player")
-                                            ))))
-                            .then(literal("add")
-                                    .then(argument("player", EntityArgument.player())
-                                            .then(argument("amount", LongArgumentType.longArg(1L))
-                                                    .executes(ctx -> adjustWalletForPlayer(
-                                                            ctx.getSource(),
-                                                            EntityArgument.getPlayer(ctx, "player"),
-                                                            LongArgumentType.getLong(ctx, "amount"),
-                                                            CurrencyService.CurrencyUnit.SILVERMARK,
-                                                            WalletAdjustmentMode.ADD
-                                                    ))
-                                                    .then(argument("unit", StringArgumentType.word())
-                                                            .suggests(WALLET_UNIT_SUGGESTIONS)
-                                                            .executes(ctx -> adjustWalletForPlayer(
-                                                                    ctx.getSource(),
-                                                                    EntityArgument.getPlayer(ctx, "player"),
-                                                                    LongArgumentType.getLong(ctx, "amount"),
-                                                                    parseCurrencyUnit(StringArgumentType.getString(ctx, "unit")),
-                                                                    WalletAdjustmentMode.ADD
-                                                            ))))))
-                            .then(literal("remove")
-                                    .then(argument("player", EntityArgument.player())
-                                            .then(argument("amount", LongArgumentType.longArg(1L))
-                                                    .executes(ctx -> adjustWalletForPlayer(
-                                                            ctx.getSource(),
-                                                            EntityArgument.getPlayer(ctx, "player"),
-                                                            LongArgumentType.getLong(ctx, "amount"),
-                                                            CurrencyService.CurrencyUnit.SILVERMARK,
-                                                            WalletAdjustmentMode.REMOVE
-                                                    ))
-                                                    .then(argument("unit", StringArgumentType.word())
-                                                            .suggests(WALLET_UNIT_SUGGESTIONS)
-                                                            .executes(ctx -> adjustWalletForPlayer(
-                                                                    ctx.getSource(),
-                                                                    EntityArgument.getPlayer(ctx, "player"),
-                                                                    LongArgumentType.getLong(ctx, "amount"),
-                                                                    parseCurrencyUnit(StringArgumentType.getString(ctx, "unit")),
-                                                                    WalletAdjustmentMode.REMOVE
-                                                            ))))))
-                            .then(literal("set")
-                                    .then(argument("player", EntityArgument.player())
-                                            .then(argument("amount", LongArgumentType.longArg(0L))
-                                                    .executes(ctx -> setWalletForPlayer(
-                                                            ctx.getSource(),
-                                                            EntityArgument.getPlayer(ctx, "player"),
-                                                            LongArgumentType.getLong(ctx, "amount"),
-                                                            CurrencyService.CurrencyUnit.SILVERMARK
-                                                    ))
-                                                    .then(argument("unit", StringArgumentType.word())
-                                                            .suggests(WALLET_UNIT_SUGGESTIONS)
-                                                            .executes(ctx -> setWalletForPlayer(
-                                                                    ctx.getSource(),
-                                                                    EntityArgument.getPlayer(ctx, "player"),
-                                                                    LongArgumentType.getLong(ctx, "amount"),
-                                                                    parseCurrencyUnit(StringArgumentType.getString(ctx, "unit"))
-                                                            )))))))
-                    .then(literal("reputation")
-                            .then(literal("show")
-                                    .executes(ctx -> showReputationForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                                    .then(argument("player", EntityArgument.player())
-                                            .executes(ctx -> showReputationForPlayer(
-                                                    ctx.getSource(),
-                                                    EntityArgument.getPlayer(ctx, "player")
-                                            ))))
-                            .then(literal("add")
-                                    .then(argument("player", EntityArgument.player())
-                                            .then(argument("track", StringArgumentType.word())
-                                                    .suggests(REPUTATION_TRACK_SUGGESTIONS)
-                                                    .then(argument("amount", LongArgumentType.longArg(1L))
-                                                            .executes(ctx -> adjustReputationForPlayer(
-                                                                    ctx.getSource(),
-                                                                    EntityArgument.getPlayer(ctx, "player"),
-                                                                    parseReputationTrack(StringArgumentType.getString(ctx, "track")),
-                                                                    LongArgumentType.getLong(ctx, "amount"),
-                                                                    false
-                                                            ))))))
-                            .then(literal("set")
-                                    .then(argument("player", EntityArgument.player())
-                                            .then(argument("track", StringArgumentType.word())
-                                                    .suggests(REPUTATION_TRACK_SUGGESTIONS)
-                                                    .then(argument("amount", LongArgumentType.longArg(0L))
-                                                            .executes(ctx -> adjustReputationForPlayer(
-                                                                    ctx.getSource(),
-                                                                    EntityArgument.getPlayer(ctx, "player"),
-                                                                    parseReputationTrack(StringArgumentType.getString(ctx, "track")),
-                                                                    LongArgumentType.getLong(ctx, "amount"),
-                                                                    true
-                                                            ))))))));
+                    .then(buildAdminWalletCommand())
+                    .then(buildAdminReputationCommand());
 
-            dispatcher.register(literal("journal").executes(ctx -> {
+            LiteralArgumentBuilder<CommandSourceStack> journalCommand = literal("journal").executes(ctx -> {
                 var player = ctx.getSource().getPlayer();
                 if (player instanceof ServerPlayer sp) {
                     var world = ctx.getSource().getServer().overworld();
                     QuestBookHelper.toggleJournal(world, sp);
                 }
                 return 1;
-            }));
+            });
 
-            dispatcher.register(literal("questmaster")
-                    .executes(ctx -> summonQuestMaster(ctx.getSource())));
+            LiteralArgumentBuilder<CommandSourceStack> questMasterCommand = literal("questmaster")
+                    .executes(ctx -> summonQuestMaster(ctx.getSource()));
 
-            dispatcher.register(literal("questtracker")
+            LiteralArgumentBuilder<CommandSourceStack> questTrackerCommand = literal("questtracker")
                     .executes(ctx -> toggleQuestTracker(ctx.getSource()))
                     .then(literal("on").executes(ctx -> setQuestTracker(ctx.getSource(), true)))
-                    .then(literal("off").executes(ctx -> setQuestTracker(ctx.getSource(), false))));
+                    .then(literal("off").executes(ctx -> setQuestTracker(ctx.getSource(), false)));
 
-            dispatcher.register(literal("dailyquest")
-                    .then(literal("accept").executes(ctx -> acceptQuest(ctx.getSource()))));
+            LiteralArgumentBuilder<CommandSourceStack> dailyQuestCommand = literal("daily")
+                    .then(literal("accept").executes(ctx -> acceptQuest(ctx.getSource())));
 
-            dispatcher.register(literal("wallet")
-                    .executes(ctx -> showWallet(ctx.getSource())));
+            LiteralArgumentBuilder<CommandSourceStack> walletCommand = literal("wallet")
+                    .executes(ctx -> showWallet(ctx.getSource()));
 
-            dispatcher.register(literal("reputation")
-                    .executes(ctx -> showReputation(ctx.getSource())));
+            LiteralArgumentBuilder<CommandSourceStack> reputationCommand = literal("reputation")
+                    .executes(ctx -> showReputation(ctx.getSource()));
+
+            CommandNode<CommandSourceStack> villageQuestCommand = dispatcher.register(literal("villagequest")
+                    .then(questAdminCommand)
+                    .then(journalCommand)
+                    .then(questMasterCommand)
+                    .then(questTrackerCommand)
+                    .then(dailyQuestCommand)
+                    .then(walletCommand)
+                    .then(reputationCommand));
+            dispatcher.register(literal("vq").redirect(villageQuestCommand));
         });
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> buildAdminWalletCommand() {
+        return literal("wallet")
+                .then(literal("show")
+                        .executes(ctx -> showWalletForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
+                        .then(argument("player", EntityArgument.player())
+                                .executes(ctx -> showWalletForPlayer(
+                                        ctx.getSource(),
+                                        EntityArgument.getPlayer(ctx, "player")
+                                ))))
+                .then(literal("add")
+                        .then(argument("player", EntityArgument.player())
+                                .then(argument("amount", LongArgumentType.longArg(1L))
+                                        .executes(ctx -> adjustWalletForPlayer(
+                                                ctx.getSource(),
+                                                EntityArgument.getPlayer(ctx, "player"),
+                                                LongArgumentType.getLong(ctx, "amount"),
+                                                CurrencyService.CurrencyUnit.SILVERMARK,
+                                                WalletAdjustmentMode.ADD
+                                        ))
+                                        .then(argument("unit", StringArgumentType.word())
+                                                .suggests(WALLET_UNIT_SUGGESTIONS)
+                                                .executes(ctx -> adjustWalletForPlayer(
+                                                        ctx.getSource(),
+                                                        EntityArgument.getPlayer(ctx, "player"),
+                                                        LongArgumentType.getLong(ctx, "amount"),
+                                                        parseCurrencyUnit(StringArgumentType.getString(ctx, "unit")),
+                                                        WalletAdjustmentMode.ADD
+                                                ))))))
+                .then(literal("remove")
+                        .then(argument("player", EntityArgument.player())
+                                .then(argument("amount", LongArgumentType.longArg(1L))
+                                        .executes(ctx -> adjustWalletForPlayer(
+                                                ctx.getSource(),
+                                                EntityArgument.getPlayer(ctx, "player"),
+                                                LongArgumentType.getLong(ctx, "amount"),
+                                                CurrencyService.CurrencyUnit.SILVERMARK,
+                                                WalletAdjustmentMode.REMOVE
+                                        ))
+                                        .then(argument("unit", StringArgumentType.word())
+                                                .suggests(WALLET_UNIT_SUGGESTIONS)
+                                                .executes(ctx -> adjustWalletForPlayer(
+                                                        ctx.getSource(),
+                                                        EntityArgument.getPlayer(ctx, "player"),
+                                                        LongArgumentType.getLong(ctx, "amount"),
+                                                        parseCurrencyUnit(StringArgumentType.getString(ctx, "unit")),
+                                                        WalletAdjustmentMode.REMOVE
+                                                ))))))
+                .then(literal("set")
+                        .then(argument("player", EntityArgument.player())
+                                .then(argument("amount", LongArgumentType.longArg(0L))
+                                        .executes(ctx -> setWalletForPlayer(
+                                                ctx.getSource(),
+                                                EntityArgument.getPlayer(ctx, "player"),
+                                                LongArgumentType.getLong(ctx, "amount"),
+                                                CurrencyService.CurrencyUnit.SILVERMARK
+                                        ))
+                                        .then(argument("unit", StringArgumentType.word())
+                                                .suggests(WALLET_UNIT_SUGGESTIONS)
+                                                .executes(ctx -> setWalletForPlayer(
+                                                        ctx.getSource(),
+                                                        EntityArgument.getPlayer(ctx, "player"),
+                                                        LongArgumentType.getLong(ctx, "amount"),
+                                                        parseCurrencyUnit(StringArgumentType.getString(ctx, "unit"))
+                                                ))))));
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> buildAdminReputationCommand() {
+        return literal("reputation")
+                .then(literal("show")
+                        .executes(ctx -> showReputationForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
+                        .then(argument("player", EntityArgument.player())
+                                .executes(ctx -> showReputationForPlayer(
+                                        ctx.getSource(),
+                                        EntityArgument.getPlayer(ctx, "player")
+                                ))))
+                .then(literal("add")
+                        .then(argument("player", EntityArgument.player())
+                                .then(argument("track", StringArgumentType.word())
+                                        .suggests(REPUTATION_TRACK_SUGGESTIONS)
+                                        .then(argument("amount", LongArgumentType.longArg(1L))
+                                                .executes(ctx -> adjustReputationForPlayer(
+                                                        ctx.getSource(),
+                                                        EntityArgument.getPlayer(ctx, "player"),
+                                                        parseReputationTrack(StringArgumentType.getString(ctx, "track")),
+                                                        LongArgumentType.getLong(ctx, "amount"),
+                                                        false
+                                                ))))))
+                .then(literal("set")
+                        .then(argument("player", EntityArgument.player())
+                                .then(argument("track", StringArgumentType.word())
+                                        .suggests(REPUTATION_TRACK_SUGGESTIONS)
+                                        .then(argument("amount", LongArgumentType.longArg(0L))
+                                                .executes(ctx -> adjustReputationForPlayer(
+                                                        ctx.getSource(),
+                                                        EntityArgument.getPlayer(ctx, "player"),
+                                                        parseReputationTrack(StringArgumentType.getString(ctx, "track")),
+                                                        LongArgumentType.getLong(ctx, "amount"),
+                                                        true
+                                                ))))));
     }
 
     private static int acceptQuest(CommandSourceStack source) {

@@ -16,35 +16,38 @@
 
 ## First Useful Commands
 
-- `/questmaster`
+- `/vq questmaster`
   Summons the `Questmaster` near you.
-- `/journal`
+- `/vq journal`
   Opens your journal.
-- `/wallet`
+- `/vq wallet`
   Shows your current wallet balance.
-- `/reputation`
+- `/vq reputation`
   Shows your current reputation.
-- `/questtracker`
+- `/vq questtracker`
   Toggles the permanent quest tracker.
-- `/questtracker on`
+- `/vq questtracker on`
   Forces the tracker on.
-- `/questtracker off`
+- `/vq questtracker off`
   Forces the tracker off.
+
+On this line, the old direct roots were removed. Use `/vq ...` or `/villagequest ...` for all player commands.
 
 ## Your First Session
 
-1. Use `/questmaster`.
+1. Use `/vq questmaster`.
 2. Accept a normal `Daily` quest.
 3. Finish and turn in that daily.
 4. `Story` now unlocks in the Questmaster.
 5. Keep completing quests until you earn your first real reputation gain.
 6. `Special` now unlocks in the Questmaster.
-7. Use `/journal` regularly to review active quests, projects, relic notes, and progression.
+7. Use `/vq journal` regularly to review active quests, projects, relic notes, and progression.
 
 ## What Unlocks When
 
 - `Story`
   Unlocks after the first normal daily is completed.
+  After each full `4`-chapter story arc, the next story appears only after a real `3 hour` cooldown.
 - `Special`
   Unlocks after the first real reputation gain.
 - `Pilgrim` road combat
@@ -61,7 +64,7 @@
 ## Quest Tracker
 
 - Accepting any quest automatically enables the permanent quest tracker.
-- A chat line reminds you that `/questtracker` can turn it off again.
+- A chat line reminds you that `/vq questtracker` can turn it off again.
 
 ## Journal
 
@@ -84,3 +87,4 @@ On the first page:
 
 - daily reset: `06:00 Europe/Berlin`
 - weekly reset: Monday `06:00 Europe/Berlin`
+- story follow-up cooldown after a completed arc: real `3 hours`

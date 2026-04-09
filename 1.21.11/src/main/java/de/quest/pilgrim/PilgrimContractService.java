@@ -41,6 +41,7 @@ public final class PilgrimContractService {
     private static final String FLAG_ADMIN_UNLOCK = "pilgrim_contract_admin_unlock";
     private static final String FLAG_READY = "pilgrim_contract_ready";
     private static final String FLAG_SUPPRESS_OFFER = "pilgrim_contract_suppress_offer";
+    private static final String FLAG_COMPLETED_PREFIX = "pilgrim_contract_completed.";
 
     private static final String KEY_LANTERN_SKELETONS = "pilgrim_lantern_skeletons";
     private static final String KEY_SMOKE_CREEPERS = "pilgrim_smoke_creepers";
@@ -233,7 +234,7 @@ public final class PilgrimContractService {
             if (!definition.consumeCompletionRequirements(world, player)) {
                 return false;
             }
-            completeContract(world, player, definition.buildCompletion());
+            completeContract(world, player, activeType, definition.buildCompletion());
             return true;
         }
 
@@ -727,7 +728,17 @@ public final class PilgrimContractService {
         refreshUi(world, player);
     }
 
-    private static void completeContract(ServerWorld world, ServerPlayerEntity player, PilgrimContractCompletion completion) {
+    public static boolean hasCompletedContract(ServerWorld world, UUID playerId, PilgrimContractType type) {
+        if (world == null || playerId == null || type == null) {
+            return false;
+        }
+        return data(world, playerId).hasMilestoneFlag(completedFlag(type));
+    }
+
+    private static void completeContract(ServerWorld world,
+                                         ServerPlayerEntity player,
+                                         PilgrimContractType type,
+                                         PilgrimContractCompletion completion) {
         long actualCurrencyReward = completion.currencyReward() + VillageProjectService.bonusCurrency(world, player.getUuid(), completion.reputationTrack());
         if (actualCurrencyReward > 0L) {
             CurrencyService.addBalance(world, player.getUuid(), actualCurrencyReward);
@@ -744,6 +755,9 @@ public final class PilgrimContractService {
                 && SurveyorCompassQuestService.unlockStructureModes(world, player);
 
         PlayerQuestData data = data(world, player.getUuid());
+        if (isCombatContract(type)) {
+            data.setMilestoneFlag(completedFlag(type), true);
+        }
         data.clearPilgrimProgress();
         data.setPilgrimFlag(FLAG_READY, false);
         data.setPilgrimFlag(FLAG_SUPPRESS_OFFER, true);
@@ -983,6 +997,10 @@ public final class PilgrimContractService {
 
     private static boolean isCombatContract(PilgrimContractType type) {
         return type != null && type != PilgrimContractType.ROADMARKS_FOR_THE_COMPASS;
+    }
+
+    private static String completedFlag(PilgrimContractType type) {
+        return FLAG_COMPLETED_PREFIX + type.id();
     }
 
     private static Text progressLine(PilgrimContractType type,

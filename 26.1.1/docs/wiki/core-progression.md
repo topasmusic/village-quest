@@ -36,6 +36,7 @@ The `Pilgrim` is an outsider.
 
 He handles:
 - rotating shop offers
+- premium decor wares such as bundles, plaques, reliquaries, and custom-head props
 - the one-time `Roadmarks for the Compass` contract
 - late dangerous road-work rumors after `Watch Bell`
 
@@ -97,6 +98,8 @@ The story tab now shows only:
 - or the next available one
 
 It no longer dumps the whole story archive at once.
+
+After a full `4`-chapter story arc is completed, the next story is delayed by a real `3 hour` cooldown and the `Story` tab shows that timer directly.
 
 ### Special
 

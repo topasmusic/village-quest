@@ -1,6 +1,7 @@
 package de.quest.painting;
 
 import de.quest.VillageQuest;
+import de.quest.registry.ModItems;
 import java.util.List;
 import java.util.Map;
 import net.minecraft.ChatFormatting;
@@ -51,10 +52,13 @@ public final class PaintingStackFactory {
             return ItemStack.EMPTY;
         }
 
+        ResourceKey<PaintingVariant> variantKey = variantEntry.unwrapKey().orElse(null);
+        if (isApiaryCharterPlaque(variantKey)) {
+            return new ItemStack(ModItems.APIARY_CHARTER_PLAQUE);
+        }
+
         ItemStack stack = new ItemStack(Items.PAINTING);
         stack.set(DataComponents.PAINTING_VARIANT, variantEntry);
-
-        ResourceKey<PaintingVariant> variantKey = variantEntry.unwrapKey().orElse(null);
         if (variantKey == null || !VillageQuest.MOD_ID.equals(variantKey.identifier().getNamespace())) {
             return stack;
         }
@@ -77,6 +81,12 @@ public final class PaintingStackFactory {
         }
         ResourceKey<PaintingVariant> variantKey = variantEntry.unwrapKey().orElse(null);
         return variantKey != null && VillageQuest.MOD_ID.equals(variantKey.identifier().getNamespace());
+    }
+
+    private static boolean isApiaryCharterPlaque(ResourceKey<PaintingVariant> variantKey) {
+        return variantKey != null
+                && VillageQuest.MOD_ID.equals(variantKey.identifier().getNamespace())
+                && "apiary_charter_plaque".equals(variantKey.identifier().getPath());
     }
 
     private record PaintingMetadata(String titleKey, String loreKey) {}

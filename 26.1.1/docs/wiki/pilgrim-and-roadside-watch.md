@@ -13,16 +13,28 @@ The pilgrim exists for:
 
 - when the pilgrim spawns, he tries to path toward the target player for the first `15` seconds
 - after that he falls back to normal wandering behavior
+- a natural pilgrim stays for about `20` real minutes
+- after he leaves, no new natural pilgrim appears for `1` full in-game day
 - by night he carries a torch unless he is actively defending himself
 
 ## Shop
 
 The pilgrim uses the wallet system.
 
-Example:
-- `Provisions Satchel`
-  - always contains `32` golden carrots
-  - plus `1-2` rotating extra finds such as ingots, emeralds, diamonds, torches, cooked food, coal, or rarely a golden apple
+The current shop mix includes:
+
+- travel and utility bundles such as `Provisions Satchel`, `Road Camp Kit`, and `Village Ledger Desk`
+- premium trophy wares such as the plaque series and the `Watch Bell Reliquary`
+- decorative custom heads such as barrels, shelves, buckets, furnaces, and plushies
+
+Current shop rules:
+
+- all multi-item bundles now share the same price as the `Provisions Satchel`
+- plaque and reliquary wares cost `3 Crowns 5 Silvermarks`
+- decorative custom heads cost `5 Crowns`
+- each pilgrim can roll at most `1` custom-head decor offer at a time
+- plaque and reliquary wares appear only after their matching village-project progress is complete
+- `Skeleton Plushie`, `Zombie Plushie`, and `Creeper Plushie` appear only after their matching pilgrim combat contract has been completed once
 
 ## Rumor Lane Rules
 

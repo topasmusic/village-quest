@@ -172,17 +172,17 @@ public final class CurrencyService {
             if (stack.isEmpty()) {
                 continue;
             }
-            if (stack.is(ModItems.KUPFER_GROSCHEN)) {
+            if (stack.is(ModItems.LEGACY_COPPER_PENNY)) {
                 copperCount += stack.getCount();
                 inventory.setItem(i, ItemStack.EMPTY);
                 continue;
             }
-            if (stack.is(ModItems.EISEN_GROSCHEN)) {
+            if (stack.is(ModItems.SILVERMARK)) {
                 ironCount += stack.getCount();
                 inventory.setItem(i, ItemStack.EMPTY);
                 continue;
             }
-            if (stack.is(ModItems.GOLD_GROSCHEN)) {
+            if (stack.is(ModItems.CROWN)) {
                 goldCount += stack.getCount();
                 inventory.setItem(i, ItemStack.EMPTY);
             }
@@ -202,14 +202,14 @@ public final class CurrencyService {
     public static Component formatLegacyCoinBreakdown(int copperCount, int ironCount, int goldCount) {
         MutableComponent text = Component.empty();
         boolean appended = false;
-        appended = appendLegacyCount(text, appended, goldCount, "item.village-quest.gold_groschen", ChatFormatting.GOLD);
-        appended = appendLegacyCount(text, appended, ironCount, "item.village-quest.eisen_groschen", ChatFormatting.GRAY);
-        appended = appendLegacyCount(text, appended, copperCount, "item.village-quest.kupfer_groschen", ChatFormatting.GRAY);
+        appended = appendLegacyCount(text, appended, goldCount, "item.village-quest.crown", ChatFormatting.GOLD);
+        appended = appendLegacyCount(text, appended, ironCount, "item.village-quest.silvermark", ChatFormatting.GRAY);
+        appended = appendLegacyCount(text, appended, copperCount, "item.village-quest.legacy_copper_penny", ChatFormatting.GRAY);
         if (!appended) {
             return Component.empty()
                     .append(Component.literal("0").withStyle(ChatFormatting.GRAY))
                     .append(Component.literal(" ").withStyle(ChatFormatting.DARK_GRAY))
-                    .append(Component.translatable("item.village-quest.kupfer_groschen").withStyle(ChatFormatting.GRAY));
+                    .append(Component.translatable("item.village-quest.legacy_copper_penny").withStyle(ChatFormatting.GRAY));
         }
         return text;
     }

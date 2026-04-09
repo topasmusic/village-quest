@@ -275,7 +275,7 @@ public final class MerchantSealQuestService {
         Text divider = Text.literal("------------------------------").formatted(Formatting.GRAY);
         Text accept = Text.translatable("text.village-quest.special.merchant.offer.accept").styled(style -> style
                 .withColor(Formatting.GRAY)
-                .withClickEvent(new ClickEvent.RunCommand("/dailyquest accept")));
+                .withClickEvent(new ClickEvent.RunCommand("/vq daily accept")));
 
         MutableText body = Text.empty()
                 .append(divider.copy()).append(Text.literal("\n"))

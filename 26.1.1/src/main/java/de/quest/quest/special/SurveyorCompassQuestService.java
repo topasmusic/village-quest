@@ -1022,7 +1022,7 @@ public final class SurveyorCompassQuestService {
         Component divider = Component.literal("------------------------------").withStyle(ChatFormatting.GRAY);
         Component accept = Component.translatable("text.village-quest.special.surveyor_compass.offer.accept").withStyle(style -> style
                 .withColor(ChatFormatting.GRAY)
-                .withClickEvent(new ClickEvent.RunCommand("/dailyquest accept")));
+                .withClickEvent(new ClickEvent.RunCommand("/vq daily accept")));
 
         MutableComponent body = Component.empty()
                 .append(divider.copy()).append(Component.literal("\n"))

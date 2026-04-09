@@ -46,7 +46,8 @@ public final class QuestMasterScreen extends CompatScreen {
             int entityId,
             Component questMasterName,
             List<CategoryView> categories,
-            List<EntryView> entries
+            List<EntryView> entries,
+            long storyCooldownUntil
     ) {}
 
     private record DetailLine(String text, int color, int indent, boolean spacer) {}
@@ -720,6 +721,14 @@ public final class QuestMasterScreen extends CompatScreen {
 
     private String footerTimerText() {
         EntryView selected = getSelectedEntry();
+        if (selected != null
+                && "story".equals(selected.categoryId())
+                && data.storyCooldownUntil() > System.currentTimeMillis()) {
+            return Component.translatable(
+                    "screen.village-quest.questmaster.story_timer",
+                    formatRemainingResetTime(data.storyCooldownUntil() - System.currentTimeMillis())
+            ).getString();
+        }
         if (selected != null && ENTRY_WEEKLY.equals(selected.entryId()) && shouldShowResetTimer(selected)) {
             return Component.translatable(
                     "screen.village-quest.questmaster.weekly_timer",

@@ -1038,7 +1038,7 @@ public final class DailyQuestService {
         Component divider = Component.literal("------------------------------").withStyle(ChatFormatting.GRAY);
         Component accept = Component.translatable("text.village-quest.daily.offer.accept").withStyle(style -> style
                 .withColor(ChatFormatting.GRAY)
-                .withClickEvent(new net.minecraft.network.chat.ClickEvent.RunCommand("/dailyquest accept")));
+                .withClickEvent(new net.minecraft.network.chat.ClickEvent.RunCommand("/vq daily accept")));
 
         Component questBody = Component.empty()
                 .append(divider.copy())
@@ -1068,7 +1068,7 @@ public final class DailyQuestService {
         Component paragraph2 = Component.translatable("text.village-quest.daily.shard.body.2");
         Component accept = Component.translatable("text.village-quest.daily.shard.accept").withStyle(style -> style
                 .withColor(ChatFormatting.GRAY)
-                .withClickEvent(new net.minecraft.network.chat.ClickEvent.RunCommand("/dailyquest accept")));
+                .withClickEvent(new net.minecraft.network.chat.ClickEvent.RunCommand("/vq daily accept")));
 
         Component body = Component.empty()
                 .append(divider.copy())
@@ -1104,7 +1104,7 @@ public final class DailyQuestService {
         Component prefix = Component.translatable("text.village-quest.daily.shard.quest_prefix").withStyle(ChatFormatting.LIGHT_PURPLE);
         Component accept = Component.translatable("text.village-quest.daily.offer.accept").withStyle(style -> style
                 .withColor(ChatFormatting.GRAY)
-                .withClickEvent(new net.minecraft.network.chat.ClickEvent.RunCommand("/dailyquest accept")));
+                .withClickEvent(new net.minecraft.network.chat.ClickEvent.RunCommand("/vq daily accept")));
 
         Component questBody = Component.empty()
                 .append(divider.copy())

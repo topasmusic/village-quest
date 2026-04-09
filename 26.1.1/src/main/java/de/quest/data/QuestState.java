@@ -108,6 +108,7 @@ public final class QuestState extends SavedData {
         readUuidSet(root, "starterShardGranted", id -> getPlayerData(id).setStarterShardGranted(true));
         readUuidStringMap(root, "pendingSpecialOfferType", (id, value) -> getPlayerData(id).setPendingSpecialOfferKind(SpecialQuestKind.fromId(value)));
         readUuidStringMap(root, "activeStoryArc", (id, value) -> getPlayerData(id).setActiveStoryArc(StoryArcType.fromId(value)));
+        readUuidLongMap(root, "storyCooldownUntil", (id, value) -> getPlayerData(id).setStoryCooldownUntil(value));
         readUuidStringMap(root, "pilgrimActiveContract", (id, value) -> getPlayerData(id).setActivePilgrimContractId(value));
         readUuidStringMap(root, "pilgrimOfferedContract", (id, value) -> getPlayerData(id).setOfferedPilgrimContractId(value));
         readUuidStringMap(root, "pilgrimOfferedContractAlt", (id, value) -> getPlayerData(id).setOfferedPilgrimContractAltId(value));
@@ -175,6 +176,7 @@ public final class QuestState extends SavedData {
         ListTag starterShardGranted = new ListTag();
         ListTag pendingSpecialOfferType = new ListTag();
         ListTag activeStoryArc = new ListTag();
+        ListTag storyCooldownUntil = new ListTag();
         ListTag pilgrimActiveContract = new ListTag();
         ListTag pilgrimOfferedContract = new ListTag();
         ListTag pilgrimOfferedContractAlt = new ListTag();
@@ -305,6 +307,9 @@ public final class QuestState extends SavedData {
             if (data.getActiveStoryArc() != null) {
                 activeStoryArc.add(entryString(id, data.getActiveStoryArc().id()));
             }
+            if (data.getStoryCooldownUntil() > 0L) {
+                storyCooldownUntil.add(entryLong(id, data.getStoryCooldownUntil()));
+            }
             if (data.getActivePilgrimContractId() != null) {
                 pilgrimActiveContract.add(entryString(id, data.getActivePilgrimContractId()));
             }
@@ -394,6 +399,7 @@ public final class QuestState extends SavedData {
         root.put("starterShardGranted", starterShardGranted);
         root.put("pendingSpecialOfferType", pendingSpecialOfferType);
         root.put("activeStoryArc", activeStoryArc);
+        root.put("storyCooldownUntil", storyCooldownUntil);
         root.put("pilgrimActiveContract", pilgrimActiveContract);
         root.put("pilgrimOfferedContract", pilgrimOfferedContract);
         root.put("pilgrimOfferedContractAlt", pilgrimOfferedContractAlt);

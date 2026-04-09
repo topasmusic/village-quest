@@ -10,6 +10,7 @@ import de.quest.content.item.StarreachRingItem;
 import de.quest.content.item.SurveyorCompassItem;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.LoreComponent;
+import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
@@ -22,15 +23,21 @@ import net.minecraft.util.Identifier;
 import java.util.List;
 
 public final class ModItems {
-    public static Item KUPFER_GROSCHEN;
-    public static Item EISEN_GROSCHEN;
-    public static Item GOLD_GROSCHEN;
+    public static Item LEGACY_COPPER_PENNY;
+    public static Item SILVERMARK;
+    public static Item CROWN;
     public static Item MAGIC_SHARD;
     public static Item STARREACH_RING;
     public static Item MERCHANT_SEAL;
     public static Item SHEPHERD_FLUTE;
     public static Item APIARISTS_SMOKER;
     public static Item SURVEYORS_COMPASS;
+    public static Item APIARY_CHARTER_PLAQUE;
+    public static Item VILLAGE_LEDGER_PLAQUE;
+    public static Item FORGE_CHARTER_PLAQUE;
+    public static Item MARKET_CHARTER_PLAQUE;
+    public static Item PASTURE_CHARTER_PLAQUE;
+    public static Item WATCH_BELL_RELIQUARY;
 
     private static Identifier id(String path) {
         return Identifier.of(VillageQuest.MOD_ID, path);
@@ -38,26 +45,26 @@ public final class ModItems {
 
     public static void register() {
 
-        Identifier copperId = id("kupfer_groschen");
+        Identifier copperId = id("legacy_copper_penny");
         RegistryKey<Item> copperKey = RegistryKey.of(RegistryKeys.ITEM, copperId);
-        KUPFER_GROSCHEN = new GroschenItem(new Item.Settings()
+        LEGACY_COPPER_PENNY = new GroschenItem(new Item.Settings()
                 .registryKey(copperKey)
-                .component(DataComponentTypes.LORE, lore("item." + VillageQuest.MOD_ID + ".kupfer_groschen.lore")), Formatting.DARK_GRAY);
-        Registry.register(Registries.ITEM, copperId, KUPFER_GROSCHEN);
+                .component(DataComponentTypes.LORE, lore("item." + VillageQuest.MOD_ID + ".legacy_copper_penny.lore")), Formatting.DARK_GRAY);
+        Registry.register(Registries.ITEM, copperId, LEGACY_COPPER_PENNY);
 
-        Identifier ironId = id("eisen_groschen");
+        Identifier ironId = id("silvermark");
         RegistryKey<Item> ironKey = RegistryKey.of(RegistryKeys.ITEM, ironId);
-        EISEN_GROSCHEN = new GroschenItem(new Item.Settings()
+        SILVERMARK = new GroschenItem(new Item.Settings()
                 .registryKey(ironKey)
-                .component(DataComponentTypes.LORE, lore("item." + VillageQuest.MOD_ID + ".eisen_groschen.lore")), Formatting.GRAY);
-        Registry.register(Registries.ITEM, ironId, EISEN_GROSCHEN);
+                .component(DataComponentTypes.LORE, lore("item." + VillageQuest.MOD_ID + ".silvermark.lore")), Formatting.GRAY);
+        Registry.register(Registries.ITEM, ironId, SILVERMARK);
 
-        Identifier goldId = id("gold_groschen");
+        Identifier goldId = id("crown");
         RegistryKey<Item> goldKey = RegistryKey.of(RegistryKeys.ITEM, goldId);
-        GOLD_GROSCHEN = new GroschenItem(new Item.Settings()
+        CROWN = new GroschenItem(new Item.Settings()
                 .registryKey(goldKey)
-                .component(DataComponentTypes.LORE, lore("item." + VillageQuest.MOD_ID + ".gold_groschen.lore")), Formatting.GOLD);
-        Registry.register(Registries.ITEM, goldId, GOLD_GROSCHEN);
+                .component(DataComponentTypes.LORE, lore("item." + VillageQuest.MOD_ID + ".crown.lore")), Formatting.GOLD);
+        Registry.register(Registries.ITEM, goldId, CROWN);
 
         Identifier shardId = id("magic_shard");
         RegistryKey<Item> shardKey = RegistryKey.of(RegistryKeys.ITEM, shardId);
@@ -105,15 +112,29 @@ public final class ModItems {
                 .maxCount(1)
                 .component(DataComponentTypes.LORE, lore("item." + VillageQuest.MOD_ID + ".surveyors_compass.lore")));
         Registry.register(Registries.ITEM, compassId, SURVEYORS_COMPASS);
-
-        // Kept separate so active gameplay items stay easy to reason about.
-        LegacyCompatibilityItems.registerAll();
+        APIARY_CHARTER_PLAQUE = registerBlockItem("apiary_charter_plaque", ModBlocks.APIARY_CHARTER_PLAQUE);
+        VILLAGE_LEDGER_PLAQUE = registerBlockItem("village_ledger_plaque", ModBlocks.VILLAGE_LEDGER_PLAQUE);
+        FORGE_CHARTER_PLAQUE = registerBlockItem("forge_charter_plaque", ModBlocks.FORGE_CHARTER_PLAQUE);
+        MARKET_CHARTER_PLAQUE = registerBlockItem("market_charter_plaque", ModBlocks.MARKET_CHARTER_PLAQUE);
+        PASTURE_CHARTER_PLAQUE = registerBlockItem("pasture_charter_plaque", ModBlocks.PASTURE_CHARTER_PLAQUE);
+        WATCH_BELL_RELIQUARY = registerBlockItem("watch_bell_reliquary", ModBlocks.WATCH_BELL_RELIQUARY);
 
         VillageQuest.LOGGER.info("Registered items");
     }
 
     private static LoreComponent lore(String translationKey) {
         return new LoreComponent(List.of(Text.translatable(translationKey).formatted(Formatting.DARK_GRAY)));
+    }
+
+    private static Item registerBlockItem(String path, net.minecraft.block.Block block) {
+        Identifier itemId = id(path);
+        RegistryKey<Item> itemKey = RegistryKey.of(RegistryKeys.ITEM, itemId);
+        Item item = new BlockItem(block, new Item.Settings()
+                .registryKey(itemKey)
+                .maxCount(1)
+                .component(DataComponentTypes.LORE, lore("item." + VillageQuest.MOD_ID + "." + path + ".lore")));
+        Registry.register(Registries.ITEM, itemId, item);
+        return item;
     }
 
 }

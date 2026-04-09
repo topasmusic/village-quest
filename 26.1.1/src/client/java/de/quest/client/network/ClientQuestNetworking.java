@@ -207,7 +207,8 @@ public final class ClientQuestNetworking {
                         payload.entityId(),
                         payload.questMasterName(),
                         categories,
-                        entries
+                        entries,
+                        payload.storyCooldownUntil()
                 );
 
                 if (payload.action() == Payloads.QuestMasterPayload.ACTION_OPEN) {

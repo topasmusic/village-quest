@@ -246,7 +246,7 @@ public final class ShepherdFluteQuestService {
         Text divider = Text.literal("------------------------------").formatted(Formatting.GRAY);
         Text accept = Text.translatable("text.village-quest.special.flute.offer.accept").styled(style -> style
                 .withColor(Formatting.GRAY)
-                .withClickEvent(new ClickEvent.RunCommand("/dailyquest accept")));
+                .withClickEvent(new ClickEvent.RunCommand("/vq daily accept")));
 
         MutableText body = Text.empty()
                 .append(divider.copy()).append(Text.literal("\n"))

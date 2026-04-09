@@ -83,7 +83,7 @@ public final class QuestTrackerService {
         }
 
         if (showHint) {
-            MutableText command = Text.literal("/questtracker").formatted(Formatting.AQUA);
+            MutableText command = Text.literal("/vq questtracker").formatted(Formatting.AQUA);
             player.sendMessage(Text.translatable("message.village-quest.questtracker.auto_enabled", command).formatted(Formatting.GRAY), false);
         }
     }
