@@ -1,6 +1,14 @@
 # Changelog
 
-## Unreleased
+## 1.21.1 - First-Use Journal Onboarding And Minecraft 26.1.2 Update
+
+Release date: 2026-04-10
+
+- Village Quest has been updated for Minecraft `26.1.2`.
+- The Fabric API dependency was bumped to `0.145.4+26.1.2`.
+- The current modern line now lives in the renamed `26.1.2` folder, and README/wiki install docs were refreshed to match the new jar and path names.
+- The inventory journal tab now shows a one-time first-use hint with a small arrow in the inventory until it has been clicked once.
+- After opening the journal, the `Questmaster` button on the first page now also gets its own one-time guided highlight.
 
 ## 1.21.0 - Pilgrim Shop Expansion And Story Cooldown Update
 

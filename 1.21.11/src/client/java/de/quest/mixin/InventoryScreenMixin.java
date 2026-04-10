@@ -2,6 +2,8 @@ package de.quest.mixin;
 
 import de.quest.client.ui.InventoryJournalButtonLayout;
 import de.quest.client.ui.InventoryJournalCompat;
+import de.quest.client.ui.InventoryJournalTutorialState;
+import de.quest.client.ui.TutorialHintRenderer;
 import de.quest.VillageQuest;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
@@ -55,6 +57,14 @@ public abstract class InventoryScreenMixin extends Screen {
     }
 
     @Unique
+    private boolean villageQuest$shouldShowJournalTutorial() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        return client != null
+                && client.player != null
+                && InventoryJournalTutorialState.shouldShowInventoryHint();
+    }
+
+    @Unique
     private VisibleArea villageQuest$visibleArea(InventoryJournalButtonLayout.Layout layout, float revealProgress) {
         int renderX = layout.renderX(revealProgress);
         int renderY = layout.renderY(revealProgress);
@@ -92,7 +102,8 @@ public abstract class InventoryScreenMixin extends Screen {
     private void villageQuest$renderJournalButtonBehindInventory(DrawContext context, float delta, int mouseX, int mouseY, CallbackInfo ci) {
         InventoryJournalButtonLayout.Layout layout = villageQuest$journalLayout();
         boolean hovered = villageQuest$isHoveringJournalButton(mouseX, mouseY);
-        villageQuest$journalRevealProgress = MathHelper.lerp(0.35f, villageQuest$journalRevealProgress, hovered ? 1.0f : 0.0f);
+        boolean tutorialVisible = villageQuest$shouldShowJournalTutorial();
+        villageQuest$journalRevealProgress = MathHelper.lerp(0.35f, villageQuest$journalRevealProgress, hovered || tutorialVisible ? 1.0f : 0.0f);
         if (villageQuest$journalRevealProgress < 0.02f) {
             villageQuest$journalRevealProgress = 0.0f;
         } else if (villageQuest$journalRevealProgress > 0.98f) {
@@ -159,6 +170,23 @@ public abstract class InventoryScreenMixin extends Screen {
                 VILLAGE_QUEST$JOURNAL_TEXTURE_SIZE,
                 VILLAGE_QUEST$JOURNAL_TEXTURE_SIZE
         );
+
+        if (tutorialVisible) {
+            TutorialHintRenderer.drawHint(
+                    context,
+                    MinecraftClient.getInstance().textRenderer,
+                    Text.translatable("screen.village-quest.inventory.journal_button_tutorial"),
+                    this.width,
+                    this.height,
+                    x,
+                    y,
+                    width,
+                    height,
+                    TutorialHintRenderer.Placement.RIGHT,
+                    false,
+                    (int) Math.round(Math.sin(System.currentTimeMillis() / 180.0d) * 2.0d)
+            );
+        }
     }
 
     @Inject(method = "render", at = @At("TAIL"))

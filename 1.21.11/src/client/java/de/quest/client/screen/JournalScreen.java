@@ -1,5 +1,7 @@
 package de.quest.client.screen;
 
+import de.quest.client.ui.InventoryJournalTutorialState;
+import de.quest.client.ui.TutorialHintRenderer;
 import de.quest.economy.CurrencyService;
 import de.quest.quest.special.RelicQuestProgressionService;
 import de.quest.reputation.ReputationService;
@@ -216,6 +218,8 @@ public class JournalScreen extends Screen {
     private int pageIndex = 0;
     private ButtonWidget questMasterButton;
     private ButtonWidget doneButton;
+    private int questMasterButtonX;
+    private int questMasterButtonY;
     private final List<CancelHit> cancelHits = new ArrayList<>();
 
     public JournalScreen(JournalData data) {
@@ -279,6 +283,10 @@ public class JournalScreen extends Screen {
         }
 
         super.render(context, mouseX, mouseY, delta);
+
+        if (shouldShowQuestMasterTutorial()) {
+            renderQuestMasterTutorial(context);
+        }
     }
 
     private void drawPage(DrawContext context, int left, int top, Page page) {
@@ -863,6 +871,8 @@ public class JournalScreen extends Screen {
         boolean showQuestMaster = this.pageIndex == 0;
         int totalWidth = ACTION_BUTTON_WIDTH * 2 + ACTION_BUTTON_GAP;
         int rowLeft = centerX - totalWidth / 2 + ACTION_BUTTON_ROW_INSET;
+        this.questMasterButtonX = rowLeft;
+        this.questMasterButtonY = buttonY;
 
         this.questMasterButton.setPosition(rowLeft, buttonY);
         this.questMasterButton.visible = showQuestMaster;
@@ -909,8 +919,34 @@ public class JournalScreen extends Screen {
         if (this.client == null || this.client.player == null) {
             return;
         }
+        InventoryJournalTutorialState.markQuestMasterButtonHintSeen();
         this.client.player.networkHandler.sendChatCommand("vq questmaster");
         this.close();
+    }
+
+    private boolean shouldShowQuestMasterTutorial() {
+        return this.questMasterButton != null
+                && this.questMasterButton.visible
+                && this.questMasterButton.active
+                && this.pageIndex == 0
+                && InventoryJournalTutorialState.shouldShowQuestMasterButtonHint();
+    }
+
+    private void renderQuestMasterTutorial(DrawContext context) {
+        TutorialHintRenderer.drawHint(
+                context,
+                this.textRenderer,
+                Text.translatable("screen.village-quest.journal.active.questmaster_button_tutorial"),
+                this.width,
+                this.height,
+                this.questMasterButtonX,
+                this.questMasterButtonY,
+                ACTION_BUTTON_WIDTH,
+                BUTTON_ROW_HEIGHT,
+                TutorialHintRenderer.Placement.ABOVE,
+                true,
+                (int) Math.round(Math.sin(System.currentTimeMillis() / 180.0d) * 2.0d)
+        );
     }
 
     private void playPageTurnSound() {

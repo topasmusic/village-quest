@@ -2,6 +2,7 @@ package de.quest.mixin;
 
 import de.quest.client.ui.InventoryJournalButtonLayout;
 import de.quest.client.ui.InventoryJournalCompat;
+import de.quest.client.ui.InventoryJournalTutorialState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -75,6 +76,7 @@ public abstract class HandledScreenMixin extends Screen {
         }
         Minecraft client = Minecraft.getInstance();
         if (client.player != null && client.player.connection != null) {
+            InventoryJournalTutorialState.markInventoryHintSeen();
             client.player.connection.sendCommand("vq journal");
             cir.setReturnValue(true);
         }
