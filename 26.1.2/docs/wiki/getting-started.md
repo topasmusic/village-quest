@@ -2,15 +2,15 @@
 
 ## Requirements
 
-- Minecraft `26.1.1`
+- Minecraft `26.1.2`
 - Fabric Loader `0.18.6+`
-- Fabric API `0.145.3+26.1.1`
+- Fabric API `0.145.4+26.1.2`
 - Java `25`
 
 ## Installation
 
-1. Install Fabric Loader for Minecraft `26.1.1`.
-2. Put `village-quest-<version>-mc26.1.1.jar` into your `mods` folder.
+1. Install Fabric Loader for Minecraft `26.1.2`.
+2. Put `village-quest-<version>-mc26.1.2.jar` into your `mods` folder.
 3. Put the matching Fabric API jar into the same `mods` folder.
 4. Start the game with Java `25`.
 

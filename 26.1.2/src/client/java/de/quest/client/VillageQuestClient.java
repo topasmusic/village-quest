@@ -4,6 +4,7 @@ import de.quest.client.network.ClientQuestNetworking;
 import de.quest.client.hud.QuestTrackerHud;
 import de.quest.client.render.PilgrimEntityRenderer;
 import de.quest.client.render.QuestMasterEntityRenderer;
+import de.quest.client.ui.InventoryJournalTutorialState;
 import de.quest.registry.ModEntities;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.rendering.v1.ModelLayerRegistry;
@@ -24,5 +25,6 @@ public class VillageQuestClient implements ClientModInitializer {
         EntityRenderers.register(ModEntities.QUEST_MASTER, QuestMasterEntityRenderer::new);
         ClientQuestNetworking.register();
         QuestTrackerHud.register();
+        InventoryJournalTutorialState.bootstrap();
     }
 }

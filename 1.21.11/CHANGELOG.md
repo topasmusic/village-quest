@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased
+## 1.21.1 - First-Use Journal Onboarding
+
+Release date: 2026-04-10
+
+- The inventory journal tab now shows a one-time first-use hint with a small arrow in the inventory until it has been clicked once.
+- After opening the journal, the `Questmaster` button on the first page now also gets its own one-time guided highlight.
 
 ## 1.21.0 - Pilgrim Shop Expansion And Story Cooldown Update
 
