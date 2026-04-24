@@ -16,6 +16,7 @@ Outer-road side lane:
 - `Pilgrim`
 - `Roadside Watch`
 - dangerous rumor contracts
+- the late-story follow-up `Shadows on the Trade Road`
 
 ## Main NPC Roles
 
@@ -96,10 +97,17 @@ The visible core story chain is:
 The story tab now shows only:
 - the active story arc
 - or the next available one
+- plus any visible locked late follow-up entries tied to later progression
 
 It no longer dumps the whole story archive at once.
 
 After a full `4`-chapter story arc is completed, the next story is delayed by a real `3 hour` cooldown and the `Story` tab shows that timer directly.
+
+The late follow-up `Shadows on the Trade Road` is separate from the four core village arcs:
+
+- it is not required to unlock `Watch Bell`
+- it appears only after `Watch Bell`
+- it unlocks after `3` completed `Pilgrim` combat rumors
 
 ### Special
 

@@ -52,6 +52,11 @@ After `Watch Bell` is unlocked:
 - the pilgrim offers exactly `1` dangerous combat rumor per day
 - this is a random rumor from the unlocked roadside pool
 
+After `3` completed `Pilgrim` combat rumors:
+
+- the `Questmaster` reveals the locked late story entry `Shadows on the Trade Road`
+- that story then takes the road-defense theme back into the `Questmaster` arc flow as a bigger follow-up
+
 ## Rumor Lane Colors
 
 The rumor UI now color-codes contract titles:
@@ -156,3 +161,13 @@ It becomes relevant through:
 - `Watch Bell`
 - pilgrim roadside rumors
 - reputation rewards tied to dangerous road work
+- and later the unlocked `Shadows on the Trade Road` convoy-defense story arc
+
+## Story-Linked Caravan Defense
+
+The late `Shadows on the Trade Road` arc builds directly on the pilgrim rumor lane:
+
+- early chapters gather rumors in villages and then calibrate the `Wayfinder's Compass`
+- rescue chapters spawn living caravan survivors in the world at night
+- regular mobs focus the caravan first, so the encounter remains a defense check instead of a simple player duel
+- the final convoy fight adds elite `Traitor` bandits as the last wave

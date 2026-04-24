@@ -2,8 +2,6 @@
 
 All commands are available as `/villagequest ...` and the short alias `/vq ...`.
 
-On this legacy line, the older direct roots such as `/questmaster`, `/journal`, `/wallet`, and `/reputation` still exist as compatibility aliases, but `/vq ...` and `/villagequest ...` are the documented forms.
-
 ## Player Commands
 
 ### Core Commands
@@ -50,11 +48,42 @@ These are intended for testing, packmaking, and server administration.
 - `/vq admin nextweekly [player]`
 - `/vq admin completeweekly [player]`
 
+### Global Reset
+
+- `/vq admin reset complete`
+
+This command clears the saved Village Quest state for every player at once:
+
+- wallet and reputation
+- daily, weekly, story, special, and pilgrim progress
+- unlocked village projects
+- pilgrim natural spawn cooldown state
+- active Village Quest journals, trackers, questmaster sessions, and pilgrim trades
+- spawned Questmasters and Pilgrims plus runtime quest-session caches
+- late-road runtime entities such as caravan merchants, couriers, spawned hostiles, and traitors
+
+It is a Village Quest data reset, not a world or inventory wipe.
+
 ### Story
 
 - `/vq admin story show [player]`
 - `/vq admin story reset [player]`
 - `/vq admin story complete [player]`
+- `/vq admin story shadows unlock [player]`
+- `/vq admin story shadows testrescue [player]`
+- `/vq admin story shadows testfinal [player]`
+
+`/vq admin story shadows unlock` prepares the late story for testing by ensuring:
+
+- `Watch Bell`
+- `3` completed combat rumor flags
+- story discovery for `Shadows on the Trade Road`
+- a carried `Wayfinder's Compass`
+- unlocked compass structure modes if they were still missing
+
+`/vq admin story shadows testrescue` jumps the player into the regular caravan-defense test state.
+
+`/vq admin story shadows testfinal` jumps the player into the final large-convoy defense test state and arms the convoy for the current day/night cycle instead of the normal two-night story wait.
 
 ### Village Projects
 
@@ -125,6 +154,12 @@ Note:
 /vq questmaster
 ```
 
+### Reset the full Village Quest server state
+
+```mcfunction
+/vq admin reset complete
+```
+
 ### Unlock all visible story-core projects quickly
 
 ```mcfunction
@@ -141,6 +176,15 @@ Note:
 /vq admin pilgrim rumor unlock
 /vq admin pilgrim spawn
 ```
+
+### Prepare the late trade-road story for testing
+
+```mcfunction
+/vq admin story shadows unlock
+/vq admin story shadows testrescue
+```
+
+Use `/vq admin story shadows testfinal` when you specifically want the chapter `6` convoy-defense setup.
 
 ## Notes for Testers
 

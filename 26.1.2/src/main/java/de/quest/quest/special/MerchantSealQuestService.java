@@ -159,6 +159,10 @@ public final class MerchantSealQuestService {
         return true;
     }
 
+    public static void resetRuntimeState() {
+        LAST_PILGRIM_SEAL_USE_TICK.clear();
+    }
+
     public static void onVillagerTrade(ServerLevel world, ServerPlayer player, ItemStack stack) {
         if (world == null || player == null) {
             return;

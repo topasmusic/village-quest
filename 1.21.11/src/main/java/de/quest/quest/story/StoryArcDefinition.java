@@ -17,4 +17,12 @@ public interface StoryArcDefinition {
     default boolean isUnlocked(ServerWorld world, UUID playerId) {
         return true;
     }
+
+    default boolean shouldShowLockedEntry(ServerWorld world, UUID playerId) {
+        return false;
+    }
+
+    default Text lockedEntryBody(ServerWorld world, UUID playerId) {
+        return Text.empty();
+    }
 }

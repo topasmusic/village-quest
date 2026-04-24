@@ -153,6 +153,61 @@ public final class QuestBookHelper {
         return true;
     }
 
+    public static void closeJournal(ServerPlayerEntity player) {
+        if (player == null) {
+            return;
+        }
+        UUID pid = player.getUuid();
+        if (!JOURNAL_ENABLED.remove(pid)) {
+            return;
+        }
+        LAST_JOURNAL_REFRESH.remove(pid);
+        sendPayload(player, new JournalPayload(
+                JournalPayload.ACTION_CLOSE,
+                0,
+                0,
+                0,
+                0,
+                0L,
+                0,
+                0,
+                0,
+                0,
+                0,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                Text.empty(),
+                Text.empty(),
+                false,
+                Text.empty(),
+                Text.empty(),
+                false,
+                Text.empty(),
+                Text.empty(),
+                false,
+                Text.empty(),
+                Text.empty(),
+                false,
+                Text.empty(),
+                Text.empty(),
+                false,
+                false,
+                false,
+                false,
+                false,
+                false
+        ));
+    }
+
+    public static void resetAllSessions() {
+        JOURNAL_ENABLED.clear();
+        LAST_JOURNAL_REFRESH.clear();
+    }
+
     public static void onServerTick(MinecraftServer server) {
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             UUID pid = player.getUuid();

@@ -63,8 +63,13 @@ public final class QuestState extends PersistentState {
         markDirty();
     }
 
+    public void resetAllProgress() {
+        players.clear();
+        pilgrimNaturalSpawnCooldownUntil = 0L;
+        markDirty();
+    }
+
     public void applyToRuntime() {
-        // Village Quest no longer owns standalone Wolkensprung runtime state.
     }
 
     private void readFromNbt(NbtCompound root) {

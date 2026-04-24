@@ -84,8 +84,21 @@ These still exist in code, but they are not part of the normal visible weekly po
 
 1. `Empty Troughs`
 2. `Wool Before Weather`
-3. `Words At The Pens`
+3. `New Pastures`
 4. `The Shepherd's Call`
+
+## Late Story Follow-Up
+
+This appears only after `Watch Bell` plus `3` completed `Pilgrim` combat rumors:
+
+### `Shadows on the Trade Road`
+
+1. `Whispers Between Bells`
+2. `A Needle for the Night Road`
+3. `First Signal`
+4. `Holding the Verge`
+5. `A Letter for the Guild`
+6. `Bell Over the Trade Road`
 
 ## Current Pilgrim Rumor Pool
 

@@ -1,8 +1,8 @@
 # Stories and Village Projects
 
-## Visible Story Order
+## Core Story Order
 
-The visible `Questmaster` story chain is:
+The visible core `Questmaster` story chain is:
 
 1. `The Failing Harvest`
 2. `The Silent Forge`
@@ -16,6 +16,20 @@ When these four are all complete:
 
 After each fully completed `4`-chapter arc, the next story waits behind a real `3 hour` cooldown. The `Story` tab shows that countdown directly.
 
+## Late Story Follow-Up
+
+After `Watch Bell`, the `Story` tab can also show a later locked follow-up:
+
+- `Shadows on the Trade Road`
+
+Unlock rules:
+
+- `Watch Bell` must already be unlocked
+- `3` completed `Pilgrim` combat rumors are required
+- the story shows as a greyed-out locked entry before those rumor clears are finished
+
+This arc is intentionally separate from the four core village-growth arcs above.
+
 `Night Bells` still exists in code as older combat-side story content, but it is no longer part of the visible Questmaster story flow.
 
 ## Story Arc Overview
@@ -26,6 +40,50 @@ After each fully completed `4`-chapter arc, the next story waits behind a real `
 | `The Silent Forge` | ore, smithy rebuild, forge proof | `Forge Charter` |
 | `Market Road Troubles` | trade flow, ledgers, staffed stalls | `Market Charter` |
 | `Restless Pens` | breeding, wool, pasture order | `Pasture Charter` |
+
+## Late Arc Overview
+
+### `Shadows on the Trade Road`
+
+This is the late road-defense follow-up unlocked after `Watch Bell` and `3` completed `Pilgrim` combat rumors.
+
+### Chapter 1: `Whispers Between Bells`
+
+- speak with `6` adult villagers in the home village
+- then fully investigate `4` other villages
+- each of those `4` villages needs `2` different adult villager interviews
+- employed villagers, unemployed villagers, and nitwits all count
+
+### Chapter 2: `A Needle for the Night Road`
+
+- you must already own the `Wayfinder's Compass`
+- speak to a `Toolsmith`
+- the toolsmith calibrates the compass for story-linked night-road tracking
+
+### Chapter 3: `First Signal`
+
+- wait for night
+- use the new `Caravan Distress` compass mode
+- reach the live distress point
+- save `1` caravan
+
+### Chapter 4: `Holding the Verge`
+
+- answer `2` more nighttime distress calls
+- keep each caravan alive through the full attack
+
+### Chapter 5: `A Letter for the Guild`
+
+- speak to the surviving courier after a successful rescue
+- receive the `Guild Warning Letter`
+- bring it back to the `Questmaster`
+
+### Chapter 6: `Bell Over the Trade Road`
+
+- wait through the `2`-night warning window
+- use the `Guild Convoy` compass mode on the attack night
+- defend the larger guild caravan through the full assault
+- the last wave adds elite `Traitor` bandits
 
 ## The Failing Harvest
 
@@ -57,37 +115,34 @@ After each fully completed `4`-chapter arc, the next story waits behind a real `
 
 ### Chapter 1: `Cold Hearth`
 
-- mine `18` iron ore
-- mine `12` coal ore
-- mine `5` diamond ore
+- mine `70` coal
+- mine `50` raw iron
+- mine `30` redstone
+- mine `20` raw gold
+- mine `5` diamonds
 
 ### Chapter 2: `The Bellows Breathe Again`
 
-- pull `24` iron ingots from a furnace
-- turn in `1` blast furnace
-- turn in `1` cauldron
+- pull `36` iron ingots from a furnace
+- turn in `3` blast furnaces
+- turn in `3` cauldrons
 
 ### Chapter 3: `Tools For The Hall`
 
 Fresh work only:
 
-- `1` iron pickaxe
-- `1` bucket
-- `1` shears
-- `1` shield
+- `3` iron pickaxes
+- `3` buckets
+- `3` shears
+- `3` shields
 
 These must be made for the chapter and be present for turn-in.
 
 ### Chapter 4: `The Master's Edge`
 
-- buy `1` `Sharpness` book from a villager
-- apply it to a fresh `Diamond Sword`
-- carry the finished blade to the Questmaster
-
-Tracker wording is now split into:
-- `Sharpness Book Bought`
-- `Diamond Sword Sharpened`
-- `Finished Blade Carried`
+- buy `Sharpness`, `Fire Protection`, `Protection`, `Blast Protection`, and `Projectile Protection` books from villagers
+- apply them to a fresh `Diamond Sword` and a full `Iron Armor` set
+- carry the finished arms to the Questmaster
 
 ### Result
 
@@ -97,20 +152,22 @@ Tracker wording is now split into:
 
 ### Chapter 1: `Shuttered Stalls`
 
-- earn `32` emeralds from real villager trades
+- earn `80` emeralds from real villager trades
 
 ### Chapter 2: `Ledger And Notices`
 
-- turn in `32` paper
-- turn in `3` books
+- craft and turn in `64` paper
+- craft and turn in `20` books
 
 ### Chapter 3: `Goods Must Flow`
 
-- complete `10` real villager trades
+- complete `35` real villager trades
+- speak to the `Toolsmith`, `Weaponsmith`, `Farmer`, `Fisherman`, `Shepherd`, and `Librarian`
 
 ### Chapter 4: `Market Day Returns`
 
-- make the rounds of `5` staffed stalls or workshops
+- speak with `20` different villagers
+- ring a bell while `20` villagers are within earshot
 
 ### Result
 
@@ -120,22 +177,23 @@ Tracker wording is now split into:
 
 ### Chapter 1: `Empty Troughs`
 
-- trigger `4` breedings
-- keep `2` hay bales ready for turn-in
+- trigger `20` breedings
+- keep `64` hay bales ready for turn-in
 
 ### Chapter 2: `Wool Before Weather`
 
-- shear `4` sheep
-- turn in `12` wool of any color
+- shear `32` sheep
+- turn in `64` wool of any color
 
-### Chapter 3: `Words At The Pens`
+### Chapter 3: `New Pastures`
 
-- make the rounds among `3` pen-related hands
+- ride `1 kilometer` on horseback after accepting the chapter
 
 ### Chapter 4: `The Shepherd's Call`
 
 - ring a bell
-- have at least `6` adult pasture animals nearby when the bell rings
+- have at least `10` adult pasture animals nearby when the bell rings
+- carry `Diamond Horse Armor`
 
 ### Result
 
@@ -173,4 +231,5 @@ Tracker wording is now split into:
 
 - future `Roadside Watch` reputation rewards gain `+5`
 - unlocks the late dangerous `Pilgrim` rumor lane
+- reveals the locked late `Shadows on the Trade Road` story entry once the project exists
 - unlocks the `Watch Bell Reliquary` trophy offer in the `Pilgrim` shop

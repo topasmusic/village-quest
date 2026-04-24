@@ -1,9 +1,15 @@
 # Village Quest Wiki
 
-This wiki covers the current local `26.1.2` line of `Village Quest`.
+This wiki covers the current maintained `26.1.2` line of `Village Quest`.
 
-Current local version:
-- `1.21.1`
+Latest shipped release:
+- `1.22.0` on `2026-04-24`
+
+Current release highlights:
+- the late `Questmaster` story arc `Shadows on the Trade Road`
+- nighttime caravan rescue and convoy-defense encounters with `Caravan Merchant` and `Traitor` NPCs
+- contextual villager chat for the existing villager-talk objectives and the new late-road rumor chain
+- extra admin test commands for the late-road story systems
 
 The core loop is:
 - help a village through grounded daily and weekly work
@@ -31,6 +37,7 @@ The core loop is:
 - `Pilgrim` is not a second questmaster.
 - `Pilgrim` handles optional road work, `Wayfinder` roadmarks, and later dangerous roadside rumors.
 - `Watch Bell` is a late project that unlocks the `Roadside Watch` rumor lane after all four visible village-core story arcs are complete.
+- after `Watch Bell`, the `Story` tab can also show the locked late follow-up `Shadows on the Trade Road`, which opens after `3` completed `Pilgrim` combat rumors.
 
 ## Recommended Reading Order
 

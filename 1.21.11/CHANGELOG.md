@@ -1,5 +1,33 @@
 # Changelog
 
+## Unreleased
+
+## 1.22.0 - Shadows On The Trade Road And Admin Reset
+
+Release date: 2026-04-24
+
+- The Fabric Loader dependency was bumped to `0.19.2` on the legacy `1.21.11` line.
+- Fabric API stays on `0.141.3+1.21.11`, which remains the current matching API build for this target.
+- The legacy `1.21.11` line now includes the new late `Questmaster` arc `Shadows on the Trade Road`, which appears after `Watch Bell` as a locked story entry and unlocks after `3` completed `Pilgrim` combat rumors.
+- That new road-defense arc adds village rumor gathering, village-aware interview tracking, a toolsmith compass calibration step, nighttime caravan rescue encounters, a courier handoff chapter, and a larger final convoy defense with new `Caravan Merchant` and `Traitor` entities.
+- `Caravan Merchant` survivors in the new late-road encounters now have `50%` more health, raising them from `30` to `45` hearts for a more forgiving escort balance.
+- Caravan encounter anchors now reject water and other non-solid footing, so caravans no longer spawn out in oceans or on fluid surfaces.
+- Late-road encounter balance now uses staggered `3`-second wave pulses with up to `2` hostile spawns per pulse, a tighter `16-26` block hostile spawn ring, `5`-second initial `Glowing` on each wave hostile, and `3` final-wave `Traitor` elites.
+- Late-road encounter safety now leashes escaped raiders back into the ambush area and marks the last `1-2` remaining enemies with `Glowing` after a short delay so a hidden `Traitor` cannot stall the quest.
+- `Traitor` max health was tuned down by `20%` to `38.4` while keeping the poison-on-hit diamond-sword role intact.
+- Caravan merchants in late-road encounters now behave more defensively without becoming strong: roughly `1/3` of each convoy carries a weak wooden sword, can take slow defensive swings when cornered, retreats from nearby raiders, returns toward the ambush area, and uses spaced convoy spawn placement to avoid overlap glitches.
+- Active rescue and final-convoy quest status lines now also show how many hostile mobs remain in the current encounter.
+- The `Wayfinder's Compass` gained story-bound modes for `Caravan Distress` and `Guild Convoy` while the late trade-road arc is active.
+- New admin helpers were added for the late-road batch: `/vq admin story shadows unlock`, `/vq admin story shadows testrescue`, and `/vq admin story shadows testfinal`.
+- A new admin command, `/vq admin reset complete`, now wipes the saved Village Quest state for every player, including wallet, reputation, story/project progress, special quest data, pilgrim contracts, cooldown state, live quest sessions, and spawned Village Quest NPCs.
+- The remaining legacy direct command roots were removed on `1.21.11`, so this line now matches `26.1.2` and exposes commands only under `/vq ...` and `/villagequest ...`.
+- Villager talk objectives now speak back with context-sensitive lore lines in `Market Rounds`, the villager-facing `Market Road Troubles` chapters, and the new `Shadows on the Trade Road` rumor steps instead of progressing silently.
+- Villager, toolsmith, and courier dialogue lines were retuned toward a more medieval low-fantasy tone in German and English.
+- `Questmaster` and `Pilgrim` screens can now also be closed again through the player's current inventory keybind.
+- The `Wayfinder's Compass` now keeps a chunkier pixel-art outer ring while preserving the original readable inner dial and cardinal letters.
+- Remaining Wolkensprung extraction scripts, templates, comments, and leftover lang keys were removed from this line.
+- README and wiki command/install notes were refreshed for the current dependency stack and admin surface.
+
 ## 1.21.1 - First-Use Journal Onboarding
 
 Release date: 2026-04-10
