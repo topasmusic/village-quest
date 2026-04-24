@@ -59,6 +59,35 @@ public final class QuestTrackerService {
         return setEnabled(world, player, !isEnabled(world, player.getUUID()));
     }
 
+    public static void closeTracker(ServerPlayer player) {
+        if (player == null) {
+            return;
+        }
+        LAST_TRACKER_REFRESH.remove(player.getUUID());
+        ServerPlayNetworking.send(player, new Payloads.QuestTrackerPayload(
+                false,
+                false,
+                Component.empty(),
+                List.of(),
+                false,
+                Component.empty(),
+                List.of(),
+                false,
+                Component.empty(),
+                List.of(),
+                false,
+                Component.empty(),
+                List.of(),
+                false,
+                Component.empty(),
+                List.of()
+        ));
+    }
+
+    public static void resetAllRuntimeState() {
+        LAST_TRACKER_REFRESH.clear();
+    }
+
     public static void enableForAcceptedQuest(ServerLevel world, ServerPlayer player) {
         if (world == null || player == null) {
             return;

@@ -4,6 +4,8 @@ import de.quest.content.story.FailingHarvestStoryArc;
 import de.quest.content.story.MarketRoadTroublesStoryArc;
 import de.quest.content.story.NightBellsStoryArc;
 import de.quest.content.story.RestlessPensStoryArc;
+import de.quest.content.story.ShadowsOnTheTradeRoadStoryArc;
+import de.quest.content.story.ShadowsTradeRoadEncounterService;
 import de.quest.content.story.SilentForgeStoryArc;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
@@ -42,6 +44,7 @@ public final class StoryQuestService {
             StoryArcType.SILENT_FORGE, new SilentForgeStoryArc(),
             StoryArcType.MARKET_ROAD_TROUBLES, new MarketRoadTroublesStoryArc(),
             StoryArcType.RESTLESS_PENS, new RestlessPensStoryArc(),
+            StoryArcType.SHADOWS_ON_THE_TRADE_ROAD, new ShadowsOnTheTradeRoadStoryArc(),
             StoryArcType.NIGHT_BELLS, new NightBellsStoryArc()
     );
 
@@ -51,7 +54,7 @@ public final class StoryQuestService {
         if (world == null || playerId == null) {
             return false;
         }
-        for (StoryArcType type : StoryArcType.questmasterArcs()) {
+        for (StoryArcType type : StoryArcType.coreQuestmasterArcs()) {
             if (!isCompleted(world, playerId, type)) {
                 return false;
             }
@@ -135,6 +138,13 @@ public final class StoryQuestService {
         int chapterIndex = chapterIndex(world, player.getUUID(), arcType);
         StoryChapterDefinition chapter = arc.chapter(chapterIndex);
         if (chapter == null) {
+            return false;
+        }
+        if (!chapter.canAccept(world, player)) {
+            Component blocked = chapter.acceptBlockedMessage(world, player);
+            if (blocked != null) {
+                player.sendSystemMessage(blocked, false);
+            }
             return false;
         }
 
@@ -429,6 +439,7 @@ public final class StoryQuestService {
 
     public static void onServerTick(MinecraftServer server) {
         ServerLevel world = server.overworld();
+        ShadowsTradeRoadEncounterService.onServerTick(server);
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             syncDerivedProgression(world, player);
             StoryChapterDefinition chapter = currentChapter(world, player.getUUID());

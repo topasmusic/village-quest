@@ -125,6 +125,16 @@ After completion, the compass unlocks the broader structure roster:
 - `Shipwreck`
 - `Ruined Portal`
 
+### Step 4: Story-linked road modes during `Shadows on the Trade Road`
+
+Once the late story `Shadows on the Trade Road` is active:
+
+- chapter `2` sends you to a `Toolsmith` to calibrate the `Wayfinder's Compass`
+- while a normal rescue signal is live, the mode list gains `Caravan Distress`
+- during the final convoy chapter, the mode list switches to `Guild Convoy`
+- these story modes are temporary live-target modes, not always-on permanent structure modes
+- the signal can only bind to the encounter while that story step currently has an active target, usually at night
+
 ## Merchant's Seal
 
 Unlock:

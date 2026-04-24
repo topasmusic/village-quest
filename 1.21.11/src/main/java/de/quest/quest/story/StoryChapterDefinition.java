@@ -25,6 +25,10 @@ public interface StoryChapterDefinition {
 
     StoryChapterCompletion buildCompletion();
 
+    default boolean canAccept(ServerWorld world, ServerPlayerEntity player) { return true; }
+
+    default Text acceptBlockedMessage(ServerWorld world, ServerPlayerEntity player) { return null; }
+
     default boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) { return true; }
 
     default Text claimBlockedMessage(ServerWorld world, ServerPlayerEntity player) { return null; }

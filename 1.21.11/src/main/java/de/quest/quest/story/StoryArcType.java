@@ -7,6 +7,7 @@ public enum StoryArcType {
     SILENT_FORGE("silent_forge"),
     MARKET_ROAD_TROUBLES("market_road_troubles"),
     RESTLESS_PENS("restless_pens"),
+    SHADOWS_ON_THE_TRADE_ROAD("shadows_on_the_trade_road"),
     NIGHT_BELLS("night_bells");
 
     private final String id;
@@ -19,12 +20,22 @@ public enum StoryArcType {
         return id;
     }
 
-    public static List<StoryArcType> questmasterArcs() {
+    public static List<StoryArcType> coreQuestmasterArcs() {
         return List.of(
                 FAILING_HARVEST,
                 SILENT_FORGE,
                 MARKET_ROAD_TROUBLES,
                 RESTLESS_PENS
+        );
+    }
+
+    public static List<StoryArcType> questmasterArcs() {
+        return List.of(
+                FAILING_HARVEST,
+                SILENT_FORGE,
+                MARKET_ROAD_TROUBLES,
+                RESTLESS_PENS,
+                SHADOWS_ON_THE_TRADE_ROAD
         );
     }
 

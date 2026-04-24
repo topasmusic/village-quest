@@ -8,6 +8,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.input.KeyInput;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.sound.PositionedSoundInstance;
 import net.minecraft.item.ItemStack;
@@ -185,6 +186,15 @@ public class PilgrimTradeScreen extends Screen {
     public void close() {
         notifyTradeClosed();
         super.close();
+    }
+
+    @Override
+    public boolean keyPressed(KeyInput key) {
+        if (this.client != null && this.client.options.inventoryKey.matchesKey(key)) {
+            this.close();
+            return true;
+        }
+        return super.keyPressed(key);
     }
 
     @Override

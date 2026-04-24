@@ -123,6 +123,10 @@ public final class QuestMasterUiService {
         ));
     }
 
+    public static void resetAllSessions() {
+        OPEN_SESSIONS.clear();
+    }
+
     public static void handleSession(ServerPlayer player, Payloads.QuestMasterSessionPayload payload) {
         if (player == null || payload == null || payload.action() != Payloads.QuestMasterSessionPayload.ACTION_CLOSE) {
             return;
@@ -538,23 +542,37 @@ public final class QuestMasterUiService {
         if (!QuestMasterProgressionService.isStoryCategoryUnlocked(world, player.getUUID())) {
             return List.of();
         }
+        List<Payloads.QuestMasterEntryData> entries = new ArrayList<>();
         UUID playerId = player.getUUID();
         StoryArcType focus = StoryQuestService.activeArcType(world, playerId);
         if (focus != null) {
-            Payloads.QuestMasterEntryData entry = buildStoryEntry(world, player, focus);
-            return entry == null ? List.of() : List.of(entry);
+            addEntry(entries, buildStoryEntry(world, player, focus));
+        } else if (StoryQuestService.isStoryCooldownActive(world, playerId)) {
+            entries.add(buildStoryCooldownEntry());
+        } else {
+            focus = StoryQuestService.availableArcType(world, playerId);
+            if (focus != null) {
+                addEntry(entries, buildStoryEntry(world, player, focus));
+            } else if (StoryQuestService.completedCount(world, playerId) > 0) {
+                entries.add(buildStoryArchiveEntry(world, playerId));
+            }
         }
-        if (StoryQuestService.isStoryCooldownActive(world, playerId)) {
-            return List.of(buildStoryCooldownEntry());
+
+        for (StoryArcType type : StoryArcType.questmasterArcs()) {
+            if (type == focus) {
+                continue;
+            }
+            StoryArcDefinition arc = StoryQuestService.definition(type);
+            if (arc == null
+                    || !arc.shouldShowLockedEntry(world, playerId)
+                    || StoryQuestService.isCompleted(world, playerId, type)
+                    || StoryQuestService.isActive(world, playerId, type)
+                    || arc.isUnlocked(world, playerId)) {
+                continue;
+            }
+            addEntry(entries, buildStoryEntry(world, player, type));
         }
-        focus = StoryQuestService.availableArcType(world, playerId);
-        if (focus != null) {
-            Payloads.QuestMasterEntryData entry = buildStoryEntry(world, player, focus);
-            return entry == null ? List.of() : List.of(entry);
-        }
-        return StoryQuestService.completedCount(world, playerId) > 0
-                ? List.of(buildStoryArchiveEntry(world, playerId))
-                : List.of();
+        return List.copyOf(entries);
     }
 
     private static Payloads.QuestMasterEntryData buildStoryEntry(ServerLevel world, ServerPlayer player, StoryArcType arcType) {
@@ -567,6 +585,13 @@ public final class QuestMasterUiService {
         boolean completed = StoryQuestService.isCompleted(world, playerId, arcType);
         boolean active = StoryQuestService.isActive(world, playerId, arcType);
         boolean unlocked = arc.isUnlocked(world, playerId);
+        if (!completed && !active && !unlocked && arc.shouldShowLockedEntry(world, playerId)) {
+            return lockedStoryEntry(
+                    storyEntryId(arcType),
+                    arc.title(),
+                    arc.lockedEntryBody(world, playerId).copy().withStyle(ChatFormatting.GRAY)
+            );
+        }
         if (!completed && !active && !unlocked) {
             return null;
         }
@@ -610,7 +635,7 @@ public final class QuestMasterUiService {
 
         StoryChapterCompletion completion = chapter.buildCompletion();
         List<Component> description = appendQuestEcho(world, playerId, List.of(chapter.offerParagraph1(), chapter.offerParagraph2()), completion.reputationTrack());
-        List<Component> objectives = List.copyOf(chapter.progressLines(world, playerId));
+        List<Component> objectives = new ArrayList<>(chapter.progressLines(world, playerId));
         ActionSpec primary = ActionSpec.NONE;
         Component status;
 
@@ -623,8 +648,17 @@ public final class QuestMasterUiService {
                 primary = new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_CLAIM, Component.translatable("screen.village-quest.questmaster.action.claim"), true);
             }
         } else {
-            status = Component.translatable("screen.village-quest.questmaster.status.available").withStyle(ChatFormatting.YELLOW);
-            primary = new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_ACCEPT, Component.translatable("screen.village-quest.questmaster.action.accept"), true);
+            boolean canAccept = chapter.canAccept(world, player);
+            if (canAccept) {
+                status = Component.translatable("screen.village-quest.questmaster.status.available").withStyle(ChatFormatting.YELLOW);
+                primary = new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_ACCEPT, Component.translatable("screen.village-quest.questmaster.action.accept"), true);
+            } else {
+                status = Component.translatable("screen.village-quest.questmaster.status.locked").withStyle(ChatFormatting.DARK_GRAY);
+                Component blocked = chapter.acceptBlockedMessage(world, player);
+                appendNonEmpty(objectives, blocked == null
+                        ? Component.translatable("screen.village-quest.questmaster.story.unavailable").withStyle(ChatFormatting.GRAY)
+                        : blocked.copy().withStyle(ChatFormatting.GRAY));
+            }
         }
 
         return entry(
@@ -634,7 +668,7 @@ public final class QuestMasterUiService {
                 Component.translatable("screen.village-quest.questmaster.subtitle.story_chapter", chapterIndex + 1),
                 status,
                 description,
-                objectives,
+                List.copyOf(objectives),
                 appendRewardEcho(world, playerId, StoryQuestService.previewRewardLines(completion), completion.reputationTrack()),
                 primary,
                 ActionSpec.NONE,

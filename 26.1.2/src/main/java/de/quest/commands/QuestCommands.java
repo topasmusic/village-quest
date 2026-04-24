@@ -5,6 +5,7 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import com.mojang.brigadier.tree.CommandNode;
+import de.quest.data.QuestState;
 import de.quest.economy.CurrencyService;
 import de.quest.pilgrim.PilgrimContractService;
 import de.quest.pilgrim.PilgrimService;
@@ -14,8 +15,11 @@ import de.quest.questmaster.QuestMasterUiService;
 import de.quest.quest.QuestBookHelper;
 import de.quest.quest.daily.DailyQuestService;
 import de.quest.quest.special.AdminCoreTestQuestService;
+import de.quest.quest.special.MerchantSealQuestService;
 import de.quest.quest.special.ShardRelicQuestService;
 import de.quest.quest.special.SpecialQuestService;
+import de.quest.quest.special.SurveyorCompassQuestService;
+import de.quest.content.story.ShadowsTradeRoadEncounterService;
 import de.quest.quest.story.StoryQuestService;
 import de.quest.quest.story.VillageProjectService;
 import de.quest.quest.story.VillageProjectType;
@@ -162,7 +166,31 @@ public final class QuestCommands {
                                             .executes(ctx -> completeStoryForPlayer(
                                                     ctx.getSource(),
                                                     EntityArgument.getPlayer(ctx, "player")
-                                            )))))
+                                            ))))
+                            .then(literal("shadows")
+                                    .then(literal("unlock")
+                                            .executes(ctx -> unlockShadowsForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
+                                            .then(argument("player", EntityArgument.player())
+                                                    .executes(ctx -> unlockShadowsForPlayer(
+                                                            ctx.getSource(),
+                                                            EntityArgument.getPlayer(ctx, "player")
+                                                    ))))
+                                    .then(literal("testrescue")
+                                            .executes(ctx -> prepareShadowsEncounterTest(ctx.getSource(), ctx.getSource().getPlayer(), false))
+                                            .then(argument("player", EntityArgument.player())
+                                                    .executes(ctx -> prepareShadowsEncounterTest(
+                                                            ctx.getSource(),
+                                                            EntityArgument.getPlayer(ctx, "player"),
+                                                            false
+                                                    ))))
+                                    .then(literal("testfinal")
+                                            .executes(ctx -> prepareShadowsEncounterTest(ctx.getSource(), ctx.getSource().getPlayer(), true))
+                                            .then(argument("player", EntityArgument.player())
+                                                    .executes(ctx -> prepareShadowsEncounterTest(
+                                                            ctx.getSource(),
+                                                            EntityArgument.getPlayer(ctx, "player"),
+                                                            true
+                                                    ))))))
                     .then(literal("completedaily")
                             .executes(ctx -> completeDailyForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
                             .then(argument("player", EntityArgument.player())
@@ -170,6 +198,9 @@ public final class QuestCommands {
                                             ctx.getSource(),
                                             EntityArgument.getPlayer(ctx, "player")
                                     ))))
+                    .then(literal("reset")
+                            .then(literal("complete")
+                                    .executes(ctx -> resetComplete(ctx.getSource()))))
                     .then(literal("project")
                             .then(literal("show")
                                     .executes(ctx -> showProjectsForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
@@ -581,6 +612,7 @@ public final class QuestCommands {
             source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.story.reset.none").withStyle(ChatFormatting.RED), false);
             return 0;
         }
+        ShadowsTradeRoadEncounterService.adminResetPlayer(world, target.getUUID());
         refreshQuestUi(world, target);
 
         ServerPlayer sourcePlayer = source.getPlayer();
@@ -614,6 +646,44 @@ public final class QuestCommands {
 
         source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.story.complete.other", target.getDisplayName()).withStyle(ChatFormatting.GREEN), false);
         target.sendSystemMessage(Component.translatable("command.village-quest.questadmin.story.complete.notify").withStyle(ChatFormatting.GRAY), false);
+        return 1;
+    }
+
+    private static int unlockShadowsForPlayer(CommandSourceStack source, ServerPlayer target) {
+        if (target == null) {
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
+            return 0;
+        }
+
+        var world = source.getServer().overworld();
+        if (!ShadowsTradeRoadEncounterService.adminUnlockForTesting(world, target)) {
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.story.shadows.unlock.none").withStyle(ChatFormatting.RED), false);
+            return 0;
+        }
+        source.sendSuccess(() -> Component.translatable(
+                "command.village-quest.questadmin.story.shadows.unlock.success",
+                target.getDisplayName()
+        ).withStyle(ChatFormatting.GREEN), false);
+        return 1;
+    }
+
+    private static int prepareShadowsEncounterTest(CommandSourceStack source, ServerPlayer target, boolean finalConvoy) {
+        if (target == null) {
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
+            return 0;
+        }
+
+        var world = source.getServer().overworld();
+        if (!ShadowsTradeRoadEncounterService.adminPrepareEncounterTest(world, target, finalConvoy)) {
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.story.shadows.test.failed").withStyle(ChatFormatting.RED), false);
+            return 0;
+        }
+        source.sendSuccess(() -> Component.translatable(
+                finalConvoy
+                        ? "command.village-quest.questadmin.story.shadows.test.final"
+                        : "command.village-quest.questadmin.story.shadows.test.rescue",
+                target.getDisplayName()
+        ).withStyle(ChatFormatting.GREEN), false);
         return 1;
     }
 
@@ -1031,6 +1101,42 @@ public final class QuestCommands {
         source.sendSuccess(() -> Component.translatable(
                 "command.village-quest.questadmin.pilgrim.despawn.success",
                 removed
+        ).withStyle(ChatFormatting.GREEN), false);
+        return 1;
+    }
+
+    private static int resetComplete(CommandSourceStack source) {
+        var server = source.getServer();
+        var world = server.overworld();
+        int onlinePlayers = server.getPlayerList().getPlayers().size();
+
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            QuestMasterUiService.close(player);
+            QuestBookHelper.closeJournal(player);
+            QuestTrackerService.closeTracker(player);
+            PilgrimService.closeTrade(player);
+        }
+
+        QuestBookHelper.resetAllSessions();
+        QuestTrackerService.resetAllRuntimeState();
+        QuestMasterUiService.resetAllSessions();
+        MerchantSealQuestService.resetRuntimeState();
+        SurveyorCompassQuestService.resetRuntimeState();
+        ShadowsTradeRoadEncounterService.resetRuntimeState();
+        int removedQuestMasters = QuestMasterService.despawnAll(world);
+        int removedPilgrims = PilgrimService.despawnAll(world);
+        int removedTradeRoad = ShadowsTradeRoadEncounterService.despawnAll(world);
+        QuestState.get(server).resetAllProgress();
+
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            player.sendSystemMessage(Component.translatable("command.village-quest.questadmin.reset.complete.notify").withStyle(ChatFormatting.GRAY), false);
+        }
+
+        source.sendSuccess(() -> Component.translatable(
+                "command.village-quest.questadmin.reset.complete.success",
+                onlinePlayers,
+                removedQuestMasters,
+                removedPilgrims + removedTradeRoad
         ).withStyle(ChatFormatting.GREEN), false);
         return 1;
     }

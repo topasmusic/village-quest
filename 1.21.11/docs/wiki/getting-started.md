@@ -3,7 +3,7 @@
 ## Requirements
 
 - Minecraft `1.21.11`
-- Fabric Loader `0.18.4+`
+- Fabric Loader `0.19.2+`
 - Fabric API `0.141.3+1.21.11`
 - Java `21`
 
@@ -12,7 +12,7 @@
 1. Install Fabric Loader for Minecraft `1.21.11`.
 2. Put `village-quest-<version>-mc1.21.11.jar` into your `mods` folder.
 3. Put the matching Fabric API jar into the same `mods` folder.
-4. Start the game with Java `25`.
+4. Start the game with Java `21`.
 
 ## First Useful Commands
 
@@ -31,8 +31,6 @@
 - `/vq questtracker off`
   Forces the tracker off.
 
-On this legacy line, the older direct roots still exist as compatibility aliases, but `/vq ...` is the recommended form.
-
 ## Your First Session
 
 1. Use `/vq questmaster`.
@@ -48,6 +46,10 @@ On this legacy line, the older direct roots still exist as compatibility aliases
 - `Story`
   Unlocks after the first normal daily is completed.
   After each full `4`-chapter story arc, the next story appears only after a real `3 hour` cooldown.
+- `Shadows on the Trade Road`
+  Appears later as a locked late-story entry after `Watch Bell`.
+  Unlocks after `3` completed `Pilgrim` combat rumors.
+  Chapter `2` also requires that you already own the `Wayfinder's Compass`.
 - `Special`
   Unlocks after the first real reputation gain.
 - `Pilgrim` road combat

@@ -5,6 +5,8 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import com.mojang.brigadier.tree.CommandNode;
+import de.quest.content.story.ShadowsTradeRoadEncounterService;
+import de.quest.data.QuestState;
 import de.quest.economy.CurrencyService;
 import de.quest.pilgrim.PilgrimContractService;
 import de.quest.pilgrim.PilgrimService;
@@ -14,8 +16,10 @@ import de.quest.questmaster.QuestMasterUiService;
 import de.quest.quest.QuestBookHelper;
 import de.quest.quest.daily.DailyQuestService;
 import de.quest.quest.special.AdminCoreTestQuestService;
+import de.quest.quest.special.MerchantSealQuestService;
 import de.quest.quest.special.ShardRelicQuestService;
 import de.quest.quest.special.SpecialQuestService;
+import de.quest.quest.special.SurveyorCompassQuestService;
 import de.quest.quest.story.StoryQuestService;
 import de.quest.quest.story.VillageProjectService;
 import de.quest.quest.story.VillageProjectType;
@@ -79,250 +83,254 @@ public final class QuestCommands {
 
     public static void register() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
-            dispatcher.register(buildSetQuestCommand("setquest").requires(AdminCommands::canManageRespawn));
+            LiteralArgumentBuilder<ServerCommandSource> setQuestCommand = literal("setquest")
+                    .requires(AdminCommands::canManageRespawn)
+                    .executes(ctx -> {
+                        ctx.getSource().sendFeedback(() -> Text.translatable("command.village-quest.setquest.usage").formatted(Formatting.GRAY), false);
+                        return 0;
+                    })
+                    .then(argument("quest", StringArgumentType.word())
+                            .suggests(QUEST_SUGGESTIONS)
+                            .executes(ctx -> {
+                                var player = ctx.getSource().getPlayer();
+                                if (player instanceof ServerPlayerEntity sp) {
+                                    var world = ctx.getSource().getServer().getOverworld();
+                                    String arg = StringArgumentType.getString(ctx, "quest");
+                                    DailyQuestService.DailyQuestType chosen = DailyQuestService.questFromString(arg);
+                                    if (chosen == null) {
+                                        sp.sendMessage(Text.translatable("command.village-quest.setquest.invalid").formatted(Formatting.RED), false);
+                                        return 0;
+                                    }
+                                    DailyQuestService.setQuestChoiceForToday(world, sp.getUuid(), chosen);
+                                    sp.sendMessage(Text.translatable("command.village-quest.setquest.success", DailyQuestService.displayKey(chosen)).formatted(Formatting.GREEN), false);
+                                }
+                                return 1;
+                            }));
 
-            dispatcher.register(buildAdminCommand("questadmin"));
+            LiteralArgumentBuilder<ServerCommandSource> questAdminCommand = literal("admin")
+                    .requires(AdminCommands::canManageRespawn)
+                    .then(setQuestCommand)
+                    .then(literal("resetdaily")
+                            .executes(ctx -> resetDailyForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
+                            .then(argument("player", EntityArgumentType.player())
+                                    .executes(ctx -> resetDailyForPlayer(
+                                            ctx.getSource(),
+                                            EntityArgumentType.getPlayer(ctx, "player")
+                                    ))))
+                    .then(literal("nextdaily")
+                            .executes(ctx -> prepareNextDailyForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
+                            .then(argument("player", EntityArgumentType.player())
+                                    .executes(ctx -> prepareNextDailyForPlayer(
+                                            ctx.getSource(),
+                                            EntityArgumentType.getPlayer(ctx, "player")
+                                    ))))
+                    .then(literal("resetweekly")
+                            .executes(ctx -> resetWeeklyForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
+                            .then(argument("player", EntityArgumentType.player())
+                                    .executes(ctx -> resetWeeklyForPlayer(
+                                            ctx.getSource(),
+                                            EntityArgumentType.getPlayer(ctx, "player")
+                                    ))))
+                    .then(literal("nextweekly")
+                            .executes(ctx -> prepareNextWeeklyForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
+                            .then(argument("player", EntityArgumentType.player())
+                                    .executes(ctx -> prepareNextWeeklyForPlayer(
+                                            ctx.getSource(),
+                                            EntityArgumentType.getPlayer(ctx, "player")
+                                    ))))
+                    .then(literal("completeweekly")
+                            .executes(ctx -> completeWeeklyForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
+                            .then(argument("player", EntityArgumentType.player())
+                                    .executes(ctx -> completeWeeklyForPlayer(
+                                            ctx.getSource(),
+                                            EntityArgumentType.getPlayer(ctx, "player")
+                                    ))))
+                    .then(literal("story")
+                            .then(literal("show")
+                                    .executes(ctx -> showStoryForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
+                                    .then(argument("player", EntityArgumentType.player())
+                                            .executes(ctx -> showStoryForPlayer(
+                                                    ctx.getSource(),
+                                                    EntityArgumentType.getPlayer(ctx, "player")
+                                            ))))
+                            .then(literal("reset")
+                                    .executes(ctx -> resetStoryForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
+                                    .then(argument("player", EntityArgumentType.player())
+                                            .executes(ctx -> resetStoryForPlayer(
+                                                    ctx.getSource(),
+                                                    EntityArgumentType.getPlayer(ctx, "player")
+                                            ))))
+                            .then(literal("complete")
+                                    .executes(ctx -> completeStoryForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
+                                    .then(argument("player", EntityArgumentType.player())
+                                            .executes(ctx -> completeStoryForPlayer(
+                                                    ctx.getSource(),
+                                                    EntityArgumentType.getPlayer(ctx, "player")
+                                            ))))
+                            .then(literal("shadows")
+                                    .then(literal("unlock")
+                                            .executes(ctx -> unlockShadowsForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
+                                            .then(argument("player", EntityArgumentType.player())
+                                                    .executes(ctx -> unlockShadowsForPlayer(
+                                                            ctx.getSource(),
+                                                            EntityArgumentType.getPlayer(ctx, "player")
+                                                    ))))
+                                    .then(literal("testrescue")
+                                            .executes(ctx -> prepareShadowsEncounterTest(ctx.getSource(), ctx.getSource().getPlayer(), false))
+                                            .then(argument("player", EntityArgumentType.player())
+                                                    .executes(ctx -> prepareShadowsEncounterTest(
+                                                            ctx.getSource(),
+                                                            EntityArgumentType.getPlayer(ctx, "player"),
+                                                            false
+                                                    ))))
+                                    .then(literal("testfinal")
+                                            .executes(ctx -> prepareShadowsEncounterTest(ctx.getSource(), ctx.getSource().getPlayer(), true))
+                                            .then(argument("player", EntityArgumentType.player())
+                                                    .executes(ctx -> prepareShadowsEncounterTest(
+                                                            ctx.getSource(),
+                                                            EntityArgumentType.getPlayer(ctx, "player"),
+                                                            true
+                                                    ))))))
+                    .then(literal("completedaily")
+                            .executes(ctx -> completeDailyForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
+                            .then(argument("player", EntityArgumentType.player())
+                                    .executes(ctx -> completeDailyForPlayer(
+                                            ctx.getSource(),
+                                            EntityArgumentType.getPlayer(ctx, "player")
+                                    ))))
+                    .then(literal("reset")
+                            .then(literal("complete")
+                                    .executes(ctx -> resetComplete(ctx.getSource()))))
+                    .then(literal("project")
+                            .then(literal("show")
+                                    .executes(ctx -> showProjectsForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
+                                    .then(argument("player", EntityArgumentType.player())
+                                            .executes(ctx -> showProjectsForPlayer(
+                                                    ctx.getSource(),
+                                                    EntityArgumentType.getPlayer(ctx, "player")
+                                            ))))
+                            .then(literal("unlock")
+                                    .then(argument("player", EntityArgumentType.player())
+                                            .then(argument("project", StringArgumentType.word())
+                                                    .suggests(PROJECT_SUGGESTIONS)
+                                                    .executes(ctx -> setProjectForPlayer(
+                                                            ctx.getSource(),
+                                                            EntityArgumentType.getPlayer(ctx, "player"),
+                                                            parseProject(StringArgumentType.getString(ctx, "project")),
+                                                            true
+                                                    )))))
+                            .then(literal("lock")
+                                    .then(argument("player", EntityArgumentType.player())
+                                            .then(argument("project", StringArgumentType.word())
+                                                    .suggests(PROJECT_SUGGESTIONS)
+                                                    .executes(ctx -> setProjectForPlayer(
+                                                            ctx.getSource(),
+                                                            EntityArgumentType.getPlayer(ctx, "player"),
+                                                            parseProject(StringArgumentType.getString(ctx, "project")),
+                                                            false
+                                                    ))))))
+                    .then(literal("shardcache")
+                            .executes(ctx -> startShardCacheForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
+                            .then(argument("player", EntityArgumentType.player())
+                                    .executes(ctx -> startShardCacheForPlayer(
+                                            ctx.getSource(),
+                                            EntityArgumentType.getPlayer(ctx, "player")
+                                    ))))
+                    .then(literal("shardcachetp")
+                            .executes(ctx -> teleportToShardCacheForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
+                            .then(argument("player", EntityArgumentType.player())
+                                    .executes(ctx -> teleportToShardCacheForPlayer(
+                                            ctx.getSource(),
+                                            EntityArgumentType.getPlayer(ctx, "player")
+                                    ))))
+                    .then(literal("coretest")
+                            .then(literal("start")
+                                    .executes(ctx -> startCoreTestForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
+                                    .then(argument("player", EntityArgumentType.player())
+                                            .executes(ctx -> startCoreTestForPlayer(
+                                                    ctx.getSource(),
+                                                    EntityArgumentType.getPlayer(ctx, "player")
+                                            ))))
+                            .then(literal("reset")
+                                    .executes(ctx -> resetCoreTestForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
+                                    .then(argument("player", EntityArgumentType.player())
+                                            .executes(ctx -> resetCoreTestForPlayer(
+                                                    ctx.getSource(),
+                                                    EntityArgumentType.getPlayer(ctx, "player")
+                                            ))))
+                            .then(literal("show")
+                                    .executes(ctx -> showCoreTestForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
+                                    .then(argument("player", EntityArgumentType.player())
+                                            .executes(ctx -> showCoreTestForPlayer(
+                                                    ctx.getSource(),
+                                                    EntityArgumentType.getPlayer(ctx, "player")
+                                            )))))
+                    .then(literal("pilgrim")
+                            .then(literal("spawn")
+                                    .executes(ctx -> spawnPilgrimForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
+                                    .then(argument("player", EntityArgumentType.player())
+                                            .executes(ctx -> spawnPilgrimForPlayer(
+                                                    ctx.getSource(),
+                                                    EntityArgumentType.getPlayer(ctx, "player")
+                                            ))))
+                            .then(literal("rumor")
+                                    .then(literal("unlock")
+                                            .executes(ctx -> setPilgrimRumorOverride(ctx.getSource(), ctx.getSource().getPlayer(), true))
+                                            .then(argument("player", EntityArgumentType.player())
+                                                    .executes(ctx -> setPilgrimRumorOverride(
+                                                            ctx.getSource(),
+                                                            EntityArgumentType.getPlayer(ctx, "player"),
+                                                            true
+                                                    ))))
+                                    .then(literal("lock")
+                                            .executes(ctx -> setPilgrimRumorOverride(ctx.getSource(), ctx.getSource().getPlayer(), false))
+                                            .then(argument("player", EntityArgumentType.player())
+                                                    .executes(ctx -> setPilgrimRumorOverride(
+                                                            ctx.getSource(),
+                                                            EntityArgumentType.getPlayer(ctx, "player"),
+                                                            false
+                                                    )))))
+                            .then(literal("despawn")
+                                    .executes(ctx -> despawnPilgrims(ctx.getSource()))))
+                    .then(buildAdminWalletCommand())
+                    .then(buildAdminReputationCommand());
 
-            dispatcher.register(buildJournalCommand("journal"));
-            dispatcher.register(buildQuestMasterCommand("questmaster"));
-            dispatcher.register(buildQuestTrackerCommand("questtracker"));
-            dispatcher.register(buildDailyCommand("dailyquest"));
-            dispatcher.register(buildWalletCommand("wallet"));
-            dispatcher.register(buildReputationCommand("reputation"));
+            LiteralArgumentBuilder<ServerCommandSource> journalCommand = literal("journal").executes(ctx -> {
+                var player = ctx.getSource().getPlayer();
+                if (player instanceof ServerPlayerEntity sp) {
+                    var world = ctx.getSource().getServer().getOverworld();
+                    QuestBookHelper.toggleJournal(world, sp);
+                }
+                return 1;
+            });
+
+            LiteralArgumentBuilder<ServerCommandSource> questMasterCommand = literal("questmaster")
+                    .executes(ctx -> summonQuestMaster(ctx.getSource()));
+
+            LiteralArgumentBuilder<ServerCommandSource> questTrackerCommand = literal("questtracker")
+                    .executes(ctx -> toggleQuestTracker(ctx.getSource()))
+                    .then(literal("on").executes(ctx -> setQuestTracker(ctx.getSource(), true)))
+                    .then(literal("off").executes(ctx -> setQuestTracker(ctx.getSource(), false)));
+
+            LiteralArgumentBuilder<ServerCommandSource> dailyQuestCommand = literal("daily")
+                    .then(literal("accept").executes(ctx -> acceptQuest(ctx.getSource())));
+
+            LiteralArgumentBuilder<ServerCommandSource> walletCommand = literal("wallet")
+                    .executes(ctx -> showWallet(ctx.getSource()));
+
+            LiteralArgumentBuilder<ServerCommandSource> reputationCommand = literal("reputation")
+                    .executes(ctx -> showReputation(ctx.getSource()));
 
             CommandNode<ServerCommandSource> villageQuestCommand = dispatcher.register(literal("villagequest")
-                    .then(buildAdminCommand("admin"))
-                    .then(buildJournalCommand("journal"))
-                    .then(buildQuestMasterCommand("questmaster"))
-                    .then(buildQuestTrackerCommand("questtracker"))
-                    .then(buildDailyCommand("daily"))
-                    .then(buildWalletCommand("wallet"))
-                    .then(buildReputationCommand("reputation")));
+                    .then(questAdminCommand)
+                    .then(journalCommand)
+                    .then(questMasterCommand)
+                    .then(questTrackerCommand)
+                    .then(dailyQuestCommand)
+                    .then(walletCommand)
+                    .then(reputationCommand));
             dispatcher.register(literal("vq").redirect(villageQuestCommand));
         });
-    }
-
-    private static LiteralArgumentBuilder<ServerCommandSource> buildSetQuestCommand(String literalName) {
-        return literal(literalName)
-                .executes(ctx -> {
-                    ctx.getSource().sendFeedback(() -> Text.translatable("command.village-quest.setquest.usage").formatted(Formatting.GRAY), false);
-                    return 0;
-                })
-                .then(argument("quest", StringArgumentType.word())
-                        .suggests(QUEST_SUGGESTIONS)
-                        .executes(ctx -> {
-                            var player = ctx.getSource().getPlayer();
-                            if (player instanceof ServerPlayerEntity sp) {
-                                var world = ctx.getSource().getServer().getOverworld();
-                                String arg = StringArgumentType.getString(ctx, "quest");
-                                DailyQuestService.DailyQuestType chosen = DailyQuestService.questFromString(arg);
-                                if (chosen == null) {
-                                    sp.sendMessage(Text.translatable("command.village-quest.setquest.invalid").formatted(Formatting.RED), false);
-                                    return 0;
-                                }
-                                DailyQuestService.setQuestChoiceForToday(world, sp.getUuid(), chosen);
-                                sp.sendMessage(Text.translatable("command.village-quest.setquest.success", DailyQuestService.displayKey(chosen)).formatted(Formatting.GREEN), false);
-                            }
-                            return 1;
-                        }));
-    }
-
-    private static LiteralArgumentBuilder<ServerCommandSource> buildAdminCommand(String literalName) {
-        return literal(literalName)
-                .requires(AdminCommands::canManageRespawn)
-                .then(buildSetQuestCommand("setquest"))
-                .then(literal("resetdaily")
-                        .executes(ctx -> resetDailyForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                        .then(argument("player", EntityArgumentType.player())
-                                .executes(ctx -> resetDailyForPlayer(
-                                        ctx.getSource(),
-                                        EntityArgumentType.getPlayer(ctx, "player")
-                                ))))
-                .then(literal("nextdaily")
-                        .executes(ctx -> prepareNextDailyForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                        .then(argument("player", EntityArgumentType.player())
-                                .executes(ctx -> prepareNextDailyForPlayer(
-                                        ctx.getSource(),
-                                        EntityArgumentType.getPlayer(ctx, "player")
-                                ))))
-                .then(literal("resetweekly")
-                        .executes(ctx -> resetWeeklyForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                        .then(argument("player", EntityArgumentType.player())
-                                .executes(ctx -> resetWeeklyForPlayer(
-                                        ctx.getSource(),
-                                        EntityArgumentType.getPlayer(ctx, "player")
-                                ))))
-                .then(literal("nextweekly")
-                        .executes(ctx -> prepareNextWeeklyForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                        .then(argument("player", EntityArgumentType.player())
-                                .executes(ctx -> prepareNextWeeklyForPlayer(
-                                        ctx.getSource(),
-                                        EntityArgumentType.getPlayer(ctx, "player")
-                                ))))
-                .then(literal("completeweekly")
-                        .executes(ctx -> completeWeeklyForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                        .then(argument("player", EntityArgumentType.player())
-                                .executes(ctx -> completeWeeklyForPlayer(
-                                        ctx.getSource(),
-                                        EntityArgumentType.getPlayer(ctx, "player")
-                                ))))
-                .then(literal("story")
-                        .then(literal("show")
-                                .executes(ctx -> showStoryForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                                .then(argument("player", EntityArgumentType.player())
-                                        .executes(ctx -> showStoryForPlayer(
-                                                ctx.getSource(),
-                                                EntityArgumentType.getPlayer(ctx, "player")
-                                        ))))
-                        .then(literal("reset")
-                                .executes(ctx -> resetStoryForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                                .then(argument("player", EntityArgumentType.player())
-                                        .executes(ctx -> resetStoryForPlayer(
-                                                ctx.getSource(),
-                                                EntityArgumentType.getPlayer(ctx, "player")
-                                        ))))
-                        .then(literal("complete")
-                                .executes(ctx -> completeStoryForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                                .then(argument("player", EntityArgumentType.player())
-                                        .executes(ctx -> completeStoryForPlayer(
-                                                ctx.getSource(),
-                                                EntityArgumentType.getPlayer(ctx, "player")
-                                        )))))
-                .then(literal("completedaily")
-                        .executes(ctx -> completeDailyForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                        .then(argument("player", EntityArgumentType.player())
-                                .executes(ctx -> completeDailyForPlayer(
-                                        ctx.getSource(),
-                                        EntityArgumentType.getPlayer(ctx, "player")
-                                ))))
-                .then(literal("project")
-                        .then(literal("show")
-                                .executes(ctx -> showProjectsForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                                .then(argument("player", EntityArgumentType.player())
-                                        .executes(ctx -> showProjectsForPlayer(
-                                                ctx.getSource(),
-                                                EntityArgumentType.getPlayer(ctx, "player")
-                                        ))))
-                        .then(literal("unlock")
-                                .then(argument("player", EntityArgumentType.player())
-                                        .then(argument("project", StringArgumentType.word())
-                                                .suggests(PROJECT_SUGGESTIONS)
-                                                .executes(ctx -> setProjectForPlayer(
-                                                        ctx.getSource(),
-                                                        EntityArgumentType.getPlayer(ctx, "player"),
-                                                        parseProject(StringArgumentType.getString(ctx, "project")),
-                                                        true
-                                                )))))
-                        .then(literal("lock")
-                                .then(argument("player", EntityArgumentType.player())
-                                        .then(argument("project", StringArgumentType.word())
-                                                .suggests(PROJECT_SUGGESTIONS)
-                                                .executes(ctx -> setProjectForPlayer(
-                                                        ctx.getSource(),
-                                                        EntityArgumentType.getPlayer(ctx, "player"),
-                                                        parseProject(StringArgumentType.getString(ctx, "project")),
-                                                        false
-                                                ))))))
-                .then(literal("shardcache")
-                        .executes(ctx -> startShardCacheForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                        .then(argument("player", EntityArgumentType.player())
-                                .executes(ctx -> startShardCacheForPlayer(
-                                        ctx.getSource(),
-                                        EntityArgumentType.getPlayer(ctx, "player")
-                                ))))
-                .then(literal("shardcachetp")
-                        .executes(ctx -> teleportToShardCacheForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                        .then(argument("player", EntityArgumentType.player())
-                                .executes(ctx -> teleportToShardCacheForPlayer(
-                                        ctx.getSource(),
-                                        EntityArgumentType.getPlayer(ctx, "player")
-                                ))))
-                .then(literal("coretest")
-                        .then(literal("start")
-                                .executes(ctx -> startCoreTestForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                                .then(argument("player", EntityArgumentType.player())
-                                        .executes(ctx -> startCoreTestForPlayer(
-                                                ctx.getSource(),
-                                                EntityArgumentType.getPlayer(ctx, "player")
-                                        ))))
-                        .then(literal("reset")
-                                .executes(ctx -> resetCoreTestForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                                .then(argument("player", EntityArgumentType.player())
-                                        .executes(ctx -> resetCoreTestForPlayer(
-                                                ctx.getSource(),
-                                                EntityArgumentType.getPlayer(ctx, "player")
-                                        ))))
-                        .then(literal("show")
-                                .executes(ctx -> showCoreTestForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                                .then(argument("player", EntityArgumentType.player())
-                                        .executes(ctx -> showCoreTestForPlayer(
-                                                ctx.getSource(),
-                                                EntityArgumentType.getPlayer(ctx, "player")
-                                        )))))
-                .then(literal("pilgrim")
-                        .then(literal("spawn")
-                                .executes(ctx -> spawnPilgrimForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                                .then(argument("player", EntityArgumentType.player())
-                                        .executes(ctx -> spawnPilgrimForPlayer(
-                                                ctx.getSource(),
-                                                EntityArgumentType.getPlayer(ctx, "player")
-                                        ))))
-                        .then(literal("rumor")
-                                .then(literal("unlock")
-                                        .executes(ctx -> setPilgrimRumorOverride(ctx.getSource(), ctx.getSource().getPlayer(), true))
-                                        .then(argument("player", EntityArgumentType.player())
-                                                .executes(ctx -> setPilgrimRumorOverride(
-                                                        ctx.getSource(),
-                                                        EntityArgumentType.getPlayer(ctx, "player"),
-                                                        true
-                                                ))))
-                                .then(literal("lock")
-                                        .executes(ctx -> setPilgrimRumorOverride(ctx.getSource(), ctx.getSource().getPlayer(), false))
-                                        .then(argument("player", EntityArgumentType.player())
-                                                .executes(ctx -> setPilgrimRumorOverride(
-                                                        ctx.getSource(),
-                                                        EntityArgumentType.getPlayer(ctx, "player"),
-                                                        false
-                                                )))))
-                        .then(literal("despawn")
-                                .executes(ctx -> despawnPilgrims(ctx.getSource()))))
-                .then(buildAdminWalletCommand())
-                .then(buildAdminReputationCommand());
-    }
-
-    private static LiteralArgumentBuilder<ServerCommandSource> buildJournalCommand(String literalName) {
-        return literal(literalName).executes(ctx -> {
-            var player = ctx.getSource().getPlayer();
-            if (player instanceof ServerPlayerEntity sp) {
-                var world = ctx.getSource().getServer().getOverworld();
-                QuestBookHelper.toggleJournal(world, sp);
-            }
-            return 1;
-        });
-    }
-
-    private static LiteralArgumentBuilder<ServerCommandSource> buildQuestMasterCommand(String literalName) {
-        return literal(literalName).executes(ctx -> summonQuestMaster(ctx.getSource()));
-    }
-
-    private static LiteralArgumentBuilder<ServerCommandSource> buildQuestTrackerCommand(String literalName) {
-        return literal(literalName)
-                .executes(ctx -> toggleQuestTracker(ctx.getSource()))
-                .then(literal("on").executes(ctx -> setQuestTracker(ctx.getSource(), true)))
-                .then(literal("off").executes(ctx -> setQuestTracker(ctx.getSource(), false)));
-    }
-
-    private static LiteralArgumentBuilder<ServerCommandSource> buildDailyCommand(String literalName) {
-        return literal(literalName)
-                .then(literal("accept").executes(ctx -> acceptQuest(ctx.getSource())));
-    }
-
-    private static LiteralArgumentBuilder<ServerCommandSource> buildWalletCommand(String literalName) {
-        return literal(literalName).executes(ctx -> showWallet(ctx.getSource()));
-    }
-
-    private static LiteralArgumentBuilder<ServerCommandSource> buildReputationCommand(String literalName) {
-        return literal(literalName).executes(ctx -> showReputation(ctx.getSource()));
     }
 
     private static LiteralArgumentBuilder<ServerCommandSource> buildAdminWalletCommand() {
@@ -604,6 +612,7 @@ public final class QuestCommands {
             source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.story.reset.none").formatted(Formatting.RED), false);
             return 0;
         }
+        ShadowsTradeRoadEncounterService.adminResetPlayer(world, target.getUuid());
         refreshQuestUi(world, target);
 
         ServerPlayerEntity sourcePlayer = source.getPlayer();
@@ -637,6 +646,44 @@ public final class QuestCommands {
 
         source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.story.complete.other", target.getDisplayName()).formatted(Formatting.GREEN), false);
         target.sendMessage(Text.translatable("command.village-quest.questadmin.story.complete.notify").formatted(Formatting.GRAY), false);
+        return 1;
+    }
+
+    private static int unlockShadowsForPlayer(ServerCommandSource source, ServerPlayerEntity target) {
+        if (target == null) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            return 0;
+        }
+
+        var world = source.getServer().getOverworld();
+        if (!ShadowsTradeRoadEncounterService.adminUnlockForTesting(world, target)) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.story.shadows.unlock.none").formatted(Formatting.RED), false);
+            return 0;
+        }
+        source.sendFeedback(() -> Text.translatable(
+                "command.village-quest.questadmin.story.shadows.unlock.success",
+                target.getDisplayName()
+        ).formatted(Formatting.GREEN), false);
+        return 1;
+    }
+
+    private static int prepareShadowsEncounterTest(ServerCommandSource source, ServerPlayerEntity target, boolean finalConvoy) {
+        if (target == null) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            return 0;
+        }
+
+        var world = source.getServer().getOverworld();
+        if (!ShadowsTradeRoadEncounterService.adminPrepareEncounterTest(world, target, finalConvoy)) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.story.shadows.test.failed").formatted(Formatting.RED), false);
+            return 0;
+        }
+        source.sendFeedback(() -> Text.translatable(
+                finalConvoy
+                        ? "command.village-quest.questadmin.story.shadows.test.final"
+                        : "command.village-quest.questadmin.story.shadows.test.rescue",
+                target.getDisplayName()
+        ).formatted(Formatting.GREEN), false);
         return 1;
     }
 
@@ -1053,6 +1100,42 @@ public final class QuestCommands {
         source.sendFeedback(() -> Text.translatable(
                 "command.village-quest.questadmin.pilgrim.despawn.success",
                 removed
+        ).formatted(Formatting.GREEN), false);
+        return 1;
+    }
+
+    private static int resetComplete(ServerCommandSource source) {
+        var server = source.getServer();
+        var world = server.getOverworld();
+        int onlinePlayers = server.getPlayerManager().getPlayerList().size();
+
+        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+            QuestMasterUiService.close(player);
+            QuestBookHelper.closeJournal(player);
+            QuestTrackerService.closeTracker(player);
+            PilgrimService.closeTrade(player);
+        }
+
+        QuestBookHelper.resetAllSessions();
+        QuestTrackerService.resetAllRuntimeState();
+        QuestMasterUiService.resetAllSessions();
+        MerchantSealQuestService.resetRuntimeState();
+        SurveyorCompassQuestService.resetRuntimeState();
+        ShadowsTradeRoadEncounterService.resetRuntimeState();
+        int removedQuestMasters = QuestMasterService.despawnAll(world);
+        int removedPilgrims = PilgrimService.despawnAll(world);
+        int removedTradeRoad = ShadowsTradeRoadEncounterService.despawnAll(world);
+        QuestState.get(server).resetAllProgress();
+
+        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+            player.sendMessage(Text.translatable("command.village-quest.questadmin.reset.complete.notify").formatted(Formatting.GRAY), false);
+        }
+
+        source.sendFeedback(() -> Text.translatable(
+                "command.village-quest.questadmin.reset.complete.success",
+                onlinePlayers,
+                removedQuestMasters,
+                removedPilgrims + removedTradeRoad
         ).formatted(Formatting.GREEN), false);
         return 1;
     }

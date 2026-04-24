@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased
+
+## 1.22.0 - Shadows On The Trade Road And Admin Reset
+
+Release date: 2026-04-24
+
+- The Fabric Loader dependency was bumped to `0.19.2` on both maintained lines.
+- The modern `26.1.2` line now also uses Fabric API `0.146.0+26.1.2`.
+- The modern `26.1.2` line now includes the new late `Questmaster` arc `Shadows on the Trade Road`, ported from the `1.21.11` implementation into the Mojang-mapped codebase.
+- The new road-defense arc appears after `Watch Bell` as a locked story entry and unlocks after `3` completed `Pilgrim` combat rumors.
+- That arc adds village rumor gathering, village-aware interview tracking, a toolsmith compass calibration step, nighttime caravan rescue encounters, a courier handoff chapter, and a larger final convoy defense with new `Caravan Merchant` and `Traitor` entities.
+- Late-road encounter balance uses staggered `3`-second wave pulses with up to `2` hostile spawns per pulse, a `16-26` block hostile spawn ring, `5`-second initial `Glowing` on each wave hostile, and `3` final-wave `Traitor` elites.
+- Caravan encounter anchors reject water and other non-solid footing, escaped raiders leash back into the ambush area, and the last `1-2` remaining enemies get delayed `Glowing` markers so hidden mobs cannot stall the quest.
+- Caravan merchants now have `45` hearts, roughly `1/3` of each convoy can weakly defend with wooden swords, and convoy spawn spacing avoids overlap glitches.
+- Active rescue and final-convoy quest status lines now show how many hostile mobs remain in the current encounter.
+- The `Wayfinder's Compass` gained story-bound modes for `Caravan Distress` and `Guild Convoy` while the late trade-road arc is active.
+- New admin helpers were added for the late-road batch: `/vq admin story shadows unlock`, `/vq admin story shadows testrescue`, and `/vq admin story shadows testfinal`.
+- A new admin command, `/vq admin reset complete`, now wipes the saved Village Quest state for every player, including wallet, reputation, story/project progress, special quest data, pilgrim contracts, cooldown state, live quest sessions, and spawned Village Quest NPCs.
+- Villager talk objectives now speak back with context-sensitive lore lines in `Market Rounds`, the villager-facing `Market Road Troubles` chapters, and the new `Shadows on the Trade Road` rumor steps instead of progressing silently.
+- Villager, toolsmith, and courier dialogue lines were retuned toward a more medieval low-fantasy tone in German and English.
+- `Questmaster` and `Pilgrim` screens can now also be closed again through the player's current inventory keybind.
+- The `Wayfinder's Compass` now keeps a chunkier pixel-art outer ring while preserving the original readable inner dial and cardinal letters.
+- Remaining Wolkensprung extraction scripts, templates, comments, and leftover lang keys were removed from this line.
+- README and wiki command/install notes were refreshed for the current dependency stack and admin surface.
+
 ## 1.21.1 - First-Use Journal Onboarding And Minecraft 26.1.2 Update
 
 Release date: 2026-04-10

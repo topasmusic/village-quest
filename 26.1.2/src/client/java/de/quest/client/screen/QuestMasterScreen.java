@@ -6,6 +6,7 @@ import de.quest.util.TimeUtil;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
@@ -166,6 +167,15 @@ public final class QuestMasterScreen extends CompatScreen {
     public void onClose() {
         notifyClosed();
         super.onClose();
+    }
+
+    @Override
+    public boolean keyPressed(KeyEvent key) {
+        if (this.minecraft != null && this.minecraft.options.keyInventory.matches(key)) {
+            this.onClose();
+            return true;
+        }
+        return super.keyPressed(key);
     }
 
     @Override

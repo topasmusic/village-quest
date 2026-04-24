@@ -61,6 +61,24 @@ public final class StoryQuestKeys {
     public static final String NIGHT_BELLS_CREEPERS = "night_bells_creepers";
     public static final String NIGHT_BELLS_RAID_WON = "night_bells_raid_won";
     public static final String NIGHT_BELLS_RAID_WAIT_FOR_FRESH = "night_bells_raid_wait_for_fresh";
+    public static final String SHADOWS_HOME_VILLAGERS = "shadows_home_villagers";
+    public static final String SHADOWS_HOME_VILLAGE_X = "shadows_home_village_x";
+    public static final String SHADOWS_HOME_VILLAGE_Z = "shadows_home_village_z";
+    public static final String SHADOWS_HOME_VILLAGER_PREFIX = "shadows_home_villager_";
+    public static final String SHADOWS_REMOTE_VILLAGES = "shadows_remote_villages";
+    public static final String SHADOWS_REMOTE_VILLAGE_DONE_PREFIX = "shadows_remote_village_done_";
+    public static final String SHADOWS_REMOTE_VILLAGE_TALKS_PREFIX = "shadows_remote_village_talks_";
+    public static final String SHADOWS_REMOTE_VILLAGER_PREFIX = "shadows_remote_villager_";
+    public static final String SHADOWS_TOOLSMITH_CALIBRATED = "shadows_toolsmith_calibrated";
+    public static final String SHADOWS_RESCUE_TARGET_DAY = "shadows_rescue_target_day";
+    public static final String SHADOWS_RESCUE_TARGET_X = "shadows_rescue_target_x";
+    public static final String SHADOWS_RESCUE_TARGET_Z = "shadows_rescue_target_z";
+    public static final String SHADOWS_RESCUE_KIND = "shadows_rescue_kind";
+    public static final String SHADOWS_FIRST_SIGNAL_WINS = "shadows_first_signal_wins";
+    public static final String SHADOWS_HOLDING_WINS = "shadows_holding_wins";
+    public static final String SHADOWS_LETTER_RECEIVED = "shadows_letter_received";
+    public static final String SHADOWS_FINAL_TARGET_DAY = "shadows_final_target_day";
+    public static final String SHADOWS_FINAL_WON = "shadows_final_won";
 
     private StoryQuestKeys() {}
 }

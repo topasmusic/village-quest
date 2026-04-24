@@ -3,8 +3,8 @@
 ## Requirements
 
 - Minecraft `26.1.2`
-- Fabric Loader `0.18.6+`
-- Fabric API `0.145.4+26.1.2`
+- Fabric Loader `0.19.2+`
+- Fabric API `0.146.0+26.1.2`
 - Java `25`
 
 ## Installation
@@ -31,8 +31,6 @@
 - `/vq questtracker off`
   Forces the tracker off.
 
-On this line, the old direct roots were removed. Use `/vq ...` or `/villagequest ...` for all player commands.
-
 ## Your First Session
 
 1. Use `/vq questmaster`.
@@ -48,6 +46,10 @@ On this line, the old direct roots were removed. Use `/vq ...` or `/villagequest
 - `Story`
   Unlocks after the first normal daily is completed.
   After each full `4`-chapter story arc, the next story appears only after a real `3 hour` cooldown.
+- `Shadows on the Trade Road`
+  Appears later as a locked late-story entry after `Watch Bell`.
+  Unlocks after `3` completed `Pilgrim` combat rumors.
+  Chapter `2` also requires that you already own the `Wayfinder's Compass`.
 - `Special`
   Unlocks after the first real reputation gain.
 - `Pilgrim` road combat

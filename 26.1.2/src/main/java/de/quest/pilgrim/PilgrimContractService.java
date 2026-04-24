@@ -734,6 +734,19 @@ public final class PilgrimContractService {
         return data(world, playerId).hasMilestoneFlag(completedFlag(type));
     }
 
+    public static int completedCombatContractCount(ServerLevel world, UUID playerId) {
+        if (world == null || playerId == null) {
+            return 0;
+        }
+        int count = 0;
+        for (PilgrimContractType type : PilgrimContractType.values()) {
+            if (isCombatContract(type) && hasCompletedContract(world, playerId, type)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     private static void completeContract(ServerLevel world,
                                          ServerPlayer player,
                                          PilgrimContractType type,

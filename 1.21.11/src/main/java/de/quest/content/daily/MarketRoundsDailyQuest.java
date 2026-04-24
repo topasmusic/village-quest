@@ -1,5 +1,6 @@
 package de.quest.content.daily;
 
+import de.quest.content.story.VillagerDialogueService;
 import de.quest.quest.daily.DailyQuestCompletion;
 import de.quest.quest.daily.DailyQuestDefinition;
 import de.quest.quest.daily.DailyQuestKeys;
@@ -90,6 +91,7 @@ public final class MarketRoundsDailyQuest implements DailyQuestDefinition {
             return;
         }
 
+        VillagerDialogueService.sendDialogue(player, villager, VillagerDialogueService.marketRounds(villager));
         DailyQuestService.setQuestFlag(world, playerId, visitFlag, true);
         int visits = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.MARKET_ROUNDS_VISITS);
         if (visits < VILLAGER_TARGET) {

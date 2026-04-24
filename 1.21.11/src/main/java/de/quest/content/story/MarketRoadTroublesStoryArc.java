@@ -378,6 +378,7 @@ public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
                 return;
             }
             if (trackProfession(world, player.getUuid(), villager.getVillagerData().profession())) {
+                VillagerDialogueService.sendDialogue(player, villager, VillagerDialogueService.marketRoadProfession(villager));
                 StoryQuestService.completeIfEligible(world, player);
             }
         }
@@ -448,6 +449,7 @@ public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
                     || StoryQuestService.hasStoryFlag(world, playerId, visitFlag)) {
                 return;
             }
+            VillagerDialogueService.sendDialogue(player, (VillagerEntity) entity, VillagerDialogueService.marketRoadGather((VillagerEntity) entity));
             StoryQuestService.setStoryFlag(world, playerId, visitFlag, true);
             addProgress(world, player, StoryQuestKeys.MARKET_ROAD_VILLAGERS, 1, MARKET_DAY_RETURNS_VILLAGER_TARGET);
             if (progress(world, playerId, StoryQuestKeys.MARKET_ROAD_VILLAGERS) >= MARKET_DAY_RETURNS_VILLAGER_TARGET) {

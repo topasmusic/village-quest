@@ -120,6 +120,22 @@ public final class QuestMasterService {
         return questMasters;
     }
 
+    public static int despawnAll(ServerWorld world) {
+        if (world == null) {
+            return 0;
+        }
+        List<QuestMasterEntity> questMasters = getQuestMasters(world);
+        for (QuestMasterEntity questMaster : questMasters) {
+            ServerPlayerEntity customer = questMaster.getCustomer();
+            if (customer != null) {
+                QuestMasterUiService.close(customer);
+                questMaster.clearCustomer();
+            }
+            questMaster.discard();
+        }
+        return questMasters.size();
+    }
+
     public static double getMaxInteractDistanceSquared() {
         return MAX_INTERACT_DISTANCE_SQUARED;
     }

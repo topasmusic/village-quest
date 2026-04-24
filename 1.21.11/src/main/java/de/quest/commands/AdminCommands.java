@@ -6,7 +6,6 @@ public final class AdminCommands {
     private AdminCommands() {}
 
     public static void register() {
-        // Wolkensprung admin commands were moved to the standalone Wolkensprung mod.
     }
 
     public static boolean canManageRespawn(ServerCommandSource source) {

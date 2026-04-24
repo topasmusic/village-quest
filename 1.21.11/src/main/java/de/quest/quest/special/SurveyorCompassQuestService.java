@@ -1,6 +1,7 @@
 package de.quest.quest.special;
 
 import com.mojang.datafixers.util.Pair;
+import de.quest.content.story.ShadowsTradeRoadEncounterService;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.pilgrim.PilgrimContractType;
@@ -91,6 +92,10 @@ public final class SurveyorCompassQuestService {
 
     private static final ConcurrentMap<UUID, HintStamp> LAST_HINTS = new ConcurrentHashMap<>();
 
+    public static void resetRuntimeState() {
+        LAST_HINTS.clear();
+    }
+
     private record CompassTarget(BlockPos pos, Text label) {}
     private record HomeTarget(ServerWorld world, BlockPos pos, float yaw) {}
     private record HintCandidate(String key, Text message) {}
@@ -99,7 +104,8 @@ public final class SurveyorCompassQuestService {
     private enum CompassModeGroup {
         HOME,
         BIOME,
-        STRUCTURE
+        STRUCTURE,
+        STORY
     }
 
     private enum CompassMode {
@@ -131,7 +137,9 @@ public final class SurveyorCompassQuestService {
         SWAMP_HUT("text.village-quest.special.surveyor_compass.mode.swamp_hut", CompassModeGroup.STRUCTURE),
         MINESHAFT("text.village-quest.special.surveyor_compass.mode.mineshaft", CompassModeGroup.STRUCTURE),
         SHIPWRECK("text.village-quest.special.surveyor_compass.mode.shipwreck", CompassModeGroup.STRUCTURE),
-        RUINED_PORTAL("text.village-quest.special.surveyor_compass.mode.ruined_portal", CompassModeGroup.STRUCTURE);
+        RUINED_PORTAL("text.village-quest.special.surveyor_compass.mode.ruined_portal", CompassModeGroup.STRUCTURE),
+        CARAVAN_DISTRESS("text.village-quest.special.surveyor_compass.mode.caravan_distress", CompassModeGroup.STORY),
+        GUILD_CONVOY("text.village-quest.special.surveyor_compass.mode.guild_convoy", CompassModeGroup.STORY);
 
         private final String translationKey;
         private final CompassModeGroup group;
@@ -627,7 +635,7 @@ public final class SurveyorCompassQuestService {
             return returnHome(world, player, stack);
         }
 
-        CompassTarget target = locateTarget(world, player.getBlockPos(), mode);
+        CompassTarget target = locateTarget(world, player.getUuid(), player.getBlockPos(), mode);
         if (target == null) {
             player.sendMessage(Text.translatable("message.village-quest.special.surveyor_compass.not_found", mode.label()).formatted(Formatting.RED), true);
             return ActionResult.SUCCESS;
@@ -702,6 +710,12 @@ public final class SurveyorCompassQuestService {
             case HOME -> true;
             case BIOME -> hasBiomeModesUnlocked(world, playerId);
             case STRUCTURE -> hasStructureModesUnlocked(world, playerId);
+            case STORY -> switch (mode) {
+                case CARAVAN_DISTRESS -> ShadowsTradeRoadEncounterService.currentDistressKind(world, playerId) == ShadowsTradeRoadEncounterService.RESCUE_KIND_FIRST_SIGNAL
+                        || ShadowsTradeRoadEncounterService.currentDistressKind(world, playerId) == ShadowsTradeRoadEncounterService.RESCUE_KIND_HOLDING;
+                case GUILD_CONVOY -> ShadowsTradeRoadEncounterService.currentDistressKind(world, playerId) == ShadowsTradeRoadEncounterService.RESCUE_KIND_FINAL;
+                default -> false;
+            };
         };
     }
 
@@ -853,7 +867,7 @@ public final class SurveyorCompassQuestService {
         return null;
     }
 
-    private static CompassTarget locateTarget(ServerWorld world, BlockPos origin, CompassMode mode) {
+    private static CompassTarget locateTarget(ServerWorld world, UUID playerId, BlockPos origin, CompassMode mode) {
         return switch (mode) {
             case HOME -> null;
             case FOREST -> biomeTarget(world, origin, BiomeTags.IS_FOREST, mode.label());
@@ -884,12 +898,26 @@ public final class SurveyorCompassQuestService {
             case MINESHAFT -> structureTarget(world, origin, COMPASS_MINESHAFTS, mode.label());
             case SHIPWRECK -> structureTarget(world, origin, COMPASS_SHIPWRECKS, mode.label());
             case RUINED_PORTAL -> structureTarget(world, origin, COMPASS_RUINED_PORTALS, mode.label());
+            case CARAVAN_DISTRESS, GUILD_CONVOY -> storyTarget(world, playerId, mode);
         };
     }
 
     private static CompassTarget biomeTarget(ServerWorld world, BlockPos origin, TagKey<Biome> tag, Text label) {
         Pair<BlockPos, RegistryEntry<Biome>> result = world.locateBiome(entry -> entry.isIn(tag), origin, BIOME_SEARCH_RADIUS, BIOME_HORIZONTAL_STEP, BIOME_VERTICAL_STEP);
         return result == null ? null : new CompassTarget(result.getFirst(), label);
+    }
+
+    private static CompassTarget storyTarget(ServerWorld world, UUID playerId, CompassMode mode) {
+        if (world == null || playerId == null) {
+            return null;
+        }
+        int kind = ShadowsTradeRoadEncounterService.currentDistressKind(world, playerId);
+        if ((mode == CompassMode.CARAVAN_DISTRESS && kind == ShadowsTradeRoadEncounterService.RESCUE_KIND_FINAL)
+                || (mode == CompassMode.GUILD_CONVOY && kind != ShadowsTradeRoadEncounterService.RESCUE_KIND_FINAL)) {
+            return null;
+        }
+        ShadowsTradeRoadEncounterService.DistressTarget target = ShadowsTradeRoadEncounterService.currentDistressTarget(world, playerId);
+        return target == null ? null : new CompassTarget(target.pos(), target.label());
     }
 
     private static CompassTarget specificBiomeTarget(ServerWorld world, BlockPos origin, RegistryKey<Biome> biomeKey, Text label) {
