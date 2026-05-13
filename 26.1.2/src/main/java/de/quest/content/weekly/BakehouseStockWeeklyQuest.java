@@ -6,14 +6,15 @@ import de.quest.quest.weekly.WeeklyQuestKeys;
 import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.reputation.ReputationService;
 import de.quest.util.Texts;
-import java.util.List;
-import java.util.UUID;
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+
+import java.util.List;
+import java.util.UUID;
 
 public final class BakehouseStockWeeklyQuest implements WeeklyQuestDefinition {
     @Override
@@ -61,9 +62,9 @@ public final class BakehouseStockWeeklyQuest implements WeeklyQuestDefinition {
         return WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.BAKEHOUSE_BREAD) >= WeeklyQuestService.bakehouseBreadTarget()
                 && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.BAKEHOUSE_PIE) >= WeeklyQuestService.bakehousePieTarget()
                 && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.BAKEHOUSE_POTATO) >= WeeklyQuestService.bakehousePotatoTarget()
-                && WeeklyQuestService.countInventoryItem(player, Items.BREAD) >= WeeklyQuestService.bakehouseBreadTarget()
-                && WeeklyQuestService.countInventoryItem(player, Items.PUMPKIN_PIE) >= WeeklyQuestService.bakehousePieTarget()
-                && WeeklyQuestService.countInventoryItem(player, Items.BAKED_POTATO) >= WeeklyQuestService.bakehousePotatoTarget();
+                && WeeklyQuestService.countCompletionItem(world, player, Items.BREAD) >= WeeklyQuestService.bakehouseBreadTarget()
+                && WeeklyQuestService.countCompletionItem(world, player, Items.PUMPKIN_PIE) >= WeeklyQuestService.bakehousePieTarget()
+                && WeeklyQuestService.countCompletionItem(world, player, Items.BAKED_POTATO) >= WeeklyQuestService.bakehousePotatoTarget();
     }
 
     @Override
@@ -84,14 +85,14 @@ public final class BakehouseStockWeeklyQuest implements WeeklyQuestDefinition {
 
     @Override
     public boolean consumeCompletionRequirements(ServerLevel world, ServerPlayer player) {
-        if (WeeklyQuestService.countInventoryItem(player, Items.BREAD) < WeeklyQuestService.bakehouseBreadTarget()
-                || WeeklyQuestService.countInventoryItem(player, Items.PUMPKIN_PIE) < WeeklyQuestService.bakehousePieTarget()
-                || WeeklyQuestService.countInventoryItem(player, Items.BAKED_POTATO) < WeeklyQuestService.bakehousePotatoTarget()) {
+        if (WeeklyQuestService.countCompletionItem(world, player, Items.BREAD) < WeeklyQuestService.bakehouseBreadTarget()
+                || WeeklyQuestService.countCompletionItem(world, player, Items.PUMPKIN_PIE) < WeeklyQuestService.bakehousePieTarget()
+                || WeeklyQuestService.countCompletionItem(world, player, Items.BAKED_POTATO) < WeeklyQuestService.bakehousePotatoTarget()) {
             return false;
         }
-        return WeeklyQuestService.consumeInventoryItem(player, Items.BREAD, WeeklyQuestService.bakehouseBreadTarget())
-                && WeeklyQuestService.consumeInventoryItem(player, Items.PUMPKIN_PIE, WeeklyQuestService.bakehousePieTarget())
-                && WeeklyQuestService.consumeInventoryItem(player, Items.BAKED_POTATO, WeeklyQuestService.bakehousePotatoTarget());
+        return WeeklyQuestService.consumeCompletionItem(world, player, Items.BREAD, WeeklyQuestService.bakehouseBreadTarget())
+                && WeeklyQuestService.consumeCompletionItem(world, player, Items.PUMPKIN_PIE, WeeklyQuestService.bakehousePieTarget())
+                && WeeklyQuestService.consumeCompletionItem(world, player, Items.BAKED_POTATO, WeeklyQuestService.bakehousePotatoTarget());
     }
 
     @Override
@@ -106,20 +107,20 @@ public final class BakehouseStockWeeklyQuest implements WeeklyQuestDefinition {
         if (WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.BAKEHOUSE_BREAD) < breadTarget
                 || WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.BAKEHOUSE_PIE) < pieTarget
                 || WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.BAKEHOUSE_POTATO) < potatoTarget
-                || (WeeklyQuestService.countInventoryItem(player, Items.BREAD) >= breadTarget
-                && WeeklyQuestService.countInventoryItem(player, Items.PUMPKIN_PIE) >= pieTarget
-                && WeeklyQuestService.countInventoryItem(player, Items.BAKED_POTATO) >= potatoTarget)) {
+                || (WeeklyQuestService.countCompletionItem(world, player, Items.BREAD) >= breadTarget
+                && WeeklyQuestService.countCompletionItem(world, player, Items.PUMPKIN_PIE) >= pieTarget
+                && WeeklyQuestService.countCompletionItem(world, player, Items.BAKED_POTATO) >= potatoTarget)) {
             return null;
         }
         return Texts.turnInMissing(
-                Items.BREAD.getDefaultInstance().getHoverName(),
-                WeeklyQuestService.countInventoryItem(player, Items.BREAD),
+                Items.BREAD.getDefaultInstance().getDisplayName(),
+                WeeklyQuestService.countCompletionItem(world, player, Items.BREAD),
                 breadTarget,
-                Items.PUMPKIN_PIE.getDefaultInstance().getHoverName(),
-                WeeklyQuestService.countInventoryItem(player, Items.PUMPKIN_PIE),
+                Items.PUMPKIN_PIE.getDefaultInstance().getDisplayName(),
+                WeeklyQuestService.countCompletionItem(world, player, Items.PUMPKIN_PIE),
                 pieTarget,
-                Items.BAKED_POTATO.getDefaultInstance().getHoverName(),
-                WeeklyQuestService.countInventoryItem(player, Items.BAKED_POTATO),
+                Items.BAKED_POTATO.getDefaultInstance().getDisplayName(),
+                WeeklyQuestService.countCompletionItem(world, player, Items.BAKED_POTATO),
                 potatoTarget
         );
     }

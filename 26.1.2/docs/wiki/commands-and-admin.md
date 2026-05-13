@@ -23,6 +23,59 @@ All commands are available as `/villagequest ...` and the short alias `/vq ...`.
 - `/vq daily accept`
   Accept the currently pending daily-related offer.
 
+### Quest Party
+
+- `/vq party show`
+  Show your current quest party state.
+
+- `/vq party invite <player>`
+  Invite an online player into your quest party.
+
+- `/vq party accept`
+  Accept your currently pending quest party invite.
+
+- `/vq party decline`
+  Decline your currently pending quest party invite.
+
+- `/vq party leave`
+  Leave your current quest party.
+
+- `/vq party disband`
+  Disband your current quest party if you are the leader.
+
+- `/vq party share daily accept`
+  Accept the currently pending shared daily join offer for a running party quest.
+
+- `/vq party share daily decline`
+  Decline the currently pending shared daily join offer.
+
+- `/vq party share weekly accept`
+  Accept the currently pending shared weekly join offer for a running party quest.
+
+- `/vq party share weekly decline`
+  Decline the currently pending shared weekly join offer.
+
+- `/vq party share story accept`
+  Accept the currently pending shared story-chapter join offer for a running party story.
+
+- `/vq party share story decline`
+  Decline the currently pending shared story-chapter join offer.
+
+- `/vq party share pilgrim accept`
+  Accept the currently pending shared pilgrim-contract join offer for a running party contract.
+
+- `/vq party share pilgrim decline`
+  Decline the currently pending shared pilgrim-contract join offer.
+
+Quest-party notes:
+
+- this surface is only active on dedicated multiplayer servers
+- the `Questmaster` party drawer is intentionally hidden on singleplayer and integrated worlds
+- co-op scope currently covers shareable `Daily`, `Weekly`, core `Story`, and normal `Pilgrim` combat-contract flows
+- `Shadows on the Trade Road`, relic/special quests, and compass-item quest lines remain solo by design
+
+### Quest Tracker
+
 - `/vq questtracker`
   Toggle the permanent quest tracker.
 

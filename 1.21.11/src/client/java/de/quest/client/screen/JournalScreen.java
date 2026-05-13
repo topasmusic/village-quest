@@ -868,7 +868,7 @@ public class JournalScreen extends Screen {
         if (this.questMasterButton == null) {
             return;
         }
-        boolean showQuestMaster = this.pageIndex == 0;
+        boolean showQuestMaster = true;
         int totalWidth = ACTION_BUTTON_WIDTH * 2 + ACTION_BUTTON_GAP;
         int rowLeft = centerX - totalWidth / 2 + ACTION_BUTTON_ROW_INSET;
         this.questMasterButtonX = rowLeft;
@@ -877,12 +877,7 @@ public class JournalScreen extends Screen {
         this.questMasterButton.setPosition(rowLeft, buttonY);
         this.questMasterButton.visible = showQuestMaster;
         this.questMasterButton.active = showQuestMaster;
-
-        if (showQuestMaster) {
-            this.doneButton.setPosition(rowLeft + ACTION_BUTTON_WIDTH + ACTION_BUTTON_GAP, buttonY);
-        } else {
-            this.doneButton.setPosition(centerX - ACTION_BUTTON_WIDTH / 2, buttonY);
-        }
+        this.doneButton.setPosition(rowLeft + ACTION_BUTTON_WIDTH + ACTION_BUTTON_GAP, buttonY);
     }
 
     private int completedProjectCount() {

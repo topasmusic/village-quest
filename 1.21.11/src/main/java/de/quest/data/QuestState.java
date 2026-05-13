@@ -2,6 +2,7 @@ package de.quest.data;
 
 import de.quest.quest.daily.DailyQuestKeys;
 import de.quest.quest.daily.DailyQuestService;
+import de.quest.quest.repeatable.RepeatableTargetProfile;
 import de.quest.quest.special.RelicQuestStage;
 import de.quest.quest.special.ShardRelicQuestStage;
 import de.quest.quest.special.SpecialQuestKind;
@@ -27,6 +28,7 @@ public final class QuestState extends PersistentState {
 
     private final Map<UUID, PlayerQuestData> players = new ConcurrentHashMap<>();
     private long pilgrimNaturalSpawnCooldownUntil;
+    private NbtCompound questPartyState = new NbtCompound();
 
     private QuestState() {}
 
@@ -41,6 +43,7 @@ public final class QuestState extends PersistentState {
     private static NbtCompound toNbt(QuestState state) {
         NbtCompound root = new NbtCompound();
         root.put("questManager", state.writeDailyQuestData());
+        root.put("questPartyManager", state.questPartyState);
         return root;
     }
 
@@ -66,6 +69,7 @@ public final class QuestState extends PersistentState {
     public void resetAllProgress() {
         players.clear();
         pilgrimNaturalSpawnCooldownUntil = 0L;
+        questPartyState = new NbtCompound();
         markDirty();
     }
 
@@ -74,11 +78,22 @@ public final class QuestState extends PersistentState {
 
     private void readFromNbt(NbtCompound root) {
         players.clear();
+        questPartyState = new NbtCompound();
         if (root == null || root.isEmpty()) {
             return;
         }
         NbtCompound daily = root.getCompoundOrEmpty("questManager");
         readDailyQuestData(daily);
+        questPartyState = root.getCompoundOrEmpty("questPartyManager");
+    }
+
+    public NbtCompound getQuestPartyState() {
+        return questPartyState;
+    }
+
+    public void setQuestPartyState(NbtCompound questPartyState) {
+        this.questPartyState = questPartyState == null ? new NbtCompound() : questPartyState;
+        markDirty();
     }
 
     private void readDailyQuestData(NbtCompound root) {
@@ -95,10 +110,13 @@ public final class QuestState extends PersistentState {
         readUuidLongMap(root, "weeklyRewardCycle", (id, value) -> getPlayerData(id).setWeeklyRewardCycle(value));
         readUuidQuestMap(root, "dailyChoice", (id, value) -> getPlayerData(id).setDailyChoice(value));
         readUuidLongMap(root, "dailyChoiceDay", (id, value) -> getPlayerData(id).setDailyChoiceDay(value));
+        readUuidIntMap(root, "dailyTargetProfile", (id, value) -> getPlayerData(id).setDailyTargetProfile(RepeatableTargetProfile.byId(value)));
         readUuidQuestMap(root, "bonusChoice", (id, value) -> getPlayerData(id).setBonusChoice(value));
         readUuidLongMap(root, "bonusChoiceDay", (id, value) -> getPlayerData(id).setBonusChoiceDay(value));
+        readUuidIntMap(root, "bonusTargetProfile", (id, value) -> getPlayerData(id).setBonusTargetProfile(RepeatableTargetProfile.byId(value)));
         readUuidWeeklyQuestMap(root, "weeklyChoice", (id, value) -> getPlayerData(id).setWeeklyChoice(value));
         readUuidLongMap(root, "weeklyChoiceCycle", (id, value) -> getPlayerData(id).setWeeklyChoiceCycle(value));
+        readUuidIntMap(root, "weeklyTargetProfile", (id, value) -> getPlayerData(id).setWeeklyTargetProfile(RepeatableTargetProfile.byId(value)));
         readUuidSet(root, "dailyDiscovered", id -> getPlayerData(id).setDailyDiscovered(true));
         readUuidNamedSet(root, "weeklyDiscoveredEntries", (id, weeklyId) -> getPlayerData(id).markWeeklyDiscovered(weeklyId));
         readUuidNamedSet(root, "weeklyCompletedEntries", (id, weeklyId) -> getPlayerData(id).markWeeklyCompleted(weeklyId));
@@ -115,8 +133,11 @@ public final class QuestState extends PersistentState {
         readUuidStringMap(root, "activeStoryArc", (id, value) -> getPlayerData(id).setActiveStoryArc(StoryArcType.fromId(value)));
         readUuidLongMap(root, "storyCooldownUntil", (id, value) -> getPlayerData(id).setStoryCooldownUntil(value));
         readUuidStringMap(root, "pilgrimActiveContract", (id, value) -> getPlayerData(id).setActivePilgrimContractId(value));
+        readUuidIntMap(root, "pilgrimActiveContractProfile", (id, value) -> getPlayerData(id).setActivePilgrimTargetProfile(RepeatableTargetProfile.byId(value)));
         readUuidStringMap(root, "pilgrimOfferedContract", (id, value) -> getPlayerData(id).setOfferedPilgrimContractId(value));
+        readUuidIntMap(root, "pilgrimOfferedContractProfile", (id, value) -> getPlayerData(id).setOfferedPilgrimTargetProfile(RepeatableTargetProfile.byId(value)));
         readUuidStringMap(root, "pilgrimOfferedContractAlt", (id, value) -> getPlayerData(id).setOfferedPilgrimContractAltId(value));
+        readUuidIntMap(root, "pilgrimOfferedContractAltProfile", (id, value) -> getPlayerData(id).setOfferedPilgrimContractAltTargetProfile(RepeatableTargetProfile.byId(value)));
         readUuidLongMap(root, "pilgrimOfferDay", (id, value) -> getPlayerData(id).setPilgrimOfferDay(value));
         readUuidNamedIntMap(root, "reputation", (id, stateKey, value) -> getPlayerData(id).setReputation(stateKey, value));
         readUuidNamedIntMap(root, "storyProgressInts", (id, stateKey, value) -> getPlayerData(id).setStoryInt(stateKey, value));
@@ -163,10 +184,13 @@ public final class QuestState extends PersistentState {
         NbtList weeklyRewardCycle = new NbtList();
         NbtList dailyChoice = new NbtList();
         NbtList dailyChoiceDay = new NbtList();
+        NbtList dailyTargetProfile = new NbtList();
         NbtList bonusChoice = new NbtList();
         NbtList bonusChoiceDay = new NbtList();
+        NbtList bonusTargetProfile = new NbtList();
         NbtList weeklyChoice = new NbtList();
         NbtList weeklyChoiceCycle = new NbtList();
+        NbtList weeklyTargetProfile = new NbtList();
         NbtList dailyDiscovered = new NbtList();
         NbtList weeklyDiscoveredEntries = new NbtList();
         NbtList weeklyCompletedEntries = new NbtList();
@@ -183,8 +207,11 @@ public final class QuestState extends PersistentState {
         NbtList activeStoryArc = new NbtList();
         NbtList storyCooldownUntil = new NbtList();
         NbtList pilgrimActiveContract = new NbtList();
+        NbtList pilgrimActiveContractProfile = new NbtList();
         NbtList pilgrimOfferedContract = new NbtList();
+        NbtList pilgrimOfferedContractProfile = new NbtList();
         NbtList pilgrimOfferedContractAlt = new NbtList();
+        NbtList pilgrimOfferedContractAltProfile = new NbtList();
         NbtList pilgrimOfferDay = new NbtList();
         NbtList reputation = new NbtList();
         NbtList storyProgressInts = new NbtList();
@@ -258,17 +285,26 @@ public final class QuestState extends PersistentState {
             if (data.getDailyChoiceDay() != PlayerQuestData.UNSET_DAY) {
                 dailyChoiceDay.add(entryLong(id, data.getDailyChoiceDay()));
             }
+            if (data.getDailyTargetProfile() != RepeatableTargetProfile.NORMAL) {
+                dailyTargetProfile.add(entryInt(id, data.getDailyTargetProfile().id()));
+            }
             if (data.getBonusChoice() != null) {
                 bonusChoice.add(entryString(id, data.getBonusChoice().name()));
             }
             if (data.getBonusChoiceDay() != PlayerQuestData.UNSET_DAY) {
                 bonusChoiceDay.add(entryLong(id, data.getBonusChoiceDay()));
             }
+            if (data.getBonusTargetProfile() != RepeatableTargetProfile.NORMAL) {
+                bonusTargetProfile.add(entryInt(id, data.getBonusTargetProfile().id()));
+            }
             if (data.getWeeklyChoice() != null) {
                 weeklyChoice.add(entryString(id, data.getWeeklyChoice().name()));
             }
             if (data.getWeeklyChoiceCycle() != PlayerQuestData.UNSET_DAY) {
                 weeklyChoiceCycle.add(entryLong(id, data.getWeeklyChoiceCycle()));
+            }
+            if (data.getWeeklyTargetProfile() != RepeatableTargetProfile.NORMAL) {
+                weeklyTargetProfile.add(entryInt(id, data.getWeeklyTargetProfile().id()));
             }
             if (data.isDailyDiscovered()) {
                 dailyDiscovered.add(entryId(id));
@@ -318,11 +354,20 @@ public final class QuestState extends PersistentState {
             if (data.getActivePilgrimContractId() != null) {
                 pilgrimActiveContract.add(entryString(id, data.getActivePilgrimContractId()));
             }
+            if (data.getActivePilgrimTargetProfile() != RepeatableTargetProfile.NORMAL) {
+                pilgrimActiveContractProfile.add(entryInt(id, data.getActivePilgrimTargetProfile().id()));
+            }
             if (data.getOfferedPilgrimContractId() != null) {
                 pilgrimOfferedContract.add(entryString(id, data.getOfferedPilgrimContractId()));
             }
+            if (data.getOfferedPilgrimTargetProfile() != RepeatableTargetProfile.NORMAL) {
+                pilgrimOfferedContractProfile.add(entryInt(id, data.getOfferedPilgrimTargetProfile().id()));
+            }
             if (data.getOfferedPilgrimContractAltId() != null) {
                 pilgrimOfferedContractAlt.add(entryString(id, data.getOfferedPilgrimContractAltId()));
+            }
+            if (data.getOfferedPilgrimContractAltTargetProfile() != RepeatableTargetProfile.NORMAL) {
+                pilgrimOfferedContractAltProfile.add(entryInt(id, data.getOfferedPilgrimContractAltTargetProfile().id()));
             }
             if (data.getPilgrimOfferDay() != PlayerQuestData.UNSET_DAY) {
                 pilgrimOfferDay.add(entryLong(id, data.getPilgrimOfferDay()));
@@ -386,10 +431,13 @@ public final class QuestState extends PersistentState {
         root.put("weeklyRewardCycle", weeklyRewardCycle);
         root.put("dailyChoice", dailyChoice);
         root.put("dailyChoiceDay", dailyChoiceDay);
+        root.put("dailyTargetProfile", dailyTargetProfile);
         root.put("bonusChoice", bonusChoice);
         root.put("bonusChoiceDay", bonusChoiceDay);
+        root.put("bonusTargetProfile", bonusTargetProfile);
         root.put("weeklyChoice", weeklyChoice);
         root.put("weeklyChoiceCycle", weeklyChoiceCycle);
+        root.put("weeklyTargetProfile", weeklyTargetProfile);
         root.put("dailyDiscovered", dailyDiscovered);
         root.put("weeklyDiscoveredEntries", weeklyDiscoveredEntries);
         root.put("weeklyCompletedEntries", weeklyCompletedEntries);
@@ -406,8 +454,11 @@ public final class QuestState extends PersistentState {
         root.put("activeStoryArc", activeStoryArc);
         root.put("storyCooldownUntil", storyCooldownUntil);
         root.put("pilgrimActiveContract", pilgrimActiveContract);
+        root.put("pilgrimActiveContractProfile", pilgrimActiveContractProfile);
         root.put("pilgrimOfferedContract", pilgrimOfferedContract);
+        root.put("pilgrimOfferedContractProfile", pilgrimOfferedContractProfile);
         root.put("pilgrimOfferedContractAlt", pilgrimOfferedContractAlt);
+        root.put("pilgrimOfferedContractAltProfile", pilgrimOfferedContractAltProfile);
         root.put("pilgrimOfferDay", pilgrimOfferDay);
         root.put("reputation", reputation);
         root.put("storyProgressInts", storyProgressInts);

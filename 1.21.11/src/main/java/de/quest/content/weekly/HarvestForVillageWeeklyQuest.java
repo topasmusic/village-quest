@@ -93,10 +93,10 @@ public final class HarvestForVillageWeeklyQuest implements WeeklyQuestDefinition
         if (!hasTurnInItems(player)) {
             return false;
         }
-        return WeeklyQuestService.consumeInventoryItem(player, Items.WHEAT, WeeklyQuestService.harvestWheatTarget())
-                && WeeklyQuestService.consumeInventoryItem(player, Items.CARROT, WeeklyQuestService.harvestCarrotTarget())
-                && WeeklyQuestService.consumeInventoryItem(player, Items.POTATO, WeeklyQuestService.harvestPotatoTarget())
-                && WeeklyQuestService.consumeInventoryItem(player, Items.BREAD, WeeklyQuestService.harvestBreadTarget());
+        return WeeklyQuestService.consumeCompletionItem(world, player, Items.WHEAT, WeeklyQuestService.harvestWheatTarget())
+                && WeeklyQuestService.consumeCompletionItem(world, player, Items.CARROT, WeeklyQuestService.harvestCarrotTarget())
+                && WeeklyQuestService.consumeCompletionItem(world, player, Items.POTATO, WeeklyQuestService.harvestPotatoTarget())
+                && WeeklyQuestService.consumeCompletionItem(world, player, Items.BREAD, WeeklyQuestService.harvestBreadTarget());
     }
 
     @Override
@@ -118,16 +118,16 @@ public final class HarvestForVillageWeeklyQuest implements WeeklyQuestDefinition
         }
         return Texts.turnInMissing(
                 Items.WHEAT.getDefaultStack().toHoverableText(),
-                WeeklyQuestService.countInventoryItem(player, Items.WHEAT),
+                WeeklyQuestService.countCompletionItem(world, player, Items.WHEAT),
                 wheatTarget,
                 Items.CARROT.getDefaultStack().toHoverableText(),
-                WeeklyQuestService.countInventoryItem(player, Items.CARROT),
+                WeeklyQuestService.countCompletionItem(world, player, Items.CARROT),
                 carrotTarget,
                 Items.POTATO.getDefaultStack().toHoverableText(),
-                WeeklyQuestService.countInventoryItem(player, Items.POTATO),
+                WeeklyQuestService.countCompletionItem(world, player, Items.POTATO),
                 potatoTarget,
                 Items.BREAD.getDefaultStack().toHoverableText(),
-                WeeklyQuestService.countInventoryItem(player, Items.BREAD),
+                WeeklyQuestService.countCompletionItem(world, player, Items.BREAD),
                 breadTarget
         );
     }
@@ -182,9 +182,10 @@ public final class HarvestForVillageWeeklyQuest implements WeeklyQuestDefinition
     }
 
     private boolean hasTurnInItems(ServerPlayerEntity player) {
-        return WeeklyQuestService.countInventoryItem(player, Items.WHEAT) >= WeeklyQuestService.harvestWheatTarget()
-                && WeeklyQuestService.countInventoryItem(player, Items.CARROT) >= WeeklyQuestService.harvestCarrotTarget()
-                && WeeklyQuestService.countInventoryItem(player, Items.POTATO) >= WeeklyQuestService.harvestPotatoTarget()
-                && WeeklyQuestService.countInventoryItem(player, Items.BREAD) >= WeeklyQuestService.harvestBreadTarget();
+        ServerWorld world = (ServerWorld) player.getEntityWorld();
+        return WeeklyQuestService.countCompletionItem(world, player, Items.WHEAT) >= WeeklyQuestService.harvestWheatTarget()
+                && WeeklyQuestService.countCompletionItem(world, player, Items.CARROT) >= WeeklyQuestService.harvestCarrotTarget()
+                && WeeklyQuestService.countCompletionItem(world, player, Items.POTATO) >= WeeklyQuestService.harvestPotatoTarget()
+                && WeeklyQuestService.countCompletionItem(world, player, Items.BREAD) >= WeeklyQuestService.harvestBreadTarget();
     }
 }

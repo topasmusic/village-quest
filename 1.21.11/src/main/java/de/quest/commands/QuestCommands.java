@@ -8,6 +8,7 @@ import com.mojang.brigadier.tree.CommandNode;
 import de.quest.content.story.ShadowsTradeRoadEncounterService;
 import de.quest.data.QuestState;
 import de.quest.economy.CurrencyService;
+import de.quest.party.QuestPartyService;
 import de.quest.pilgrim.PilgrimContractService;
 import de.quest.pilgrim.PilgrimService;
 import de.quest.quest.QuestTrackerService;
@@ -315,6 +316,33 @@ public final class QuestCommands {
             LiteralArgumentBuilder<ServerCommandSource> dailyQuestCommand = literal("daily")
                     .then(literal("accept").executes(ctx -> acceptQuest(ctx.getSource())));
 
+            LiteralArgumentBuilder<ServerCommandSource> partyCommand = literal("party")
+                    .executes(ctx -> showParty(ctx.getSource()))
+                    .then(literal("show").executes(ctx -> showParty(ctx.getSource())))
+                    .then(literal("invite")
+                            .then(argument("player", EntityArgumentType.player())
+                                    .executes(ctx -> inviteToParty(
+                                            ctx.getSource(),
+                                            EntityArgumentType.getPlayer(ctx, "player")
+                                    ))))
+                    .then(literal("accept").executes(ctx -> acceptPartyInvite(ctx.getSource())))
+                    .then(literal("decline").executes(ctx -> declinePartyInvite(ctx.getSource())))
+                    .then(literal("share")
+                            .then(literal("daily")
+                                    .then(literal("accept").executes(ctx -> acceptPartyDailyShare(ctx.getSource())))
+                                    .then(literal("decline").executes(ctx -> declinePartyDailyShare(ctx.getSource()))))
+                            .then(literal("weekly")
+                                    .then(literal("accept").executes(ctx -> acceptPartyWeeklyShare(ctx.getSource())))
+                                    .then(literal("decline").executes(ctx -> declinePartyWeeklyShare(ctx.getSource()))))
+                            .then(literal("story")
+                                    .then(literal("accept").executes(ctx -> acceptPartyStoryShare(ctx.getSource())))
+                                    .then(literal("decline").executes(ctx -> declinePartyStoryShare(ctx.getSource()))))
+                            .then(literal("pilgrim")
+                                    .then(literal("accept").executes(ctx -> acceptPartyPilgrimShare(ctx.getSource())))
+                                    .then(literal("decline").executes(ctx -> declinePartyPilgrimShare(ctx.getSource())))))
+                    .then(literal("leave").executes(ctx -> leaveParty(ctx.getSource())))
+                    .then(literal("disband").executes(ctx -> disbandParty(ctx.getSource())));
+
             LiteralArgumentBuilder<ServerCommandSource> walletCommand = literal("wallet")
                     .executes(ctx -> showWallet(ctx.getSource()));
 
@@ -327,6 +355,7 @@ public final class QuestCommands {
                     .then(questMasterCommand)
                     .then(questTrackerCommand)
                     .then(dailyQuestCommand)
+                    .then(partyCommand)
                     .then(walletCommand)
                     .then(reputationCommand));
             dispatcher.register(literal("vq").redirect(villageQuestCommand));
@@ -1176,6 +1205,153 @@ public final class QuestCommands {
 
     private static CurrencyService.CurrencyUnit parseCurrencyUnit(String raw) {
         return CurrencyService.parseUnit(raw);
+    }
+
+    private static int showParty(ServerCommandSource source) {
+        ServerPlayerEntity player = source.getPlayer();
+        if (player == null) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            return 0;
+        }
+        if (!QuestPartyService.isEnabled(source.getServer())) {
+            source.sendFeedback(() -> Text.translatable("message.village-quest.party.unavailable").formatted(Formatting.GRAY), false);
+            return 0;
+        }
+        QuestPartyService.PartySnapshot snapshot = QuestPartyService.snapshot(player);
+        source.sendFeedback(() -> snapshot.summary().copy(), false);
+        if (!snapshot.hasParty()) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.party.none").formatted(Formatting.GRAY), false);
+            return 1;
+        }
+        for (QuestPartyService.PartyMemberView member : snapshot.members()) {
+            net.minecraft.text.MutableText line = member.name().copy();
+            if (member.leader()) {
+                line = line.append(Text.literal(" ")).append(Text.translatable("command.village-quest.party.member.leader").formatted(Formatting.GOLD));
+            }
+            if (member.self()) {
+                line = line.append(Text.literal(" ")).append(Text.translatable("command.village-quest.party.member.self").formatted(Formatting.GRAY));
+            }
+            Text finalLine = line;
+            source.sendFeedback(() -> finalLine, false);
+        }
+        return 1;
+    }
+
+    private static int inviteToParty(ServerCommandSource source, ServerPlayerEntity target) {
+        ServerPlayerEntity player = source.getPlayer();
+        if (player == null || target == null) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            return 0;
+        }
+        return QuestPartyService.invite(source.getServer().getOverworld(), player, target) ? 1 : 0;
+    }
+
+    private static int acceptPartyInvite(ServerCommandSource source) {
+        ServerPlayerEntity player = source.getPlayer();
+        if (player == null) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            return 0;
+        }
+        return QuestPartyService.acceptInvite(source.getServer().getOverworld(), player) ? 1 : 0;
+    }
+
+    private static int declinePartyInvite(ServerCommandSource source) {
+        ServerPlayerEntity player = source.getPlayer();
+        if (player == null) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            return 0;
+        }
+        return QuestPartyService.declineInvite(source.getServer(), player) ? 1 : 0;
+    }
+
+    private static int leaveParty(ServerCommandSource source) {
+        ServerPlayerEntity player = source.getPlayer();
+        if (player == null) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            return 0;
+        }
+        return QuestPartyService.leave(source.getServer().getOverworld(), player) ? 1 : 0;
+    }
+
+    private static int acceptPartyDailyShare(ServerCommandSource source) {
+        ServerPlayerEntity player = source.getPlayer();
+        if (player == null) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            return 0;
+        }
+        return QuestPartyService.acceptDailyOffer(source.getServer().getOverworld(), player) ? 1 : 0;
+    }
+
+    private static int declinePartyDailyShare(ServerCommandSource source) {
+        ServerPlayerEntity player = source.getPlayer();
+        if (player == null) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            return 0;
+        }
+        return QuestPartyService.declineDailyOffer(source.getServer().getOverworld(), player) ? 1 : 0;
+    }
+
+    private static int acceptPartyWeeklyShare(ServerCommandSource source) {
+        ServerPlayerEntity player = source.getPlayer();
+        if (player == null) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            return 0;
+        }
+        return QuestPartyService.acceptWeeklyOffer(source.getServer().getOverworld(), player) ? 1 : 0;
+    }
+
+    private static int declinePartyWeeklyShare(ServerCommandSource source) {
+        ServerPlayerEntity player = source.getPlayer();
+        if (player == null) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            return 0;
+        }
+        return QuestPartyService.declineWeeklyOffer(source.getServer().getOverworld(), player) ? 1 : 0;
+    }
+
+    private static int acceptPartyStoryShare(ServerCommandSource source) {
+        ServerPlayerEntity player = source.getPlayer();
+        if (player == null) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            return 0;
+        }
+        return QuestPartyService.acceptStoryOffer(source.getServer().getOverworld(), player) ? 1 : 0;
+    }
+
+    private static int declinePartyStoryShare(ServerCommandSource source) {
+        ServerPlayerEntity player = source.getPlayer();
+        if (player == null) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            return 0;
+        }
+        return QuestPartyService.declineStoryOffer(source.getServer().getOverworld(), player) ? 1 : 0;
+    }
+
+    private static int acceptPartyPilgrimShare(ServerCommandSource source) {
+        ServerPlayerEntity player = source.getPlayer();
+        if (player == null) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            return 0;
+        }
+        return QuestPartyService.acceptPilgrimOffer(source.getServer().getOverworld(), player) ? 1 : 0;
+    }
+
+    private static int declinePartyPilgrimShare(ServerCommandSource source) {
+        ServerPlayerEntity player = source.getPlayer();
+        if (player == null) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            return 0;
+        }
+        return QuestPartyService.declinePilgrimOffer(source.getServer().getOverworld(), player) ? 1 : 0;
+    }
+
+    private static int disbandParty(ServerCommandSource source) {
+        ServerPlayerEntity player = source.getPlayer();
+        if (player == null) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            return 0;
+        }
+        return QuestPartyService.disband(source.getServer().getOverworld(), player) ? 1 : 0;
     }
 
     private static ReputationService.ReputationTrack parseReputationTrack(String raw) {

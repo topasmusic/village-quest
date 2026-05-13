@@ -6,16 +6,16 @@ import de.quest.quest.daily.DailyQuestKeys;
 import de.quest.quest.daily.DailyQuestService;
 import de.quest.util.Texts;
 import java.util.UUID;
-import net.minecraft.ChatFormatting;
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.CropBlock;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
 
 public final class WheatHarvestDailyQuest implements DailyQuestDefinition {
     @Override
@@ -83,8 +83,8 @@ public final class WheatHarvestDailyQuest implements DailyQuestDefinition {
         if (!hasTurnInItems(player)) {
             return false;
         }
-        return DailyQuestService.consumeInventoryItem(player, Items.WHEAT, DailyQuestService.wheatTarget())
-                && DailyQuestService.consumeInventoryItem(player, Items.BREAD, DailyQuestService.breadTarget());
+        return DailyQuestService.consumeCompletionItem(world, player, Items.WHEAT, DailyQuestService.wheatTarget())
+                && DailyQuestService.consumeCompletionItem(world, player, Items.BREAD, DailyQuestService.breadTarget());
     }
 
     @Override
@@ -101,11 +101,11 @@ public final class WheatHarvestDailyQuest implements DailyQuestDefinition {
             return null;
         }
         return Texts.turnInMissing(
-                Items.WHEAT.getDefaultInstance().getHoverName(),
-                DailyQuestService.countInventoryItem(player, Items.WHEAT),
+                Items.WHEAT.getDefaultInstance().getDisplayName(),
+                DailyQuestService.countCompletionItem(world, player, Items.WHEAT),
                 wheatTarget,
-                Items.BREAD.getDefaultInstance().getHoverName(),
-                DailyQuestService.countInventoryItem(player, Items.BREAD),
+                Items.BREAD.getDefaultInstance().getDisplayName(),
+                DailyQuestService.countCompletionItem(world, player, Items.BREAD),
                 breadTarget
         );
     }
@@ -165,7 +165,8 @@ public final class WheatHarvestDailyQuest implements DailyQuestDefinition {
     }
 
     private boolean hasTurnInItems(ServerPlayer player) {
-        return DailyQuestService.countInventoryItem(player, Items.WHEAT) >= DailyQuestService.wheatTarget()
-                && DailyQuestService.countInventoryItem(player, Items.BREAD) >= DailyQuestService.breadTarget();
+        ServerLevel world = (ServerLevel) player.level();
+        return DailyQuestService.countCompletionItem(world, player, Items.WHEAT) >= DailyQuestService.wheatTarget()
+                && DailyQuestService.countCompletionItem(world, player, Items.BREAD) >= DailyQuestService.breadTarget();
     }
 }

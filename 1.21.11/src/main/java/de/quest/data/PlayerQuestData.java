@@ -1,6 +1,7 @@
 package de.quest.data;
 
 import de.quest.quest.daily.DailyQuestService;
+import de.quest.quest.repeatable.RepeatableTargetProfile;
 import de.quest.quest.special.RelicQuestStage;
 import de.quest.quest.special.ShardRelicQuestStage;
 import de.quest.quest.special.SpecialQuestKind;
@@ -38,10 +39,13 @@ public final class PlayerQuestData {
     private long weeklyRewardCycle = UNSET_DAY;
     private DailyQuestService.DailyQuestType dailyChoice;
     private long dailyChoiceDay = UNSET_DAY;
+    private int dailyTargetProfile = RepeatableTargetProfile.NORMAL.id();
     private DailyQuestService.DailyQuestType bonusChoice;
     private long bonusChoiceDay = UNSET_DAY;
+    private int bonusTargetProfile = RepeatableTargetProfile.NORMAL.id();
     private WeeklyQuestService.WeeklyQuestType weeklyChoice;
     private long weeklyChoiceCycle = UNSET_DAY;
+    private int weeklyTargetProfile = RepeatableTargetProfile.NORMAL.id();
     private boolean dailyDiscovered;
     private final Set<String> weeklyDiscovered = new HashSet<>();
     private final Set<String> weeklyCompleted = new HashSet<>();
@@ -98,8 +102,11 @@ public final class PlayerQuestData {
     private StoryArcType activeStoryArc;
     private long storyCooldownUntil;
     private String activePilgrimContractId;
+    private int activePilgrimTargetProfile = RepeatableTargetProfile.NORMAL.id();
     private String offeredPilgrimContractId;
+    private int offeredPilgrimTargetProfile = RepeatableTargetProfile.NORMAL.id();
     private String offeredPilgrimContractAltId;
+    private int offeredPilgrimContractAltTargetProfile = RepeatableTargetProfile.NORMAL.id();
     private long pilgrimOfferDay = UNSET_DAY;
 
     public long getCurrencyBalance() {
@@ -465,6 +472,14 @@ public final class PlayerQuestData {
         this.dailyChoiceDay = dailyChoiceDay;
     }
 
+    public RepeatableTargetProfile getDailyTargetProfile() {
+        return RepeatableTargetProfile.byId(dailyTargetProfile);
+    }
+
+    public void setDailyTargetProfile(RepeatableTargetProfile dailyTargetProfile) {
+        this.dailyTargetProfile = (dailyTargetProfile == null ? RepeatableTargetProfile.NORMAL : dailyTargetProfile).id();
+    }
+
     public DailyQuestService.DailyQuestType getBonusChoice() {
         return bonusChoice;
     }
@@ -481,6 +496,14 @@ public final class PlayerQuestData {
         this.bonusChoiceDay = bonusChoiceDay;
     }
 
+    public RepeatableTargetProfile getBonusTargetProfile() {
+        return RepeatableTargetProfile.byId(bonusTargetProfile);
+    }
+
+    public void setBonusTargetProfile(RepeatableTargetProfile bonusTargetProfile) {
+        this.bonusTargetProfile = (bonusTargetProfile == null ? RepeatableTargetProfile.NORMAL : bonusTargetProfile).id();
+    }
+
     public WeeklyQuestService.WeeklyQuestType getWeeklyChoice() {
         return weeklyChoice;
     }
@@ -495,6 +518,14 @@ public final class PlayerQuestData {
 
     public void setWeeklyChoiceCycle(long weeklyChoiceCycle) {
         this.weeklyChoiceCycle = weeklyChoiceCycle;
+    }
+
+    public RepeatableTargetProfile getWeeklyTargetProfile() {
+        return RepeatableTargetProfile.byId(weeklyTargetProfile);
+    }
+
+    public void setWeeklyTargetProfile(RepeatableTargetProfile weeklyTargetProfile) {
+        this.weeklyTargetProfile = (weeklyTargetProfile == null ? RepeatableTargetProfile.NORMAL : weeklyTargetProfile).id();
     }
 
     public boolean isDailyDiscovered() {
@@ -1020,6 +1051,14 @@ public final class PlayerQuestData {
                 : activePilgrimContractId;
     }
 
+    public RepeatableTargetProfile getActivePilgrimTargetProfile() {
+        return RepeatableTargetProfile.byId(activePilgrimTargetProfile);
+    }
+
+    public void setActivePilgrimTargetProfile(RepeatableTargetProfile activePilgrimTargetProfile) {
+        this.activePilgrimTargetProfile = (activePilgrimTargetProfile == null ? RepeatableTargetProfile.NORMAL : activePilgrimTargetProfile).id();
+    }
+
     public String getOfferedPilgrimContractId() {
         return offeredPilgrimContractId;
     }
@@ -1030,6 +1069,14 @@ public final class PlayerQuestData {
                 : offeredPilgrimContractId;
     }
 
+    public RepeatableTargetProfile getOfferedPilgrimTargetProfile() {
+        return RepeatableTargetProfile.byId(offeredPilgrimTargetProfile);
+    }
+
+    public void setOfferedPilgrimTargetProfile(RepeatableTargetProfile offeredPilgrimTargetProfile) {
+        this.offeredPilgrimTargetProfile = (offeredPilgrimTargetProfile == null ? RepeatableTargetProfile.NORMAL : offeredPilgrimTargetProfile).id();
+    }
+
     public String getOfferedPilgrimContractAltId() {
         return offeredPilgrimContractAltId;
     }
@@ -1038,6 +1085,14 @@ public final class PlayerQuestData {
         this.offeredPilgrimContractAltId = offeredPilgrimContractAltId == null || offeredPilgrimContractAltId.isEmpty()
                 ? null
                 : offeredPilgrimContractAltId;
+    }
+
+    public RepeatableTargetProfile getOfferedPilgrimContractAltTargetProfile() {
+        return RepeatableTargetProfile.byId(offeredPilgrimContractAltTargetProfile);
+    }
+
+    public void setOfferedPilgrimContractAltTargetProfile(RepeatableTargetProfile offeredPilgrimContractAltTargetProfile) {
+        this.offeredPilgrimContractAltTargetProfile = (offeredPilgrimContractAltTargetProfile == null ? RepeatableTargetProfile.NORMAL : offeredPilgrimContractAltTargetProfile).id();
     }
 
     public long getPilgrimOfferDay() {
@@ -1060,8 +1115,11 @@ public final class PlayerQuestData {
     public void resetPilgrimContractState() {
         clearPilgrimProgress();
         this.activePilgrimContractId = null;
+        this.activePilgrimTargetProfile = RepeatableTargetProfile.NORMAL.id();
         this.offeredPilgrimContractId = null;
+        this.offeredPilgrimTargetProfile = RepeatableTargetProfile.NORMAL.id();
         this.offeredPilgrimContractAltId = null;
+        this.offeredPilgrimContractAltTargetProfile = RepeatableTargetProfile.NORMAL.id();
         this.pilgrimOfferDay = UNSET_DAY;
     }
 

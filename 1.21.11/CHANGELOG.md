@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 1.22.1-beta.3 - Multiplayer Quest Party Beta
+
+Release date: 2026-05-14
+
+- Added the `1.21.11` multiplayer quest-sharing beta batch with dedicated-server-only quest parties, clickable chat invites, and `/vq party ...` commands for `show`, `invite`, `accept`, `decline`, `leave`, `disband`, and shared daily/weekly/story/pilgrim offer acceptance.
+- The `Questmaster` UI now exposes a party drawer on shareable `Daily`, `Weekly`, and core `Story` entries, including current members, invite candidates, and direct invite/leave/disband actions.
+- The `Questmaster` party toggle now sits as a dedicated brown button above the right quest header panel, matching the existing button language more closely, and the whole party surface is now hidden on singleplayer/integrated worlds.
+- Shareable `Daily` and `Weekly` main quests now support pooled objective progress in parties, including shared villager-talk flags, combat/trade/farming progress sharing across the full current share-profile set, and pooled turn-in inventory for the affected harvest/crafting/food quest lines.
+- Shared quest joining now uses explicit chat offers for running party dailies and weeklies instead of silently force-syncing late joiners, and those offers respect completed/conflicting active daily or weekly states.
+- Quest parties now persist across restart on `1.21.11`, including active shared daily/weekly session progress and pending late-join share offers.
+- Disconnecting from a quest party now starts a `10 minute` grace window instead of removing the player immediately; the party is informed in chat, reconnects restore the member cleanly, and timed-out members are removed afterwards.
+- Shareable co-op scope on `1.21.11` now also includes the core `Questmaster` story arcs and normal `Pilgrim` combat contracts, with explicit chat join offers for running story chapters and pilgrim contracts; `Shadows on the Trade Road`, relic/special quests, and compass-item quest lines remain solo.
+- Repeatable `Daily`, `Weekly`, and `Pilgrim` quests now roll and persist synced `light`, `normal`, or `heavy` target profiles, scale their numeric rewards to match that profile, and avoid obvious stack or half-stack target counts; the non-`Shadows` story arcs also received authored irregular target numbers.
+- The journal now keeps its `Questmaster` shortcut button visible on every page instead of only the first page.
+
 ## 1.22.0 - Shadows On The Trade Road And Admin Reset
 
 Release date: 2026-04-24

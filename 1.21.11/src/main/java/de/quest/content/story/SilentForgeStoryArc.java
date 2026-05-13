@@ -32,12 +32,12 @@ import java.util.List;
 import java.util.UUID;
 
 public final class SilentForgeStoryArc implements StoryArcDefinition {
-    private static final int COLD_HEARTH_COAL_TARGET = 70;
-    private static final int COLD_HEARTH_IRON_TARGET = 50;
-    private static final int COLD_HEARTH_REDSTONE_TARGET = 30;
-    private static final int COLD_HEARTH_GOLD_TARGET = 20;
-    private static final int COLD_HEARTH_DIAMOND_TARGET = 5;
-    private static final int BELLOWS_IRON_TARGET = 36;
+    private static final int COLD_HEARTH_COAL_TARGET = 67;
+    private static final int COLD_HEARTH_IRON_TARGET = 47;
+    private static final int COLD_HEARTH_REDSTONE_TARGET = 29;
+    private static final int COLD_HEARTH_GOLD_TARGET = 17;
+    private static final int COLD_HEARTH_DIAMOND_TARGET = 4;
+    private static final int BELLOWS_IRON_TARGET = 31;
     private static final int BELLOWS_BLAST_FURNACE_TARGET = 3;
     private static final int BELLOWS_CAULDRON_TARGET = 3;
     private static final int TOOLS_TARGET = 3;
@@ -87,54 +87,28 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
             return StoryQuestService.getQuestInt(world, playerId, key);
         }
 
-        protected boolean hasItem(ServerPlayerEntity player, Item item, int amount) {
-            return DailyQuestService.countInventoryItem(player, item) >= amount;
+        protected boolean hasItem(ServerWorld world, ServerPlayerEntity player, Item item, int amount) {
+            return player != null && StoryQuestService.countCompletionItem(world, player.getUuid(), item) >= amount;
         }
 
-        protected boolean consumeItem(ServerPlayerEntity player, Item item, int amount) {
-            return DailyQuestService.consumeInventoryItem(player, item, amount);
+        protected boolean consumeItem(ServerWorld world, ServerPlayerEntity player, Item item, int amount) {
+            return player != null && StoryQuestService.consumeCompletionItem(world, player.getUuid(), item, amount);
         }
 
-        protected boolean hasPristineItem(ServerPlayerEntity player, Item item, int amount) {
-            return countPristineItems(player, item) >= amount;
+        protected boolean hasPristineItem(ServerWorld world, ServerPlayerEntity player, Item item, int amount) {
+            return player != null && countPristineItems(world, player.getUuid(), item) >= amount;
         }
 
-        protected int countPristineItems(ServerPlayerEntity player, Item item) {
-            if (player == null || item == null) {
+        protected int countPristineItems(ServerWorld world, UUID playerId, Item item) {
+            if (world == null || playerId == null || item == null) {
                 return 0;
             }
-
-            int total = 0;
-            PlayerInventory inventory = player.getInventory();
-            for (int i = 0; i < inventory.size(); i++) {
-                ItemStack stack = inventory.getStack(i);
-                if (isPristineTurnInItem(stack, item)) {
-                    total += stack.getCount();
-                }
-            }
-            return total;
+            return StoryQuestService.countMatchingCompletionItems(world, playerId, stack -> isPristineTurnInItem(stack, item));
         }
 
-        protected boolean consumePristineItem(ServerPlayerEntity player, Item item, int amount) {
-            if (!hasPristineItem(player, item, amount)) {
-                return false;
-            }
-
-            int remaining = amount;
-            PlayerInventory inventory = player.getInventory();
-            for (int i = 0; i < inventory.size() && remaining > 0; i++) {
-                ItemStack stack = inventory.getStack(i);
-                if (!isPristineTurnInItem(stack, item)) {
-                    continue;
-                }
-
-                int removed = Math.min(remaining, stack.getCount());
-                stack.decrement(removed);
-                remaining -= removed;
-            }
-
-            player.currentScreenHandler.sendContentUpdates();
-            return remaining <= 0;
+        protected boolean consumePristineItem(ServerWorld world, ServerPlayerEntity player, Item item, int amount) {
+            return player != null
+                    && StoryQuestService.consumeMatchingCompletionItems(world, player.getUuid(), stack -> isPristineTurnInItem(stack, item), amount);
         }
 
         protected void updateCraftProgress(ServerWorld world,
@@ -150,11 +124,11 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
                 return;
             }
 
-            int delta = Math.max(0, crafted - (baseline - 1));
-            int updated = Math.min(target, delta);
-            if (StoryQuestService.getQuestInt(world, player.getUuid(), progressKey) != updated) {
-                StoryQuestService.setQuestInt(world, player.getUuid(), progressKey, updated);
+            int delta = crafted - (baseline - 1);
+            if (delta > 0) {
+                StoryQuestService.addQuestIntClamped(world, player.getUuid(), progressKey, delta, target);
             }
+            StoryQuestService.setQuestInt(world, player.getUuid(), baselineKey, crafted + 1);
         }
 
         protected RegistryEntry<Enchantment> enchantment(ServerWorld world, RegistryKey<Enchantment> key) {
@@ -259,11 +233,11 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
                     && progress(world, playerId, StoryQuestKeys.SILENT_FORGE_REDSTONE_ORE) >= COLD_HEARTH_REDSTONE_TARGET
                     && progress(world, playerId, StoryQuestKeys.SILENT_FORGE_GOLD_ORE) >= COLD_HEARTH_GOLD_TARGET
                     && progress(world, playerId, StoryQuestKeys.SILENT_FORGE_DIAMOND_ORE) >= COLD_HEARTH_DIAMOND_TARGET
-                    && hasItem(player, Items.COAL, COLD_HEARTH_COAL_TARGET)
-                    && hasItem(player, Items.RAW_IRON, COLD_HEARTH_IRON_TARGET)
-                    && hasItem(player, Items.REDSTONE, COLD_HEARTH_REDSTONE_TARGET)
-                    && hasItem(player, Items.RAW_GOLD, COLD_HEARTH_GOLD_TARGET)
-                    && hasItem(player, Items.DIAMOND, COLD_HEARTH_DIAMOND_TARGET);
+                    && hasItem(world, player, Items.COAL, COLD_HEARTH_COAL_TARGET)
+                    && hasItem(world, player, Items.RAW_IRON, COLD_HEARTH_IRON_TARGET)
+                    && hasItem(world, player, Items.REDSTONE, COLD_HEARTH_REDSTONE_TARGET)
+                    && hasItem(world, player, Items.RAW_GOLD, COLD_HEARTH_GOLD_TARGET)
+                    && hasItem(world, player, Items.DIAMOND, COLD_HEARTH_DIAMOND_TARGET);
         }
 
         @Override
@@ -271,11 +245,11 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
             if (!isComplete(world, player)) {
                 return false;
             }
-            return consumeItem(player, Items.COAL, COLD_HEARTH_COAL_TARGET)
-                    && consumeItem(player, Items.RAW_IRON, COLD_HEARTH_IRON_TARGET)
-                    && consumeItem(player, Items.REDSTONE, COLD_HEARTH_REDSTONE_TARGET)
-                    && consumeItem(player, Items.RAW_GOLD, COLD_HEARTH_GOLD_TARGET)
-                    && consumeItem(player, Items.DIAMOND, COLD_HEARTH_DIAMOND_TARGET);
+            return consumeItem(world, player, Items.COAL, COLD_HEARTH_COAL_TARGET)
+                    && consumeItem(world, player, Items.RAW_IRON, COLD_HEARTH_IRON_TARGET)
+                    && consumeItem(world, player, Items.REDSTONE, COLD_HEARTH_REDSTONE_TARGET)
+                    && consumeItem(world, player, Items.RAW_GOLD, COLD_HEARTH_GOLD_TARGET)
+                    && consumeItem(world, player, Items.DIAMOND, COLD_HEARTH_DIAMOND_TARGET);
         }
 
         @Override
@@ -289,29 +263,29 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
                     || progress(world, playerId, StoryQuestKeys.SILENT_FORGE_REDSTONE_ORE) < COLD_HEARTH_REDSTONE_TARGET
                     || progress(world, playerId, StoryQuestKeys.SILENT_FORGE_GOLD_ORE) < COLD_HEARTH_GOLD_TARGET
                     || progress(world, playerId, StoryQuestKeys.SILENT_FORGE_DIAMOND_ORE) < COLD_HEARTH_DIAMOND_TARGET
-                    || (hasItem(player, Items.COAL, COLD_HEARTH_COAL_TARGET)
-                    && hasItem(player, Items.RAW_IRON, COLD_HEARTH_IRON_TARGET)
-                    && hasItem(player, Items.REDSTONE, COLD_HEARTH_REDSTONE_TARGET)
-                    && hasItem(player, Items.RAW_GOLD, COLD_HEARTH_GOLD_TARGET)
-                    && hasItem(player, Items.DIAMOND, COLD_HEARTH_DIAMOND_TARGET))) {
+                    || (hasItem(world, player, Items.COAL, COLD_HEARTH_COAL_TARGET)
+                    && hasItem(world, player, Items.RAW_IRON, COLD_HEARTH_IRON_TARGET)
+                    && hasItem(world, player, Items.REDSTONE, COLD_HEARTH_REDSTONE_TARGET)
+                    && hasItem(world, player, Items.RAW_GOLD, COLD_HEARTH_GOLD_TARGET)
+                    && hasItem(world, player, Items.DIAMOND, COLD_HEARTH_DIAMOND_TARGET))) {
                 return null;
             }
             return Text.translatable(
                     "text.village-quest.turnin_missing.5",
                     Items.COAL.getDefaultStack().toHoverableText(),
-                    DailyQuestService.countInventoryItem(player, Items.COAL),
+                    StoryQuestService.countCompletionItem(world, playerId, Items.COAL),
                     COLD_HEARTH_COAL_TARGET,
                     Items.RAW_IRON.getDefaultStack().toHoverableText(),
-                    DailyQuestService.countInventoryItem(player, Items.RAW_IRON),
+                    StoryQuestService.countCompletionItem(world, playerId, Items.RAW_IRON),
                     COLD_HEARTH_IRON_TARGET,
                     Items.REDSTONE.getDefaultStack().toHoverableText(),
-                    DailyQuestService.countInventoryItem(player, Items.REDSTONE),
+                    StoryQuestService.countCompletionItem(world, playerId, Items.REDSTONE),
                     COLD_HEARTH_REDSTONE_TARGET,
                     Items.RAW_GOLD.getDefaultStack().toHoverableText(),
-                    DailyQuestService.countInventoryItem(player, Items.RAW_GOLD),
+                    StoryQuestService.countCompletionItem(world, playerId, Items.RAW_GOLD),
                     COLD_HEARTH_GOLD_TARGET,
                     Items.DIAMOND.getDefaultStack().toHoverableText(),
-                    DailyQuestService.countInventoryItem(player, Items.DIAMOND),
+                    StoryQuestService.countCompletionItem(world, playerId, Items.DIAMOND),
                     COLD_HEARTH_DIAMOND_TARGET
             ).formatted(Formatting.RED);
         }
@@ -366,8 +340,8 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
         @Override
         public List<Text> progressLines(ServerWorld world, UUID playerId) {
             ServerPlayerEntity player = world.getServer().getPlayerManager().getPlayer(playerId);
-            int blastFurnace = player == null ? 0 : DailyQuestService.countInventoryItem(player, Items.BLAST_FURNACE);
-            int cauldron = player == null ? 0 : DailyQuestService.countInventoryItem(player, Items.CAULDRON);
+            int blastFurnace = StoryQuestService.countCompletionItem(world, playerId, Items.BLAST_FURNACE);
+            int cauldron = StoryQuestService.countCompletionItem(world, playerId, Items.CAULDRON);
             Text line1 = Text.translatable(
                     "quest.village-quest.story.silent_forge.chapter_2.progress.1",
                     progress(world, playerId, StoryQuestKeys.SILENT_FORGE_IRON_INGOT),
@@ -388,9 +362,9 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
         public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
             UUID playerId = player.getUuid();
             return progress(world, playerId, StoryQuestKeys.SILENT_FORGE_IRON_INGOT) >= BELLOWS_IRON_TARGET
-                    && hasItem(player, Items.IRON_INGOT, BELLOWS_IRON_TARGET)
-                    && hasItem(player, Items.BLAST_FURNACE, BELLOWS_BLAST_FURNACE_TARGET)
-                    && hasItem(player, Items.CAULDRON, BELLOWS_CAULDRON_TARGET);
+                    && hasItem(world, player, Items.IRON_INGOT, BELLOWS_IRON_TARGET)
+                    && hasItem(world, player, Items.BLAST_FURNACE, BELLOWS_BLAST_FURNACE_TARGET)
+                    && hasItem(world, player, Items.CAULDRON, BELLOWS_CAULDRON_TARGET);
         }
 
         @Override
@@ -398,9 +372,9 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
             if (!isComplete(world, player)) {
                 return false;
             }
-            return consumeItem(player, Items.IRON_INGOT, BELLOWS_IRON_TARGET)
-                    && consumeItem(player, Items.BLAST_FURNACE, BELLOWS_BLAST_FURNACE_TARGET)
-                    && consumeItem(player, Items.CAULDRON, BELLOWS_CAULDRON_TARGET);
+            return consumeItem(world, player, Items.IRON_INGOT, BELLOWS_IRON_TARGET)
+                    && consumeItem(world, player, Items.BLAST_FURNACE, BELLOWS_BLAST_FURNACE_TARGET)
+                    && consumeItem(world, player, Items.CAULDRON, BELLOWS_CAULDRON_TARGET);
         }
 
         @Override
@@ -410,20 +384,20 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
             }
             UUID playerId = player.getUuid();
             if (progress(world, playerId, StoryQuestKeys.SILENT_FORGE_IRON_INGOT) < BELLOWS_IRON_TARGET
-                    || (hasItem(player, Items.IRON_INGOT, BELLOWS_IRON_TARGET)
-                    && hasItem(player, Items.BLAST_FURNACE, BELLOWS_BLAST_FURNACE_TARGET)
-                    && hasItem(player, Items.CAULDRON, BELLOWS_CAULDRON_TARGET))) {
+                    || (hasItem(world, player, Items.IRON_INGOT, BELLOWS_IRON_TARGET)
+                    && hasItem(world, player, Items.BLAST_FURNACE, BELLOWS_BLAST_FURNACE_TARGET)
+                    && hasItem(world, player, Items.CAULDRON, BELLOWS_CAULDRON_TARGET))) {
                 return null;
             }
             return Texts.turnInMissing(
                     Items.IRON_INGOT.getDefaultStack().toHoverableText(),
-                    DailyQuestService.countInventoryItem(player, Items.IRON_INGOT),
+                    StoryQuestService.countCompletionItem(world, playerId, Items.IRON_INGOT),
                     BELLOWS_IRON_TARGET,
                     Items.BLAST_FURNACE.getDefaultStack().toHoverableText(),
-                    DailyQuestService.countInventoryItem(player, Items.BLAST_FURNACE),
+                    StoryQuestService.countCompletionItem(world, playerId, Items.BLAST_FURNACE),
                     BELLOWS_BLAST_FURNACE_TARGET,
                     Items.CAULDRON.getDefaultStack().toHoverableText(),
-                    DailyQuestService.countInventoryItem(player, Items.CAULDRON),
+                    StoryQuestService.countCompletionItem(world, playerId, Items.CAULDRON),
                     BELLOWS_CAULDRON_TARGET
             );
         }
@@ -488,10 +462,10 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
         @Override
         public List<Text> progressLines(ServerWorld world, UUID playerId) {
             ServerPlayerEntity player = world.getServer().getPlayerManager().getPlayer(playerId);
-            int pickaxeReady = player == null ? 0 : Math.min(progress(world, playerId, StoryQuestKeys.SILENT_FORGE_PICKAXE_CRAFTED), countPristineItems(player, Items.IRON_PICKAXE));
-            int bucketReady = player == null ? 0 : Math.min(progress(world, playerId, StoryQuestKeys.SILENT_FORGE_BUCKET_CRAFTED), countPristineItems(player, Items.BUCKET));
-            int shearsReady = player == null ? 0 : Math.min(progress(world, playerId, StoryQuestKeys.SILENT_FORGE_SHEARS_CRAFTED), countPristineItems(player, Items.SHEARS));
-            int shieldReady = player == null ? 0 : Math.min(progress(world, playerId, StoryQuestKeys.SILENT_FORGE_SHIELD_CRAFTED), countPristineItems(player, Items.SHIELD));
+            int pickaxeReady = player == null ? 0 : Math.min(progress(world, playerId, StoryQuestKeys.SILENT_FORGE_PICKAXE_CRAFTED), countPristineItems(world, playerId, Items.IRON_PICKAXE));
+            int bucketReady = player == null ? 0 : Math.min(progress(world, playerId, StoryQuestKeys.SILENT_FORGE_BUCKET_CRAFTED), countPristineItems(world, playerId, Items.BUCKET));
+            int shearsReady = player == null ? 0 : Math.min(progress(world, playerId, StoryQuestKeys.SILENT_FORGE_SHEARS_CRAFTED), countPristineItems(world, playerId, Items.SHEARS));
+            int shieldReady = player == null ? 0 : Math.min(progress(world, playerId, StoryQuestKeys.SILENT_FORGE_SHIELD_CRAFTED), countPristineItems(world, playerId, Items.SHIELD));
             Text line1 = Text.translatable(
                     "quest.village-quest.story.silent_forge.chapter_3.progress.1",
                     pickaxeReady,
@@ -517,10 +491,10 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
                     && progress(world, playerId, StoryQuestKeys.SILENT_FORGE_BUCKET_CRAFTED) >= TOOLS_TARGET
                     && progress(world, playerId, StoryQuestKeys.SILENT_FORGE_SHEARS_CRAFTED) >= TOOLS_TARGET
                     && progress(world, playerId, StoryQuestKeys.SILENT_FORGE_SHIELD_CRAFTED) >= TOOLS_TARGET
-                    && hasPristineItem(player, Items.IRON_PICKAXE, TOOLS_TARGET)
-                    && hasPristineItem(player, Items.BUCKET, TOOLS_TARGET)
-                    && hasPristineItem(player, Items.SHEARS, TOOLS_TARGET)
-                    && hasPristineItem(player, Items.SHIELD, TOOLS_TARGET);
+                    && hasPristineItem(world, player, Items.IRON_PICKAXE, TOOLS_TARGET)
+                    && hasPristineItem(world, player, Items.BUCKET, TOOLS_TARGET)
+                    && hasPristineItem(world, player, Items.SHEARS, TOOLS_TARGET)
+                    && hasPristineItem(world, player, Items.SHIELD, TOOLS_TARGET);
         }
 
         @Override
@@ -528,10 +502,10 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
             if (!isComplete(world, player)) {
                 return false;
             }
-            return consumePristineItem(player, Items.IRON_PICKAXE, TOOLS_TARGET)
-                    && consumePristineItem(player, Items.BUCKET, TOOLS_TARGET)
-                    && consumePristineItem(player, Items.SHEARS, TOOLS_TARGET)
-                    && consumePristineItem(player, Items.SHIELD, TOOLS_TARGET);
+            return consumePristineItem(world, player, Items.IRON_PICKAXE, TOOLS_TARGET)
+                    && consumePristineItem(world, player, Items.BUCKET, TOOLS_TARGET)
+                    && consumePristineItem(world, player, Items.SHEARS, TOOLS_TARGET)
+                    && consumePristineItem(world, player, Items.SHIELD, TOOLS_TARGET);
         }
 
         @Override
@@ -544,24 +518,24 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
                     || progress(world, playerId, StoryQuestKeys.SILENT_FORGE_BUCKET_CRAFTED) < TOOLS_TARGET
                     || progress(world, playerId, StoryQuestKeys.SILENT_FORGE_SHEARS_CRAFTED) < TOOLS_TARGET
                     || progress(world, playerId, StoryQuestKeys.SILENT_FORGE_SHIELD_CRAFTED) < TOOLS_TARGET
-                    || (hasPristineItem(player, Items.IRON_PICKAXE, TOOLS_TARGET)
-                    && hasPristineItem(player, Items.BUCKET, TOOLS_TARGET)
-                    && hasPristineItem(player, Items.SHEARS, TOOLS_TARGET)
-                    && hasPristineItem(player, Items.SHIELD, TOOLS_TARGET))) {
+                    || (hasPristineItem(world, player, Items.IRON_PICKAXE, TOOLS_TARGET)
+                    && hasPristineItem(world, player, Items.BUCKET, TOOLS_TARGET)
+                    && hasPristineItem(world, player, Items.SHEARS, TOOLS_TARGET)
+                    && hasPristineItem(world, player, Items.SHIELD, TOOLS_TARGET))) {
                 return null;
             }
             return Texts.turnInMissing(
                     Items.IRON_PICKAXE.getDefaultStack().toHoverableText(),
-                    countPristineItems(player, Items.IRON_PICKAXE),
+                    countPristineItems(world, playerId, Items.IRON_PICKAXE),
                     TOOLS_TARGET,
                     Items.BUCKET.getDefaultStack().toHoverableText(),
-                    countPristineItems(player, Items.BUCKET),
+                    countPristineItems(world, playerId, Items.BUCKET),
                     TOOLS_TARGET,
                     Items.SHEARS.getDefaultStack().toHoverableText(),
-                    countPristineItems(player, Items.SHEARS),
+                    countPristineItems(world, playerId, Items.SHEARS),
                     TOOLS_TARGET,
                     Items.SHIELD.getDefaultStack().toHoverableText(),
-                    countPristineItems(player, Items.SHIELD),
+                    countPristineItems(world, playerId, Items.SHIELD),
                     TOOLS_TARGET
             );
         }

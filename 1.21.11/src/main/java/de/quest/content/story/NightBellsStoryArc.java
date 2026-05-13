@@ -25,11 +25,11 @@ import java.util.List;
 import java.util.UUID;
 
 public final class NightBellsStoryArc implements StoryArcDefinition {
-    private static final int FIRST_WATCH_ZOMBIE_TARGET = 6;
-    private static final int THIN_THE_DARK_SKELETON_TARGET = 4;
-    private static final int THIN_THE_DARK_SPIDER_TARGET = 4;
-    private static final int HOLD_THE_ROAD_CREEPER_TARGET = 2;
-    private static final int HOLD_THE_ROAD_HOSTILE_TARGET = 10;
+    private static final int FIRST_WATCH_ZOMBIE_TARGET = 7;
+    private static final int THIN_THE_DARK_SKELETON_TARGET = 5;
+    private static final int THIN_THE_DARK_SPIDER_TARGET = 3;
+    private static final int HOLD_THE_ROAD_CREEPER_TARGET = 3;
+    private static final int HOLD_THE_ROAD_HOSTILE_TARGET = 11;
 
     private final List<StoryChapterDefinition> chapters = List.of(
             new FirstWatchChapter(),

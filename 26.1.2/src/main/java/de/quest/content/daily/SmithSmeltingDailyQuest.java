@@ -6,13 +6,12 @@ import de.quest.quest.daily.DailyQuestKeys;
 import de.quest.quest.daily.DailyQuestService;
 import de.quest.util.Texts;
 import java.util.UUID;
-import net.minecraft.ChatFormatting;
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 
 public final class SmithSmeltingDailyQuest implements DailyQuestDefinition {
     @Override
@@ -80,8 +79,8 @@ public final class SmithSmeltingDailyQuest implements DailyQuestDefinition {
         if (!hasTurnInItems(player)) {
             return false;
         }
-        return DailyQuestService.consumeInventoryItem(player, Items.RAW_IRON, DailyQuestService.smithSmeltOreTarget())
-                && DailyQuestService.consumeInventoryItem(player, Items.IRON_INGOT, DailyQuestService.smithSmeltIngotTarget());
+        return DailyQuestService.consumeCompletionItem(world, player, Items.RAW_IRON, DailyQuestService.smithSmeltOreTarget())
+                && DailyQuestService.consumeCompletionItem(world, player, Items.IRON_INGOT, DailyQuestService.smithSmeltIngotTarget());
     }
 
     @Override
@@ -98,11 +97,11 @@ public final class SmithSmeltingDailyQuest implements DailyQuestDefinition {
             return null;
         }
         return Texts.turnInMissing(
-                Items.RAW_IRON.getDefaultInstance().getHoverName(),
-                DailyQuestService.countInventoryItem(player, Items.RAW_IRON),
+                Items.RAW_IRON.getDefaultInstance().getDisplayName(),
+                DailyQuestService.countCompletionItem(world, player, Items.RAW_IRON),
                 oreTarget,
-                Items.IRON_INGOT.getDefaultInstance().getHoverName(),
-                DailyQuestService.countInventoryItem(player, Items.IRON_INGOT),
+                Items.IRON_INGOT.getDefaultInstance().getDisplayName(),
+                DailyQuestService.countCompletionItem(world, player, Items.IRON_INGOT),
                 ingotTarget
         );
     }
@@ -142,7 +141,8 @@ public final class SmithSmeltingDailyQuest implements DailyQuestDefinition {
     }
 
     private boolean hasTurnInItems(ServerPlayer player) {
-        return DailyQuestService.countInventoryItem(player, Items.RAW_IRON) >= DailyQuestService.smithSmeltOreTarget()
-                && DailyQuestService.countInventoryItem(player, Items.IRON_INGOT) >= DailyQuestService.smithSmeltIngotTarget();
+        ServerLevel world = (ServerLevel) player.level();
+        return DailyQuestService.countCompletionItem(world, player, Items.RAW_IRON) >= DailyQuestService.smithSmeltOreTarget()
+                && DailyQuestService.countCompletionItem(world, player, Items.IRON_INGOT) >= DailyQuestService.smithSmeltIngotTarget();
     }
 }

@@ -5,6 +5,9 @@ import de.quest.data.QuestState;
 import de.quest.economy.CurrencyService;
 import de.quest.entity.QuestMasterEntity;
 import de.quest.network.Payloads;
+import de.quest.party.QuestPartyService;
+import de.quest.party.QuestShareProfiles;
+import de.quest.quest.daily.DailyQuestCompletion;
 import de.quest.quest.daily.DailyQuestDefinition;
 import de.quest.quest.daily.DailyQuestGenerator;
 import de.quest.quest.daily.DailyQuestService;
@@ -32,10 +35,11 @@ import de.quest.reputation.ReputationService;
 import de.quest.registry.ModItems;
 import de.quest.util.TimeUtil;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -119,6 +123,7 @@ public final class QuestMasterUiService {
                 Component.empty(),
                 List.of(),
                 List.of(),
+                emptyPartyPayload(),
                 0L
         ));
     }
@@ -173,6 +178,32 @@ public final class QuestMasterUiService {
             case ENTRY_SPECIAL_FLUTE -> handleSpecialFluteAction(world, player, payload.action());
             case ENTRY_SPECIAL_SMOKER -> handleSpecialSmokerAction(world, player, payload.action());
             case ENTRY_SPECIAL_COMPASS -> handleSpecialCompassAction(world, player, payload.action());
+            default -> {
+            }
+        }
+
+        refreshIfOpen(world, player);
+    }
+
+    public static void handlePartyAction(ServerPlayer player, Payloads.QuestMasterPartyActionPayload payload) {
+        if (player == null || payload == null) {
+            return;
+        }
+        ServerLevel world = (ServerLevel) player.level();
+        QuestMasterEntity questMaster = validateSession(world, player, payload.entityId());
+        if (questMaster == null) {
+            close(player);
+            return;
+        }
+
+        switch (payload.action()) {
+            case Payloads.QuestMasterPartyActionPayload.ACTION_INVITE -> {
+                UUID targetId = parseUuid(payload.playerId());
+                ServerPlayer target = targetId == null ? null : world.getServer().getPlayerList().getPlayer(targetId);
+                QuestPartyService.invite(world, player, target);
+            }
+            case Payloads.QuestMasterPartyActionPayload.ACTION_LEAVE -> QuestPartyService.leave(world, player);
+            case Payloads.QuestMasterPartyActionPayload.ACTION_DISBAND -> QuestPartyService.disband(world, player);
             default -> {
             }
         }
@@ -312,12 +343,14 @@ public final class QuestMasterUiService {
                 questMaster.getDisplayName(),
                 categories,
                 entries,
+                buildPartyPayload(player),
                 StoryQuestService.getStoryCooldownUntil(world, player.getUUID())
         );
     }
 
     private static List<Payloads.QuestMasterEntryData> buildDailyEntries(ServerLevel world, ServerPlayer player) {
         UUID playerId = player.getUUID();
+        boolean partyUiEnabled = partyUiEnabled(world);
         PlayerQuestData data = data(world, playerId);
         DailyQuestService.DailyQuestType normalQuest = DailyQuestService.previewQuestChoice(world, playerId);
         DailyQuestDefinition normalDefinition = DailyQuestGenerator.definition(normalQuest);
@@ -331,15 +364,15 @@ public final class QuestMasterUiService {
                 : List.of(normalDefinition.offerParagraph1(), normalDefinition.offerParagraph2());
         List<Component> mainObjectives = normalDefinition == null
                 ? List.of()
-                : List.of(normalDefinition.progressLine(world, playerId).copy().withStyle(ChatFormatting.GRAY));
-        List<Component> mainRewards = rewardLines(world, playerId, normalQuest);
+                : List.of(DailyQuestService.previewProgressLine(world, playerId, false).copy().withStyle(ChatFormatting.GRAY));
+        List<Component> mainRewards = rewardLines(world, playerId, normalQuest, false);
         ActionSpec primary = ActionSpec.NONE;
         ActionSpec secondary = ActionSpec.NONE;
         Component status;
 
         boolean normalActive = DailyQuestService.isAcceptedToday(world, playerId) && !DailyQuestService.hasCompletedToday(world, playerId);
         if (normalActive) {
-            boolean ready = normalDefinition != null && normalDefinition.isComplete(world, player);
+            boolean ready = normalDefinition != null && DailyQuestService.isQuestReady(world, player, false);
             status = ready
                     ? Component.translatable("screen.village-quest.questmaster.status.ready").withStyle(ChatFormatting.GOLD)
                     : Component.translatable("screen.village-quest.questmaster.status.active").withStyle(ChatFormatting.GREEN);
@@ -368,6 +401,8 @@ public final class QuestMasterUiService {
                 mainTitle,
                 Component.translatable("screen.village-quest.questmaster.subtitle.daily"),
                 status,
+                partyUiEnabled && QuestShareProfiles.isDailyShareable(normalQuest),
+                partyUiEnabled ? dailyPartyStatus(world, playerId, normalQuest) : Component.empty(),
                 mainDescription,
                 mainObjectives,
                 mainRewards,
@@ -431,14 +466,14 @@ public final class QuestMasterUiService {
                 : List.of(bonusDefinition.offerParagraph1(), bonusDefinition.offerParagraph2());
         List<Component> objectives = bonusDefinition == null
                 ? List.of()
-                : List.of(bonusDefinition.progressLine(world, playerId).copy().withStyle(ChatFormatting.GRAY));
-        List<Component> rewards = rewardLines(world, playerId, data.getBonusChoice());
+                : List.of(DailyQuestService.previewProgressLine(world, playerId, true).copy().withStyle(ChatFormatting.GRAY));
+        List<Component> rewards = rewardLines(world, playerId, data.getBonusChoice(), true);
         ActionSpec primary = ActionSpec.NONE;
         ActionSpec secondary = ActionSpec.NONE;
         Component status;
 
         if (bonusAccepted && !bonusCompleted) {
-            boolean ready = bonusDefinition != null && bonusDefinition.isComplete(world, player);
+            boolean ready = bonusDefinition != null && DailyQuestService.isQuestReady(world, player, true);
             status = ready
                     ? Component.translatable("screen.village-quest.questmaster.status.ready").withStyle(ChatFormatting.GOLD)
                     : Component.translatable("screen.village-quest.questmaster.status.active").withStyle(ChatFormatting.GREEN);
@@ -476,6 +511,7 @@ public final class QuestMasterUiService {
 
     private static List<Payloads.QuestMasterEntryData> buildWeeklyEntries(ServerLevel world, ServerPlayer player) {
         UUID playerId = player.getUUID();
+        boolean partyUiEnabled = partyUiEnabled(world);
         WeeklyQuestService.WeeklyQuestType questType = WeeklyQuestService.previewQuestChoice(world, playerId);
         WeeklyQuestDefinition definition = WeeklyQuestGenerator.definition(questType);
         if (definition == null) {
@@ -494,19 +530,19 @@ public final class QuestMasterUiService {
             ));
         }
 
-        WeeklyQuestCompletion completion = WeeklyQuestService.previewCompletion(questType);
+        WeeklyQuestCompletion completion = WeeklyQuestService.previewCompletion(world, playerId, questType);
         List<Component> rewards = weeklyRewards(world, playerId, completion);
         boolean accepted = WeeklyQuestService.isAcceptedThisWeek(world, playerId);
         boolean completed = WeeklyQuestService.hasCompletedThisWeek(world, playerId);
         List<Component> description = appendQuestEcho(world, playerId, List.of(definition.offerParagraph1(), definition.offerParagraph2()), completion == null ? null : completion.reputationTrack());
-        List<Component> objectives = List.copyOf(definition.progressLines(world, playerId));
+        List<Component> objectives = WeeklyQuestService.previewProgressLines(world, playerId);
         ActionSpec primary = ActionSpec.NONE;
         ActionSpec secondary = ActionSpec.NONE;
         Component status;
         boolean locked = false;
 
         if (accepted && !completed) {
-            boolean ready = definition.isComplete(world, player);
+            boolean ready = WeeklyQuestService.isQuestReady(world, player);
             status = ready
                     ? Component.translatable("screen.village-quest.questmaster.status.ready").withStyle(ChatFormatting.GOLD)
                     : Component.translatable("screen.village-quest.questmaster.status.active").withStyle(ChatFormatting.GREEN);
@@ -529,6 +565,8 @@ public final class QuestMasterUiService {
                 definition.title(),
                 Component.translatable("screen.village-quest.questmaster.subtitle.weekly"),
                 status,
+                partyUiEnabled && QuestShareProfiles.isWeeklyShareable(questType),
+                partyUiEnabled ? weeklyPartyStatus(world, playerId, questType) : Component.empty(),
                 description,
                 objectives,
                 rewards,
@@ -638,6 +676,8 @@ public final class QuestMasterUiService {
         List<Component> objectives = new ArrayList<>(chapter.progressLines(world, playerId));
         ActionSpec primary = ActionSpec.NONE;
         Component status;
+        boolean partyShareable = partyUiEnabled(world) && QuestShareProfiles.isStoryShareable(arcType);
+        Component partyStatus = partyShareable ? storyPartyStatus(world, playerId, arcType, chapterIndex) : Component.empty();
 
         if (active) {
             boolean ready = chapter.isComplete(world, player);
@@ -655,9 +695,7 @@ public final class QuestMasterUiService {
             } else {
                 status = Component.translatable("screen.village-quest.questmaster.status.locked").withStyle(ChatFormatting.DARK_GRAY);
                 Component blocked = chapter.acceptBlockedMessage(world, player);
-                appendNonEmpty(objectives, blocked == null
-                        ? Component.translatable("screen.village-quest.questmaster.story.unavailable").withStyle(ChatFormatting.GRAY)
-                        : blocked.copy().withStyle(ChatFormatting.GRAY));
+                appendNonEmpty(objectives, blocked == null ? Component.translatable("screen.village-quest.questmaster.story.unavailable").withStyle(ChatFormatting.GRAY) : blocked.copy().withStyle(ChatFormatting.GRAY));
             }
         }
 
@@ -667,6 +705,8 @@ public final class QuestMasterUiService {
                 arc.title(),
                 Component.translatable("screen.village-quest.questmaster.subtitle.story_chapter", chapterIndex + 1),
                 status,
+                partyShareable,
+                partyStatus,
                 description,
                 List.copyOf(objectives),
                 appendRewardEcho(world, playerId, StoryQuestService.previewRewardLines(completion), completion.reputationTrack()),
@@ -1443,21 +1483,28 @@ public final class QuestMasterUiService {
         }
     }
 
-    private static List<Component> rewardLines(ServerLevel world, UUID playerId, DailyQuestService.DailyQuestType questType) {
-        if (questType == null) {
+    private static List<Component> rewardLines(ServerLevel world,
+                                          UUID playerId,
+                                          DailyQuestService.DailyQuestType questType,
+                                          boolean bonus) {
+        DailyQuestCompletion completion = DailyQuestService.previewCompletion(world, playerId, questType, bonus);
+        if (completion == null) {
             return List.of();
         }
-        long currencyReward = DailyQuestService.rewardCurrency(questType);
-        int levelReward = DailyQuestService.rewardLevels(questType);
         List<Component> rewards = new ArrayList<>();
-        rewards.add(Component.translatable("screen.village-quest.questmaster.reward.currency", CurrencyService.formatBalance(currencyReward)).withStyle(ChatFormatting.GOLD));
-        ReputationService.ReputationReward reputationReward = ReputationService.rewardFor(questType);
-        if (reputationReward != null && reputationReward.amount() > 0) {
-            rewards.add(ReputationService.formatRewardLine(reputationReward.track(), reputationReward.amount()));
-            appendNonEmpty(rewards, VillageProjectService.formatBonusRewardLine(world, playerId, reputationReward.track()));
-            appendNonEmpty(rewards, VillageProjectService.formatRewardEchoLine(world, playerId, reputationReward.track()));
+        if (completion.currencyReward() > 0L) {
+            rewards.add(Component.translatable("screen.village-quest.questmaster.reward.currency", CurrencyService.formatBalance(completion.currencyReward())).withStyle(ChatFormatting.GOLD));
         }
-        rewards.add(Component.translatable("screen.village-quest.questmaster.reward.levels", levelReward).withStyle(ChatFormatting.GREEN));
+        if (completion.reputationTrack() != null && completion.reputationAmount() > 0) {
+            rewards.add(ReputationService.formatRewardLine(completion.reputationTrack(), completion.reputationAmount()));
+            appendNonEmpty(rewards, VillageProjectService.formatBonusRewardLine(world, playerId, completion.reputationTrack()));
+            appendNonEmpty(rewards, VillageProjectService.formatRewardEchoLine(world, playerId, completion.reputationTrack()));
+        }
+        appendRewardStack(rewards, completion.rewardB());
+        appendRewardStack(rewards, completion.rewardC());
+        if (completion.levels() > 0) {
+            rewards.add(Component.translatable("screen.village-quest.questmaster.reward.levels", completion.levels()).withStyle(ChatFormatting.GREEN));
+        }
         return List.copyOf(rewards);
     }
 
@@ -1549,6 +1596,121 @@ public final class QuestMasterUiService {
         return List.copyOf(lines);
     }
 
+    private static Payloads.QuestMasterPartyData buildPartyPayload(ServerPlayer player) {
+        if (player == null || !QuestPartyService.isEnabled(((ServerLevel) player.level()).getServer())) {
+            return emptyPartyPayload();
+        }
+        QuestPartyService.PartySnapshot snapshot = QuestPartyService.snapshot(player);
+        List<Payloads.QuestMasterPartyMemberData> members = new ArrayList<>(snapshot.members().size());
+        for (QuestPartyService.PartyMemberView member : snapshot.members()) {
+            members.add(new Payloads.QuestMasterPartyMemberData(
+                    member.playerId(),
+                    member.name(),
+                    member.leader(),
+                    member.self()
+            ));
+        }
+        List<Payloads.QuestMasterPartyCandidateData> candidates = new ArrayList<>(snapshot.candidates().size());
+        for (QuestPartyService.PartyInviteCandidateView candidate : snapshot.candidates()) {
+            candidates.add(new Payloads.QuestMasterPartyCandidateData(
+                    candidate.playerId(),
+                    candidate.name(),
+                    candidate.status(),
+                    candidate.inviteable()
+            ));
+        }
+        return new Payloads.QuestMasterPartyData(
+                snapshot.hasParty(),
+                snapshot.leader(),
+                snapshot.summary(),
+                List.copyOf(members),
+                List.copyOf(candidates)
+        );
+    }
+
+    private static Payloads.QuestMasterPartyData emptyPartyPayload() {
+        return new Payloads.QuestMasterPartyData(false, false, Component.empty(), List.of(), List.of());
+    }
+
+    private static Component dailyPartyStatus(ServerLevel world, UUID playerId, DailyQuestService.DailyQuestType type) {
+        if (!partyUiEnabled(world)) {
+            return Component.empty();
+        }
+        if (type == null || !QuestShareProfiles.isDailyShareable(type)) {
+            return Component.translatable("screen.village-quest.questmaster.party.status.unavailable").withStyle(ChatFormatting.DARK_GRAY);
+        }
+        if (!QuestPartyService.hasParty(playerId)) {
+            return Component.translatable("screen.village-quest.questmaster.party.status.solo").withStyle(ChatFormatting.GRAY);
+        }
+        int sharedMembers = QuestPartyService.dailySharedMemberCount(world, playerId, type);
+        if (type == QuestPartyService.resolveSharedDailyChoice(world, playerId, null) && sharedMembers > 1) {
+            return Component.translatable(
+                    "screen.village-quest.questmaster.party.status.shared",
+                    sharedMembers,
+                    QuestPartyService.partySize(playerId)
+            ).withStyle(ChatFormatting.GREEN);
+        }
+        return Component.translatable(
+                "screen.village-quest.questmaster.party.status.party",
+                QuestPartyService.partySize(playerId),
+                QuestPartyService.MAX_PARTY_SIZE
+        ).withStyle(ChatFormatting.GRAY);
+    }
+
+    private static Component weeklyPartyStatus(ServerLevel world, UUID playerId, WeeklyQuestService.WeeklyQuestType type) {
+        if (!partyUiEnabled(world)) {
+            return Component.empty();
+        }
+        if (type == null || !QuestShareProfiles.isWeeklyShareable(type)) {
+            return Component.translatable("screen.village-quest.questmaster.party.status.unavailable").withStyle(ChatFormatting.DARK_GRAY);
+        }
+        if (!QuestPartyService.hasParty(playerId)) {
+            return Component.translatable("screen.village-quest.questmaster.party.status.solo").withStyle(ChatFormatting.GRAY);
+        }
+        int sharedMembers = QuestPartyService.weeklySharedMemberCount(world, playerId, type);
+        if (type == QuestPartyService.resolveSharedWeeklyChoice(world, playerId, null) && sharedMembers > 1) {
+            return Component.translatable(
+                    "screen.village-quest.questmaster.party.status.shared",
+                    sharedMembers,
+                    QuestPartyService.partySize(playerId)
+            ).withStyle(ChatFormatting.GREEN);
+        }
+        return Component.translatable(
+                "screen.village-quest.questmaster.party.status.party",
+                QuestPartyService.partySize(playerId),
+                QuestPartyService.MAX_PARTY_SIZE
+        ).withStyle(ChatFormatting.GRAY);
+    }
+
+    private static Component storyPartyStatus(ServerLevel world, UUID playerId, StoryArcType arcType, int chapterIndex) {
+        if (!partyUiEnabled(world)) {
+            return Component.empty();
+        }
+        if (arcType == null || !QuestShareProfiles.isStoryShareable(arcType)) {
+            return Component.translatable("screen.village-quest.questmaster.party.status.unavailable").withStyle(ChatFormatting.DARK_GRAY);
+        }
+        if (!QuestPartyService.hasParty(playerId)) {
+            return Component.translatable("screen.village-quest.questmaster.party.status.solo").withStyle(ChatFormatting.GRAY);
+        }
+        int sharedMembers = QuestPartyService.storySharedMemberCount(world, playerId, arcType, chapterIndex);
+        if (sharedMembers > 1) {
+            return Component.translatable(
+                    "screen.village-quest.questmaster.party.status.shared",
+                    sharedMembers,
+                    QuestPartyService.partySize(playerId)
+            ).withStyle(ChatFormatting.GREEN);
+        }
+        return Component.translatable(
+                "screen.village-quest.questmaster.party.status.party",
+                QuestPartyService.partySize(playerId),
+                QuestPartyService.MAX_PARTY_SIZE
+        ).withStyle(ChatFormatting.GRAY);
+    }
+
+    private static boolean partyUiEnabled(ServerLevel world) {
+        return world != null && QuestPartyService.isEnabled(world.getServer());
+    }
+
     private static Payloads.QuestMasterEntryData buildStoryArchiveEntry(ServerLevel world, UUID playerId) {
         return entry(
                 ENTRY_STORY_PREFIX + "archive",
@@ -1596,7 +1758,7 @@ public final class QuestMasterUiService {
         if (stack == null || stack.isEmpty()) {
             return;
         }
-        Component name = stack.getHoverName().copy();
+        Component name = stack.getDisplayName().copy();
         if (stack.getCount() > 1) {
             name = Component.empty().append(name).append(Component.literal(" x" + stack.getCount()).withStyle(ChatFormatting.GRAY));
         }
@@ -1614,12 +1776,44 @@ public final class QuestMasterUiService {
                                                        ActionSpec primary,
                                                        ActionSpec secondary,
                                                        boolean locked) {
+        return entry(
+                entryId,
+                categoryId,
+                title,
+                subtitle,
+                status,
+                false,
+                Component.empty(),
+                descriptionLines,
+                objectiveLines,
+                rewardLines,
+                primary,
+                secondary,
+                locked
+        );
+    }
+
+    private static Payloads.QuestMasterEntryData entry(String entryId,
+                                                       String categoryId,
+                                                       Component title,
+                                                       Component subtitle,
+                                                       Component status,
+                                                       boolean partyShareable,
+                                                       Component partyStatus,
+                                                       List<Component> descriptionLines,
+                                                       List<Component> objectiveLines,
+                                                       List<Component> rewardLines,
+                                                       ActionSpec primary,
+                                                       ActionSpec secondary,
+                                                       boolean locked) {
         return new Payloads.QuestMasterEntryData(
                 entryId,
                 categoryId,
                 title,
                 subtitle,
                 status,
+                partyShareable,
+                partyStatus,
                 descriptionLines,
                 objectiveLines,
                 rewardLines,
@@ -1669,7 +1863,20 @@ public final class QuestMasterUiService {
         return QuestState.get(world.getServer()).getPlayerData(playerId);
     }
 
+    private static UUID parseUuid(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
+    }
+
     private static void sendPayload(ServerPlayer player, Payloads.QuestMasterPayload payload) {
         ServerPlayNetworking.send(player, payload);
     }
 }
+
+

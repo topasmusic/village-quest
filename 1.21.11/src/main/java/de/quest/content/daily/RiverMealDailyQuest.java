@@ -59,7 +59,7 @@ public final class RiverMealDailyQuest implements DailyQuestDefinition {
         UUID playerId = player.getUuid();
         return DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.RIVER_FISH_PROGRESS) >= DailyQuestService.riverFishTarget()
                 && DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.RIVER_COOKED_FISH_PROGRESS) >= DailyQuestService.riverCookedFishTarget()
-                && DailyQuestService.countInventoryItems(player, Items.COOKED_COD, Items.COOKED_SALMON) >= DailyQuestService.riverCookedFishTarget();
+                && DailyQuestService.countCompletionItems(world, player, Items.COOKED_COD, Items.COOKED_SALMON) >= DailyQuestService.riverCookedFishTarget();
     }
 
     @Override
@@ -77,7 +77,7 @@ public final class RiverMealDailyQuest implements DailyQuestDefinition {
 
     @Override
     public boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) {
-        return DailyQuestService.consumeInventoryItems(player, DailyQuestService.riverCookedFishTarget(), Items.COOKED_COD, Items.COOKED_SALMON);
+        return DailyQuestService.consumeCompletionItems(world, player, DailyQuestService.riverCookedFishTarget(), Items.COOKED_COD, Items.COOKED_SALMON);
     }
 
     @Override
@@ -89,12 +89,12 @@ public final class RiverMealDailyQuest implements DailyQuestDefinition {
         int fishTarget = DailyQuestService.riverCookedFishTarget();
         if (DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.RIVER_FISH_PROGRESS) < DailyQuestService.riverFishTarget()
                 || DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.RIVER_COOKED_FISH_PROGRESS) < fishTarget
-                || DailyQuestService.countInventoryItems(player, Items.COOKED_COD, Items.COOKED_SALMON) >= fishTarget) {
+                || DailyQuestService.countCompletionItems(world, player, Items.COOKED_COD, Items.COOKED_SALMON) >= fishTarget) {
             return null;
         }
         return Texts.turnInMissing(
                 Text.translatable("text.village-quest.turnin.label.cooked_fish"),
-                DailyQuestService.countInventoryItems(player, Items.COOKED_COD, Items.COOKED_SALMON),
+                DailyQuestService.countCompletionItems(world, player, Items.COOKED_COD, Items.COOKED_SALMON),
                 fishTarget
         );
     }

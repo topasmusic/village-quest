@@ -31,6 +31,8 @@ public final class QuestMasterScreen extends CompatScreen {
             Component title,
             Component subtitle,
             Component status,
+            boolean partyShareable,
+            Component partyStatus,
             List<Component> descriptionLines,
             List<Component> objectiveLines,
             List<Component> rewardLines,
@@ -43,12 +45,34 @@ public final class QuestMasterScreen extends CompatScreen {
             boolean locked
     ) {}
 
+    public record PartyMemberView(
+            String playerId,
+            Component name,
+            boolean leader,
+            boolean self
+    ) {}
+
+    public record PartyCandidateView(
+            String playerId,
+            Component name,
+            Component status,
+            boolean inviteable
+    ) {}
+
+    public record PartyView(
+            boolean hasParty,
+            boolean leader,
+            Component summary,
+            List<PartyMemberView> members,
+            List<PartyCandidateView> candidates
+    ) {}
+
     public record QuestMasterData(
             int entityId,
             Component questMasterName,
             List<CategoryView> categories,
             List<EntryView> entries,
-            long storyCooldownUntil
+            PartyView party
     ) {}
 
     private record DetailLine(String text, int color, int indent, boolean spacer) {}
@@ -90,6 +114,16 @@ public final class QuestMasterScreen extends CompatScreen {
     private static final int BUTTON_Y = 173;
     private static final int BUTTON_WIDTH = 89;
     private static final int BUTTON_HEIGHT = 18;
+    private static final int PARTY_BUTTON_WIDTH = 44;
+    private static final int PARTY_BUTTON_HEIGHT = 15;
+    private static final int PARTY_BUTTON_X = DETAIL_HEADER_X + DETAIL_HEADER_WIDTH - PARTY_BUTTON_WIDTH - 6;
+    private static final int PARTY_BUTTON_Y = DETAIL_HEADER_Y - PARTY_BUTTON_HEIGHT - 3;
+    private static final int PARTY_DRAWER_X = 208;
+    private static final int PARTY_DRAWER_Y = DETAIL_HEADER_Y - 1;
+    private static final int PARTY_DRAWER_WIDTH = 118;
+    private static final int PARTY_DRAWER_HEIGHT = 148;
+    private static final int PARTY_ROW_HEIGHT = 14;
+    private static final int PARTY_VISIBLE_CANDIDATES = 4;
 
     private static final int SCREEN_SHADE = 0xB018120D;
     private static final int SHADOW = 0x71000000;
@@ -118,6 +152,14 @@ public final class QuestMasterScreen extends CompatScreen {
     private static final int BUTTON_DISABLED_OVERLAY = 0x55000000;
     private static final int BUTTON_TEXT = 0xFFF9ECD4;
     private static final int BUTTON_DISABLED_TEXT = 0xFFD2BEA4;
+    private static final int PARTY_BUTTON_FILL = 0xFF5C2F1C;
+    private static final int PARTY_BUTTON_HOVER_FILL = 0xFF7A4126;
+    private static final int PARTY_BUTTON_ACTIVE_FILL = 0xFF8D5A1C;
+    private static final int PARTY_BUTTON_ACTIVE_HOVER_FILL = 0xFFA86A20;
+    private static final int PARTY_BUTTON_TEXT = 0xFFF6E9D1;
+    private static final int PARTY_DRAWER_FILL = 0xFFF5E7C9;
+    private static final int PARTY_SECTION = 0xFF7D4A22;
+    private static final int PARTY_MUTED = 0xFF7F6A57;
     private static final int SCROLL_TRACK = 0x33A77A42;
     private static final int SCROLL_THUMB = 0xAA7C4A27;
     private static final String ENTRY_DAILY_MAIN = "daily_main";
@@ -131,6 +173,8 @@ public final class QuestMasterScreen extends CompatScreen {
     private int entryListScrollMax = 0;
     private int detailScrollOffset = 0;
     private int detailScrollMax = 0;
+    private boolean partyDrawerOpen = false;
+    private int partyCandidateScrollIndex = 0;
     private Component hoveredEntryTooltip;
 
     public QuestMasterScreen(QuestMasterData data) {
@@ -148,6 +192,7 @@ public final class QuestMasterScreen extends CompatScreen {
         clampEntryListScroll();
         ensureSelectedEntryVisible();
         clampDetailScroll();
+        clampPartyDrawerState();
     }
 
     @Override
@@ -155,6 +200,7 @@ public final class QuestMasterScreen extends CompatScreen {
         ensureSelection();
         clampEntryListScroll();
         ensureSelectedEntryVisible();
+        clampPartyDrawerState();
         this.closeNotified = false;
     }
 
@@ -190,6 +236,7 @@ public final class QuestMasterScreen extends CompatScreen {
         drawSidebar(context, left, top, mouseX, mouseY);
         drawEntryList(context, left, top, mouseX, mouseY);
         drawDetailPanel(context, left, top, mouseX, mouseY);
+        drawPartyDrawer(context, left, top, mouseX, mouseY);
         drawFooter(context, left, top);
 
         super.render(context, mouseX, mouseY, delta);
@@ -222,6 +269,7 @@ public final class QuestMasterScreen extends CompatScreen {
                 ensureSelection();
                 this.entryListScrollOffset = 0;
                 this.detailScrollOffset = 0;
+                clampPartyDrawerState();
                 playClick();
                 return true;
             }
@@ -240,6 +288,7 @@ public final class QuestMasterScreen extends CompatScreen {
                 this.selectedEntryId = entries.get(i).entryId();
                 this.detailScrollOffset = 0;
                 ensureSelectedEntryVisible();
+                clampPartyDrawerState();
                 playClick();
                 return true;
             }
@@ -247,6 +296,17 @@ public final class QuestMasterScreen extends CompatScreen {
 
         EntryView selected = getSelectedEntry();
         if (selected != null) {
+            if (isPartyDrawerAvailable(selected)
+                    && isWithin(mouseX, mouseY, left + PARTY_BUTTON_X, top + PARTY_BUTTON_Y, PARTY_BUTTON_WIDTH, PARTY_BUTTON_HEIGHT)) {
+                this.partyDrawerOpen = !this.partyDrawerOpen;
+                clampPartyDrawerState();
+                playClick();
+                return true;
+            }
+            if (this.partyDrawerOpen && handlePartyDrawerClick(selected, mouseX, mouseY, left, top)) {
+                playClick();
+                return true;
+            }
             ButtonAction buttonAction = visibleButtonAction(selected);
             if (buttonAction != null && hasVisibleLabel(buttonAction.label()) && isWithin(mouseX, mouseY, left + BUTTON_X, top + BUTTON_Y, BUTTON_WIDTH, BUTTON_HEIGHT)) {
                 ClientPlayNetworking.send(new Payloads.QuestMasterActionPayload(
@@ -276,6 +336,13 @@ public final class QuestMasterScreen extends CompatScreen {
             int step = this.font.lineHeight * 2;
             this.detailScrollOffset -= (int) Math.signum(verticalAmount) * step;
             clampDetailScroll();
+            return true;
+        }
+        if (this.partyDrawerOpen
+                && isWithin((int) mouseX, (int) mouseY, left + PARTY_DRAWER_X, top + PARTY_DRAWER_Y, PARTY_DRAWER_WIDTH, PARTY_DRAWER_HEIGHT)
+                && candidateScrollMax() > 0) {
+            this.partyCandidateScrollIndex -= (int) Math.signum(verticalAmount);
+            clampPartyDrawerState();
             return true;
         }
         return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
@@ -385,6 +452,18 @@ public final class QuestMasterScreen extends CompatScreen {
 
         drawDetailHeader(context, left + DETAIL_HEADER_X, top + DETAIL_HEADER_Y, entry);
         drawDetailBody(context, left + DETAIL_BODY_X, top + DETAIL_BODY_Y, entry);
+        if (isPartyDrawerAvailable(entry)) {
+            drawPartyToggleButton(
+                    context,
+                    left + PARTY_BUTTON_X,
+                    top + PARTY_BUTTON_Y,
+                    PARTY_BUTTON_WIDTH,
+                    PARTY_BUTTON_HEIGHT,
+                    Component.translatable("screen.village-quest.questmaster.party.button"),
+                    this.partyDrawerOpen,
+                    isWithin(mouseX, mouseY, left + PARTY_BUTTON_X, top + PARTY_BUTTON_Y, PARTY_BUTTON_WIDTH, PARTY_BUTTON_HEIGHT)
+            );
+        }
         drawTemplateButtons(context, left, top, mouseX, mouseY, entry);
     }
 
@@ -413,7 +492,13 @@ public final class QuestMasterScreen extends CompatScreen {
 
         boolean titleWrapped = titleLines.size() > 1;
         if (!titleWrapped && hasVisibleLabel(entry.subtitle())) {
-            context.drawString(this.font, ellipsize(entry.subtitle().getString(), DETAIL_HEADER_WIDTH - 12), x + 6, y + 18, MUTED, false);
+            String subtitle = entry.subtitle().getString();
+            if (hasVisibleLabel(entry.partyStatus())) {
+                subtitle = subtitle.isBlank()
+                        ? entry.partyStatus().getString()
+                        : subtitle + " / " + entry.partyStatus().getString();
+            }
+            context.drawString(this.font, ellipsize(subtitle, DETAIL_HEADER_WIDTH - 12), x + 6, y + 18, MUTED, false);
         }
         drawStatusTag(context, entry, x + 6, y + (titleWrapped ? 29 : 27), DETAIL_HEADER_WIDTH - 12);
     }
@@ -516,7 +601,61 @@ public final class QuestMasterScreen extends CompatScreen {
                     BUTTON_HEIGHT,
                     buttonAction.label(),
                     buttonAction.enabled(),
-                    isWithin(mouseX, mouseY, left + BUTTON_X, top + BUTTON_Y, BUTTON_WIDTH, BUTTON_HEIGHT)
+                isWithin(mouseX, mouseY, left + BUTTON_X, top + BUTTON_Y, BUTTON_WIDTH, BUTTON_HEIGHT)
+            );
+        }
+    }
+
+    private void drawPartyDrawer(GuiGraphics context, int left, int top, int mouseX, int mouseY) {
+        EntryView selected = getSelectedEntry();
+        if (!this.partyDrawerOpen || selected == null || !isPartyDrawerAvailable(selected)) {
+            return;
+        }
+
+        int x = left + PARTY_DRAWER_X;
+        int y = top + PARTY_DRAWER_Y;
+        drawFrame(context, x, y, PARTY_DRAWER_WIDTH, PARTY_DRAWER_HEIGHT, FRAME_DARK, FRAME_LIGHT, PARTY_DRAWER_FILL);
+        context.drawString(this.font, Component.translatable("screen.village-quest.questmaster.party.title").getString(), x + 6, y + 6, TITLE, false);
+        context.drawString(this.font, ellipsize(data.party().summary().getString(), PARTY_DRAWER_WIDTH - 12), x + 6, y + 18, PARTY_MUTED, false);
+
+        int cursorY = y + 34;
+        context.drawString(this.font, Component.translatable("screen.village-quest.questmaster.party.members").getString(), x + 6, cursorY, PARTY_SECTION, false);
+        cursorY += this.font.lineHeight + 2;
+        for (PartyMemberView member : data.party().members()) {
+            String label = member.name().getString()
+                    + (member.leader() ? " [L]" : "")
+                    + (member.self() ? " *" : "");
+            context.drawString(this.font, ellipsize(label, PARTY_DRAWER_WIDTH - 12), x + 6, cursorY, BODY, false);
+            cursorY += PARTY_ROW_HEIGHT;
+        }
+
+        cursorY += 2;
+        context.drawString(this.font, Component.translatable("screen.village-quest.questmaster.party.online").getString(), x + 6, cursorY, PARTY_SECTION, false);
+        cursorY += this.font.lineHeight + 2;
+
+        List<PartyCandidateView> visibleCandidates = visibleCandidates();
+        for (PartyCandidateView candidate : visibleCandidates) {
+            boolean hovered = isWithin(mouseX, mouseY, x + 6, cursorY - 1, PARTY_DRAWER_WIDTH - 12, PARTY_ROW_HEIGHT);
+            int rowFill = hovered ? 0x22FFFFFF : 0x11000000;
+            context.fill(x + 4, cursorY - 1, x + PARTY_DRAWER_WIDTH - 4, cursorY + PARTY_ROW_HEIGHT - 2, rowFill);
+            context.drawString(this.font, ellipsize(candidate.name().getString(), PARTY_DRAWER_WIDTH - 54), x + 6, cursorY + 2, BODY, false);
+            context.drawString(this.font, ellipsize(candidate.status().getString(), 40), x + PARTY_DRAWER_WIDTH - 46, cursorY + 2, candidate.inviteable() ? STATUS_ACTIVE : PARTY_MUTED, false);
+            cursorY += PARTY_ROW_HEIGHT;
+        }
+
+        if (data.party().hasParty()) {
+            Component actionLabel = Component.translatable(data.party().leader()
+                    ? "screen.village-quest.questmaster.party.disband"
+                    : "screen.village-quest.questmaster.party.leave");
+            drawTemplateButton(
+                    context,
+                    x + 6,
+                    y + PARTY_DRAWER_HEIGHT - 22,
+                    PARTY_DRAWER_WIDTH - 12,
+                    14,
+                    actionLabel,
+                    true,
+                    isWithin(mouseX, mouseY, x + 6, y + PARTY_DRAWER_HEIGHT - 22, PARTY_DRAWER_WIDTH - 12, 14)
             );
         }
     }
@@ -528,6 +667,17 @@ public final class QuestMasterScreen extends CompatScreen {
         int textX = x + (width - this.font.width(text)) / 2;
         int textY = y + Math.max(1, (height - this.font.lineHeight) / 2);
         context.drawString(this.font, text, textX, textY, enabled ? BUTTON_TEXT : BUTTON_DISABLED_TEXT, false);
+    }
+
+    private void drawPartyToggleButton(GuiGraphics context, int x, int y, int width, int height, Component label, boolean active, boolean hovered) {
+        int fill = active
+                ? (hovered ? PARTY_BUTTON_ACTIVE_HOVER_FILL : PARTY_BUTTON_ACTIVE_FILL)
+                : (hovered ? PARTY_BUTTON_HOVER_FILL : PARTY_BUTTON_FILL);
+        drawFrame(context, x, y, width, height, FRAME_DARK, FRAME_LIGHT, fill);
+        String text = label.getString();
+        int textX = x + (width - this.font.width(text)) / 2;
+        int textY = y + Math.max(1, (height - this.font.lineHeight) / 2);
+        context.drawString(this.font, text, textX, textY, PARTY_BUTTON_TEXT, false);
     }
 
     private void drawStatusTag(GuiGraphics context, EntryView entry, int x, int y, int maxWidth) {
@@ -731,14 +881,6 @@ public final class QuestMasterScreen extends CompatScreen {
 
     private String footerTimerText() {
         EntryView selected = getSelectedEntry();
-        if (selected != null
-                && "story".equals(selected.categoryId())
-                && data.storyCooldownUntil() > System.currentTimeMillis()) {
-            return Component.translatable(
-                    "screen.village-quest.questmaster.story_timer",
-                    formatRemainingResetTime(data.storyCooldownUntil() - System.currentTimeMillis())
-            ).getString();
-        }
         if (selected != null && ENTRY_WEEKLY.equals(selected.entryId()) && shouldShowResetTimer(selected)) {
             return Component.translatable(
                     "screen.village-quest.questmaster.weekly_timer",
@@ -780,8 +922,71 @@ public final class QuestMasterScreen extends CompatScreen {
         return null;
     }
 
+    private boolean handlePartyDrawerClick(EntryView selected, int mouseX, int mouseY, int left, int top) {
+        int x = left + PARTY_DRAWER_X;
+        int y = top + PARTY_DRAWER_Y;
+        if (!isWithin(mouseX, mouseY, x, y, PARTY_DRAWER_WIDTH, PARTY_DRAWER_HEIGHT)) {
+            return false;
+        }
+
+        int rowY = y + 34 + this.font.lineHeight + 2;
+        rowY += data.party().members().size() * PARTY_ROW_HEIGHT;
+        rowY += 2 + this.font.lineHeight + 2;
+        for (PartyCandidateView candidate : visibleCandidates()) {
+            if (candidate.inviteable()
+                    && isWithin(mouseX, mouseY, x + 4, rowY - 1, PARTY_DRAWER_WIDTH - 8, PARTY_ROW_HEIGHT)) {
+                ClientPlayNetworking.send(new Payloads.QuestMasterPartyActionPayload(
+                        data.entityId(),
+                        Payloads.QuestMasterPartyActionPayload.ACTION_INVITE,
+                        candidate.playerId()
+                ));
+                return true;
+            }
+            rowY += PARTY_ROW_HEIGHT;
+        }
+
+        if (data.party().hasParty()
+                && isWithin(mouseX, mouseY, x + 6, y + PARTY_DRAWER_HEIGHT - 22, PARTY_DRAWER_WIDTH - 12, 14)) {
+            ClientPlayNetworking.send(new Payloads.QuestMasterPartyActionPayload(
+                    data.entityId(),
+                    data.party().leader()
+                            ? Payloads.QuestMasterPartyActionPayload.ACTION_DISBAND
+                            : Payloads.QuestMasterPartyActionPayload.ACTION_LEAVE,
+                    ""
+            ));
+            return true;
+        }
+
+        return true;
+    }
+
     private void clampDetailScroll() {
         this.detailScrollOffset = Math.max(0, Math.min(this.detailScrollOffset, this.detailScrollMax));
+    }
+
+    private boolean isPartyDrawerAvailable(EntryView entry) {
+        return entry != null && entry.partyShareable() && (this.minecraft == null || !this.minecraft.isSingleplayer());
+    }
+
+    private void clampPartyDrawerState() {
+        if (!isPartyDrawerAvailable(getSelectedEntry())) {
+            this.partyDrawerOpen = false;
+        }
+        this.partyCandidateScrollIndex = Math.max(0, Math.min(this.partyCandidateScrollIndex, candidateScrollMax()));
+    }
+
+    private List<PartyCandidateView> visibleCandidates() {
+        List<PartyCandidateView> candidates = data.party().candidates();
+        if (candidates.isEmpty()) {
+            return List.of();
+        }
+        int from = Math.min(this.partyCandidateScrollIndex, Math.max(0, candidates.size() - 1));
+        int to = Math.min(candidates.size(), from + PARTY_VISIBLE_CANDIDATES);
+        return candidates.subList(from, to);
+    }
+
+    private int candidateScrollMax() {
+        return Math.max(0, data.party().candidates().size() - PARTY_VISIBLE_CANDIDATES);
     }
 
     private int entryViewportHeight() {

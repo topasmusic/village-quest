@@ -88,10 +88,10 @@ public final class SmithWeekWeeklyQuest implements WeeklyQuestDefinition {
         if (!hasTurnInItems(player)) {
             return false;
         }
-        return WeeklyQuestService.consumeInventoryItem(player, Items.RAW_IRON, WeeklyQuestService.smithOreTarget())
-                && WeeklyQuestService.consumeInventoryItem(player, Items.RAW_GOLD, WeeklyQuestService.smithGoldOreTarget())
-                && WeeklyQuestService.consumeInventoryItem(player, Items.IRON_INGOT, WeeklyQuestService.smithIronTarget())
-                && WeeklyQuestService.consumeInventoryItem(player, Items.GOLD_INGOT, WeeklyQuestService.smithGoldTarget());
+        return WeeklyQuestService.consumeCompletionItem(world, player, Items.RAW_IRON, WeeklyQuestService.smithOreTarget())
+                && WeeklyQuestService.consumeCompletionItem(world, player, Items.RAW_GOLD, WeeklyQuestService.smithGoldOreTarget())
+                && WeeklyQuestService.consumeCompletionItem(world, player, Items.IRON_INGOT, WeeklyQuestService.smithIronTarget())
+                && WeeklyQuestService.consumeCompletionItem(world, player, Items.GOLD_INGOT, WeeklyQuestService.smithGoldTarget());
     }
 
     @Override
@@ -113,16 +113,16 @@ public final class SmithWeekWeeklyQuest implements WeeklyQuestDefinition {
         }
         return Texts.turnInMissing(
                 Items.RAW_IRON.getDefaultStack().toHoverableText(),
-                WeeklyQuestService.countInventoryItem(player, Items.RAW_IRON),
+                WeeklyQuestService.countCompletionItem(world, player, Items.RAW_IRON),
                 oreTarget,
                 Items.RAW_GOLD.getDefaultStack().toHoverableText(),
-                WeeklyQuestService.countInventoryItem(player, Items.RAW_GOLD),
+                WeeklyQuestService.countCompletionItem(world, player, Items.RAW_GOLD),
                 goldOreTarget,
                 Items.IRON_INGOT.getDefaultStack().toHoverableText(),
-                WeeklyQuestService.countInventoryItem(player, Items.IRON_INGOT),
+                WeeklyQuestService.countCompletionItem(world, player, Items.IRON_INGOT),
                 ironTarget,
                 Items.GOLD_INGOT.getDefaultStack().toHoverableText(),
-                WeeklyQuestService.countInventoryItem(player, Items.GOLD_INGOT),
+                WeeklyQuestService.countCompletionItem(world, player, Items.GOLD_INGOT),
                 goldTarget
         );
     }
@@ -161,9 +161,10 @@ public final class SmithWeekWeeklyQuest implements WeeklyQuestDefinition {
     }
 
     private boolean hasTurnInItems(ServerPlayerEntity player) {
-        return WeeklyQuestService.countInventoryItem(player, Items.RAW_IRON) >= WeeklyQuestService.smithOreTarget()
-                && WeeklyQuestService.countInventoryItem(player, Items.RAW_GOLD) >= WeeklyQuestService.smithGoldOreTarget()
-                && WeeklyQuestService.countInventoryItem(player, Items.IRON_INGOT) >= WeeklyQuestService.smithIronTarget()
-                && WeeklyQuestService.countInventoryItem(player, Items.GOLD_INGOT) >= WeeklyQuestService.smithGoldTarget();
+        ServerWorld world = (ServerWorld) player.getEntityWorld();
+        return WeeklyQuestService.countCompletionItem(world, player, Items.RAW_IRON) >= WeeklyQuestService.smithOreTarget()
+                && WeeklyQuestService.countCompletionItem(world, player, Items.RAW_GOLD) >= WeeklyQuestService.smithGoldOreTarget()
+                && WeeklyQuestService.countCompletionItem(world, player, Items.IRON_INGOT) >= WeeklyQuestService.smithIronTarget()
+                && WeeklyQuestService.countCompletionItem(world, player, Items.GOLD_INGOT) >= WeeklyQuestService.smithGoldTarget();
     }
 }

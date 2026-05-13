@@ -58,30 +58,6 @@ tasks.named("sourcesJar").configure {
     archiveVersion = ""
 }
 
-tasks.register("pruneOldBuildLibs") {
-    doLast {
-        def libsDir = layout.buildDirectory.dir("libs").get().asFile
-        if (!libsDir.exists()) {
-            return
-        }
-
-        def currentPrefix = releaseFileStem
-        def jarFiles = libsDir.listFiles()?.findAll { file ->
-            file.isFile() && file.name.startsWith("${releaseArchivesBaseName}-") && file.name.endsWith(".jar")
-        } ?: []
-
-        jarFiles.findAll { !it.name.startsWith(currentPrefix) }.each { file ->
-            if (!file.delete()) {
-                throw new GradleException("Could not delete old build artifact: ${file.name}")
-            }
-        }
-    }
-}
-
-tasks.named("build").configure {
-    finalizedBy(tasks.named("pruneOldBuildLibs"))
-}
-
 jar {
     inputs.property "archivesName", project.base.archivesName
     from("LICENSE") { rename { "${it}_${inputs.properties.archivesName}" } }

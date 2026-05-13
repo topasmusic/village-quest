@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 1.22.1-beta.3 - Multiplayer Quest Party Beta
+
+Release date: 2026-05-14
+
+- Ported the `1.21.11` multiplayer quest-sharing beta batch to `26.1.2`, including dedicated-server-only quest parties, clickable chat invites, and `/vq party ...` commands for `show`, `invite`, `accept`, `decline`, `leave`, `disband`, and shared daily/weekly/story/pilgrim offer acceptance.
+- The `Questmaster` UI now exposes the same party drawer on shareable `Daily`, `Weekly`, and core `Story` entries, including current members, invite candidates, and direct invite/leave/disband actions; the party toggle now sits as a dedicated brown button above the right quest header panel and remains hidden on singleplayer or integrated worlds.
+- Shareable `Daily`, `Weekly`, core `Story`, and normal `Pilgrim` combat-contract flows now support pooled progress, pooled turn-in where applicable, explicit chat offers for late joiners, `10 minute` disconnect grace, and restart-persistent party and shared-session state on `26.1.2`.
+- Repeatable `Daily`, `Weekly`, and `Pilgrim` quests now roll and persist synced `light`, `normal`, or `heavy` target profiles on this line as well, scale their numeric rewards to match that profile, and avoid obvious stack or half-stack target counts; the non-`Shadows` story arcs also received the same authored irregular target numbers.
+- The journal now keeps its `Questmaster` shortcut button visible on every page instead of only the first page on `26.1.2`.
+
 ## 1.22.0 - Shadows On The Trade Road And Admin Reset
 
 Release date: 2026-04-24

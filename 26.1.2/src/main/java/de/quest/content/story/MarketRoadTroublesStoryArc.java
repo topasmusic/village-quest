@@ -11,44 +11,35 @@ import de.quest.quest.story.StoryQuestService;
 import de.quest.quest.story.VillageProjectType;
 import de.quest.reputation.ReputationService;
 import de.quest.util.Texts;
-import java.util.List;
-import java.util.UUID;
-import net.minecraft.ChatFormatting;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Holder;
-import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.npc.villager.Villager;
-import net.minecraft.world.entity.npc.villager.VillagerProfession;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.core.Holder;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.entity.npc.villager.VillagerProfession;
+
+import java.util.List;
+import java.util.UUID;
 
 public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
-    private static final int SHUTTERED_STALLS_EMERALD_TARGET = 80;
-    private static final int LEDGER_PAPER_TARGET = 64;
-    private static final int LEDGER_BOOK_TARGET = 20;
-    private static final int GOODS_MUST_FLOW_TRADE_TARGET = 35;
+    private static final int SHUTTERED_STALLS_EMERALD_TARGET = 73;
+    private static final int LEDGER_PAPER_TARGET = 57;
+    private static final int LEDGER_BOOK_TARGET = 17;
+    private static final int GOODS_MUST_FLOW_TRADE_TARGET = 31;
     private static final int GOODS_MUST_FLOW_PROFESSION_TARGET = 6;
-    private static final int MARKET_DAY_RETURNS_VILLAGER_TARGET = 20;
+    private static final int MARKET_DAY_RETURNS_VILLAGER_TARGET = 17;
     private static final int MARKET_DAY_RETURNS_BELL_TARGET = 1;
-    private static final int MARKET_DAY_RETURNS_BELL_NEARBY_TARGET = 20;
+    private static final int MARKET_DAY_RETURNS_BELL_NEARBY_TARGET = 18;
     private static final double MARKET_DAY_RETURNS_BELL_RADIUS = 20.0D;
-
-    private static final ProfessionTarget[] GOODS_MUST_FLOW_PROFESSIONS = new ProfessionTarget[] {
-            new ProfessionTarget(StoryQuestKeys.MARKET_ROAD_TOOLSMITH, VillagerProfession.TOOLSMITH),
-            new ProfessionTarget(StoryQuestKeys.MARKET_ROAD_WEAPONSMITH, VillagerProfession.WEAPONSMITH),
-            new ProfessionTarget(StoryQuestKeys.MARKET_ROAD_FARMER, VillagerProfession.FARMER),
-            new ProfessionTarget(StoryQuestKeys.MARKET_ROAD_FISHERMAN, VillagerProfession.FISHERMAN),
-            new ProfessionTarget(StoryQuestKeys.MARKET_ROAD_SHEPHERD, VillagerProfession.SHEPHERD),
-            new ProfessionTarget(StoryQuestKeys.MARKET_ROAD_LIBRARIAN, VillagerProfession.LIBRARIAN)
-    };
 
     private final List<StoryChapterDefinition> chapters = List.of(
             new ShutteredStallsChapter(),
@@ -56,8 +47,6 @@ public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
             new GoodsMustFlowChapter(),
             new MarketDayReturnsChapter()
     );
-
-    private record ProfessionTarget(String key, ResourceKey<VillagerProfession> profession) {}
 
     @Override
     public StoryArcType type() {
@@ -97,12 +86,12 @@ public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
             return StoryQuestService.getQuestInt(world, playerId, key);
         }
 
-        protected boolean hasItem(ServerPlayer player, Item item, int amount) {
-            return DailyQuestService.countInventoryItem(player, item) >= amount;
+        protected boolean hasItem(ServerLevel world, ServerPlayer player, Item item, int amount) {
+            return player != null && StoryQuestService.countCompletionItem(world, player.getUUID(), item) >= amount;
         }
 
-        protected boolean consumeItem(ServerPlayer player, Item item, int amount) {
-            return DailyQuestService.consumeInventoryItem(player, item, amount);
+        protected boolean consumeItem(ServerLevel world, ServerPlayer player, Item item, int amount) {
+            return player != null && StoryQuestService.consumeCompletionItem(world, player.getUUID(), item, amount);
         }
 
         protected boolean isAdultVillager(Entity entity) {
@@ -122,21 +111,52 @@ public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
                 return;
             }
 
-            int delta = Math.max(0, crafted - (baseline - 1));
-            int progress = Math.min(target, delta);
-            if (StoryQuestService.getQuestInt(world, player.getUUID(), progressKey) != progress) {
-                StoryQuestService.setQuestInt(world, player.getUUID(), progressKey, progress);
+            int delta = crafted - (baseline - 1);
+            if (delta > 0) {
+                StoryQuestService.addQuestIntClamped(world, player.getUUID(), progressKey, delta, target);
             }
+            StoryQuestService.setQuestInt(world, player.getUUID(), baselineKey, crafted + 1);
         }
 
         protected int countProfessionProgress(ServerLevel world, UUID playerId) {
             int total = 0;
-            for (ProfessionTarget target : GOODS_MUST_FLOW_PROFESSIONS) {
-                if (StoryQuestService.hasStoryFlag(world, playerId, target.key())) {
-                    total++;
-                }
-            }
+            total += StoryQuestService.hasStoryFlag(world, playerId, StoryQuestKeys.MARKET_ROAD_TOOLSMITH) ? 1 : 0;
+            total += StoryQuestService.hasStoryFlag(world, playerId, StoryQuestKeys.MARKET_ROAD_WEAPONSMITH) ? 1 : 0;
+            total += StoryQuestService.hasStoryFlag(world, playerId, StoryQuestKeys.MARKET_ROAD_FARMER) ? 1 : 0;
+            total += StoryQuestService.hasStoryFlag(world, playerId, StoryQuestKeys.MARKET_ROAD_FISHERMAN) ? 1 : 0;
+            total += StoryQuestService.hasStoryFlag(world, playerId, StoryQuestKeys.MARKET_ROAD_SHEPHERD) ? 1 : 0;
+            total += StoryQuestService.hasStoryFlag(world, playerId, StoryQuestKeys.MARKET_ROAD_LIBRARIAN) ? 1 : 0;
             return total;
+        }
+
+        protected boolean trackProfession(ServerLevel world, UUID playerId, Holder<VillagerProfession> profession) {
+            if (profession.is(VillagerProfession.TOOLSMITH)) {
+                return setProfessionFlag(world, playerId, StoryQuestKeys.MARKET_ROAD_TOOLSMITH);
+            }
+            if (profession.is(VillagerProfession.WEAPONSMITH)) {
+                return setProfessionFlag(world, playerId, StoryQuestKeys.MARKET_ROAD_WEAPONSMITH);
+            }
+            if (profession.is(VillagerProfession.FARMER)) {
+                return setProfessionFlag(world, playerId, StoryQuestKeys.MARKET_ROAD_FARMER);
+            }
+            if (profession.is(VillagerProfession.FISHERMAN)) {
+                return setProfessionFlag(world, playerId, StoryQuestKeys.MARKET_ROAD_FISHERMAN);
+            }
+            if (profession.is(VillagerProfession.SHEPHERD)) {
+                return setProfessionFlag(world, playerId, StoryQuestKeys.MARKET_ROAD_SHEPHERD);
+            }
+            if (profession.is(VillagerProfession.LIBRARIAN)) {
+                return setProfessionFlag(world, playerId, StoryQuestKeys.MARKET_ROAD_LIBRARIAN);
+            }
+            return false;
+        }
+
+        private boolean setProfessionFlag(ServerLevel world, UUID playerId, String key) {
+            if (StoryQuestService.hasStoryFlag(world, playerId, key)) {
+                return false;
+            }
+            StoryQuestService.setStoryFlag(world, playerId, key, true);
+            return true;
         }
     }
 
@@ -243,8 +263,8 @@ public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
             UUID playerId = player.getUUID();
             return progress(world, playerId, StoryQuestKeys.MARKET_ROAD_PAPER_CRAFTED) >= LEDGER_PAPER_TARGET
                     && progress(world, playerId, StoryQuestKeys.MARKET_ROAD_BOOK_CRAFTED) >= LEDGER_BOOK_TARGET
-                    && hasItem(player, Items.PAPER, LEDGER_PAPER_TARGET)
-                    && hasItem(player, Items.BOOK, LEDGER_BOOK_TARGET);
+                    && hasItem(world, player, Items.PAPER, LEDGER_PAPER_TARGET)
+                    && hasItem(world, player, Items.BOOK, LEDGER_BOOK_TARGET);
         }
 
         @Override
@@ -252,8 +272,8 @@ public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
             if (!isComplete(world, player)) {
                 return false;
             }
-            return consumeItem(player, Items.PAPER, LEDGER_PAPER_TARGET)
-                    && consumeItem(player, Items.BOOK, LEDGER_BOOK_TARGET);
+            return consumeItem(world, player, Items.PAPER, LEDGER_PAPER_TARGET)
+                    && consumeItem(world, player, Items.BOOK, LEDGER_BOOK_TARGET);
         }
 
         @Override
@@ -264,15 +284,15 @@ public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
             UUID playerId = player.getUUID();
             if (progress(world, playerId, StoryQuestKeys.MARKET_ROAD_PAPER_CRAFTED) < LEDGER_PAPER_TARGET
                     || progress(world, playerId, StoryQuestKeys.MARKET_ROAD_BOOK_CRAFTED) < LEDGER_BOOK_TARGET
-                    || (hasItem(player, Items.PAPER, LEDGER_PAPER_TARGET) && hasItem(player, Items.BOOK, LEDGER_BOOK_TARGET))) {
+                    || (hasItem(world, player, Items.PAPER, LEDGER_PAPER_TARGET) && hasItem(world, player, Items.BOOK, LEDGER_BOOK_TARGET))) {
                 return null;
             }
             return Texts.turnInMissing(
-                    Items.PAPER.getDefaultInstance().getHoverName(),
-                    DailyQuestService.countInventoryItem(player, Items.PAPER),
+                    Items.PAPER.getDefaultInstance().getDisplayName(),
+                    StoryQuestService.countCompletionItem(world, playerId, Items.PAPER),
                     LEDGER_PAPER_TARGET,
-                    Items.BOOK.getDefaultInstance().getHoverName(),
-                    DailyQuestService.countInventoryItem(player, Items.BOOK),
+                    Items.BOOK.getDefaultInstance().getDisplayName(),
+                    StoryQuestService.countCompletionItem(world, playerId, Items.BOOK),
                     LEDGER_BOOK_TARGET
             );
         }
@@ -357,15 +377,9 @@ public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
             if (!(entity instanceof Villager villager) || villager.isBaby()) {
                 return;
             }
-            Holder<VillagerProfession> profession = villager.getVillagerData().profession();
-            for (ProfessionTarget target : GOODS_MUST_FLOW_PROFESSIONS) {
-                if (!profession.is(target.profession()) || StoryQuestService.hasStoryFlag(world, player.getUUID(), target.key())) {
-                    continue;
-                }
+            if (trackProfession(world, player.getUUID(), villager.getVillagerData().profession())) {
                 VillagerDialogueService.sendDialogue(player, villager, VillagerDialogueService.marketRoadProfession(villager));
-                StoryQuestService.setStoryFlag(world, player.getUUID(), target.key(), true);
                 StoryQuestService.completeIfEligible(world, player);
-                return;
             }
         }
     }
@@ -462,10 +476,7 @@ public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
             int villagersNearby = world.getEntitiesOfClass(
                     Villager.class,
                     new AABB(pos).inflate(MARKET_DAY_RETURNS_BELL_RADIUS),
-                    villager -> villager != null
-                            && villager.isAlive()
-                            && !villager.isRemoved()
-                            && !villager.isBaby()
+                    villager -> villager != null && villager.isAlive() && !villager.isRemoved() && !villager.isBaby()
             ).size();
             if (villagersNearby < MARKET_DAY_RETURNS_BELL_NEARBY_TARGET) {
                 player.sendSystemMessage(Component.translatable(

@@ -31,14 +31,14 @@ import java.util.List;
 import java.util.UUID;
 
 public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
-    private static final int SHUTTERED_STALLS_EMERALD_TARGET = 80;
-    private static final int LEDGER_PAPER_TARGET = 64;
-    private static final int LEDGER_BOOK_TARGET = 20;
-    private static final int GOODS_MUST_FLOW_TRADE_TARGET = 35;
+    private static final int SHUTTERED_STALLS_EMERALD_TARGET = 73;
+    private static final int LEDGER_PAPER_TARGET = 57;
+    private static final int LEDGER_BOOK_TARGET = 17;
+    private static final int GOODS_MUST_FLOW_TRADE_TARGET = 31;
     private static final int GOODS_MUST_FLOW_PROFESSION_TARGET = 6;
-    private static final int MARKET_DAY_RETURNS_VILLAGER_TARGET = 20;
+    private static final int MARKET_DAY_RETURNS_VILLAGER_TARGET = 17;
     private static final int MARKET_DAY_RETURNS_BELL_TARGET = 1;
-    private static final int MARKET_DAY_RETURNS_BELL_NEARBY_TARGET = 20;
+    private static final int MARKET_DAY_RETURNS_BELL_NEARBY_TARGET = 18;
     private static final double MARKET_DAY_RETURNS_BELL_RADIUS = 20.0D;
 
     private final List<StoryChapterDefinition> chapters = List.of(
@@ -86,12 +86,12 @@ public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
             return StoryQuestService.getQuestInt(world, playerId, key);
         }
 
-        protected boolean hasItem(ServerPlayerEntity player, Item item, int amount) {
-            return DailyQuestService.countInventoryItem(player, item) >= amount;
+        protected boolean hasItem(ServerWorld world, ServerPlayerEntity player, Item item, int amount) {
+            return player != null && StoryQuestService.countCompletionItem(world, player.getUuid(), item) >= amount;
         }
 
-        protected boolean consumeItem(ServerPlayerEntity player, Item item, int amount) {
-            return DailyQuestService.consumeInventoryItem(player, item, amount);
+        protected boolean consumeItem(ServerWorld world, ServerPlayerEntity player, Item item, int amount) {
+            return player != null && StoryQuestService.consumeCompletionItem(world, player.getUuid(), item, amount);
         }
 
         protected boolean isAdultVillager(Entity entity) {
@@ -111,11 +111,11 @@ public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
                 return;
             }
 
-            int delta = Math.max(0, crafted - (baseline - 1));
-            int craftedProgress = Math.min(target, delta);
-            if (StoryQuestService.getQuestInt(world, player.getUuid(), progressKey) != craftedProgress) {
-                StoryQuestService.setQuestInt(world, player.getUuid(), progressKey, craftedProgress);
+            int delta = crafted - (baseline - 1);
+            if (delta > 0) {
+                StoryQuestService.addQuestIntClamped(world, player.getUuid(), progressKey, delta, target);
             }
+            StoryQuestService.setQuestInt(world, player.getUuid(), baselineKey, crafted + 1);
         }
 
         protected int countProfessionProgress(ServerWorld world, UUID playerId) {
@@ -263,8 +263,8 @@ public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
             UUID playerId = player.getUuid();
             return progress(world, playerId, StoryQuestKeys.MARKET_ROAD_PAPER_CRAFTED) >= LEDGER_PAPER_TARGET
                     && progress(world, playerId, StoryQuestKeys.MARKET_ROAD_BOOK_CRAFTED) >= LEDGER_BOOK_TARGET
-                    && hasItem(player, Items.PAPER, LEDGER_PAPER_TARGET)
-                    && hasItem(player, Items.BOOK, LEDGER_BOOK_TARGET);
+                    && hasItem(world, player, Items.PAPER, LEDGER_PAPER_TARGET)
+                    && hasItem(world, player, Items.BOOK, LEDGER_BOOK_TARGET);
         }
 
         @Override
@@ -272,8 +272,8 @@ public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
             if (!isComplete(world, player)) {
                 return false;
             }
-            return consumeItem(player, Items.PAPER, LEDGER_PAPER_TARGET)
-                    && consumeItem(player, Items.BOOK, LEDGER_BOOK_TARGET);
+            return consumeItem(world, player, Items.PAPER, LEDGER_PAPER_TARGET)
+                    && consumeItem(world, player, Items.BOOK, LEDGER_BOOK_TARGET);
         }
 
         @Override
@@ -284,15 +284,15 @@ public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
             UUID playerId = player.getUuid();
             if (progress(world, playerId, StoryQuestKeys.MARKET_ROAD_PAPER_CRAFTED) < LEDGER_PAPER_TARGET
                     || progress(world, playerId, StoryQuestKeys.MARKET_ROAD_BOOK_CRAFTED) < LEDGER_BOOK_TARGET
-                    || (hasItem(player, Items.PAPER, LEDGER_PAPER_TARGET) && hasItem(player, Items.BOOK, LEDGER_BOOK_TARGET))) {
+                    || (hasItem(world, player, Items.PAPER, LEDGER_PAPER_TARGET) && hasItem(world, player, Items.BOOK, LEDGER_BOOK_TARGET))) {
                 return null;
             }
             return Texts.turnInMissing(
                     Items.PAPER.getDefaultStack().toHoverableText(),
-                    DailyQuestService.countInventoryItem(player, Items.PAPER),
+                    StoryQuestService.countCompletionItem(world, playerId, Items.PAPER),
                     LEDGER_PAPER_TARGET,
                     Items.BOOK.getDefaultStack().toHoverableText(),
-                    DailyQuestService.countInventoryItem(player, Items.BOOK),
+                    StoryQuestService.countCompletionItem(world, playerId, Items.BOOK),
                     LEDGER_BOOK_TARGET
             );
         }

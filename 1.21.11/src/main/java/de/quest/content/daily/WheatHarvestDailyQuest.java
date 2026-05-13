@@ -83,8 +83,8 @@ public final class WheatHarvestDailyQuest implements DailyQuestDefinition {
         if (!hasTurnInItems(player)) {
             return false;
         }
-        return DailyQuestService.consumeInventoryItem(player, Items.WHEAT, DailyQuestService.wheatTarget())
-                && DailyQuestService.consumeInventoryItem(player, Items.BREAD, DailyQuestService.breadTarget());
+        return DailyQuestService.consumeCompletionItem(world, player, Items.WHEAT, DailyQuestService.wheatTarget())
+                && DailyQuestService.consumeCompletionItem(world, player, Items.BREAD, DailyQuestService.breadTarget());
     }
 
     @Override
@@ -102,10 +102,10 @@ public final class WheatHarvestDailyQuest implements DailyQuestDefinition {
         }
         return Texts.turnInMissing(
                 Items.WHEAT.getName(),
-                DailyQuestService.countInventoryItem(player, Items.WHEAT),
+                DailyQuestService.countCompletionItem(world, player, Items.WHEAT),
                 wheatTarget,
                 Items.BREAD.getName(),
-                DailyQuestService.countInventoryItem(player, Items.BREAD),
+                DailyQuestService.countCompletionItem(world, player, Items.BREAD),
                 breadTarget
         );
     }
@@ -165,7 +165,8 @@ public final class WheatHarvestDailyQuest implements DailyQuestDefinition {
     }
 
     private boolean hasTurnInItems(ServerPlayerEntity player) {
-        return DailyQuestService.countInventoryItem(player, Items.WHEAT) >= DailyQuestService.wheatTarget()
-                && DailyQuestService.countInventoryItem(player, Items.BREAD) >= DailyQuestService.breadTarget();
+        ServerWorld world = (ServerWorld) player.getEntityWorld();
+        return DailyQuestService.countCompletionItem(world, player, Items.WHEAT) >= DailyQuestService.wheatTarget()
+                && DailyQuestService.countCompletionItem(world, player, Items.BREAD) >= DailyQuestService.breadTarget();
     }
 }
