@@ -31,6 +31,7 @@ public final class Payloads {
         PayloadTypeRegistry.playC2S().register(PilgrimTradeActionPayload.ID, PilgrimTradeActionPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(PilgrimTradeSessionPayload.ID, PilgrimTradeSessionPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(QuestMasterActionPayload.ID, QuestMasterActionPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(QuestMasterPartyActionPayload.ID, QuestMasterPartyActionPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(QuestMasterSessionPayload.ID, QuestMasterSessionPayload.CODEC);
         registered = true;
     }
@@ -533,6 +534,8 @@ public final class Payloads {
             Text title,
             Text subtitle,
             Text status,
+            boolean partyShareable,
+            Text partyStatus,
             List<Text> descriptionLines,
             List<Text> objectiveLines,
             List<Text> rewardLines,
@@ -550,6 +553,8 @@ public final class Payloads {
                     buf.readString(),
                     TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf),
                     TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf),
+                    TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf),
+                    buf.readBoolean(),
                     TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf),
                     readTextList(buf),
                     readTextList(buf),
@@ -570,6 +575,8 @@ public final class Payloads {
             TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, entry.title());
             TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, entry.subtitle());
             TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, entry.status());
+            buf.writeBoolean(entry.partyShareable());
+            TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, entry.partyStatus());
             writeTextList(buf, entry.descriptionLines());
             writeTextList(buf, entry.objectiveLines());
             writeTextList(buf, entry.rewardLines());
@@ -583,12 +590,98 @@ public final class Payloads {
         }
     }
 
+    public record QuestMasterPartyMemberData(
+            String playerId,
+            Text name,
+            boolean leader,
+            boolean self
+    ) {
+        private static QuestMasterPartyMemberData read(RegistryByteBuf buf) {
+            return new QuestMasterPartyMemberData(
+                    buf.readString(),
+                    TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf),
+                    buf.readBoolean(),
+                    buf.readBoolean()
+            );
+        }
+
+        private static void write(RegistryByteBuf buf, QuestMasterPartyMemberData member) {
+            buf.writeString(member.playerId());
+            TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, member.name());
+            buf.writeBoolean(member.leader());
+            buf.writeBoolean(member.self());
+        }
+    }
+
+    public record QuestMasterPartyCandidateData(
+            String playerId,
+            Text name,
+            Text status,
+            boolean inviteable
+    ) {
+        private static QuestMasterPartyCandidateData read(RegistryByteBuf buf) {
+            return new QuestMasterPartyCandidateData(
+                    buf.readString(),
+                    TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf),
+                    TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf),
+                    buf.readBoolean()
+            );
+        }
+
+        private static void write(RegistryByteBuf buf, QuestMasterPartyCandidateData candidate) {
+            buf.writeString(candidate.playerId());
+            TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, candidate.name());
+            TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, candidate.status());
+            buf.writeBoolean(candidate.inviteable());
+        }
+    }
+
+    public record QuestMasterPartyData(
+            boolean hasParty,
+            boolean leader,
+            Text summary,
+            List<QuestMasterPartyMemberData> members,
+            List<QuestMasterPartyCandidateData> candidates
+    ) {
+        private static QuestMasterPartyData read(RegistryByteBuf buf) {
+            boolean hasParty = buf.readBoolean();
+            boolean leader = buf.readBoolean();
+            Text summary = TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf);
+            int memberCount = buf.readVarInt();
+            List<QuestMasterPartyMemberData> members = new ArrayList<>(memberCount);
+            for (int i = 0; i < memberCount; i++) {
+                members.add(QuestMasterPartyMemberData.read(buf));
+            }
+            int candidateCount = buf.readVarInt();
+            List<QuestMasterPartyCandidateData> candidates = new ArrayList<>(candidateCount);
+            for (int i = 0; i < candidateCount; i++) {
+                candidates.add(QuestMasterPartyCandidateData.read(buf));
+            }
+            return new QuestMasterPartyData(hasParty, leader, summary, members, candidates);
+        }
+
+        private static void write(RegistryByteBuf buf, QuestMasterPartyData party) {
+            buf.writeBoolean(party.hasParty());
+            buf.writeBoolean(party.leader());
+            TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, party.summary());
+            buf.writeVarInt(party.members().size());
+            for (QuestMasterPartyMemberData member : party.members()) {
+                QuestMasterPartyMemberData.write(buf, member);
+            }
+            buf.writeVarInt(party.candidates().size());
+            for (QuestMasterPartyCandidateData candidate : party.candidates()) {
+                QuestMasterPartyCandidateData.write(buf, candidate);
+            }
+        }
+    }
+
     public record QuestMasterPayload(
             int action,
             int entityId,
             Text questMasterName,
             List<QuestMasterCategoryData> categories,
             List<QuestMasterEntryData> entries,
+            QuestMasterPartyData party,
             long storyCooldownUntil
     ) implements CustomPayload {
         public static final int ACTION_OPEN = 0;
@@ -614,8 +707,9 @@ public final class Payloads {
             for (int i = 0; i < entryCount; i++) {
                 entries.add(QuestMasterEntryData.read(buf));
             }
+            QuestMasterPartyData party = QuestMasterPartyData.read(buf);
             long storyCooldownUntil = buf.readLong();
-            return new QuestMasterPayload(action, entityId, questMasterName, categories, entries, storyCooldownUntil);
+            return new QuestMasterPayload(action, entityId, questMasterName, categories, entries, party, storyCooldownUntil);
         }
 
         private static void write(RegistryByteBuf buf, QuestMasterPayload payload) {
@@ -630,6 +724,7 @@ public final class Payloads {
             for (QuestMasterEntryData entry : payload.entries()) {
                 QuestMasterEntryData.write(buf, entry);
             }
+            QuestMasterPartyData.write(buf, payload.party());
             buf.writeLong(payload.storyCooldownUntil());
         }
 
@@ -662,6 +757,36 @@ public final class Payloads {
             buf.writeVarInt(payload.entityId());
             buf.writeVarInt(payload.action());
             buf.writeString(payload.entryId());
+        }
+
+        @Override
+        public Id<? extends CustomPayload> getId() {
+            return ID;
+        }
+    }
+
+    public record QuestMasterPartyActionPayload(
+            int entityId,
+            int action,
+            String playerId
+    ) implements CustomPayload {
+        public static final int ACTION_INVITE = 1;
+        public static final int ACTION_LEAVE = 2;
+        public static final int ACTION_DISBAND = 3;
+
+        public static final CustomPayload.Id<QuestMasterPartyActionPayload> ID =
+                new CustomPayload.Id<>(Identifier.of(VillageQuest.MOD_ID, "questmaster_party_action"));
+        public static final PacketCodec<RegistryByteBuf, QuestMasterPartyActionPayload> CODEC =
+                PacketCodec.ofStatic(QuestMasterPartyActionPayload::write, QuestMasterPartyActionPayload::read);
+
+        private static QuestMasterPartyActionPayload read(RegistryByteBuf buf) {
+            return new QuestMasterPartyActionPayload(buf.readVarInt(), buf.readVarInt(), buf.readString());
+        }
+
+        private static void write(RegistryByteBuf buf, QuestMasterPartyActionPayload payload) {
+            buf.writeVarInt(payload.entityId());
+            buf.writeVarInt(payload.action());
+            buf.writeString(payload.playerId());
         }
 
         @Override

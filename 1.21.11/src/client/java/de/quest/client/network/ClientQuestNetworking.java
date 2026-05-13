@@ -190,6 +190,8 @@ public final class ClientQuestNetworking {
                             entry.title(),
                             entry.subtitle(),
                             entry.status(),
+                            entry.partyShareable(),
+                            entry.partyStatus(),
                             entry.descriptionLines(),
                             entry.objectiveLines(),
                             entry.rewardLines(),
@@ -203,11 +205,38 @@ public final class ClientQuestNetworking {
                     ));
                 }
 
+                List<QuestMasterScreen.PartyMemberView> members = new ArrayList<>(payload.party().members().size());
+                for (Payloads.QuestMasterPartyMemberData member : payload.party().members()) {
+                    members.add(new QuestMasterScreen.PartyMemberView(
+                            member.playerId(),
+                            member.name(),
+                            member.leader(),
+                            member.self()
+                    ));
+                }
+
+                List<QuestMasterScreen.PartyCandidateView> candidates = new ArrayList<>(payload.party().candidates().size());
+                for (Payloads.QuestMasterPartyCandidateData candidate : payload.party().candidates()) {
+                    candidates.add(new QuestMasterScreen.PartyCandidateView(
+                            candidate.playerId(),
+                            candidate.name(),
+                            candidate.status(),
+                            candidate.inviteable()
+                    ));
+                }
+
                 QuestMasterScreen.QuestMasterData data = new QuestMasterScreen.QuestMasterData(
                         payload.entityId(),
                         payload.questMasterName(),
                         categories,
-                        entries
+                        entries,
+                        new QuestMasterScreen.PartyView(
+                                payload.party().hasParty(),
+                                payload.party().leader(),
+                                payload.party().summary(),
+                                members,
+                                candidates
+                        )
                 );
 
                 if (payload.action() == Payloads.QuestMasterPayload.ACTION_OPEN) {

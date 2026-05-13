@@ -55,6 +55,7 @@ This shipped batch includes:
 - `26.1.2` is Mojang-named and `1.21.11` is Yarn-mapped; treat that as a real implementation difference.
 - Do not launch `runClient` yourself unless the user explicitly asks.
 - When handing off tests, always include the correct version-specific `runClient` command.
+- Current legacy `1.21.11` multiplayer quest-party work is dedicated-server only; the Questmaster party UI is intentionally hidden in singleplayer/integrated worlds.
 - GitHub release bodies should keep the existing style:
   - first line repeats the release title once
   - then use short flat bullets
@@ -71,7 +72,23 @@ This shipped batch includes:
 
 ## Next Sensible Work
 
-- New feature work should start from the shipped `1.22.0` baseline.
+- New feature work should start from the shipped `1.22.0` baseline plus the current unreleased multiplayer beta on both lines.
 - Default to `26.1.2` for fresh work; only touch `1.21.11` when the user explicitly wants legacy work or parity.
 - If the next request is about `Shadows on the Trade Road`, expect follow-up tuning, polish, or bugfixes rather than a greenfield implementation.
 - If the next task touches the new global reset command, keep documenting clearly that it is a Village Quest data reset, not a world or inventory wipe.
+- If the next task continues the multiplayer quest-party batch, re-read both `26.1.2/MEMORY.md` and `1.21.11/MEMORY.md` first and preserve the dedicated-server-only rule.
+
+## Current Unreleased Work
+
+- both maintained lines now carry the local multiplayer quest-party beta batch as `1.22.1-beta.3`
+- runtime quest parties with `/vq party ...` commands and clickable chat invites
+- `Questmaster` party drawer UI on shareable `Daily`, `Weekly`, and core `Story` entries
+- pooled objective progress and pooled turn-in inventory across shareable `Daily`, `Weekly`, core `Story`, and normal `Pilgrim` combat-contract flows
+- explicit chat offers for joining already running shared dailies, weeklies, story chapters, and pilgrim contracts
+- `10 minute` disconnect grace before offline members are removed
+- restart persistence for party membership, shared session state, pending offers, and disconnect grace
+- repeatable `Daily`, `Weekly`, and `Pilgrim` target profiles now roll and persist as `light`/`normal`/`heavy`
+- repeatable `Daily`, `Weekly`, and `Pilgrim` rewards now scale against those same profiles instead of staying fully static
+- non-`Shadows` story arcs now use authored irregular target numbers instead of obvious stack or half-stack values
+- the journal `Questmaster` shortcut is visible on every journal page on both lines
+- current open risk is test coverage, not missing core plumbing

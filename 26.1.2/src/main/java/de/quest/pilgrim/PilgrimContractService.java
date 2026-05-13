@@ -3,9 +3,13 @@ package de.quest.pilgrim;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.economy.CurrencyService;
+import de.quest.party.QuestPartyService;
 import de.quest.quest.QuestBookHelper;
 import de.quest.quest.QuestTrackerService;
 import de.quest.quest.daily.DailyQuestService;
+import de.quest.quest.repeatable.RepeatableRewardTuning;
+import de.quest.quest.repeatable.RepeatableTargetProfile;
+import de.quest.quest.repeatable.RepeatableTargetTuning;
 import de.quest.quest.special.SurveyorCompassQuestService;
 import de.quest.quest.story.VillageProjectService;
 import de.quest.quest.story.VillageProjectType;
@@ -13,26 +17,28 @@ import de.quest.reputation.ReputationService;
 import de.quest.registry.ModItems;
 import de.quest.util.Texts;
 import de.quest.util.TimeUtil;
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
+
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 public final class PilgrimContractService {
     public static final String ACTION_ENTRY_ID = "__pilgrim_contract__";
@@ -64,6 +70,7 @@ public final class PilgrimContractService {
     private static final int STILLNESS_ENDERMAN_TARGET = 6;
     private static final int STILLNESS_SHULKER_TARGET = 3;
     private static final Map<PilgrimContractType, PilgrimContractDefinition> DEFINITIONS = createDefinitions();
+    private static final ThreadLocal<RepeatableTargetProfile> TARGET_PROFILE_CONTEXT = new ThreadLocal<>();
 
     private PilgrimContractService() {}
 
@@ -162,7 +169,7 @@ public final class PilgrimContractService {
                                     : "screen.village-quest.pilgrim.contract.active"
                     ).withStyle(ChatFormatting.GRAY)),
                     definition.progressLines(world, player),
-                    rewardLines(world, player.getUUID(), definition.buildCompletion()),
+                    rewardLines(world, player.getUUID(), previewCompletion(world, player.getUUID(), activeType)),
                     Component.translatable(
                             ready
                                     ? "screen.village-quest.pilgrim.contract.action.claim"
@@ -190,7 +197,7 @@ public final class PilgrimContractService {
                     Component.translatable("screen.village-quest.pilgrim.contract.status.available").withStyle(ChatFormatting.YELLOW),
                     List.of(definition.offerParagraph1(), definition.offerParagraph2()),
                     definition.progressLines(world, player),
-                    rewardLines(world, player.getUUID(), definition.buildCompletion()),
+                    rewardLines(world, player.getUUID(), previewCompletion(world, player.getUUID(), offeredType)),
                     Component.translatable("screen.village-quest.pilgrim.contract.action.accept"),
                     true,
                     definition.previewStack()
@@ -219,6 +226,26 @@ public final class PilgrimContractService {
         return new PilgrimContractStatus(definition.title(), definition.progressLines(world, player));
     }
 
+    public static Component title(PilgrimContractType type) {
+        PilgrimContractDefinition definition = definition(type);
+        return definition == null
+                ? Component.translatable("screen.village-quest.pilgrim.contract.header")
+                : definition.title();
+    }
+
+    public static Component previewProgressLine(ServerLevel world, UUID playerId, PilgrimContractType type) {
+        if (world == null || playerId == null || type == null) {
+            return Component.empty();
+        }
+        PilgrimContractDefinition definition = definition(type);
+        ServerPlayer player = world.getServer().getPlayerList().getPlayer(playerId);
+        if (definition == null || player == null) {
+            return Component.empty();
+        }
+        List<Component> lines = definition.progressLines(world, player);
+        return lines.isEmpty() ? Component.empty() : lines.getFirst();
+    }
+
     public static boolean handleContractAction(ServerLevel world, ServerPlayer player, String contractId) {
         if (world == null || player == null) {
             return false;
@@ -233,7 +260,7 @@ public final class PilgrimContractService {
             if (!definition.consumeCompletionRequirements(world, player)) {
                 return false;
             }
-            completeContract(world, player, activeType, definition.buildCompletion());
+            completeContract(world, player, activeType, withTargetProfile(data, activeType, definition::buildCompletion));
             return true;
         }
 
@@ -253,10 +280,12 @@ public final class PilgrimContractService {
         data.setPilgrimFlag(FLAG_ADMIN_UNLOCK, enabled);
         if (activeType(data) == null) {
             data.setOfferedPilgrimContractId(null);
+            data.setOfferedPilgrimTargetProfile(RepeatableTargetProfile.NORMAL);
             data.setOfferedPilgrimContractAltId(null);
+            data.setOfferedPilgrimContractAltTargetProfile(RepeatableTargetProfile.NORMAL);
             data.setPilgrimOfferDay(PlayerQuestData.UNSET_DAY);
         }
-        markDirty(world);
+        setDirty(world);
         refreshUi(world, player);
     }
 
@@ -282,8 +311,10 @@ public final class PilgrimContractService {
         }
 
         setOfferedContracts(data, rolled);
+        data.setOfferedPilgrimTargetProfile(rollTargetProfile(world));
+        data.setOfferedPilgrimContractAltTargetProfile(rolled.size() > 1 ? rollTargetProfile(world) : RepeatableTargetProfile.NORMAL);
         data.setPilgrimOfferDay(TimeUtil.currentDay());
-        markDirty(world);
+        setDirty(world);
         refreshUi(world, player);
         return !current.equals(rolled);
     }
@@ -354,12 +385,12 @@ public final class PilgrimContractService {
                 CurrencyService.CROWN,
                 10,
                 6,
-                new KillObjective(
+                        new KillObjective(
                         KEY_LANTERN_SKELETONS,
                         LANTERN_SKELETON_TARGET,
                         (world, entity) -> world != null
                                 && world.dimension() == Level.OVERWORLD
-                                && world.isDarkOutside()
+                                && isNight(world)
                                 && entity instanceof net.minecraft.world.entity.monster.skeleton.Skeleton
                                 && !(entity instanceof net.minecraft.world.entity.monster.skeleton.WitherSkeleton)
                 )
@@ -371,12 +402,12 @@ public final class PilgrimContractService {
                 CurrencyService.SILVERMARK * 8L,
                 10,
                 6,
-                new KillObjective(
+                        new KillObjective(
                         KEY_SMOKE_CREEPERS,
                         SMOKE_CREEPER_TARGET,
                         (world, entity) -> world != null
                                 && world.dimension() == Level.OVERWORLD
-                                && world.isDarkOutside()
+                                && isNight(world)
                                 && entity instanceof net.minecraft.world.entity.monster.Creeper
                 )
         ));
@@ -387,12 +418,12 @@ public final class PilgrimContractService {
                 CurrencyService.SILVERMARK * 8L,
                 10,
                 6,
-                new KillObjective(
+                        new KillObjective(
                         KEY_TRACKS_ZOMBIES,
                         TRACKS_ZOMBIE_TARGET,
                         (world, entity) -> world != null
                                 && world.dimension() == Level.OVERWORLD
-                                && world.isDarkOutside()
+                                && isNight(world)
                                 && entity instanceof net.minecraft.world.entity.monster.zombie.Zombie
                 )
         ));
@@ -403,12 +434,12 @@ public final class PilgrimContractService {
                 CurrencyService.SILVERMARK * 8L,
                 10,
                 6,
-                new KillObjective(
+                        new KillObjective(
                         KEY_FANGS_SPIDERS,
                         FANGS_SPIDER_TARGET,
                         (world, entity) -> world != null
                                 && world.dimension() == Level.OVERWORLD
-                                && world.isDarkOutside()
+                                && isNight(world)
                                 && entity instanceof net.minecraft.world.entity.monster.spider.Spider
                 )
         ));
@@ -419,7 +450,7 @@ public final class PilgrimContractService {
                 CurrencyService.CROWN * 2L,
                 14,
                 10,
-                new KillObjective(
+                        new KillObjective(
                         KEY_ASH_BLAZES,
                         ASH_BLAZE_TARGET,
                         (world, entity) -> world != null
@@ -441,7 +472,7 @@ public final class PilgrimContractService {
                 CurrencyService.CROWN * 2L,
                 14,
                 10,
-                new KillObjective(
+                        new KillObjective(
                         KEY_BLACKSTONE_MAGMA_CUBES,
                         BLACKSTONE_MAGMA_CUBE_TARGET,
                         (world, entity) -> world != null
@@ -463,7 +494,7 @@ public final class PilgrimContractService {
                 CurrencyService.CROWN * 3L,
                 20,
                 14,
-                new KillObjective(
+                        new KillObjective(
                         KEY_STILLNESS_ENDERMEN,
                         STILLNESS_ENDERMAN_TARGET,
                         (world, entity) -> world != null
@@ -570,7 +601,7 @@ public final class PilgrimContractService {
             public boolean isComplete(ServerLevel world, ServerPlayer player) {
                 UUID playerId = player.getUUID();
                 for (KillObjective objective : objectives) {
-                    if (pilgrimInt(world, playerId, objective.progressKey()) < objective.target()) {
+                    if (pilgrimInt(world, playerId, objective.progressKey()) < objectiveTarget(world, playerId, type, objective)) {
                         return false;
                     }
                 }
@@ -579,15 +610,16 @@ public final class PilgrimContractService {
 
             @Override
             public PilgrimContractCompletion buildCompletion() {
+                RepeatableTargetProfile profile = contextTargetProfile();
                 return new PilgrimContractCompletion(
                         title(),
                         Component.translatable("quest.village-quest.pilgrim.contract." + type.id() + ".complete.1").withStyle(ChatFormatting.GRAY),
                         Component.translatable("quest.village-quest.pilgrim.contract." + type.id() + ".complete.2").withStyle(ChatFormatting.GRAY),
                         Component.translatable("quest.village-quest.pilgrim.contract." + type.id() + ".complete.3").withStyle(ChatFormatting.GRAY),
-                        currencyReward,
+                        RepeatableRewardTuning.adjustCurrency(currencyReward, profile),
                         ReputationService.ReputationTrack.MONSTER_HUNTING,
-                        reputationReward,
-                        levelReward,
+                        RepeatableRewardTuning.adjustReputation(reputationReward, profile),
+                        RepeatableRewardTuning.adjustLevels(levelReward, profile),
                         Component.empty(),
                         false
                 );
@@ -611,21 +643,31 @@ public final class PilgrimContractService {
                         continue;
                     }
                     int before = pilgrimInt(world, playerId, objective.progressKey());
-                    if (before < objective.target()) {
-                        data(world, playerId).setPilgrimInt(objective.progressKey(), Math.min(objective.target(), before + 1));
-                        completedStep = completedStep || pilgrimInt(world, playerId, objective.progressKey()) >= objective.target();
+                    int target = objectiveTarget(world, playerId, type, objective);
+                    if (before < target) {
+                        setPilgrimInt(world, playerId, objective.progressKey(), Math.min(target, before + 1));
+                        completedStep = completedStep || pilgrimInt(world, playerId, objective.progressKey()) >= target;
                         updated = true;
                     }
                 }
                 if (!updated) {
                     return;
                 }
-                finishProgressUpdate(
-                        world,
-                        player,
-                        progressLine(type, world, playerId, ChatFormatting.GOLD, objectives),
-                        completedStep
-                );
+                if (QuestPartyService.isSharedPilgrimMember(world, playerId, type)) {
+                    for (UUID memberId : QuestPartyService.activePilgrimMembers(world, playerId, type, true)) {
+                        ServerPlayer member = world.getServer().getPlayerList().getPlayer(memberId);
+                        if (member != null) {
+                            finishProgressUpdate(
+                                    world,
+                                    member,
+                                    progressLine(type, world, memberId, ChatFormatting.GOLD, objectives),
+                                    completedStep
+                            );
+                        }
+                    }
+                    return;
+                }
+                finishProgressUpdate(world, player, progressLine(type, world, playerId, ChatFormatting.GOLD, objectives), completedStep);
             }
         };
     }
@@ -636,6 +678,74 @@ public final class PilgrimContractService {
 
     private static PilgrimContractDefinition activeDefinition(ServerLevel world, ServerPlayer player) {
         return world == null || player == null ? null : definition(activeType(data(world, player.getUUID())));
+    }
+
+    private static RepeatableTargetProfile rollTargetProfile(ServerLevel world) {
+        return world == null ? RepeatableTargetProfile.NORMAL : RepeatableTargetProfile.random(world.getRandom());
+    }
+
+    private static boolean isNight(ServerLevel world) {
+        if (world == null) {
+            return false;
+        }
+        long dayTime = Math.floorMod(world.getOverworldClockTime(), 24000L);
+        return dayTime >= 13000L && dayTime <= 23000L;
+    }
+
+    private static RepeatableTargetProfile contractTargetProfile(PlayerQuestData data, PilgrimContractType type) {
+        if (data == null || type == null) {
+            return RepeatableTargetProfile.NORMAL;
+        }
+        if (type == activeType(data)) {
+            return data.getActivePilgrimTargetProfile();
+        }
+        List<PilgrimContractType> offered = offeredTypes(data);
+        if (!offered.isEmpty() && offered.getFirst() == type) {
+            return data.getOfferedPilgrimTargetProfile();
+        }
+        if (offered.size() > 1 && offered.get(1) == type) {
+            return data.getOfferedPilgrimContractAltTargetProfile();
+        }
+        return RepeatableTargetProfile.NORMAL;
+    }
+
+    private static int objectiveTarget(ServerLevel world, UUID playerId, PilgrimContractType type, KillObjective objective) {
+        PlayerQuestData data = world == null || playerId == null ? null : data(world, playerId);
+        return RepeatableTargetTuning.adjust(
+                objective.target(),
+                contractTargetProfile(data, type),
+                "pilgrim." + type.id() + "." + objective.progressKey()
+        );
+    }
+
+    private static RepeatableTargetProfile contextTargetProfile() {
+        RepeatableTargetProfile profile = TARGET_PROFILE_CONTEXT.get();
+        return profile == null ? RepeatableTargetProfile.NORMAL : profile;
+    }
+
+    private static <T> T withTargetProfile(PlayerQuestData data, PilgrimContractType type, Supplier<T> supplier) {
+        RepeatableTargetProfile previous = TARGET_PROFILE_CONTEXT.get();
+        TARGET_PROFILE_CONTEXT.set(contractTargetProfile(data, type));
+        try {
+            return supplier.get();
+        } finally {
+            if (previous == null) {
+                TARGET_PROFILE_CONTEXT.remove();
+            } else {
+                TARGET_PROFILE_CONTEXT.set(previous);
+            }
+        }
+    }
+
+    private static PilgrimContractCompletion previewCompletion(ServerLevel world, UUID playerId, PilgrimContractType type) {
+        if (world == null || playerId == null || type == null) {
+            return null;
+        }
+        PilgrimContractDefinition definition = definition(type);
+        if (definition == null) {
+            return null;
+        }
+        return withTargetProfile(data(world, playerId), type, definition::buildCompletion);
     }
 
     private static PilgrimContractType activeType(PlayerQuestData data) {
@@ -662,7 +772,9 @@ public final class PilgrimContractService {
         if (data == null || offered == null || offered.isEmpty()) {
             if (data != null) {
                 data.setOfferedPilgrimContractId(null);
+                data.setOfferedPilgrimTargetProfile(RepeatableTargetProfile.NORMAL);
                 data.setOfferedPilgrimContractAltId(null);
+                data.setOfferedPilgrimContractAltTargetProfile(RepeatableTargetProfile.NORMAL);
             }
             return;
         }
@@ -684,7 +796,7 @@ public final class PilgrimContractService {
         if (eligible.isEmpty()) {
             if (!offeredTypes(data).isEmpty()) {
                 setOfferedContracts(data, List.of());
-                markDirty(world);
+                setDirty(world);
             }
             return List.of();
         }
@@ -697,27 +809,42 @@ public final class PilgrimContractService {
             return List.of();
         }
         if (!current.equals(rolled)) {
+            RepeatableTargetProfile primaryProfile = !current.isEmpty() && current.getFirst() == rolled.getFirst()
+                    ? data.getOfferedPilgrimTargetProfile()
+                    : rollTargetProfile(world);
+            RepeatableTargetProfile secondaryProfile = rolled.size() > 1
+                    && current.size() > 1
+                    && current.get(1) == rolled.get(1)
+                    ? data.getOfferedPilgrimContractAltTargetProfile()
+                    : rollTargetProfile(world);
             setOfferedContracts(data, rolled);
+            data.setOfferedPilgrimTargetProfile(primaryProfile);
+            data.setOfferedPilgrimContractAltTargetProfile(secondaryProfile);
             data.setPilgrimOfferDay(TimeUtil.currentDay());
-            markDirty(world);
+            setDirty(world);
         }
         return rolled;
     }
 
     private static void acceptContract(ServerLevel world, ServerPlayer player, PilgrimContractType type) {
         PlayerQuestData data = data(world, player.getUUID());
+        RepeatableTargetProfile profile = contractTargetProfile(data, type);
         data.clearPilgrimProgress();
         data.setPilgrimFlag(FLAG_READY, false);
         data.setPilgrimFlag(FLAG_SUPPRESS_OFFER, false);
         data.setActivePilgrimContractId(type.id());
+        data.setActivePilgrimTargetProfile(profile);
         data.setOfferedPilgrimContractId(null);
+        data.setOfferedPilgrimTargetProfile(RepeatableTargetProfile.NORMAL);
         data.setOfferedPilgrimContractAltId(null);
+        data.setOfferedPilgrimContractAltTargetProfile(RepeatableTargetProfile.NORMAL);
         data.setPilgrimOfferDay(TimeUtil.currentDay());
         PilgrimContractDefinition definition = definition(type);
         if (definition != null) {
             definition.onAccepted(world, player);
         }
-        markDirty(world);
+        setDirty(world);
+        QuestPartyService.onPilgrimContractAccepted(world, player, type);
         player.sendSystemMessage(Texts.acceptedTitle(
                 definition == null ? Component.translatable("screen.village-quest.pilgrim.contract.header") : definition.title(),
                 ChatFormatting.GOLD
@@ -751,6 +878,27 @@ public final class PilgrimContractService {
                                          ServerPlayer player,
                                          PilgrimContractType type,
                                          PilgrimContractCompletion completion) {
+        if (world == null || player == null || type == null || completion == null) {
+            return;
+        }
+        if (QuestPartyService.isSharedPilgrimMember(world, player.getUUID(), type)) {
+            List<UUID> recipients = QuestPartyService.activePilgrimMembers(world, player.getUUID(), type, true);
+            for (UUID recipientId : recipients) {
+                ServerPlayer recipient = world.getServer().getPlayerList().getPlayer(recipientId);
+                if (recipient != null) {
+                    completeContractForRecipient(world, recipient, type, completion);
+                }
+            }
+            QuestPartyService.clearPilgrimSessionIfFinished(world, player.getUUID(), type);
+            return;
+        }
+        completeContractForRecipient(world, player, type, completion);
+    }
+
+    private static void completeContractForRecipient(ServerLevel world,
+                                                     ServerPlayer player,
+                                                     PilgrimContractType type,
+                                                     PilgrimContractCompletion completion) {
         long actualCurrencyReward = completion.currencyReward() + VillageProjectService.bonusCurrency(world, player.getUUID(), completion.reputationTrack());
         if (actualCurrencyReward > 0L) {
             CurrencyService.addBalance(world, player.getUUID(), actualCurrencyReward);
@@ -774,10 +922,13 @@ public final class PilgrimContractService {
         data.setPilgrimFlag(FLAG_READY, false);
         data.setPilgrimFlag(FLAG_SUPPRESS_OFFER, true);
         data.setActivePilgrimContractId(null);
+        data.setActivePilgrimTargetProfile(RepeatableTargetProfile.NORMAL);
         data.setOfferedPilgrimContractId(null);
+        data.setOfferedPilgrimTargetProfile(RepeatableTargetProfile.NORMAL);
         data.setOfferedPilgrimContractAltId(null);
+        data.setOfferedPilgrimContractAltTargetProfile(RepeatableTargetProfile.NORMAL);
         data.setPilgrimOfferDay(TimeUtil.currentDay());
-        markDirty(world);
+        setDirty(world);
 
         Component divider = Component.literal("------------------------------").withStyle(ChatFormatting.GRAY);
         Component rewardsTitle = Component.translatable("text.village-quest.daily.rewards").withStyle(ChatFormatting.GRAY);
@@ -817,7 +968,7 @@ public final class PilgrimContractService {
         if (activeType == null) {
             if (data.hasPilgrimFlag(FLAG_READY)) {
                 data.setPilgrimFlag(FLAG_READY, false);
-                markDirty(world);
+                setDirty(world);
             }
             return;
         }
@@ -832,7 +983,7 @@ public final class PilgrimContractService {
             return;
         }
         data.setPilgrimFlag(FLAG_READY, readyNow);
-        markDirty(world);
+        setDirty(world);
         if (readyNow) {
             player.sendSystemMessage(Component.translatable("message.village-quest.pilgrim.contract.ready", definition.title()).withStyle(ChatFormatting.GOLD), false);
             world.playSound(null, player.blockPosition(), SoundEvents.EXPERIENCE_ORB_PICKUP, SoundSource.PLAYERS, 0.25f, 1.7f);
@@ -845,7 +996,7 @@ public final class PilgrimContractService {
             maybeUpdateReadyState(world, player);
             return;
         }
-        markDirty(world);
+        setDirty(world);
         player.sendSystemMessage(actionbar, true);
         if (completedStep) {
             player.sendSystemMessage(Component.translatable("message.village-quest.quest.progress.step_complete", actionbar.copy()).withStyle(ChatFormatting.GOLD), false);
@@ -965,16 +1116,38 @@ public final class PilgrimContractService {
             return;
         }
         data.setOfferedPilgrimContractId(null);
+        data.setOfferedPilgrimTargetProfile(RepeatableTargetProfile.NORMAL);
         data.setOfferedPilgrimContractAltId(null);
+        data.setOfferedPilgrimContractAltTargetProfile(RepeatableTargetProfile.NORMAL);
         data.setPilgrimFlag(FLAG_SUPPRESS_OFFER, false);
         data.setPilgrimOfferDay(PlayerQuestData.UNSET_DAY);
     }
 
     private static int pilgrimInt(ServerLevel world, UUID playerId, String key) {
+        if (world == null || playerId == null || key == null || key.isEmpty()) {
+            return 0;
+        }
+        PilgrimContractType activeType = activeType(data(world, playerId));
+        if (activeType != null && QuestPartyService.usesSharedPilgrimInt(world, playerId, activeType, key)) {
+            return QuestPartyService.getSharedPilgrimInt(world, playerId, activeType, key);
+        }
         return data(world, playerId).getPilgrimInt(key);
     }
 
-    private static void markDirty(ServerLevel world) {
+    private static void setPilgrimInt(ServerLevel world, UUID playerId, String key, int value) {
+        if (world == null || playerId == null || key == null || key.isEmpty()) {
+            return;
+        }
+        PlayerQuestData data = data(world, playerId);
+        PilgrimContractType activeType = activeType(data);
+        if (activeType != null && QuestPartyService.usesSharedPilgrimInt(world, playerId, activeType, key)) {
+            QuestPartyService.setSharedPilgrimInt(world, playerId, activeType, key, value);
+            return;
+        }
+        data.setPilgrimInt(key, value);
+    }
+
+    private static void setDirty(ServerLevel world) {
         if (world != null && world.getServer() != null) {
             QuestState.get(world.getServer()).setDirty();
         }
@@ -1025,14 +1198,14 @@ public final class PilgrimContractService {
             case 1 -> Component.translatable(
                     baseKey,
                     pilgrimInt(world, playerId, objectives[0].progressKey()),
-                    objectives[0].target()
+                    objectiveTarget(world, playerId, type, objectives[0])
             ).withStyle(color);
             case 2 -> Component.translatable(
                     baseKey,
                     pilgrimInt(world, playerId, objectives[0].progressKey()),
-                    objectives[0].target(),
+                    objectiveTarget(world, playerId, type, objectives[0]),
                     pilgrimInt(world, playerId, objectives[1].progressKey()),
-                    objectives[1].target()
+                    objectiveTarget(world, playerId, type, objectives[1])
             ).withStyle(color);
             default -> Component.empty();
         };

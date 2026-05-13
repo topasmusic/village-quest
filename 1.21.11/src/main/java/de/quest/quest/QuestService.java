@@ -2,6 +2,7 @@ package de.quest.quest;
 
 import de.quest.content.item.PeaceArmorHandler;
 import de.quest.data.QuestState;
+import de.quest.party.QuestPartyService;
 import de.quest.painting.PaintingNameService;
 import de.quest.pilgrim.PilgrimContractService;
 import de.quest.pilgrim.PilgrimService;
@@ -14,6 +15,7 @@ import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
@@ -24,14 +26,19 @@ public final class QuestService {
     private QuestService() {}
 
     public static void registerEvents() {
-        ServerLifecycleEvents.SERVER_STARTED.register(server -> QuestState.get(server).applyToRuntime());
+        ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+            QuestState.get(server).applyToRuntime();
+            QuestPartyService.loadPersistentState(server);
+        });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             QuestDropTracker.clear();
+            QuestPartyService.persistRuntimeState(server);
             QuestState state = QuestState.get(server);
             state.updateFromRuntime();
             server.getOverworld().getPersistentStateManager().save();
         });
 
+        ServerTickEvents.END_SERVER_TICK.register(QuestPartyService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(QuestDropTracker::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(DailyQuestService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(WeeklyQuestService::onServerTick);
@@ -42,6 +49,11 @@ public final class QuestService {
         ServerTickEvents.END_SERVER_TICK.register(QuestBookHelper::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(QuestTrackerService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(PilgrimService::onServerTick);
+
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
+                server.execute(() -> QuestPartyService.handleJoin(handler.player)));
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
+                server.execute(() -> QuestPartyService.handleDisconnect(handler.player)));
 
         ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
             if (entity instanceof net.minecraft.server.network.ServerPlayerEntity player) {

@@ -6,13 +6,12 @@ import de.quest.quest.daily.DailyQuestKeys;
 import de.quest.quest.daily.DailyQuestService;
 import de.quest.util.Texts;
 import java.util.UUID;
-import net.minecraft.ChatFormatting;
-import net.minecraft.core.BlockPos;
-import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 
 public final class CoalMiningDailyQuest implements DailyQuestDefinition {
     @Override
@@ -71,8 +70,8 @@ public final class CoalMiningDailyQuest implements DailyQuestDefinition {
         if (!hasTurnInItems(player)) {
             return false;
         }
-        return DailyQuestService.consumeInventoryItem(player, Items.RAW_IRON, DailyQuestService.ironTarget())
-                && DailyQuestService.consumeInventoryItem(player, Items.COAL, DailyQuestService.smithCoalTarget());
+        return DailyQuestService.consumeCompletionItem(world, player, Items.RAW_IRON, DailyQuestService.ironTarget())
+                && DailyQuestService.consumeCompletionItem(world, player, Items.COAL, DailyQuestService.smithCoalTarget());
     }
 
     @Override
@@ -91,11 +90,11 @@ public final class CoalMiningDailyQuest implements DailyQuestDefinition {
         }
 
         return Texts.turnInMissing(
-                Items.RAW_IRON.getDefaultInstance().getHoverName(),
-                DailyQuestService.countInventoryItem(player, Items.RAW_IRON),
+                Items.RAW_IRON.getDefaultInstance().getDisplayName(),
+                DailyQuestService.countCompletionItem(world, player, Items.RAW_IRON),
                 ironTarget,
-                Items.COAL.getDefaultInstance().getHoverName(),
-                DailyQuestService.countInventoryItem(player, Items.COAL),
+                Items.COAL.getDefaultInstance().getDisplayName(),
+                DailyQuestService.countCompletionItem(world, player, Items.COAL),
                 coalTarget
         );
     }
@@ -136,7 +135,8 @@ public final class CoalMiningDailyQuest implements DailyQuestDefinition {
     }
 
     private boolean hasTurnInItems(ServerPlayer player) {
-        return DailyQuestService.countInventoryItem(player, Items.RAW_IRON) >= DailyQuestService.ironTarget()
-                && DailyQuestService.countInventoryItem(player, Items.COAL) >= DailyQuestService.smithCoalTarget();
+        ServerLevel world = (ServerLevel) player.level();
+        return DailyQuestService.countCompletionItem(world, player, Items.RAW_IRON) >= DailyQuestService.ironTarget()
+                && DailyQuestService.countCompletionItem(world, player, Items.COAL) >= DailyQuestService.smithCoalTarget();
     }
 }

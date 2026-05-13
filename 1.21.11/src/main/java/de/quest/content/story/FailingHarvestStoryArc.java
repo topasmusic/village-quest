@@ -27,14 +27,14 @@ import java.util.List;
 import java.util.UUID;
 
 public final class FailingHarvestStoryArc implements StoryArcDefinition {
-    private static final int THIN_FIELDS_WHEAT_TARGET = 128;
-    private static final int THIN_FIELDS_POTATO_TARGET = 128;
-    private static final int QUIET_HIVES_HONEY_TARGET = 20;
-    private static final int QUIET_HIVES_COMB_TARGET = 15;
-    private static final int BREAD_BREAD_TARGET = 60;
-    private static final int BREAD_POTATO_TARGET = 60;
-    private static final int MARKET_TRADES_TARGET = 30;
-    private static final int MARKET_EMERALDS_TARGET = 128;
+    private static final int THIN_FIELDS_WHEAT_TARGET = 117;
+    private static final int THIN_FIELDS_POTATO_TARGET = 123;
+    private static final int QUIET_HIVES_HONEY_TARGET = 19;
+    private static final int QUIET_HIVES_COMB_TARGET = 13;
+    private static final int BREAD_BREAD_TARGET = 57;
+    private static final int BREAD_POTATO_TARGET = 53;
+    private static final int MARKET_TRADES_TARGET = 29;
+    private static final int MARKET_EMERALDS_TARGET = 117;
 
     private final List<StoryChapterDefinition> chapters = List.of(
             new ThinFieldsChapter(),
@@ -76,12 +76,12 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
             return StoryQuestService.getQuestInt(world, playerId, key);
         }
 
-        protected boolean hasItem(ServerPlayerEntity player, net.minecraft.item.Item item, int amount) {
-            return DailyQuestService.countInventoryItem(player, item) >= amount;
+        protected boolean hasItem(ServerWorld world, ServerPlayerEntity player, net.minecraft.item.Item item, int amount) {
+            return player != null && StoryQuestService.countCompletionItem(world, player.getUuid(), item) >= amount;
         }
 
-        protected boolean consumeItem(ServerPlayerEntity player, net.minecraft.item.Item item, int amount) {
-            return DailyQuestService.consumeInventoryItem(player, item, amount);
+        protected boolean consumeItem(ServerWorld world, ServerPlayerEntity player, net.minecraft.item.Item item, int amount) {
+            return player != null && StoryQuestService.consumeCompletionItem(world, player.getUuid(), item, amount);
         }
     }
 
@@ -250,8 +250,8 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
             UUID playerId = player.getUuid();
             return progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_BREAD) >= BREAD_BREAD_TARGET
                     && progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_BAKED_POTATO) >= BREAD_POTATO_TARGET
-                    && hasItem(player, Items.BREAD, BREAD_BREAD_TARGET)
-                    && hasItem(player, Items.BAKED_POTATO, BREAD_POTATO_TARGET);
+                    && hasItem(world, player, Items.BREAD, BREAD_BREAD_TARGET)
+                    && hasItem(world, player, Items.BAKED_POTATO, BREAD_POTATO_TARGET);
         }
 
         @Override
@@ -259,8 +259,8 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
             if (!isComplete(world, player)) {
                 return false;
             }
-            return consumeItem(player, Items.BREAD, BREAD_BREAD_TARGET)
-                    && consumeItem(player, Items.BAKED_POTATO, BREAD_POTATO_TARGET);
+            return consumeItem(world, player, Items.BREAD, BREAD_BREAD_TARGET)
+                    && consumeItem(world, player, Items.BAKED_POTATO, BREAD_POTATO_TARGET);
         }
 
         @Override
@@ -271,16 +271,16 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
             UUID playerId = player.getUuid();
             if (progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_BREAD) < BREAD_BREAD_TARGET
                     || progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_BAKED_POTATO) < BREAD_POTATO_TARGET
-                    || (hasItem(player, Items.BREAD, BREAD_BREAD_TARGET)
-                    && hasItem(player, Items.BAKED_POTATO, BREAD_POTATO_TARGET))) {
+                    || (hasItem(world, player, Items.BREAD, BREAD_BREAD_TARGET)
+                    && hasItem(world, player, Items.BAKED_POTATO, BREAD_POTATO_TARGET))) {
                 return null;
             }
             return Texts.turnInMissing(
                     Items.BREAD.getDefaultStack().toHoverableText(),
-                    DailyQuestService.countInventoryItem(player, Items.BREAD),
+                    StoryQuestService.countCompletionItem(world, playerId, Items.BREAD),
                     BREAD_BREAD_TARGET,
                     Items.BAKED_POTATO.getDefaultStack().toHoverableText(),
-                    DailyQuestService.countInventoryItem(player, Items.BAKED_POTATO),
+                    StoryQuestService.countCompletionItem(world, playerId, Items.BAKED_POTATO),
                     BREAD_POTATO_TARGET
             );
         }

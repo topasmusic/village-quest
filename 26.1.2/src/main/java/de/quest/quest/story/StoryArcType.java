@@ -35,6 +35,7 @@ public enum StoryArcType {
                 SILENT_FORGE,
                 MARKET_ROAD_TROUBLES,
                 RESTLESS_PENS,
+                NIGHT_BELLS,
                 SHADOWS_ON_THE_TRADE_ROAD
         );
     }

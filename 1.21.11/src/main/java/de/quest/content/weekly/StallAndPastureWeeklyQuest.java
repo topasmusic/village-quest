@@ -74,12 +74,12 @@ public final class StallAndPastureWeeklyQuest implements WeeklyQuestDefinition {
         return WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_BREED) >= WeeklyQuestService.pastureBreedTarget()
                 && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_SHEAR) >= WeeklyQuestService.pastureShearTarget()
                 && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_WOOL) >= WeeklyQuestService.pastureWoolTarget()
-                && countInventoryWool(player) >= WeeklyQuestService.pastureWoolTarget();
+                && countInventoryWool(world, player) >= WeeklyQuestService.pastureWoolTarget();
     }
 
     @Override
     public boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) {
-        return consumeInventoryWool(player, WeeklyQuestService.pastureWoolTarget());
+        return consumeInventoryWool(world, player, WeeklyQuestService.pastureWoolTarget());
     }
 
     @Override
@@ -92,12 +92,12 @@ public final class StallAndPastureWeeklyQuest implements WeeklyQuestDefinition {
         if (WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_BREED) < WeeklyQuestService.pastureBreedTarget()
                 || WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_SHEAR) < WeeklyQuestService.pastureShearTarget()
                 || WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_WOOL) < woolTarget
-                || countInventoryWool(player) >= woolTarget) {
+                || countInventoryWool(world, player) >= woolTarget) {
             return null;
         }
         return Texts.turnInMissing(
                 Text.translatable("text.village-quest.turnin.label.wool"),
-                countInventoryWool(player),
+                countInventoryWool(world, player),
                 woolTarget
         );
     }
@@ -163,11 +163,11 @@ public final class StallAndPastureWeeklyQuest implements WeeklyQuestDefinition {
         return false;
     }
 
-    private int countInventoryWool(ServerPlayerEntity player) {
-        return DailyQuestService.countInventoryItems(player, WOOL_ITEMS);
+    private int countInventoryWool(ServerWorld world, ServerPlayerEntity player) {
+        return WeeklyQuestService.countCompletionItems(world, player, WOOL_ITEMS);
     }
 
-    private boolean consumeInventoryWool(ServerPlayerEntity player, int amount) {
-        return DailyQuestService.consumeInventoryItems(player, amount, WOOL_ITEMS);
+    private boolean consumeInventoryWool(ServerWorld world, ServerPlayerEntity player, int amount) {
+        return WeeklyQuestService.consumeCompletionItems(world, player, amount, WOOL_ITEMS);
     }
 }

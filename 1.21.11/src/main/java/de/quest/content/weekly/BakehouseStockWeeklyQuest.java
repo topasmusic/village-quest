@@ -62,9 +62,9 @@ public final class BakehouseStockWeeklyQuest implements WeeklyQuestDefinition {
         return WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.BAKEHOUSE_BREAD) >= WeeklyQuestService.bakehouseBreadTarget()
                 && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.BAKEHOUSE_PIE) >= WeeklyQuestService.bakehousePieTarget()
                 && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.BAKEHOUSE_POTATO) >= WeeklyQuestService.bakehousePotatoTarget()
-                && WeeklyQuestService.countInventoryItem(player, Items.BREAD) >= WeeklyQuestService.bakehouseBreadTarget()
-                && WeeklyQuestService.countInventoryItem(player, Items.PUMPKIN_PIE) >= WeeklyQuestService.bakehousePieTarget()
-                && WeeklyQuestService.countInventoryItem(player, Items.BAKED_POTATO) >= WeeklyQuestService.bakehousePotatoTarget();
+                && WeeklyQuestService.countCompletionItem(world, player, Items.BREAD) >= WeeklyQuestService.bakehouseBreadTarget()
+                && WeeklyQuestService.countCompletionItem(world, player, Items.PUMPKIN_PIE) >= WeeklyQuestService.bakehousePieTarget()
+                && WeeklyQuestService.countCompletionItem(world, player, Items.BAKED_POTATO) >= WeeklyQuestService.bakehousePotatoTarget();
     }
 
     @Override
@@ -85,14 +85,14 @@ public final class BakehouseStockWeeklyQuest implements WeeklyQuestDefinition {
 
     @Override
     public boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) {
-        if (WeeklyQuestService.countInventoryItem(player, Items.BREAD) < WeeklyQuestService.bakehouseBreadTarget()
-                || WeeklyQuestService.countInventoryItem(player, Items.PUMPKIN_PIE) < WeeklyQuestService.bakehousePieTarget()
-                || WeeklyQuestService.countInventoryItem(player, Items.BAKED_POTATO) < WeeklyQuestService.bakehousePotatoTarget()) {
+        if (WeeklyQuestService.countCompletionItem(world, player, Items.BREAD) < WeeklyQuestService.bakehouseBreadTarget()
+                || WeeklyQuestService.countCompletionItem(world, player, Items.PUMPKIN_PIE) < WeeklyQuestService.bakehousePieTarget()
+                || WeeklyQuestService.countCompletionItem(world, player, Items.BAKED_POTATO) < WeeklyQuestService.bakehousePotatoTarget()) {
             return false;
         }
-        return WeeklyQuestService.consumeInventoryItem(player, Items.BREAD, WeeklyQuestService.bakehouseBreadTarget())
-                && WeeklyQuestService.consumeInventoryItem(player, Items.PUMPKIN_PIE, WeeklyQuestService.bakehousePieTarget())
-                && WeeklyQuestService.consumeInventoryItem(player, Items.BAKED_POTATO, WeeklyQuestService.bakehousePotatoTarget());
+        return WeeklyQuestService.consumeCompletionItem(world, player, Items.BREAD, WeeklyQuestService.bakehouseBreadTarget())
+                && WeeklyQuestService.consumeCompletionItem(world, player, Items.PUMPKIN_PIE, WeeklyQuestService.bakehousePieTarget())
+                && WeeklyQuestService.consumeCompletionItem(world, player, Items.BAKED_POTATO, WeeklyQuestService.bakehousePotatoTarget());
     }
 
     @Override
@@ -107,20 +107,20 @@ public final class BakehouseStockWeeklyQuest implements WeeklyQuestDefinition {
         if (WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.BAKEHOUSE_BREAD) < breadTarget
                 || WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.BAKEHOUSE_PIE) < pieTarget
                 || WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.BAKEHOUSE_POTATO) < potatoTarget
-                || (WeeklyQuestService.countInventoryItem(player, Items.BREAD) >= breadTarget
-                && WeeklyQuestService.countInventoryItem(player, Items.PUMPKIN_PIE) >= pieTarget
-                && WeeklyQuestService.countInventoryItem(player, Items.BAKED_POTATO) >= potatoTarget)) {
+                || (WeeklyQuestService.countCompletionItem(world, player, Items.BREAD) >= breadTarget
+                && WeeklyQuestService.countCompletionItem(world, player, Items.PUMPKIN_PIE) >= pieTarget
+                && WeeklyQuestService.countCompletionItem(world, player, Items.BAKED_POTATO) >= potatoTarget)) {
             return null;
         }
         return Texts.turnInMissing(
                 Items.BREAD.getDefaultStack().toHoverableText(),
-                WeeklyQuestService.countInventoryItem(player, Items.BREAD),
+                WeeklyQuestService.countCompletionItem(world, player, Items.BREAD),
                 breadTarget,
                 Items.PUMPKIN_PIE.getDefaultStack().toHoverableText(),
-                WeeklyQuestService.countInventoryItem(player, Items.PUMPKIN_PIE),
+                WeeklyQuestService.countCompletionItem(world, player, Items.PUMPKIN_PIE),
                 pieTarget,
                 Items.BAKED_POTATO.getDefaultStack().toHoverableText(),
-                WeeklyQuestService.countInventoryItem(player, Items.BAKED_POTATO),
+                WeeklyQuestService.countCompletionItem(world, player, Items.BAKED_POTATO),
                 potatoTarget
         );
     }

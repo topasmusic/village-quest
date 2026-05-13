@@ -868,7 +868,7 @@ public class JournalScreen extends CompatScreen {
         if (this.questMasterButton == null) {
             return;
         }
-        boolean showQuestMaster = this.pageIndex == 0;
+        boolean showQuestMaster = true;
         int totalWidth = ACTION_BUTTON_WIDTH * 2 + ACTION_BUTTON_GAP;
         int rowLeft = centerX - totalWidth / 2 + ACTION_BUTTON_ROW_INSET;
         this.questMasterButtonX = rowLeft;

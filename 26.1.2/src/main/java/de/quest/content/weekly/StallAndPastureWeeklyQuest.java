@@ -5,19 +5,21 @@ import de.quest.quest.weekly.WeeklyQuestDefinition;
 import de.quest.quest.weekly.WeeklyQuestKeys;
 import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.reputation.ReputationService;
+import de.quest.quest.daily.DailyQuestService;
 import de.quest.util.Texts;
-import java.util.List;
-import java.util.UUID;
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.animal.sheep.Sheep;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+
+import java.util.List;
+import java.util.UUID;
 
 public final class StallAndPastureWeeklyQuest implements WeeklyQuestDefinition {
     private static final Item[] WOOL_ITEMS = new Item[] {
@@ -72,12 +74,12 @@ public final class StallAndPastureWeeklyQuest implements WeeklyQuestDefinition {
         return WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_BREED) >= WeeklyQuestService.pastureBreedTarget()
                 && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_SHEAR) >= WeeklyQuestService.pastureShearTarget()
                 && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_WOOL) >= WeeklyQuestService.pastureWoolTarget()
-                && countInventoryWool(player) >= WeeklyQuestService.pastureWoolTarget();
+                && countInventoryWool(world, player) >= WeeklyQuestService.pastureWoolTarget();
     }
 
     @Override
     public boolean consumeCompletionRequirements(ServerLevel world, ServerPlayer player) {
-        return consumeInventoryWool(player, WeeklyQuestService.pastureWoolTarget());
+        return consumeInventoryWool(world, player, WeeklyQuestService.pastureWoolTarget());
     }
 
     @Override
@@ -90,12 +92,12 @@ public final class StallAndPastureWeeklyQuest implements WeeklyQuestDefinition {
         if (WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_BREED) < WeeklyQuestService.pastureBreedTarget()
                 || WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_SHEAR) < WeeklyQuestService.pastureShearTarget()
                 || WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.PASTURE_WOOL) < woolTarget
-                || countInventoryWool(player) >= woolTarget) {
+                || countInventoryWool(world, player) >= woolTarget) {
             return null;
         }
         return Texts.turnInMissing(
                 Component.translatable("text.village-quest.turnin.label.wool"),
-                countInventoryWool(player),
+                countInventoryWool(world, player),
                 woolTarget
         );
     }
@@ -124,7 +126,6 @@ public final class StallAndPastureWeeklyQuest implements WeeklyQuestDefinition {
         if (!isWool(stack)) {
             return;
         }
-
         WeeklyQuestService.addQuestIntClamped(world, player.getUUID(), WeeklyQuestKeys.PASTURE_WOOL, count, WeeklyQuestService.pastureWoolTarget());
         WeeklyQuestService.completeIfEligible(world, player);
     }
@@ -144,7 +145,7 @@ public final class StallAndPastureWeeklyQuest implements WeeklyQuestDefinition {
         if (!WeeklyQuestService.isAcceptedThisWeek(world, player.getUUID()) || WeeklyQuestService.hasCompletedThisWeek(world, player.getUUID())) {
             return;
         }
-        if (!(entity instanceof Sheep sheep) || !inHand.is(Items.SHEARS) || !sheep.readyForShearing()) {
+        if (!(entity instanceof Sheep sheep) || inHand == null || !inHand.is(Items.SHEARS) || !sheep.readyForShearing()) {
             return;
         }
 
@@ -162,34 +163,11 @@ public final class StallAndPastureWeeklyQuest implements WeeklyQuestDefinition {
         return false;
     }
 
-    private int countInventoryWool(ServerPlayer player) {
-        int total = 0;
-        for (Item woolItem : WOOL_ITEMS) {
-            total += WeeklyQuestService.countInventoryItem(player, woolItem);
-        }
-        return total;
+    private int countInventoryWool(ServerLevel world, ServerPlayer player) {
+        return WeeklyQuestService.countCompletionItems(world, player, WOOL_ITEMS);
     }
 
-    private boolean consumeInventoryWool(ServerPlayer player, int amount) {
-        if (countInventoryWool(player) < amount) {
-            return false;
-        }
-
-        int remaining = amount;
-        for (Item woolItem : WOOL_ITEMS) {
-            if (remaining <= 0) {
-                break;
-            }
-            int available = WeeklyQuestService.countInventoryItem(player, woolItem);
-            if (available <= 0) {
-                continue;
-            }
-            int toConsume = Math.min(remaining, available);
-            if (!WeeklyQuestService.consumeInventoryItem(player, woolItem, toConsume)) {
-                return false;
-            }
-            remaining -= toConsume;
-        }
-        return remaining <= 0;
+    private boolean consumeInventoryWool(ServerLevel world, ServerPlayer player, int amount) {
+        return WeeklyQuestService.consumeCompletionItems(world, player, amount, WOOL_ITEMS);
     }
 }

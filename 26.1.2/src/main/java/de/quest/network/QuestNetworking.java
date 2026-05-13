@@ -47,6 +47,11 @@ public final class QuestNetworking {
             context.server().execute(() -> QuestMasterUiService.handleAction(player, payload));
         });
 
+        ServerPlayNetworking.registerGlobalReceiver(Payloads.QuestMasterPartyActionPayload.ID, (payload, context) -> {
+            ServerPlayer player = context.player();
+            context.server().execute(() -> QuestMasterUiService.handlePartyAction(player, payload));
+        });
+
         ServerPlayNetworking.registerGlobalReceiver(Payloads.QuestMasterSessionPayload.ID, (payload, context) -> {
             ServerPlayer player = context.player();
             context.server().execute(() -> QuestMasterUiService.handleSession(player, payload));

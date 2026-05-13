@@ -79,8 +79,8 @@ public final class SmithSmeltingDailyQuest implements DailyQuestDefinition {
         if (!hasTurnInItems(player)) {
             return false;
         }
-        return DailyQuestService.consumeInventoryItem(player, Items.RAW_IRON, DailyQuestService.smithSmeltOreTarget())
-                && DailyQuestService.consumeInventoryItem(player, Items.IRON_INGOT, DailyQuestService.smithSmeltIngotTarget());
+        return DailyQuestService.consumeCompletionItem(world, player, Items.RAW_IRON, DailyQuestService.smithSmeltOreTarget())
+                && DailyQuestService.consumeCompletionItem(world, player, Items.IRON_INGOT, DailyQuestService.smithSmeltIngotTarget());
     }
 
     @Override
@@ -98,10 +98,10 @@ public final class SmithSmeltingDailyQuest implements DailyQuestDefinition {
         }
         return Texts.turnInMissing(
                 Items.RAW_IRON.getName(),
-                DailyQuestService.countInventoryItem(player, Items.RAW_IRON),
+                DailyQuestService.countCompletionItem(world, player, Items.RAW_IRON),
                 oreTarget,
                 Items.IRON_INGOT.getName(),
-                DailyQuestService.countInventoryItem(player, Items.IRON_INGOT),
+                DailyQuestService.countCompletionItem(world, player, Items.IRON_INGOT),
                 ingotTarget
         );
     }
@@ -141,7 +141,8 @@ public final class SmithSmeltingDailyQuest implements DailyQuestDefinition {
     }
 
     private boolean hasTurnInItems(ServerPlayerEntity player) {
-        return DailyQuestService.countInventoryItem(player, Items.RAW_IRON) >= DailyQuestService.smithSmeltOreTarget()
-                && DailyQuestService.countInventoryItem(player, Items.IRON_INGOT) >= DailyQuestService.smithSmeltIngotTarget();
+        ServerWorld world = (ServerWorld) player.getEntityWorld();
+        return DailyQuestService.countCompletionItem(world, player, Items.RAW_IRON) >= DailyQuestService.smithSmeltOreTarget()
+                && DailyQuestService.countCompletionItem(world, player, Items.IRON_INGOT) >= DailyQuestService.smithSmeltIngotTarget();
     }
 }

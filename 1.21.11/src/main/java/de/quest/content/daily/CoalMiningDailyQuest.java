@@ -70,8 +70,8 @@ public final class CoalMiningDailyQuest implements DailyQuestDefinition {
         if (!hasTurnInItems(player)) {
             return false;
         }
-        return DailyQuestService.consumeInventoryItem(player, Items.RAW_IRON, DailyQuestService.ironTarget())
-                && DailyQuestService.consumeInventoryItem(player, Items.COAL, DailyQuestService.smithCoalTarget());
+        return DailyQuestService.consumeCompletionItem(world, player, Items.RAW_IRON, DailyQuestService.ironTarget())
+                && DailyQuestService.consumeCompletionItem(world, player, Items.COAL, DailyQuestService.smithCoalTarget());
     }
 
     @Override
@@ -91,10 +91,10 @@ public final class CoalMiningDailyQuest implements DailyQuestDefinition {
 
         return Texts.turnInMissing(
                 Items.RAW_IRON.getName(),
-                DailyQuestService.countInventoryItem(player, Items.RAW_IRON),
+                DailyQuestService.countCompletionItem(world, player, Items.RAW_IRON),
                 ironTarget,
                 Items.COAL.getName(),
-                DailyQuestService.countInventoryItem(player, Items.COAL),
+                DailyQuestService.countCompletionItem(world, player, Items.COAL),
                 coalTarget
         );
     }
@@ -135,7 +135,8 @@ public final class CoalMiningDailyQuest implements DailyQuestDefinition {
     }
 
     private boolean hasTurnInItems(ServerPlayerEntity player) {
-        return DailyQuestService.countInventoryItem(player, Items.RAW_IRON) >= DailyQuestService.ironTarget()
-                && DailyQuestService.countInventoryItem(player, Items.COAL) >= DailyQuestService.smithCoalTarget();
+        ServerWorld world = (ServerWorld) player.getEntityWorld();
+        return DailyQuestService.countCompletionItem(world, player, Items.RAW_IRON) >= DailyQuestService.ironTarget()
+                && DailyQuestService.countCompletionItem(world, player, Items.COAL) >= DailyQuestService.smithCoalTarget();
     }
 }

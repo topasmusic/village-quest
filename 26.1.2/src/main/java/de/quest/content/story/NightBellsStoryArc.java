@@ -9,26 +9,27 @@ import de.quest.quest.story.StoryQuestKeys;
 import de.quest.quest.story.StoryQuestService;
 import de.quest.quest.story.VillageProjectType;
 import de.quest.reputation.ReputationService;
-import java.util.List;
-import java.util.UUID;
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.monster.Creeper;
-import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.monster.Enemy;
 import net.minecraft.world.entity.monster.skeleton.Skeleton;
 import net.minecraft.world.entity.monster.spider.Spider;
 import net.minecraft.world.entity.monster.zombie.Zombie;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+
+import java.util.List;
+import java.util.UUID;
 
 public final class NightBellsStoryArc implements StoryArcDefinition {
-    private static final int FIRST_WATCH_ZOMBIE_TARGET = 6;
-    private static final int THIN_THE_DARK_SKELETON_TARGET = 4;
-    private static final int THIN_THE_DARK_SPIDER_TARGET = 4;
-    private static final int HOLD_THE_ROAD_CREEPER_TARGET = 2;
-    private static final int HOLD_THE_ROAD_HOSTILE_TARGET = 10;
+    private static final int FIRST_WATCH_ZOMBIE_TARGET = 7;
+    private static final int THIN_THE_DARK_SKELETON_TARGET = 5;
+    private static final int THIN_THE_DARK_SPIDER_TARGET = 3;
+    private static final int HOLD_THE_ROAD_CREEPER_TARGET = 3;
+    private static final int HOLD_THE_ROAD_HOSTILE_TARGET = 11;
 
     private final List<StoryChapterDefinition> chapters = List.of(
             new FirstWatchChapter(),
@@ -76,7 +77,11 @@ public final class NightBellsStoryArc implements StoryArcDefinition {
         }
 
         protected boolean isNight(ServerLevel world) {
-            return world != null && world.isDarkOutside();
+            if (world == null) {
+                return false;
+            }
+            long dayTime = Math.floorMod(world.getOverworldClockTime(), 24000L);
+            return dayTime >= 13000L && dayTime <= 23000L;
         }
     }
 
@@ -253,7 +258,7 @@ public final class NightBellsStoryArc implements StoryArcDefinition {
 
         @Override
         public void onMonsterKill(ServerLevel world, ServerPlayer player, Entity killedEntity) {
-            if (!isNight(world) || !(killedEntity instanceof Monster)) {
+            if (!isNight(world) || !(killedEntity instanceof Enemy)) {
                 return;
             }
             addProgress(world, player, StoryQuestKeys.NIGHT_BELLS_HOSTILES, 1, HOLD_THE_ROAD_HOSTILE_TARGET);
