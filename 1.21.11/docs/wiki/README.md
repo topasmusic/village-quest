@@ -2,14 +2,18 @@
 
 This wiki covers the current maintained `1.21.11` line of `Village Quest`.
 
-Latest shipped release:
+Latest stable release:
 - `1.22.0` on `2026-04-24`
 
-Current release highlights:
-- the late `Questmaster` story arc `Shadows on the Trade Road`
-- nighttime caravan rescue and convoy-defense encounters with `Caravan Merchant` and `Traitor` NPCs
-- contextual villager chat for the existing villager-talk objectives and the new late-road rumor chain
-- extra admin test commands for the late-road story systems
+Current public beta:
+- `1.22.1-beta.3` on `2026-05-13`
+
+Current highlights:
+- multiplayer quest parties are now available on dedicated servers
+- `Daily`, `Weekly`, the main `Story` arcs, and normal `Pilgrim` combat contracts can be shared cooperatively
+- repeatable quests now use more varied target numbers and rewards that scale with them
+- the `Questmaster` has a dedicated party view, and the journal keeps the `Questmaster` button visible on every page
+- the late `Questmaster` story arc `Shadows on the Trade Road` remains part of the current stable content
 
 The core loop is:
 - help a village through grounded daily and weekly work
