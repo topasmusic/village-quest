@@ -1,6 +1,7 @@
 package de.quest.client.render;
 
 import de.quest.VillageQuest;
+import de.quest.client.compat.ClientModCompat;
 import de.quest.entity.QuestMasterEntity;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.geom.ModelLayerLocation;
@@ -18,7 +19,7 @@ import net.minecraft.world.entity.player.PlayerModelType;
 import net.minecraft.world.entity.player.PlayerSkin;
 import net.minecraft.world.item.Items;
 
-public final class QuestMasterEntityRenderer extends MobRenderer<QuestMasterEntity, AvatarRenderState, PlayerModel> {
+public final class QuestMasterEntityRenderer extends MobRenderer<QuestMasterEntity, AvatarRenderState, QuestNpcPlayerModel> {
     public static final ModelLayerLocation QUEST_MASTER_LAYER =
             new ModelLayerLocation(Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "quest_master"), "main");
     private static final Identifier TEXTURE = Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "textures/entity/quest_master.png");
@@ -36,11 +37,17 @@ public final class QuestMasterEntityRenderer extends MobRenderer<QuestMasterEnti
     private static final PlayerSkin QUEST_MASTER_SKIN =
             PlayerSkin.insecure(QUEST_MASTER_TEXTURE_ASSET, null, null, PlayerModelType.WIDE);
     private final ItemModelResolver itemModelManager;
+    private final boolean heldItemRenderingEnabled;
 
     public QuestMasterEntityRenderer(EntityRendererProvider.Context context) {
-        super(context, new PlayerModel(context.bakeLayer(QUEST_MASTER_LAYER), false), 0.5f);
+        super(context, new QuestNpcPlayerModel(context.bakeLayer(QUEST_MASTER_LAYER), false), 0.5f);
         this.itemModelManager = context.getItemModelResolver();
-        this.addLayer(new ItemInHandLayer<>(this));
+        this.heldItemRenderingEnabled = !ClientModCompat.shouldUseSafeNpcHeldItemFallback();
+        if (this.heldItemRenderingEnabled) {
+            this.addLayer(new ItemInHandLayer<>(this));
+        } else {
+            this.addLayer(new QuestNpcHeldItemLayer(this));
+        }
     }
 
     public static net.minecraft.client.model.geom.builders.LayerDefinition createModelData() {
@@ -59,7 +66,11 @@ public final class QuestMasterEntityRenderer extends MobRenderer<QuestMasterEnti
     @Override
     public void extractRenderState(QuestMasterEntity entity, AvatarRenderState state, float tickDelta) {
         super.extractRenderState(entity, state, tickDelta);
-        ArmedEntityRenderState.extractArmedEntityRenderState(entity, state, this.itemModelManager, tickDelta);
+        if (this.heldItemRenderingEnabled) {
+            ArmedEntityRenderState.extractArmedEntityRenderState(entity, state, this.itemModelManager, tickDelta);
+        } else {
+            QuestNpcHeldItemStateHelper.extractSafeHeldItemState(entity, state, this.itemModelManager);
+        }
         if (entity.getMainHandItem().getItem() == Items.TORCH) {
             state.rightArmPose = HumanoidModel.ArmPose.BLOCK;
         }

@@ -243,6 +243,6 @@ Use `/vq admin story shadows testfinal` when you specifically want the chapter `
 
 - `Story` and `Special` start visible but greyed out.
 - `Story` unlocks after the first normal daily completion.
-- after a full `4`-chapter story arc, the next story appears only after a real `3 hour` cooldown and the `Story` tab shows a live timer during that pause
+- after a full `4`-chapter story arc, the next story appears only after a real `1 hour` cooldown and the `Story` tab shows a live timer during that pause
 - `Special` unlocks after the first real reputation gain.
 - `Weekly` cancel now exists and does not reroll a new weekly for the same week.

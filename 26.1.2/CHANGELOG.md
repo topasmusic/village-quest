@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 1.22.5 - Quest Parties, Variety, Localization, And Client Compat
+
+Release date: 2026-05-14
+
+- The multiplayer quest-party batch is now fully promoted into a stable release on the modern line: dedicated-server quest parties, clickable chat invites, restart-persistent shared sessions, `10 minute` reconnect grace, and shared `Daily`, `Weekly`, core `Story`, and normal `Pilgrim` combat-contract progress now ship as part of the main release.
+- The `Questmaster` now has a dedicated brown party button on shareable quests, party management stays hidden on singleplayer or integrated worlds, and the journal keeps its `Questmaster` shortcut visible on every page instead of only the first one.
+- Repeatable `Daily`, `Weekly`, and `Pilgrim` quests now use stored `light`, `normal`, or `heavy` target profiles with matching reward scaling, and the non-`Shadows` story arcs plus repeatables now avoid the old obvious stack and half-stack requirement numbers.
+- The story follow-up cooldown between completed `4`-chapter arcs was reduced from `3 hours` to `1 hour`.
+- A full Spanish `es_es` localization now ships on this line as well, with the original translation provided by `Lutte` and the missing newer quest-party strings and placeholder fixes filled in.
+- The reported `Bendable Cuboids` and `MTGCard` client conflicts were addressed directly on this line: humanoid quest NPCs now use a safer held-item renderer when needed, the old inventory journal overlay can disable itself safely, the inventory keeps a small fallback `J` journal button, and the journal/admin journal screens now avoid the crashy arrow and `GuiGraphics` compatibility paths in the reported combo.
+
 ## 1.22.1-beta.3 - Multiplayer Quest Party Beta
 
 Release date: 2026-05-14

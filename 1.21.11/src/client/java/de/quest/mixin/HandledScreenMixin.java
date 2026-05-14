@@ -44,7 +44,15 @@ public abstract class HandledScreenMixin extends Screen {
     }
 
     @Unique
+    private boolean villageQuest$isJournalButtonEnabled() {
+        return InventoryJournalCompat.shouldRenderInventoryJournalOverlay(MinecraftClient.getInstance());
+    }
+
+    @Unique
     private boolean villageQuest$isHoveringJournalButton(double mouseX, double mouseY) {
+        if (!villageQuest$isJournalButtonEnabled()) {
+            return false;
+        }
         InventoryJournalButtonLayout.Layout layout = villageQuest$journalLayout();
         int inventoryTop = this.y;
         int inventoryRight = this.x + ((HandledScreenAccessor) (Object) this).villageQuest$getBackgroundWidth();
@@ -70,15 +78,20 @@ public abstract class HandledScreenMixin extends Screen {
     @Inject(method = "mouseClicked(Lnet/minecraft/client/gui/Click;Z)Z", at = @At("HEAD"), cancellable = true)
     private void villageQuest$clickJournalButton(Click click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
         if (!villageQuest$isPlayerInventoryScreen()
+                || !villageQuest$isJournalButtonEnabled()
                 || click.button() != 0
                 || !villageQuest$isHoveringJournalButton(click.x(), click.y())) {
             return;
         }
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client.player != null && client.player.networkHandler != null) {
-            InventoryJournalTutorialState.markInventoryHintSeen();
-            client.player.networkHandler.sendChatCommand("vq journal");
-            cir.setReturnValue(true);
+        try {
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client.player != null && client.player.networkHandler != null) {
+                InventoryJournalTutorialState.markInventoryHintSeen();
+                client.player.networkHandler.sendChatCommand("vq journal");
+                cir.setReturnValue(true);
+            }
+        } catch (Throwable throwable) {
+            InventoryJournalCompat.disableInventoryJournalOverlayForSession("inventory journal button click", throwable);
         }
     }
 }

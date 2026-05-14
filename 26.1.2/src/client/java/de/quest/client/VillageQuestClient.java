@@ -1,5 +1,6 @@
 package de.quest.client;
 
+import de.quest.client.compat.ClientModCompat;
 import de.quest.client.network.ClientQuestNetworking;
 import de.quest.client.hud.QuestTrackerHud;
 import de.quest.client.render.CaravanMerchantEntityRenderer;
@@ -15,6 +16,7 @@ import net.minecraft.client.renderer.entity.EntityRenderers;
 public class VillageQuestClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
+        ClientModCompat.bootstrap();
         ModelLayerRegistry.registerModelLayer(
                 PilgrimEntityRenderer.PILGRIM_LAYER,
                 PilgrimEntityRenderer::createModelData

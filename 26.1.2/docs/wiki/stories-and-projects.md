@@ -14,7 +14,7 @@ When these four are all complete:
 - `Watch Bell` is unlocked automatically as a derived village project
 - the dangerous `Roadside Watch` rumor lane becomes available through the `Pilgrim`
 
-After each fully completed `4`-chapter arc, the next story waits behind a real `3 hour` cooldown. The `Story` tab shows that countdown directly.
+After each fully completed `4`-chapter arc, the next story waits behind a real `1 hour` cooldown. The `Story` tab shows that countdown directly.
 
 ## Late Story Follow-Up
 

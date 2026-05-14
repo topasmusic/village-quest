@@ -42,7 +42,7 @@ import java.util.UUID;
 public final class StoryQuestService {
     private static final String READY_FLAG_PREFIX = "story_ready_";
     private static final double STORY_CURRENCY_MULTIPLIER = 0.70d;
-    private static final long STORY_ARC_COOLDOWN_MILLIS = 3L * 60L * 60L * 1000L;
+    private static final long STORY_ARC_COOLDOWN_MILLIS = 1L * 60L * 60L * 1000L;
 
     private static final Map<StoryArcType, StoryArcDefinition> ARCS = Map.of(
             StoryArcType.FAILING_HARVEST, new FailingHarvestStoryArc(),
