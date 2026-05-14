@@ -43,6 +43,11 @@ public class JournalScreen extends CompatScreen {
     private static final int BUTTON_ROW_HEIGHT = 20;
     private static final String CANCEL_TEXT = "X";
     private static final int CANCEL_COLOR = 0xFFFF4B4B;
+    private static final int ARROW_BORDER = 0xFF6E4F28;
+    private static final int ARROW_FILL = 0xFFD8C089;
+    private static final int ARROW_FILL_HOVER = 0xFFEBD5A5;
+    private static final int ARROW_SHADOW = 0xFF9F7235;
+    private static final int ARROW_TEXT = 0xFF5B3C16;
 
     public static class JournalData {
         public final int total;
@@ -354,17 +359,22 @@ public class JournalScreen extends CompatScreen {
         boolean canNext = pageIndex + 1 < pages.size();
 
         if (canPrev) {
-            Identifier sprite = isHover(mouseX, mouseY, prevX, buttonY, ARROW_WIDTH, ARROW_HEIGHT)
-                    ? PAGE_BACKWARD_HIGHLIGHT
-                    : PAGE_BACKWARD;
-            context.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, prevX, buttonY, ARROW_WIDTH, ARROW_HEIGHT);
+            drawArrowButton(context, prevX, buttonY, isHover(mouseX, mouseY, prevX, buttonY, ARROW_WIDTH, ARROW_HEIGHT), true);
         }
         if (canNext) {
-            Identifier sprite = isHover(mouseX, mouseY, nextX, buttonY, ARROW_WIDTH, ARROW_HEIGHT)
-                    ? PAGE_FORWARD_HIGHLIGHT
-                    : PAGE_FORWARD;
-            context.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, nextX, buttonY, ARROW_WIDTH, ARROW_HEIGHT);
+            drawArrowButton(context, nextX, buttonY, isHover(mouseX, mouseY, nextX, buttonY, ARROW_WIDTH, ARROW_HEIGHT), false);
         }
+    }
+
+    private void drawArrowButton(GuiGraphics context, int x, int y, boolean hovered, boolean backwards) {
+        context.fill(x, y, x + ARROW_WIDTH, y + ARROW_HEIGHT, ARROW_BORDER);
+        context.fill(x + 1, y + 1, x + ARROW_WIDTH - 1, y + ARROW_HEIGHT - 1, hovered ? ARROW_FILL_HOVER : ARROW_FILL);
+        context.fill(x + 1, y + ARROW_HEIGHT - 2, x + ARROW_WIDTH - 1, y + ARROW_HEIGHT - 1, ARROW_SHADOW);
+
+        String arrow = backwards ? "<" : ">";
+        int arrowX = x + (ARROW_WIDTH - this.font.width(arrow)) / 2;
+        int arrowY = y + Math.max(0, (ARROW_HEIGHT - this.font.lineHeight) / 2) - 1;
+        context.drawString(this.font, arrow, arrowX, arrowY, ARROW_TEXT, false);
     }
 
     private boolean isHover(int mouseX, int mouseY, int x, int y, int w, int h) {

@@ -45,7 +45,7 @@
 
 - `Story`
   Unlocks after the first normal daily is completed.
-  After each full `4`-chapter story arc, the next story appears only after a real `3 hour` cooldown.
+  After each full `4`-chapter story arc, the next story appears only after a real `1 hour` cooldown.
 - `Shadows on the Trade Road`
   Appears later as a locked late-story entry after `Watch Bell`.
   Unlocks after `3` completed `Pilgrim` combat rumors.
@@ -89,4 +89,4 @@ On the first page:
 
 - daily reset: `06:00 Europe/Berlin`
 - weekly reset: Monday `06:00 Europe/Berlin`
-- story follow-up cooldown after a completed arc: real `3 hours`
+- story follow-up cooldown after a completed arc: real `1 hour`

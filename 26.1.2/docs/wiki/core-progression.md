@@ -101,7 +101,7 @@ The story tab now shows only:
 
 It no longer dumps the whole story archive at once.
 
-After a full `4`-chapter story arc is completed, the next story is delayed by a real `3 hour` cooldown and the `Story` tab shows that timer directly.
+After a full `4`-chapter story arc is completed, the next story is delayed by a real `1 hour` cooldown and the `Story` tab shows that timer directly.
 
 The late follow-up `Shadows on the Trade Road` is separate from the four core village arcs:
 

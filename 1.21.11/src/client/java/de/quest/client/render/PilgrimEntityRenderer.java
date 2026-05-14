@@ -1,6 +1,7 @@
 package de.quest.client.render;
 
 import de.quest.VillageQuest;
+import de.quest.client.compat.ClientModCompat;
 import de.quest.entity.PilgrimEntity;
 import net.minecraft.client.model.Dilation;
 import net.minecraft.client.render.entity.EntityRendererFactory;
@@ -36,11 +37,17 @@ public final class PilgrimEntityRenderer extends MobEntityRenderer<PilgrimEntity
     private static final SkinTextures PILGRIM_SKIN =
             SkinTextures.create(PILGRIM_TEXTURE_ASSET, null, null, PlayerSkinType.WIDE);
     private final ItemModelManager itemModelManager;
+    private final boolean heldItemRenderingEnabled;
 
     public PilgrimEntityRenderer(EntityRendererFactory.Context context) {
         super(context, new PlayerEntityModel(context.getPart(PILGRIM_LAYER), false), 0.5f);
         this.itemModelManager = context.getItemModelManager();
-        this.addFeature(new HeldItemFeatureRenderer<>(this));
+        this.heldItemRenderingEnabled = !ClientModCompat.shouldUseSafeNpcHeldItemFallback();
+        if (this.heldItemRenderingEnabled) {
+            this.addFeature(new HeldItemFeatureRenderer<>(this));
+        } else {
+            this.addFeature(new QuestNpcHeldItemFeatureRenderer(this));
+        }
     }
 
     public static net.minecraft.client.model.TexturedModelData createModelData() {
@@ -59,7 +66,11 @@ public final class PilgrimEntityRenderer extends MobEntityRenderer<PilgrimEntity
     @Override
     public void updateRenderState(PilgrimEntity entity, PlayerEntityRenderState state, float tickDelta) {
         super.updateRenderState(entity, state, tickDelta);
-        ArmedEntityRenderState.updateRenderState(entity, state, this.itemModelManager, tickDelta);
+        if (this.heldItemRenderingEnabled) {
+            ArmedEntityRenderState.updateRenderState(entity, state, this.itemModelManager, tickDelta);
+        } else {
+            QuestNpcHeldItemStateHelper.updateSafeHeldItemState(entity, state, this.itemModelManager);
+        }
         if (entity.getMainHandStack().isOf(Items.TORCH)) {
             state.rightArmPose = BipedEntityModel.ArmPose.BLOCK;
         }

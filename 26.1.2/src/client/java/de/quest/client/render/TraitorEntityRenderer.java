@@ -1,6 +1,7 @@
 package de.quest.client.render;
 
 import de.quest.VillageQuest;
+import de.quest.client.compat.ClientModCompat;
 import de.quest.entity.TraitorEntity;
 import net.minecraft.client.model.geom.ModelLayerLocation;
 import net.minecraft.client.model.geom.builders.CubeDeformation;
@@ -17,7 +18,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.PlayerModelType;
 import net.minecraft.world.entity.player.PlayerSkin;
 
-public final class TraitorEntityRenderer extends MobRenderer<TraitorEntity, AvatarRenderState, PlayerModel> {
+public final class TraitorEntityRenderer extends MobRenderer<TraitorEntity, AvatarRenderState, QuestNpcPlayerModel> {
     public static final ModelLayerLocation TRAITOR_LAYER =
             new ModelLayerLocation(Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "traitor"), "main");
     private static final Identifier TEXTURE = Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "textures/entity/traitor.png");
@@ -34,11 +35,17 @@ public final class TraitorEntityRenderer extends MobRenderer<TraitorEntity, Avat
     };
     private static final PlayerSkin SKIN = PlayerSkin.insecure(TEXTURE_ASSET, null, null, PlayerModelType.WIDE);
     private final ItemModelResolver itemModelManager;
+    private final boolean heldItemRenderingEnabled;
 
     public TraitorEntityRenderer(EntityRendererProvider.Context context) {
-        super(context, new PlayerModel(context.bakeLayer(TRAITOR_LAYER), false), 0.55f);
+        super(context, new QuestNpcPlayerModel(context.bakeLayer(TRAITOR_LAYER), false), 0.55f);
         this.itemModelManager = context.getItemModelResolver();
-        this.addLayer(new ItemInHandLayer<>(this));
+        this.heldItemRenderingEnabled = !ClientModCompat.shouldUseSafeNpcHeldItemFallback();
+        if (this.heldItemRenderingEnabled) {
+            this.addLayer(new ItemInHandLayer<>(this));
+        } else {
+            this.addLayer(new QuestNpcHeldItemLayer(this));
+        }
     }
 
     public static LayerDefinition createModelData() {
@@ -53,7 +60,11 @@ public final class TraitorEntityRenderer extends MobRenderer<TraitorEntity, Avat
     @Override
     public void extractRenderState(TraitorEntity entity, AvatarRenderState state, float tickDelta) {
         super.extractRenderState(entity, state, tickDelta);
-        ArmedEntityRenderState.extractArmedEntityRenderState(entity, state, this.itemModelManager, tickDelta);
+        if (this.heldItemRenderingEnabled) {
+            ArmedEntityRenderState.extractArmedEntityRenderState(entity, state, this.itemModelManager, tickDelta);
+        } else {
+            QuestNpcHeldItemStateHelper.extractSafeHeldItemState(entity, state, this.itemModelManager);
+        }
         state.skin = SKIN;
     }
 

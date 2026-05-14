@@ -34,7 +34,7 @@ Baue zuerst belastbaren Kontext aus Maintainer-Daten, Changelog und Wiki auf, da
 
 ## Aktuell wichtige Versionsfakten
 
-Stand dieser Datei: `2026-04-24`
+Stand dieser Datei: `2026-05-14`
 
 - `26.1.2`
   - Minecraft `26.1.2`
@@ -51,7 +51,8 @@ Stand dieser Datei: `2026-04-24`
 
 ## Aktuell wichtige inhaltliche Fakten
 
-- Beide Linien stehen auf dem veroeffentlichten Stand `Village Quest 1.22.0`.
+- Beide Linien stehen jetzt auf dem veroeffentlichten Stable-Stand `Village Quest 1.22.5`.
+- Die frueheren Multiplayer-Betas wurden in diesen Stable-Stand ueberfuehrt.
 - Der globale Reset-Befehl existiert auf beiden Linien:
   - `/vq admin reset complete`
 - Auf `26.1.2` ist auch `/villagequest admin reset complete` relevant.

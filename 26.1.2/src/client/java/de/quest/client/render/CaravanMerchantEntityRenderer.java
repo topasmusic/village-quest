@@ -1,6 +1,7 @@
 package de.quest.client.render;
 
 import de.quest.VillageQuest;
+import de.quest.client.compat.ClientModCompat;
 import de.quest.entity.CaravanMerchantEntity;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.geom.ModelLayerLocation;
@@ -19,7 +20,7 @@ import net.minecraft.world.entity.player.PlayerModelType;
 import net.minecraft.world.entity.player.PlayerSkin;
 import net.minecraft.world.item.Items;
 
-public final class CaravanMerchantEntityRenderer extends MobRenderer<CaravanMerchantEntity, AvatarRenderState, PlayerModel> {
+public final class CaravanMerchantEntityRenderer extends MobRenderer<CaravanMerchantEntity, AvatarRenderState, QuestNpcPlayerModel> {
     public static final ModelLayerLocation CARAVAN_MERCHANT_LAYER =
             new ModelLayerLocation(Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "caravan_merchant"), "main");
     private static final Identifier TEXTURE = Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "textures/entity/caravan.png");
@@ -36,11 +37,17 @@ public final class CaravanMerchantEntityRenderer extends MobRenderer<CaravanMerc
     };
     private static final PlayerSkin SKIN = PlayerSkin.insecure(TEXTURE_ASSET, null, null, PlayerModelType.WIDE);
     private final ItemModelResolver itemModelManager;
+    private final boolean heldItemRenderingEnabled;
 
     public CaravanMerchantEntityRenderer(EntityRendererProvider.Context context) {
-        super(context, new PlayerModel(context.bakeLayer(CARAVAN_MERCHANT_LAYER), false), 0.5f);
+        super(context, new QuestNpcPlayerModel(context.bakeLayer(CARAVAN_MERCHANT_LAYER), false), 0.5f);
         this.itemModelManager = context.getItemModelResolver();
-        this.addLayer(new ItemInHandLayer<>(this));
+        this.heldItemRenderingEnabled = !ClientModCompat.shouldUseSafeNpcHeldItemFallback();
+        if (this.heldItemRenderingEnabled) {
+            this.addLayer(new ItemInHandLayer<>(this));
+        } else {
+            this.addLayer(new QuestNpcHeldItemLayer(this));
+        }
     }
 
     public static LayerDefinition createModelData() {
@@ -55,7 +62,11 @@ public final class CaravanMerchantEntityRenderer extends MobRenderer<CaravanMerc
     @Override
     public void extractRenderState(CaravanMerchantEntity entity, AvatarRenderState state, float tickDelta) {
         super.extractRenderState(entity, state, tickDelta);
-        ArmedEntityRenderState.extractArmedEntityRenderState(entity, state, this.itemModelManager, tickDelta);
+        if (this.heldItemRenderingEnabled) {
+            ArmedEntityRenderState.extractArmedEntityRenderState(entity, state, this.itemModelManager, tickDelta);
+        } else {
+            QuestNpcHeldItemStateHelper.extractSafeHeldItemState(entity, state, this.itemModelManager);
+        }
         if (entity.getMainHandItem().getItem() == Items.TORCH) {
             state.rightArmPose = HumanoidModel.ArmPose.BLOCK;
         }

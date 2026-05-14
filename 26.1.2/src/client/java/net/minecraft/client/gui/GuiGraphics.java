@@ -18,6 +18,10 @@ public final class GuiGraphics {
         return extractor;
     }
 
+    public GuiGraphicsExtractor unwrap() {
+        return extractor;
+    }
+
     public int guiWidth() {
         return extractor.guiWidth();
     }

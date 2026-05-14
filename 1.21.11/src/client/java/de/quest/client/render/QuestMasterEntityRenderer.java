@@ -1,6 +1,7 @@
 package de.quest.client.render;
 
 import de.quest.VillageQuest;
+import de.quest.client.compat.ClientModCompat;
 import de.quest.entity.QuestMasterEntity;
 import net.minecraft.client.model.Dilation;
 import net.minecraft.client.render.entity.EntityRendererFactory;
@@ -36,11 +37,17 @@ public final class QuestMasterEntityRenderer extends MobEntityRenderer<QuestMast
     private static final SkinTextures QUEST_MASTER_SKIN =
             SkinTextures.create(QUEST_MASTER_TEXTURE_ASSET, null, null, PlayerSkinType.WIDE);
     private final ItemModelManager itemModelManager;
+    private final boolean heldItemRenderingEnabled;
 
     public QuestMasterEntityRenderer(EntityRendererFactory.Context context) {
         super(context, new PlayerEntityModel(context.getPart(QUEST_MASTER_LAYER), false), 0.5f);
         this.itemModelManager = context.getItemModelManager();
-        this.addFeature(new HeldItemFeatureRenderer<>(this));
+        this.heldItemRenderingEnabled = !ClientModCompat.shouldUseSafeNpcHeldItemFallback();
+        if (this.heldItemRenderingEnabled) {
+            this.addFeature(new HeldItemFeatureRenderer<>(this));
+        } else {
+            this.addFeature(new QuestNpcHeldItemFeatureRenderer(this));
+        }
     }
 
     public static net.minecraft.client.model.TexturedModelData createModelData() {
@@ -59,7 +66,11 @@ public final class QuestMasterEntityRenderer extends MobEntityRenderer<QuestMast
     @Override
     public void updateRenderState(QuestMasterEntity entity, PlayerEntityRenderState state, float tickDelta) {
         super.updateRenderState(entity, state, tickDelta);
-        ArmedEntityRenderState.updateRenderState(entity, state, this.itemModelManager, tickDelta);
+        if (this.heldItemRenderingEnabled) {
+            ArmedEntityRenderState.updateRenderState(entity, state, this.itemModelManager, tickDelta);
+        } else {
+            QuestNpcHeldItemStateHelper.updateSafeHeldItemState(entity, state, this.itemModelManager);
+        }
         if (entity.getMainHandStack().isOf(Items.TORCH)) {
             state.rightArmPose = BipedEntityModel.ArmPose.BLOCK;
         }

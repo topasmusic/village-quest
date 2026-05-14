@@ -1,6 +1,7 @@
 package de.quest.client.render;
 
 import de.quest.VillageQuest;
+import de.quest.client.compat.ClientModCompat;
 import de.quest.entity.PilgrimEntity;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.geom.ModelLayerLocation;
@@ -18,7 +19,7 @@ import net.minecraft.world.entity.player.PlayerModelType;
 import net.minecraft.world.entity.player.PlayerSkin;
 import net.minecraft.world.item.Items;
 
-public final class PilgrimEntityRenderer extends MobRenderer<PilgrimEntity, AvatarRenderState, PlayerModel> {
+public final class PilgrimEntityRenderer extends MobRenderer<PilgrimEntity, AvatarRenderState, QuestNpcPlayerModel> {
     public static final ModelLayerLocation PILGRIM_LAYER =
             new ModelLayerLocation(Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "pilgrim"), "main");
     private static final Identifier TEXTURE = Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "textures/entity/pilgrim.png");
@@ -36,11 +37,17 @@ public final class PilgrimEntityRenderer extends MobRenderer<PilgrimEntity, Avat
     private static final PlayerSkin PILGRIM_SKIN =
             PlayerSkin.insecure(PILGRIM_TEXTURE_ASSET, null, null, PlayerModelType.WIDE);
     private final ItemModelResolver itemModelManager;
+    private final boolean heldItemRenderingEnabled;
 
     public PilgrimEntityRenderer(EntityRendererProvider.Context context) {
-        super(context, new PlayerModel(context.bakeLayer(PILGRIM_LAYER), false), 0.5f);
+        super(context, new QuestNpcPlayerModel(context.bakeLayer(PILGRIM_LAYER), false), 0.5f);
         this.itemModelManager = context.getItemModelResolver();
-        this.addLayer(new ItemInHandLayer<>(this));
+        this.heldItemRenderingEnabled = !ClientModCompat.shouldUseSafeNpcHeldItemFallback();
+        if (this.heldItemRenderingEnabled) {
+            this.addLayer(new ItemInHandLayer<>(this));
+        } else {
+            this.addLayer(new QuestNpcHeldItemLayer(this));
+        }
     }
 
     public static net.minecraft.client.model.geom.builders.LayerDefinition createModelData() {
@@ -59,7 +66,11 @@ public final class PilgrimEntityRenderer extends MobRenderer<PilgrimEntity, Avat
     @Override
     public void extractRenderState(PilgrimEntity entity, AvatarRenderState state, float tickDelta) {
         super.extractRenderState(entity, state, tickDelta);
-        ArmedEntityRenderState.extractArmedEntityRenderState(entity, state, this.itemModelManager, tickDelta);
+        if (this.heldItemRenderingEnabled) {
+            ArmedEntityRenderState.extractArmedEntityRenderState(entity, state, this.itemModelManager, tickDelta);
+        } else {
+            QuestNpcHeldItemStateHelper.extractSafeHeldItemState(entity, state, this.itemModelManager);
+        }
         if (entity.getMainHandItem().getItem() == Items.TORCH) {
             state.rightArmPose = HumanoidModel.ArmPose.BLOCK;
         }
