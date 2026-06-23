@@ -214,6 +214,7 @@
     "command.village-quest.wallet.balance": "Kontostand: ",
     "command.village-quest.shop.locked": "Diese Ware verlangt %1$s Ruf. Freischaltung: %2$s (%3$s/%4$s).",
     "command.village-quest.shop.locked.project": "Diese Ware wird mit dem Dorfprojekt %1$s freigeschaltet.",
+    "command.village-quest.shop.locked.project_any": "Diese Ware wird erst nach dem ersten abgeschlossenen Dorfprojekt freigeschaltet.",
     "command.village-quest.shop.locked.project_reputation": "Diese Ware wird mit %1$s freigeschaltet und verlangt %2$s Ruf. Freischaltung: %3$s (%4$s/%5$s).",
     "command.village-quest.wallet.convert.none": "Keine alten Muenz-Items im Inventar gefunden.",
     "command.village-quest.wallet.convert.success": "Konvertiert: %s -> %s. Neuer Kontostand: %s",

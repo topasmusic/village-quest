@@ -1,0 +1,73 @@
+plugins {
+    id 'net.fabricmc.fabric-loom' version "${loom_version}"
+    id 'maven-publish'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+    archivesName = project.archives_base_name
+}
+
+repositories {
+    mavenCentral()
+    maven { url = "https://maven.fabricmc.net/" }
+}
+
+loom {
+    splitEnvironmentSourceSets()
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+
+    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+}
+
+processResources {
+    inputs.property "version", project.version
+    filesMatching("fabric.mod.json") { expand "version": inputs.properties.version }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = 25
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(25)
+    withSourcesJar()
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+}
+
+def releaseArchivesBaseName = project.archives_base_name
+def releaseVersion = project.version.toString()
+def releaseMinecraftVersion = project.minecraft_version.toString()
+def releaseFileStem = "${releaseArchivesBaseName}-${releaseVersion}-mc${releaseMinecraftVersion}"
+
+tasks.named("jar").configure {
+    archiveBaseName = releaseFileStem
+    archiveVersion = ""
+}
+
+tasks.named("sourcesJar").configure {
+    archiveBaseName = releaseFileStem
+    archiveClassifier = "sources"
+    archiveVersion = ""
+}
+
+jar {
+    inputs.property "archivesName", project.base.archivesName
+    from("LICENSE") { rename { "${it}_${inputs.properties.archivesName}" } }
+}
+
+publishing {
+    publications {
+        create("mavenJava", MavenPublication) {
+            artifactId = project.archives_base_name
+            from components.java
+        }
+    }
+}

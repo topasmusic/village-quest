@@ -214,6 +214,7 @@
     "command.village-quest.wallet.balance":  "Saldo: ",
     "command.village-quest.shop.locked":  "Este artículo requiere %1$s de reputación. Desbloqueo: %2$s (%3$s/%4$s).",
     "command.village-quest.shop.locked.project":  "Este objeto se desbloquea con el proyecto de la aldea %1$s.",
+    "command.village-quest.shop.locked.project_any":  "Este objeto se desbloquea tras completar el primer proyecto de la aldea.",
     "command.village-quest.shop.locked.project_reputation":  "Este artículo se desbloquea con %1$s y requiere %2$s de reputación. Desbloqueo: %3$s (%4$s/%5$s).",
     "command.village-quest.wallet.convert.none":  "No se han encontrado objetos de monedas antiguas en tu inventario.",
     "command.village-quest.wallet.convert.success":  "Convertido: %s -\u003e %s. Nuevo saldo: %s",

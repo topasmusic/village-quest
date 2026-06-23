@@ -214,6 +214,7 @@
     "command.village-quest.wallet.balance": "Balance: ",
     "command.village-quest.shop.locked": "This ware requires %1$s reputation. Unlock: %2$s (%3$s/%4$s).",
     "command.village-quest.shop.locked.project": "This ware unlocks with the %1$s village project.",
+    "command.village-quest.shop.locked.project_any": "This ware unlocks after the first completed village project.",
     "command.village-quest.shop.locked.project_reputation": "This ware unlocks with %1$s and requires %2$s reputation. Unlock: %3$s (%4$s/%5$s).",
     "command.village-quest.wallet.convert.none": "No legacy coin items were found in your inventory.",
     "command.village-quest.wallet.convert.success": "Converted: %s -> %s. New balance: %s",

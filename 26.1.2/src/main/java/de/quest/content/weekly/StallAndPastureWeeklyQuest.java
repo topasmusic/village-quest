@@ -7,7 +7,6 @@ import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.reputation.ReputationService;
 import de.quest.quest.daily.DailyQuestService;
 import de.quest.util.Texts;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.animal.sheep.Sheep;
 import net.minecraft.world.item.Item;
@@ -141,11 +140,8 @@ public final class StallAndPastureWeeklyQuest implements WeeklyQuestDefinition {
     }
 
     @Override
-    public void onEntityUse(ServerLevel world, ServerPlayer player, Entity entity, ItemStack inHand) {
+    public void onSheepSheared(ServerLevel world, ServerPlayer player, Sheep sheep) {
         if (!WeeklyQuestService.isAcceptedThisWeek(world, player.getUUID()) || WeeklyQuestService.hasCompletedThisWeek(world, player.getUUID())) {
-            return;
-        }
-        if (!(entity instanceof Sheep sheep) || inHand == null || !inHand.is(Items.SHEARS) || !sheep.readyForShearing()) {
             return;
         }
 

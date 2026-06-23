@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "village-quest:block/watch_bell_reliquary", "y": 180 },
+    "facing=south": { "model": "village-quest:block/watch_bell_reliquary" },
+    "facing=west": { "model": "village-quest:block/watch_bell_reliquary", "y": 90 },
+    "facing=east": { "model": "village-quest:block/watch_bell_reliquary", "y": 270 }
+  }
+}

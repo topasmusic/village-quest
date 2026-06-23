@@ -76,7 +76,7 @@ public final class QuestMasterScreen extends Screen {
             PartyView party
     ) {}
 
-    private record DetailLine(String text, int color, int indent, boolean spacer) {}
+    private record DetailLine(String text, int color, int indent, boolean spacer, boolean descriptionPreview) {}
 
     private record ButtonAction(int action, Text label, boolean enabled) {}
 
@@ -110,6 +110,12 @@ public final class QuestMasterScreen extends Screen {
     private static final int DETAIL_BODY_Y = 92;
     private static final int DETAIL_BODY_WIDTH = 111;
     private static final int DETAIL_BODY_HEIGHT = 62;
+    private static final int DETAIL_TEXT_TOP = 12;
+    private static final int DETAIL_TEXT_BOTTOM = 8;
+    private static final int DESCRIPTION_POPUP_WIDTH = 196;
+    private static final int DESCRIPTION_POPUP_PADDING = 6;
+    private static final int DESCRIPTION_POPUP_OFFSET = 12;
+    private static final int DESCRIPTION_POPUP_MARGIN = 8;
 
     private static final int BUTTON_X = 223;
     private static final int BUTTON_Y = 173;
@@ -177,6 +183,7 @@ public final class QuestMasterScreen extends Screen {
     private boolean partyDrawerOpen = false;
     private int partyCandidateScrollIndex = 0;
     private Text hoveredEntryTooltip;
+    private List<Text> hoveredDescriptionLines = List.of();
 
     public QuestMasterScreen(QuestMasterData data) {
         super(Text.translatable("screen.village-quest.questmaster.title"));
@@ -230,6 +237,7 @@ public final class QuestMasterScreen extends Screen {
         int left = (this.width - WINDOW_WIDTH) / 2;
         int top = (this.height - WINDOW_HEIGHT) / 2;
         this.hoveredEntryTooltip = null;
+        this.hoveredDescriptionLines = List.of();
 
         context.fill(0, 0, this.width, this.height, SCREEN_SHADE);
         drawBoard(context, left, top);
@@ -241,6 +249,9 @@ public final class QuestMasterScreen extends Screen {
         drawFooter(context, left, top);
 
         super.render(context, mouseX, mouseY, delta);
+        if (!this.hoveredDescriptionLines.isEmpty()) {
+            drawDescriptionPopup(context, mouseX, mouseY);
+        }
         if (this.hoveredEntryTooltip != null) {
             context.drawTooltip(this.textRenderer, this.hoveredEntryTooltip, mouseX, mouseY);
         }
@@ -452,7 +463,7 @@ public final class QuestMasterScreen extends Screen {
         }
 
         drawDetailHeader(context, left + DETAIL_HEADER_X, top + DETAIL_HEADER_Y, entry);
-        drawDetailBody(context, left + DETAIL_BODY_X, top + DETAIL_BODY_Y, entry);
+        drawDetailBody(context, left + DETAIL_BODY_X, top + DETAIL_BODY_Y, entry, mouseX, mouseY);
         if (isPartyDrawerAvailable(entry)) {
             drawPartyToggleButton(
                     context,
@@ -504,11 +515,11 @@ public final class QuestMasterScreen extends Screen {
         drawStatusTag(context, entry, x + 6, y + (titleWrapped ? 29 : 27), DETAIL_HEADER_WIDTH - 12);
     }
 
-    private void drawDetailBody(DrawContext context, int x, int y, EntryView entry) {
+    private void drawDetailBody(DrawContext context, int x, int y, EntryView entry, int mouseX, int mouseY) {
         int textX = x + 6;
-        int textY = y + 12;
+        int textY = y + DETAIL_TEXT_TOP;
         int textWidth = DETAIL_BODY_WIDTH - 14;
-        int viewportHeight = DETAIL_BODY_HEIGHT - 20;
+        int viewportHeight = DETAIL_BODY_HEIGHT - DETAIL_TEXT_TOP - DETAIL_TEXT_BOTTOM;
         int clipTop = textY;
         int clipBottom = textY + viewportHeight;
         List<DetailLine> lines = buildDetailLines(entry, textWidth);
@@ -525,6 +536,9 @@ public final class QuestMasterScreen extends Screen {
             }
             if (cursorY + this.textRenderer.fontHeight >= clipTop && cursorY <= clipBottom) {
                 context.drawText(this.textRenderer, line.text(), textX + line.indent(), cursorY, line.color(), false);
+                if (line.descriptionPreview() && isWithin(mouseX, mouseY, textX, cursorY, Math.max(1, textWidth - line.indent()), this.textRenderer.fontHeight)) {
+                    this.hoveredDescriptionLines = entry.descriptionLines();
+                }
             }
             cursorY += this.textRenderer.fontHeight;
         }
@@ -534,22 +548,22 @@ public final class QuestMasterScreen extends Screen {
 
     private List<DetailLine> buildDetailLines(EntryView entry, int maxWidth) {
         List<DetailLine> lines = new ArrayList<>();
-        addDetailSection(lines, Text.translatable("screen.village-quest.questmaster.description"), entry.descriptionLines(), maxWidth, BODY);
-        addDetailSection(lines, Text.translatable("screen.village-quest.questmaster.objectives"), entry.objectiveLines(), maxWidth, BODY);
-        addDetailSection(lines, Text.translatable("screen.village-quest.questmaster.rewards"), entry.rewardLines(), maxWidth, SECTION_HEADER);
+        addDetailSection(lines, Text.translatable("screen.village-quest.questmaster.description"), entry.descriptionLines(), maxWidth, BODY, true);
+        addDetailSection(lines, Text.translatable("screen.village-quest.questmaster.objectives"), entry.objectiveLines(), maxWidth, BODY, false);
+        addDetailSection(lines, Text.translatable("screen.village-quest.questmaster.rewards"), entry.rewardLines(), maxWidth, SECTION_HEADER, false);
         return lines;
     }
 
-    private void addDetailSection(List<DetailLine> lines, Text heading, List<Text> content, int maxWidth, int bodyColor) {
+    private void addDetailSection(List<DetailLine> lines, Text heading, List<Text> content, int maxWidth, int bodyColor, boolean descriptionPreview) {
         if (content == null || content.isEmpty()) {
             return;
         }
         if (!lines.isEmpty()) {
-            lines.add(new DetailLine("", BODY, 0, true));
+            lines.add(new DetailLine("", BODY, 0, true, false));
         }
-        lines.add(new DetailLine(heading.getString(), SECTION_HEADER, 0, false));
+        lines.add(new DetailLine(heading.getString(), SECTION_HEADER, 0, false, descriptionPreview));
         for (String wrapped : collectWrappedLines(content, maxWidth - 2, Integer.MAX_VALUE)) {
-            lines.add(new DetailLine(wrapped, bodyColor, 2, false));
+            lines.add(new DetailLine(wrapped, bodyColor, 2, false, descriptionPreview));
         }
     }
 
@@ -566,14 +580,62 @@ public final class QuestMasterScreen extends Screen {
             return;
         }
         int trackX = x + DETAIL_BODY_WIDTH - 5;
-        int trackY = y + 12;
-        int trackHeight = DETAIL_BODY_HEIGHT - 20;
+        int trackY = y + DETAIL_TEXT_TOP;
+        int trackHeight = DETAIL_BODY_HEIGHT - DETAIL_TEXT_TOP - DETAIL_TEXT_BOTTOM;
         context.fill(trackX, trackY, trackX + 2, trackY + trackHeight, SCROLL_TRACK);
 
         int thumbHeight = Math.max(10, (int) Math.round((double) viewportHeight / contentHeight * trackHeight));
         int thumbTravel = trackHeight - thumbHeight;
         int thumbOffset = this.detailScrollMax == 0 ? 0 : (int) Math.round((double) this.detailScrollOffset / this.detailScrollMax * thumbTravel);
         context.fill(trackX, trackY + thumbOffset, trackX + 2, trackY + thumbOffset + thumbHeight, SCROLL_THUMB);
+    }
+
+    private void drawDescriptionPopup(DrawContext context, int mouseX, int mouseY) {
+        int textWidth = DESCRIPTION_POPUP_WIDTH - (DESCRIPTION_POPUP_PADDING * 2);
+        int lineAdvance = this.textRenderer.fontHeight + 1;
+        int maxPopupHeight = Math.max(72, this.height - (DESCRIPTION_POPUP_MARGIN * 2));
+        int maxLines = Math.max(2, (maxPopupHeight - (DESCRIPTION_POPUP_PADDING * 2) - this.textRenderer.fontHeight - 6) / lineAdvance);
+        List<String> lines = collectWrappedLines(this.hoveredDescriptionLines, textWidth, maxLines);
+        if (lines.isEmpty()) {
+            return;
+        }
+
+        int popupHeight = (DESCRIPTION_POPUP_PADDING * 2) + this.textRenderer.fontHeight + 6 + (lines.size() * lineAdvance);
+        int popupX = mouseX + DESCRIPTION_POPUP_OFFSET;
+        if (popupX + DESCRIPTION_POPUP_WIDTH > this.width - DESCRIPTION_POPUP_MARGIN) {
+            popupX = mouseX - DESCRIPTION_POPUP_WIDTH - DESCRIPTION_POPUP_OFFSET;
+        }
+        popupX = Math.max(DESCRIPTION_POPUP_MARGIN, popupX);
+
+        int popupY = mouseY - 8;
+        if (popupY + popupHeight > this.height - DESCRIPTION_POPUP_MARGIN) {
+            popupY = this.height - popupHeight - DESCRIPTION_POPUP_MARGIN;
+        }
+        popupY = Math.max(DESCRIPTION_POPUP_MARGIN, popupY);
+
+        drawFrame(context, popupX, popupY, DESCRIPTION_POPUP_WIDTH, popupHeight, FRAME_DARK, FRAME_LIGHT, PARTY_DRAWER_FILL);
+        context.drawText(
+                this.textRenderer,
+                Text.translatable("screen.village-quest.questmaster.description").getString(),
+                popupX + DESCRIPTION_POPUP_PADDING,
+                popupY + DESCRIPTION_POPUP_PADDING,
+                SECTION_HEADER,
+                false
+        );
+        int separatorY = popupY + DESCRIPTION_POPUP_PADDING + this.textRenderer.fontHeight + 2;
+        context.fill(
+                popupX + DESCRIPTION_POPUP_PADDING,
+                separatorY,
+                popupX + DESCRIPTION_POPUP_WIDTH - DESCRIPTION_POPUP_PADDING,
+                separatorY + 1,
+                SCROLL_TRACK
+        );
+
+        int lineY = separatorY + 4;
+        for (String line : lines) {
+            context.drawText(this.textRenderer, line, popupX + DESCRIPTION_POPUP_PADDING, lineY, BODY, false);
+            lineY += lineAdvance;
+        }
     }
 
     private void drawEntryListScrollIndicator(DrawContext context, int left, int top, int viewportHeight, int entryCount) {

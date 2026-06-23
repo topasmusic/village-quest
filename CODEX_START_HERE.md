@@ -2,12 +2,6 @@
 
 Wenn in einer neuen Session auf diese Datei verwiesen wird, arbeite nach diesem Ablauf, bevor du Annahmen triffst oder Aenderungen machst.
 
-## Was der User in einer neuen Session sagen kann
-
-Beispiel:
-
-`Bitte lies CODEX_START_HERE.md und mach dich mit dem Repo vertraut, bevor du anfaengst.`
-
 ## Ziel
 
 Baue zuerst belastbaren Kontext aus Maintainer-Daten, Changelog und Wiki auf, damit du konsistent, vorsichtig und versionssauber arbeitest.
@@ -16,6 +10,7 @@ Baue zuerst belastbaren Kontext aus Maintainer-Daten, Changelog und Wiki auf, da
 
 1. `NEXT_SESSION.md`
 2. die passende Versions-Memory:
+   - `26.2/MEMORY.md`
    - `26.1.2/MEMORY.md`
    - `1.21.11/MEMORY.md`
 3. die betroffenen `CHANGELOG.md`-Dateien
@@ -25,17 +20,23 @@ Baue zuerst belastbaren Kontext aus Maintainer-Daten, Changelog und Wiki auf, da
 
 ## Repo-Grundsaetze
 
-- Standard-Arbeitslinie ist `26.1.2`, ausser der User will explizit Legacy oder Paritaet.
-- `26.1.2` ist die Mojang-Mappings-Linie.
+- Standard-Arbeitslinie ist `26.2`, ausser der User will explizit Legacy oder Paritaet.
+- `26.2` und `26.1.2` sind Mojang-Mappings-Linien.
 - `1.21.11` ist die Yarn-Mappings-Linie.
-- Niemals blind Code zwischen `26.1.2` und `1.21.11` uebernehmen.
+- Niemals blind Code zwischen `26.2` und `1.21.11` uebernehmen.
 - Verhalten portieren, aber APIs, Methodennamen, Typen und Imports pro Linie sauber anpassen.
-- Wenn eine Aenderung beide Linien betrifft, danach immer auf Konsistenz zwischen beiden Linien pruefen.
+- `26.1.2` bleibt die letzte stabile Modern-Referenzlinie.
 
 ## Aktuell wichtige Versionsfakten
 
-Stand dieser Datei: `2026-05-14`
+Stand dieser Datei: `2026-06-23`
 
+- `26.2`
+  - Minecraft `26.2`
+  - Java `25`
+  - Fabric Loader `0.19.3`
+  - Fabric API `0.153.0+26.2`
+  - offizielle Mojang-Namen
 - `26.1.2`
   - Minecraft `26.1.2`
   - Java `25`
@@ -51,40 +52,30 @@ Stand dieser Datei: `2026-05-14`
 
 ## Aktuell wichtige inhaltliche Fakten
 
-- Beide Linien stehen jetzt auf dem veroeffentlichten Stable-Stand `Village Quest 1.22.5`.
-- Die frueheren Multiplayer-Betas wurden in diesen Stable-Stand ueberfuehrt.
-- Der globale Reset-Befehl existiert auf beiden Linien:
+- `26.2` ist jetzt die aktive Stable- und Arbeitslinie fuer `Village Quest 1.22.6`.
+- `26.1.2` und `1.21.11` sind ebenfalls auf `1.22.6` veroeffentlicht.
+- Die frueheren Multiplayer-Betas sind Teil des aktuellen Stable-Gameplays.
+- `1.22.6` enthaelt die Quest-Tracking-Fixes fuer Halsband-Faerbung, Bienenstock-Ernten, Schaf-Scheren und die korrigierten `The Failing Harvest`-Ziele.
+- Alle drei gepflegten Linien haben jetzt die groessere `Questmaster`-Hover-Vorschau fuer lange Beschreibungen.
+- Der globale Reset-Befehl existiert auf den modernen Linien:
   - `/vq admin reset complete`
-- Auf `26.1.2` ist auch `/villagequest admin reset complete` relevant.
-- Beide Linien nutzen fuer Commands nur noch `/vq ...` und `/villagequest ...`.
+  - `/villagequest admin reset complete`
+- Die modernen Linien nutzen fuer Commands nur noch `/vq ...` und `/villagequest ...`.
 - Der Reset leert sowohl SavedData als auch laufende Village-Quest-Runtime-Session-Zustaende.
 - Wolkensprung wurde restlos aus Code, Ressourcen, Skripten und Templates entfernt.
-- Beide Linien enthalten den ausgerollten Story-Batch `Shadows on the Trade Road`; `1.21.11` ist Yarn-mapped, `26.1.2` ist Mojang-mapped.
-- Dieser Batch hat bereits mehrere Playtest-Follow-ups:
-  - `45`-Herz-Karawanen
-  - Wellen in `3`-Sekunden-Pulsen mit bis zu `2` Gegnern pro Puls
-  - engerer `16-26`-Block-Gegner-Spawnring
-  - `5` Sekunden Spawn-Glowing fuer Wellengegner
-  - Gegner-Leash und Last-Enemy-Glowing-Safety
-  - finale Traitorn: `3` Elites mit `38.4` Max Health
-  - ca. `1/3` schwache Karawanen-Guards mit Holzschwert, langsamer Defense und entzerrten Spawnpunkten
-  - kein Wasser-/Fluid-Spawn
-  - Gegner-Remaining-Counter im aktiven Quest-Status
-  - `testfinal` auf aktuelles Nachtfenster
-- Bei weiteren Aenderungen an diesem Batch beide Linien bewusst vergleichen, aber nicht blind kopieren.
-- Historische Erwaehnungen in alten Changelog-Eintraegen koennen absichtlich noch existieren.
+- `Shadows on the Trade Road` bleibt der spaete Story-Batch, der bei Aenderungen bewusst gegen die Legacy-Linie verglichen werden muss.
 
 ## Wenn der User nach "latest" fragt
 
 - Bei Fabric Loader, Fabric API, Minecraft-Versionen oder aehnlichen beweglichen Fakten nicht raten.
-- Wenn "neueste", "aktuellste", "up to date" oder aehnliches gefragt ist, offizielle Quellen oder primaere Quellen pruefen.
-- Wenn sich zwei Linien unterschiedlich verhalten, das explizit benennen.
+- Bei "neueste", "aktuellste", "up to date" oder aehnlichem offizielle Quellen oder primaere Quellen pruefen.
+- Wenn sich Linien unterschiedlich verhalten, das explizit benennen.
 
 ## Arbeitsweise fuer Aenderungen
 
 1. Zuerst Maintainer-Daten, Changelog, README und Wiki lesen.
 2. Dann die betroffenen Klassen und Ressourcen lesen.
-3. Unterschiede zwischen `26.1.2` und `1.21.11` bewusst benennen, wenn beide Linien betroffen sind.
+3. Unterschiede zwischen `26.2` und `1.21.11` bewusst benennen, wenn beide Linien betroffen sind.
 4. Wenn die Aufgabe `Shadows on the Trade Road`, `Watch Bell`-Folgecontent oder Karawanen-/Traitor-Systeme betrifft:
    - zusaetzlich `WATCH_BELL_EXPANSION_PLAN.md` lesen
 5. Erst dann editieren.

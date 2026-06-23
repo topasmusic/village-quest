@@ -1,45 +1,51 @@
 # Next Session Notes
 
-## Latest Shipped State
+## Current Release State
 
-Published on `2026-05-14` as `Village Quest 1.22.5` on both maintained lines:
+As of `2026-06-23`, `Village Quest 1.22.6` is now shipped on all three maintained lines, with `26.2` as the active default work line.
 
+Current stable tags:
+
+- `v1.22.6-mc1.21.11`
+- `v1.22.6-mc26.1.2`
+- `v1.22.6-mc26.2`
 - `v1.22.5-mc1.21.11`
 - `v1.22.5-mc26.1.2`
 
-This shipped batch includes:
+The carried-forward modern baseline includes:
 
-- Fabric Loader `0.19.2` on both maintained lines
-- Fabric API `0.146.0+26.1.2` on `26.1.2`
-- the late `Questmaster` story arc `Shadows on the Trade Road` on both lines
-- the new global reset command `/vq admin reset complete`
+- Fabric Loader `0.19.3` on `26.2`
+- Fabric API `0.153.0+26.2` on `26.2`
+- the late `Questmaster` story arc `Shadows on the Trade Road`
+- the global reset command `/vq admin reset complete`
 - late-road admin test helpers under `/vq admin story shadows ...`
-- contextual villager dialogue for talk-based objectives in `Market Rounds`, `Market Road Troubles`, and `Shadows`
-- the accepted `Wayfinder's Compass` art pass: chunkier pixel outer ring, readable original inner dial
-- `Questmaster` and `Pilgrim` screens closing again through the active inventory keybind
-- Wolkensprung fully removed from code, resources, scripts, and templates
-
-This shipped stable batch adds:
-
-- multiplayer quest parties on dedicated servers
-- shared `Daily`, `Weekly`, core `Story`, and normal `Pilgrim` combat-contract progress
-- explicit chat offers for joining already running party quests
-- restart-persistent party and shared-session state
-- repeatable `light`/`normal`/`heavy` target profiles with matching reward scaling
-- the `Questmaster` shortcut on every journal page
-- a reduced `1 hour` cooldown between completed `4`-chapter story arcs
-- a full `es_es` localization, with the original Spanish translation provided by `Lutte`
+- contextual villager dialogue for talk-based objectives
+- the accepted `Wayfinder's Compass` art pass
+- `Questmaster` and `Pilgrim` inventory-key close support
+- the shipped multiplayer quest-party feature set
+- the `1.22.6` quest-tracking fixes for collar recolors, hive harvests, sheep shearing, and `The Failing Harvest` targets
+- the larger `Questmaster` description hover preview on all three maintained lines
 
 ## Version-Line Differences
 
-`26.1.2`:
+`26.2`:
 
 - active default line
 - Java `25`
+- Minecraft `26.2`
+- Fabric Loader `0.19.3`
+- Fabric API `0.153.0+26.2`
+- official Mojang-name environment
+- documented command roots are only `/vq ...` and `/villagequest ...`
+
+`26.1.2`:
+
+- last shipped modern reference line
+- Java `25`
+- Minecraft `26.1.2`
 - Fabric Loader `0.19.2`
 - Fabric API `0.146.0+26.1.2`
 - official Mojang-name environment
-- documented command roots are only `/vq ...` and `/villagequest ...`
 
 `1.21.11`:
 
@@ -48,12 +54,11 @@ This shipped stable batch adds:
 - Fabric Loader `0.19.2`
 - Fabric API `0.141.3+1.21.11`
 - Yarn `1.21.11+build.4`
-- documented command roots are only `/vq ...` and `/villagequest ...`
 
 ## Workflow Rules
 
 - Git operations happen at the root repo:
-  - `C:\Users\me\Desktop\Topas Mods\Village Quest`
+  - `C:\Users\me\Desktop\Topas Mods\MC MODS\Topas Mods\Village Quest`
 - If the user asks for parity, a backport, or release maintenance, re-read:
   - `CHANGELOG.md`
   - `README.md`
@@ -62,18 +67,12 @@ This shipped stable batch adds:
   - the matching `MEMORY.md`
 - if the task touches the late road-defense story, also re-read:
   - `WATCH_BELL_EXPANSION_PLAN.md`
-- Do not blindly copy files between `26.1.2` and `1.21.11`; port behavior deliberately against that line's APIs and mappings.
-- `26.1.2` is Mojang-named and `1.21.11` is Yarn-mapped; treat that as a real implementation difference.
+- Do not blindly copy files between `26.2` and `1.21.11`; port behavior deliberately against that line's APIs and mappings.
+- `26.2` is Mojang-named and `1.21.11` is Yarn-mapped; treat that as a real implementation difference.
+- Use `26.1.2` as the last shipped modern comparison point when the `26.2` port behaves differently.
 - Do not launch `runClient` yourself unless the user explicitly asks.
 - When handing off tests, always include the correct version-specific `runClient` command.
-- Current legacy `1.21.11` multiplayer quest-party work is dedicated-server only; the Questmaster party UI is intentionally hidden in singleplayer/integrated worlds.
-- GitHub release bodies should keep the existing style:
-  - first line repeats the release title once
-  - then use short flat bullets
-  - no prose paragraphs
-- Important PowerShell release-note lesson:
-  - avoid backticks/code formatting inside `gh release ... --notes` text
-  - plain text is safer there
+- Current party UI remains intentionally hidden on singleplayer or integrated worlds.
 
 ## Useful Test Reset
 
@@ -81,25 +80,15 @@ This shipped stable batch adds:
   - `run/config/village-quest-client.properties`
 - Delete that file in the relevant version folder if the first-use journal hints need to be replayed locally.
 
+## Verified State
+
+- `1.21.11`, `26.1.2`, and `26.2` builds verified on `2026-06-23`
+- copied local test world:
+  - `26.2/run/saves/New World`
+
 ## Next Sensible Work
 
-- New feature work should start from the shipped `1.22.5` stable baseline on both lines.
-- Default to `26.1.2` for fresh work; only touch `1.21.11` when the user explicitly wants legacy work or parity.
-- If the next request is about `Shadows on the Trade Road`, expect follow-up tuning, polish, or bugfixes rather than a greenfield implementation.
-- If the next task touches the new global reset command, keep documenting clearly that it is a Village Quest data reset, not a world or inventory wipe.
-- If the next task continues the multiplayer quest-party batch, re-read both `26.1.2/MEMORY.md` and `1.21.11/MEMORY.md` first and preserve the dedicated-server-only rule.
-
-## Current Beta State
-
-- both maintained lines now carry the former multiplayer beta batch as stable `1.22.5`
-- runtime quest parties with `/vq party ...` commands and clickable chat invites
-- `Questmaster` party drawer UI on shareable `Daily`, `Weekly`, and core `Story` entries
-- pooled objective progress and pooled turn-in inventory across shareable `Daily`, `Weekly`, core `Story`, and normal `Pilgrim` combat-contract flows
-- explicit chat offers for joining already running shared dailies, weeklies, story chapters, and pilgrim contracts
-- `10 minute` disconnect grace before offline members are removed
-- restart persistence for party membership, shared session state, pending offers, and disconnect grace
-- repeatable `Daily`, `Weekly`, and `Pilgrim` target profiles now roll and persist as `light`/`normal`/`heavy`
-- repeatable `Daily`, `Weekly`, and `Pilgrim` rewards now scale against those same profiles instead of staying fully static
-- non-`Shadows` story arcs now use authored irregular target numbers instead of obvious stack or half-stack values
-- the journal `Questmaster` shortcut is visible on every journal page on both lines
-- current open risk is test coverage, not missing core plumbing
+- validate the `26.2` port in-game against the copied world
+- if the next request is about `Shadows on the Trade Road`, expect follow-up tuning, polish, or bugfixes rather than a greenfield implementation
+- if the next task touches the new global reset command, keep documenting clearly that it is a Village Quest data reset, not a world or inventory wipe
+- if the next task continues the multiplayer quest-party batch, re-read both `26.2/MEMORY.md` and `1.21.11/MEMORY.md` first and preserve the dedicated-server-only rule

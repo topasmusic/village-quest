@@ -515,6 +515,13 @@ public final class StoryQuestService {
         }
     }
 
+    public static void onSheepSheared(ServerWorld world, ServerPlayerEntity player, net.minecraft.entity.passive.SheepEntity sheep) {
+        StoryChapterDefinition chapter = currentChapter(world, player.getUuid());
+        if (chapter != null) {
+            chapter.onSheepSheared(world, player, sheep);
+        }
+    }
+
     public static void onTrackedItemPickup(ServerWorld world, ServerPlayerEntity player, ItemStack stack, int count) {
         StoryChapterDefinition chapter = currentChapter(world, player.getUuid());
         if (chapter != null) {

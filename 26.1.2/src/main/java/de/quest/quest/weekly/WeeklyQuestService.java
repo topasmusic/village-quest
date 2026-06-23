@@ -637,6 +637,13 @@ public final class WeeklyQuestService {
         }
     }
 
+    public static void onSheepSheared(ServerLevel world, ServerPlayer player, net.minecraft.world.entity.animal.sheep.Sheep sheep) {
+        WeeklyQuestDefinition definition = activeDefinition(world, player.getUUID());
+        if (definition != null) {
+            withTargetProfile(data(world, player.getUUID()), () -> definition.onSheepSheared(world, player, sheep));
+        }
+    }
+
     public static void onTrackedItemPickup(ServerLevel world, ServerPlayer player, ItemStack stack, int count) {
         WeeklyQuestDefinition definition = activeDefinition(world, player.getUUID());
         if (definition != null) {
