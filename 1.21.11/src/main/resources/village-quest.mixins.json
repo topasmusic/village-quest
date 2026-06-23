@@ -6,7 +6,9 @@
     "AbstractFurnaceScreenHandlerMixin",
     "AnvilScreenHandlerMixin",
     "AnimalEntityMixin",
+    "BeehiveBlockMixin",
     "BrewedPotionCriterionMixin",
+    "CatEntityMixin",
     "FurnaceOutputSlotMixin",
     "ForgingScreenHandlerAccessor",
     "ForgingScreenHandlerMixin",
@@ -17,7 +19,8 @@
     "SheepEntityMixin",
     "TamableAnimalMixin",
     "TradeOutputSlotMixin",
-    "WanderingTraderEntityInvoker"
+    "WanderingTraderEntityInvoker",
+    "WolfEntityMixin"
   ],
   "client": [
     "HandledScreenAccessor",

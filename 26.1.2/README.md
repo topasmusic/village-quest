@@ -19,6 +19,7 @@
 ## Highlights
 
 - Daily and weekly quests through the `Questmaster`
+- `Questmaster` descriptions can expand in a larger hover preview without enlarging the board
 - A journal, quest tracker, and wallet with `Silvermark` and `Crown`
 - Reputation across farming, crafting, animals, trade, and later roadside work
 - Story arcs and permanent village projects

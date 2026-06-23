@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 1.22.6 - Quest Tracking Fixes And Questmaster Hover Preview
+
+Release date: 2026-06-23
+
+- Fixed `Fresh Finery for Your Companions!` so the quest now completes from the real successful `Wolf` and `Cat` collar recolor path again instead of a fragile early interaction callback.
+- Fixed successful hive-harvest progress tracking for the `Questmaster`, so `The Failing Harvest` chapter 2 and related bee quests now advance on real honey-bottle and honeycomb harvests again.
+- Fixed sheep-based quest progress tracking so `Wool Weaver`, `Stall and Pasture`, and `Restless Pens` chapter 2 now count only real successful shearing events and no longer depend on the fragile early entity-use hook.
+- Realigned all `The Failing Harvest` chapter targets with the shipped quest text again: `16/8` crops, `3/1` hive goods, `6/4` baked goods, and `2/4` trade proof.
+- `Questmaster` descriptions now open in a larger hover preview so long quest text can be read without enlarging the whole board.
+- Project-gated `Pilgrim` wares now wait for completed village-project progress consistently again, so `Village Ledger Plaque` and `Village Ledger Desk` no longer leak into the shop before the first real village project is finished.
+
 ## 1.22.5 - Quest Parties, Variety, Localization, And Client Compat
 
 Release date: 2026-05-14

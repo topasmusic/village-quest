@@ -74,10 +74,6 @@ public final class QuestService {
                 var state = world.getBlockState(pos);
                 var stack = player.getStackInHand(hand);
                 StoryQuestService.onUseBlock(sw, sp, pos, state, stack);
-                DailyQuestService.onBeeNestInteract(sw, sp, state, stack);
-                StoryQuestService.onBeeNestInteract(sw, sp, state, stack);
-                SpecialQuestService.onBeeNestInteract(sw, sp, state, stack);
-                PilgrimContractService.onBeeNestInteract(sw, sp, state, stack);
             }
             return ActionResult.PASS;
         });

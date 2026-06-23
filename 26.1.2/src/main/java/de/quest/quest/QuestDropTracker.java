@@ -161,13 +161,7 @@ public final class QuestDropTracker {
         }
 
         cleanupExpiredShears();
-        PendingShearSource match = null;
-        for (PendingShearSource source : PENDING_SHEARS) {
-            if (source.matches(world, sheep.getUUID())) {
-                match = source;
-                break;
-            }
-        }
+        PendingShearSource match = findPendingShear(world, sheep.getUUID());
         if (match == null) {
             return;
         }
@@ -182,6 +176,14 @@ public final class QuestDropTracker {
     public static void onShearedFinished(ServerLevel world, Sheep sheep) {
         if (world == null || sheep == null) {
             return;
+        }
+        cleanupExpiredShears();
+        PendingShearSource match = findPendingShear(world, sheep.getUUID());
+        if (match != null) {
+            ServerPlayer player = world.getServer().getPlayerList().getPlayer(match.playerId);
+            if (player != null) {
+                DailyQuestService.onSheepSheared(world, player, sheep);
+            }
         }
         removePendingShear(world, sheep.getUUID());
     }
@@ -293,6 +295,15 @@ public final class QuestDropTracker {
                 iterator.remove();
             }
         }
+    }
+
+    private static PendingShearSource findPendingShear(ServerLevel world, UUID sheepId) {
+        for (PendingShearSource source : PENDING_SHEARS) {
+            if (source.matches(world, sheepId)) {
+                return source;
+            }
+        }
+        return null;
     }
 
     private static void dispatchBlockBreakSource(ServerLevel world, ServerPlayer player, BlockPos pos) {

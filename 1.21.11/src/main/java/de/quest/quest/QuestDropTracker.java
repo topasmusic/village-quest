@@ -182,13 +182,7 @@ public final class QuestDropTracker {
         }
 
         cleanupExpiredShears();
-        PendingShearSource match = null;
-        for (PendingShearSource source : PENDING_SHEARS) {
-            if (source.matches(world, sheep.getUuid())) {
-                match = source;
-                break;
-            }
-        }
+        PendingShearSource match = findPendingShear(world, sheep.getUuid());
         if (match == null) {
             return;
         }
@@ -203,6 +197,14 @@ public final class QuestDropTracker {
     public static void onShearedFinished(ServerWorld world, SheepEntity sheep) {
         if (world == null || sheep == null) {
             return;
+        }
+        cleanupExpiredShears();
+        PendingShearSource match = findPendingShear(world, sheep.getUuid());
+        if (match != null) {
+            ServerPlayerEntity player = world.getServer().getPlayerManager().getPlayer(match.playerId);
+            if (player != null) {
+                DailyQuestService.onSheepSheared(world, player, sheep);
+            }
         }
         removePendingShear(world, sheep.getUuid());
     }
@@ -314,6 +316,15 @@ public final class QuestDropTracker {
                 iterator.remove();
             }
         }
+    }
+
+    private static PendingShearSource findPendingShear(ServerWorld world, UUID sheepId) {
+        for (PendingShearSource source : PENDING_SHEARS) {
+            if (source.matches(world, sheepId)) {
+                return source;
+            }
+        }
+        return null;
     }
 
     private static Map<Item, Integer> getTrackedBlockDrops(ServerWorld world,

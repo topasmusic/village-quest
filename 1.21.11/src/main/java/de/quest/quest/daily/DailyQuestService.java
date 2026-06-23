@@ -1,5 +1,6 @@
 package de.quest.quest.daily;
 
+import de.quest.content.daily.PetCollarDailyQuest;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.economy.CurrencyService;
@@ -1376,6 +1377,17 @@ public final class DailyQuestService {
         player.sendMessage(withTargetProfile(data, activeQuestSlot(world, player.getUuid()), () -> definition.progressLine(world, player.getUuid())), true);
     }
 
+    public static void onSuccessfulPetCollarRecolor(ServerWorld world, ServerPlayerEntity player) {
+        DailyQuestDefinition definition = activeDefinition(world, player.getUuid());
+        if (definition instanceof PetCollarDailyQuest) {
+            withTargetProfile(
+                    data(world, player.getUuid()),
+                    activeQuestSlot(world, player.getUuid()),
+                    () -> PetCollarDailyQuest.trackSuccessfulRecolor(world, player)
+            );
+        }
+    }
+
     public static void onBeeNestInteract(ServerWorld world, ServerPlayerEntity player, net.minecraft.block.BlockState state, ItemStack inHand) {
         DailyQuestDefinition definition = activeDefinition(world, player.getUuid());
         if (definition != null) {
@@ -1397,6 +1409,15 @@ public final class DailyQuestService {
             withTargetProfile(data(world, player.getUuid()), activeQuestSlot(world, player.getUuid()), () -> definition.onEntityUse(world, player, entity, inHand));
         }
         WeeklyQuestService.onEntityUse(world, player, entity, inHand);
+    }
+
+    public static void onSheepSheared(ServerWorld world, ServerPlayerEntity player, net.minecraft.entity.passive.SheepEntity sheep) {
+        DailyQuestDefinition definition = activeDefinition(world, player.getUuid());
+        if (definition != null) {
+            withTargetProfile(data(world, player.getUuid()), activeQuestSlot(world, player.getUuid()), () -> definition.onSheepSheared(world, player, sheep));
+        }
+        WeeklyQuestService.onSheepSheared(world, player, sheep);
+        StoryQuestService.onSheepSheared(world, player, sheep);
     }
 
     public static void onTrackedItemPickup(ServerWorld world, ServerPlayerEntity player, ItemStack stack, int count) {

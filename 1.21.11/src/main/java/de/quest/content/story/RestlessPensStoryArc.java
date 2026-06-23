@@ -284,10 +284,7 @@ public final class RestlessPensStoryArc implements StoryArcDefinition {
         }
 
         @Override
-        public void onEntityUse(ServerWorld world, ServerPlayerEntity player, Entity entity, ItemStack inHand) {
-            if (!(entity instanceof SheepEntity sheep) || inHand == null || !inHand.isOf(Items.SHEARS) || !sheep.isShearable()) {
-                return;
-            }
+        public void onSheepSheared(ServerWorld world, ServerPlayerEntity player, SheepEntity sheep) {
             addProgress(world, player, StoryQuestKeys.RESTLESS_PENS_SHEARS, 1, WOOL_BEFORE_WEATHER_SHEAR_TARGET);
         }
     }

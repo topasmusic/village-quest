@@ -5,10 +5,8 @@ import de.quest.quest.daily.DailyQuestDefinition;
 import de.quest.quest.daily.DailyQuestKeys;
 import de.quest.quest.daily.DailyQuestService;
 import java.util.UUID;
-import net.minecraft.entity.Entity;
 import net.minecraft.entity.passive.SheepEntity;
 import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
@@ -64,11 +62,9 @@ public final class WoolWeaverDailyQuest implements DailyQuestDefinition {
     }
 
     @Override
-    public void onEntityUse(ServerWorld world, ServerPlayerEntity player, Entity entity, ItemStack inHand) {
+    public void onSheepSheared(ServerWorld world, ServerPlayerEntity player, SheepEntity sheep) {
         if (DailyQuestService.hasCompletedToday(world, player.getUuid())) return;
         if (!DailyQuestService.isAcceptedToday(world, player.getUuid())) return;
-        if (!(entity instanceof SheepEntity sheep)) return;
-        if (!inHand.isOf(Items.SHEARS) || !sheep.isShearable()) return;
 
         UUID playerId = player.getUuid();
         int currentSheep = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.SHEEP_PROGRESS);

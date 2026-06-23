@@ -538,6 +538,31 @@ public final class ShopService {
         return ids;
     }
 
+    private static boolean hasCompletedVillageProject(ServerWorld world, UUID playerId) {
+        if (world == null || playerId == null) {
+            return false;
+        }
+        for (VillageProjectType project : VillageProjectType.values()) {
+            if (project == VillageProjectType.VILLAGE_LEDGER) {
+                continue;
+            }
+            if (VillageProjectService.isUnlocked(world, playerId, project)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isProjectOfferUnlocked(ServerWorld world, UUID playerId, VillageProjectType projectUnlock) {
+        if (projectUnlock == null) {
+            return true;
+        }
+        if (projectUnlock == VillageProjectType.VILLAGE_LEDGER) {
+            return hasCompletedVillageProject(world, playerId);
+        }
+        return VillageProjectService.isUnlocked(world, playerId, projectUnlock);
+    }
+
     public static boolean isOfferUnlocked(ServerWorld world, UUID playerId, String offerId) {
         if (offerId == null || offerId.isBlank()) {
             return false;
@@ -546,7 +571,7 @@ public final class ShopService {
             return true;
         }
         VillageProjectType projectUnlock = PROJECT_UNLOCKS.get(offerId);
-        if (projectUnlock != null && !VillageProjectService.isUnlocked(world, playerId, projectUnlock)) {
+        if (!isProjectOfferUnlocked(world, playerId, projectUnlock)) {
             return false;
         }
         PilgrimContractType contractUnlock = PILGRIM_CONTRACT_UNLOCKS.get(offerId);
@@ -558,7 +583,7 @@ public final class ShopService {
 
     private static boolean isProjectUnlocked(ServerWorld world, UUID playerId, String offerId) {
         VillageProjectType projectUnlock = PROJECT_UNLOCKS.get(offerId);
-        return projectUnlock == null || VillageProjectService.isUnlocked(world, playerId, projectUnlock);
+        return isProjectOfferUnlocked(world, playerId, projectUnlock);
     }
 
     private static Text lockedMessage(ServerWorld world, UUID playerId, String offerId) {
@@ -577,6 +602,9 @@ public final class ShopService {
             );
         }
         if (projectLocked) {
+            if (projectUnlock == VillageProjectType.VILLAGE_LEDGER) {
+                return Text.translatable("command.village-quest.shop.locked.project_any");
+            }
             return Text.translatable(
                     "command.village-quest.shop.locked.project",
                     Text.translatable("quest.village-quest.project." + projectUnlock.id() + ".title")

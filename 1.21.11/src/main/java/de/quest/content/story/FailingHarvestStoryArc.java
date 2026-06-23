@@ -27,14 +27,14 @@ import java.util.List;
 import java.util.UUID;
 
 public final class FailingHarvestStoryArc implements StoryArcDefinition {
-    private static final int THIN_FIELDS_WHEAT_TARGET = 117;
-    private static final int THIN_FIELDS_POTATO_TARGET = 123;
-    private static final int QUIET_HIVES_HONEY_TARGET = 19;
-    private static final int QUIET_HIVES_COMB_TARGET = 13;
-    private static final int BREAD_BREAD_TARGET = 57;
-    private static final int BREAD_POTATO_TARGET = 53;
-    private static final int MARKET_TRADES_TARGET = 29;
-    private static final int MARKET_EMERALDS_TARGET = 117;
+    private static final int THIN_FIELDS_WHEAT_TARGET = 16;
+    private static final int THIN_FIELDS_POTATO_TARGET = 8;
+    private static final int QUIET_HIVES_HONEY_TARGET = 3;
+    private static final int QUIET_HIVES_COMB_TARGET = 1;
+    private static final int BREAD_BREAD_TARGET = 6;
+    private static final int BREAD_POTATO_TARGET = 4;
+    private static final int MARKET_TRADES_TARGET = 2;
+    private static final int MARKET_EMERALDS_TARGET = 4;
 
     private final List<StoryChapterDefinition> chapters = List.of(
             new ThinFieldsChapter(),

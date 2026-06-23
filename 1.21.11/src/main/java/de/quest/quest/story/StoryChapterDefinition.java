@@ -3,6 +3,7 @@ package de.quest.quest.story;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.passive.AnimalEntity;
+import net.minecraft.entity.passive.SheepEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -42,6 +43,8 @@ public interface StoryChapterDefinition {
     default void onBlockBreak(ServerWorld world, ServerPlayerEntity player, BlockPos pos, BlockState state) {}
 
     default void onEntityUse(ServerWorld world, ServerPlayerEntity player, Entity entity, ItemStack inHand) {}
+
+    default void onSheepSheared(ServerWorld world, ServerPlayerEntity player, SheepEntity sheep) {}
 
     default void onTrackedItemPickup(ServerWorld world, ServerPlayerEntity player, ItemStack stack, int count) {}
 
