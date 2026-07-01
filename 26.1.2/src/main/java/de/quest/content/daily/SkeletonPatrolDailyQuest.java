@@ -68,7 +68,7 @@ public final class SkeletonPatrolDailyQuest implements DailyQuestDefinition {
         if (!(killedEntity instanceof AbstractSkeleton)) {
             return;
         }
-        if (DailyQuestService.hasCompletedToday(world, player.getUUID()) || !DailyQuestService.isAcceptedToday(world, player.getUUID())) {
+        if (!DailyQuestService.isTrackingQuest(world, player.getUUID(), type())) {
             return;
         }
 

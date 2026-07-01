@@ -63,8 +63,7 @@ public final class WoolWeaverDailyQuest implements DailyQuestDefinition {
 
     @Override
     public void onSheepSheared(ServerWorld world, ServerPlayerEntity player, SheepEntity sheep) {
-        if (DailyQuestService.hasCompletedToday(world, player.getUuid())) return;
-        if (!DailyQuestService.isAcceptedToday(world, player.getUuid())) return;
+        if (!DailyQuestService.isTrackingQuest(world, player.getUuid(), type())) return;
 
         UUID playerId = player.getUuid();
         int currentSheep = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.SHEEP_PROGRESS);

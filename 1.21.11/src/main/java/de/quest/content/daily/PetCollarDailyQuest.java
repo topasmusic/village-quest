@@ -64,7 +64,7 @@ public final class PetCollarDailyQuest implements DailyQuestDefinition {
         if (world == null || player == null) {
             return;
         }
-        if (DailyQuestService.hasCompletedToday(world, player.getUuid()) || !DailyQuestService.isAcceptedToday(world, player.getUuid())) {
+        if (!DailyQuestService.isTrackingQuest(world, player.getUuid(), DailyQuestService.DailyQuestType.PET_COLLAR)) {
             return;
         }
         DailyQuestService.setQuestFlag(world, player.getUuid(), DailyQuestKeys.PET_COLLAR_DONE, true);

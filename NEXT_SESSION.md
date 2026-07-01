@@ -2,10 +2,13 @@
 
 ## Current Release State
 
-As of `2026-06-23`, `Village Quest 1.22.6` is now shipped on all three maintained lines, with `26.2` as the active default work line.
+As of `2026-07-01`, `Village Quest 1.22.7` is now shipped on all three maintained lines, with `26.2` as the active default work line.
 
 Current stable tags:
 
+- `v1.22.7-mc1.21.11`
+- `v1.22.7-mc26.1.2`
+- `v1.22.7-mc26.2`
 - `v1.22.6-mc1.21.11`
 - `v1.22.6-mc26.1.2`
 - `v1.22.6-mc26.2`
@@ -24,6 +27,7 @@ The carried-forward modern baseline includes:
 - `Questmaster` and `Pilgrim` inventory-key close support
 - the shipped multiplayer quest-party feature set
 - the `1.22.6` quest-tracking fixes for collar recolors, hive harvests, sheep shearing, and `The Failing Harvest` targets
+- the `1.22.7` shard-bonus fix for action-based `Daily` quests like `Autumn Harvest`
 - the larger `Questmaster` description hover preview on all three maintained lines
 
 ## Version-Line Differences
@@ -82,7 +86,7 @@ The carried-forward modern baseline includes:
 
 ## Verified State
 
-- `1.21.11`, `26.1.2`, and `26.2` builds verified on `2026-06-23`
+- `1.21.11`, `26.1.2`, and `26.2` builds verified on `2026-07-01`
 - copied local test world:
   - `26.2/run/saves/New World`
 

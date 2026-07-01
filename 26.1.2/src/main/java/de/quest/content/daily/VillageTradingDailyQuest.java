@@ -66,8 +66,7 @@ public final class VillageTradingDailyQuest implements DailyQuestDefinition {
 
     @Override
     public void onVillagerTrade(ServerLevel world, ServerPlayer player, ItemStack stack) {
-        if (DailyQuestService.hasCompletedToday(world, player.getUUID())) return;
-        if (!DailyQuestService.isAcceptedToday(world, player.getUUID())) return;
+        if (!DailyQuestService.isTrackingQuest(world, player.getUUID(), type())) return;
 
         UUID playerId = player.getUUID();
         int currentTrades = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.TRADE_PROGRESS);

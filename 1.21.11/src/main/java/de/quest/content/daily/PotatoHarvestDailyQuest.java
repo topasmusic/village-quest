@@ -70,8 +70,7 @@ public final class PotatoHarvestDailyQuest implements DailyQuestDefinition {
 
     @Override
     public void onBlockBreak(ServerWorld world, ServerPlayerEntity player, BlockPos pos, BlockState state) {
-        if (DailyQuestService.hasCompletedToday(world, player.getUuid())) return;
-        if (!DailyQuestService.isAcceptedToday(world, player.getUuid())) return;
+        if (!DailyQuestService.isTrackingQuest(world, player.getUuid(), type())) return;
         if (!(state.getBlock() instanceof CropBlock crop)) return;
         if (!state.contains(CropBlock.AGE) || state.get(CropBlock.AGE) < crop.getMaxAge()) return;
 

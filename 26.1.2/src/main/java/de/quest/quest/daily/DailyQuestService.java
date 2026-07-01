@@ -409,6 +409,13 @@ public final class DailyQuestService {
         return ensureQuestChoice(world, playerId);
     }
 
+    public static boolean isTrackingQuest(ServerLevel world, UUID playerId, DailyQuestType questType) {
+        if (world == null || playerId == null || questType == null) {
+            return false;
+        }
+        return activeQuestChoice(world, playerId) == questType;
+    }
+
     private static DailyQuestType ensureQuestChoice(ServerLevel world, UUID playerId) {
         return ensureQuestChoice(world, playerId, data(world, playerId));
     }

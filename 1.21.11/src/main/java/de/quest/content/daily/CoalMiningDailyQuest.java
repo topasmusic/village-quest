@@ -114,8 +114,7 @@ public final class CoalMiningDailyQuest implements DailyQuestDefinition {
 
     @Override
     public void onTrackedItemPickup(ServerWorld world, ServerPlayerEntity player, ItemStack stack, int count) {
-        if (DailyQuestService.hasCompletedToday(world, player.getUuid())) return;
-        if (!DailyQuestService.isAcceptedToday(world, player.getUuid())) return;
+        if (!DailyQuestService.isTrackingQuest(world, player.getUuid(), type())) return;
         if (stack.isOf(Items.RAW_IRON)) {
             incrementProgress(world, player, DailyQuestKeys.IRON_PROGRESS, DailyQuestService.ironTarget(), count);
         } else if (stack.isOf(Items.COAL)) {

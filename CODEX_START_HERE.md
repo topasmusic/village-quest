@@ -29,7 +29,7 @@ Baue zuerst belastbaren Kontext aus Maintainer-Daten, Changelog und Wiki auf, da
 
 ## Aktuell wichtige Versionsfakten
 
-Stand dieser Datei: `2026-06-23`
+Stand dieser Datei: `2026-07-01`
 
 - `26.2`
   - Minecraft `26.2`
@@ -52,10 +52,10 @@ Stand dieser Datei: `2026-06-23`
 
 ## Aktuell wichtige inhaltliche Fakten
 
-- `26.2` ist jetzt die aktive Stable- und Arbeitslinie fuer `Village Quest 1.22.6`.
-- `26.1.2` und `1.21.11` sind ebenfalls auf `1.22.6` veroeffentlicht.
+- `26.2` ist jetzt die aktive Stable- und Arbeitslinie fuer `Village Quest 1.22.7`.
+- `26.1.2` und `1.21.11` sind ebenfalls auf `1.22.7` veroeffentlicht.
 - Die frueheren Multiplayer-Betas sind Teil des aktuellen Stable-Gameplays.
-- `1.22.6` enthaelt die Quest-Tracking-Fixes fuer Halsband-Faerbung, Bienenstock-Ernten, Schaf-Scheren und die korrigierten `The Failing Harvest`-Ziele.
+- `1.22.7` enthaelt die Quest-Tracking-Fixes fuer Halsband-Faerbung, Bienenstock-Ernten, Schaf-Scheren, die korrigierten `The Failing Harvest`-Ziele und das reparierte Shard-Bonus-Tracking fuer actionbasierte `Daily`-Quests.
 - Alle drei gepflegten Linien haben jetzt die groessere `Questmaster`-Hover-Vorschau fuer lange Beschreibungen.
 - Der globale Reset-Befehl existiert auf den modernen Linien:
   - `/vq admin reset complete`
