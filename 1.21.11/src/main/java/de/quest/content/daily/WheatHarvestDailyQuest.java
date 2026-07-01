@@ -118,8 +118,7 @@ public final class WheatHarvestDailyQuest implements DailyQuestDefinition {
 
     @Override
     public void onServerTick(ServerWorld world, ServerPlayerEntity player) {
-        if (DailyQuestService.hasCompletedToday(world, player.getUuid())) return;
-        if (!DailyQuestService.isAcceptedToday(world, player.getUuid())) return;
+        if (!DailyQuestService.isTrackingQuest(world, player.getUuid(), type())) return;
 
         UUID playerId = player.getUuid();
         int craftedBread = DailyQuestService.getCraftedStat(player, Items.BREAD);
@@ -144,8 +143,7 @@ public final class WheatHarvestDailyQuest implements DailyQuestDefinition {
 
     @Override
     public void onBlockBreak(ServerWorld world, ServerPlayerEntity player, BlockPos pos, BlockState state) {
-        if (DailyQuestService.hasCompletedToday(world, player.getUuid())) return;
-        if (!DailyQuestService.isAcceptedToday(world, player.getUuid())) return;
+        if (!DailyQuestService.isTrackingQuest(world, player.getUuid(), type())) return;
         if (!state.isOf(Blocks.WHEAT)) return;
         if (!(state.getBlock() instanceof CropBlock crop)) return;
         if (!state.contains(CropBlock.AGE) || state.get(CropBlock.AGE) < crop.getMaxAge()) return;

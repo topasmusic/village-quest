@@ -69,8 +69,7 @@ public final class WoodcuttingDailyQuest implements DailyQuestDefinition {
 
     @Override
     public void onBlockBreak(ServerLevel world, ServerPlayer player, BlockPos pos, BlockState state) {
-        if (DailyQuestService.hasCompletedToday(world, player.getUUID())) return;
-        if (!DailyQuestService.isAcceptedToday(world, player.getUUID())) return;
+        if (!DailyQuestService.isTrackingQuest(world, player.getUUID(), type())) return;
         if (state.is(BlockTags.LOGS)) {
             incrementProgress(world, player, DailyQuestKeys.WOOD_PROGRESS, DailyQuestService.woodTarget());
         } else if (state.is(Blocks.COAL_ORE) || state.is(Blocks.DEEPSLATE_COAL_ORE)) {

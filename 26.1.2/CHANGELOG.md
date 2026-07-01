@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.22.7 - Shard Bonus Daily Tracking Fixes
+
+Release date: 2026-07-01
+
+- Fixed action-based `Daily` quest tracking for shard bonus quests, so `Autumn Harvest` and the other event-driven dailies now progress correctly when accepted through the `Questmaster` shard offer.
+
 ## 1.22.6 - Quest Tracking Fixes And Questmaster Hover Preview
 
 Release date: 2026-06-23

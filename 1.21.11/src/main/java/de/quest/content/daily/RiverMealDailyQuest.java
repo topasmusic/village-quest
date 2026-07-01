@@ -111,8 +111,7 @@ public final class RiverMealDailyQuest implements DailyQuestDefinition {
 
     @Override
     public void onServerTick(ServerWorld world, ServerPlayerEntity player) {
-        if (DailyQuestService.hasCompletedToday(world, player.getUuid())) return;
-        if (!DailyQuestService.isAcceptedToday(world, player.getUuid())) return;
+        if (!DailyQuestService.isTrackingQuest(world, player.getUuid(), type())) return;
 
         UUID playerId = player.getUuid();
         int fishCaught = DailyQuestService.getCustomStat(player, Stats.FISH_CAUGHT);
@@ -139,8 +138,7 @@ public final class RiverMealDailyQuest implements DailyQuestDefinition {
 
     @Override
     public void onFurnaceOutput(ServerWorld world, ServerPlayerEntity player, ItemStack stack) {
-        if (DailyQuestService.hasCompletedToday(world, player.getUuid())) return;
-        if (!DailyQuestService.isAcceptedToday(world, player.getUuid())) return;
+        if (!DailyQuestService.isTrackingQuest(world, player.getUuid(), type())) return;
 
         int cookedFish = cookedFishCount(stack);
         if (cookedFish <= 0) {

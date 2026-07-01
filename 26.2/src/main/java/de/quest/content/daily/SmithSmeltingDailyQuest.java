@@ -108,8 +108,7 @@ public final class SmithSmeltingDailyQuest implements DailyQuestDefinition {
 
     @Override
     public void onTrackedItemPickup(ServerLevel world, ServerPlayer player, ItemStack stack, int count) {
-        if (DailyQuestService.hasCompletedToday(world, player.getUUID())) return;
-        if (!DailyQuestService.isAcceptedToday(world, player.getUUID())) return;
+        if (!DailyQuestService.isTrackingQuest(world, player.getUUID(), type())) return;
         if (!stack.is(Items.RAW_IRON)) {
             return;
         }
@@ -119,8 +118,7 @@ public final class SmithSmeltingDailyQuest implements DailyQuestDefinition {
 
     @Override
     public void onFurnaceOutput(ServerLevel world, ServerPlayer player, ItemStack stack) {
-        if (DailyQuestService.hasCompletedToday(world, player.getUUID())) return;
-        if (!DailyQuestService.isAcceptedToday(world, player.getUUID())) return;
+        if (!DailyQuestService.isTrackingQuest(world, player.getUUID(), type())) return;
         if (!stack.is(Items.IRON_INGOT)) {
             return;
         }

@@ -74,7 +74,7 @@ public final class MarketRoundsDailyQuest implements DailyQuestDefinition {
 
     @Override
     public void onEntityUse(ServerWorld world, ServerPlayerEntity player, Entity entity, ItemStack inHand) {
-        if (DailyQuestService.hasCompletedToday(world, player.getUuid()) || !DailyQuestService.isAcceptedToday(world, player.getUuid())) {
+        if (!DailyQuestService.isTrackingQuest(world, player.getUuid(), type())) {
             return;
         }
         if (!(entity instanceof VillagerEntity villager) || villager.isBaby()) {
@@ -103,7 +103,7 @@ public final class MarketRoundsDailyQuest implements DailyQuestDefinition {
 
     @Override
     public void onVillagerTrade(ServerWorld world, ServerPlayerEntity player, ItemStack stack) {
-        if (DailyQuestService.hasCompletedToday(world, player.getUuid()) || !DailyQuestService.isAcceptedToday(world, player.getUuid())) {
+        if (!DailyQuestService.isTrackingQuest(world, player.getUuid(), type())) {
             return;
         }
 

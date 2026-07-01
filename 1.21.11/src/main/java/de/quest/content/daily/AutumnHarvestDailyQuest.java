@@ -72,8 +72,7 @@ public final class AutumnHarvestDailyQuest implements DailyQuestDefinition {
 
     @Override
     public void onBlockBreak(ServerWorld world, ServerPlayerEntity player, BlockPos pos, BlockState state) {
-        if (DailyQuestService.hasCompletedToday(world, player.getUuid())) return;
-        if (!DailyQuestService.isAcceptedToday(world, player.getUuid())) return;
+        if (!DailyQuestService.isTrackingQuest(world, player.getUuid(), type())) return;
 
         if (state.isOf(Blocks.PUMPKIN) && hasAdjacentStem(world, pos, Blocks.PUMPKIN_STEM, Blocks.ATTACHED_PUMPKIN_STEM)) {
             incrementProgress(world, player, DailyQuestKeys.AUTUMN_PUMPKIN_PROGRESS, DailyQuestService.autumnPumpkinTarget());

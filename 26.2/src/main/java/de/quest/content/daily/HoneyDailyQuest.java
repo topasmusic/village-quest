@@ -68,8 +68,7 @@ public final class HoneyDailyQuest implements DailyQuestDefinition {
     }
 
     public void onBeeNestInteract(ServerLevel world, ServerPlayer player, BlockState state, ItemStack inHand) {
-        if (DailyQuestService.hasCompletedToday(world, player.getUUID())) return;
-        if (!DailyQuestService.isAcceptedToday(world, player.getUUID())) return;
+        if (!DailyQuestService.isTrackingQuest(world, player.getUUID(), type())) return;
         if (!state.is(Blocks.BEE_NEST) && !state.is(Blocks.BEEHIVE)) return;
         if (!state.hasProperty(BeehiveBlock.HONEY_LEVEL)) return;
         Integer level = state.getValue(BeehiveBlock.HONEY_LEVEL);

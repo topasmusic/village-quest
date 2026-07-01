@@ -63,8 +63,7 @@ public final class StallNewLifeDailyQuest implements DailyQuestDefinition {
 
     @Override
     public void onAnimalLove(ServerWorld world, ServerPlayerEntity player, AnimalEntity animal) {
-        if (DailyQuestService.hasCompletedToday(world, player.getUuid())) return;
-        if (!DailyQuestService.isAcceptedToday(world, player.getUuid())) return;
+        if (!DailyQuestService.isTrackingQuest(world, player.getUuid(), type())) return;
 
         UUID playerId = player.getUuid();
         int current = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.STALL_BREED_PROGRESS);

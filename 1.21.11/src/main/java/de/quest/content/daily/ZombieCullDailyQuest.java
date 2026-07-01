@@ -69,7 +69,7 @@ public final class ZombieCullDailyQuest implements DailyQuestDefinition {
         if (!(killedEntity instanceof ZombieEntity)) {
             return;
         }
-        if (DailyQuestService.hasCompletedToday(world, player.getUuid()) || !DailyQuestService.isAcceptedToday(world, player.getUuid())) {
+        if (!DailyQuestService.isTrackingQuest(world, player.getUuid(), type())) {
             return;
         }
 
