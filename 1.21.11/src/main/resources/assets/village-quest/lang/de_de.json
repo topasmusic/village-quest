@@ -1136,6 +1136,8 @@
     "quest.village-quest.story.restless_pens.chapter_4.offer.1": "Der letzte Schritt ist kein weiterer Schnitt, sondern ein Zeichen fuer den weiteren Weg. Wenn Glocke und Herde zugleich antworten und das Reittier ordentlich geschuetzt ist, kann das Dorf dem Weg vor sich trauen.",
     "quest.village-quest.story.restless_pens.chapter_4.offer.2": "Laeute eine Glocke, waehrend mindestens 9 Weidetiere nahe genug beisammenstehen, und trage eine Diamant-Pferderuestung bei dir, damit der Ruf des Hirten wieder als Zeichen fuer sichere weitere Wege gilt.",
     "quest.village-quest.story.restless_pens.chapter_4.progress": "Rufe gesammelt %s/%s",
+    "quest.village-quest.story.restless_pens.chapter_4.progress.1": "Rufe gesammelt %s/%s",
+    "quest.village-quest.story.restless_pens.chapter_4.progress.2": "Diamant-Pferderuestung %s/%s",
     "quest.village-quest.story.restless_pens.chapter_4.complete.1": "Der Glockenschlag trifft wieder auf Antwort statt auf zerstreute Bewegung.",
     "quest.village-quest.story.restless_pens.chapter_4.complete.2": "Von nun an gelten die Pferche nicht mehr als Sorge, sondern wieder als Teil der Ordnung des Dorfs.",
     "quest.village-quest.story.restless_pens.chapter_4.complete.3": "Die Weide-Charta wird nun im Dorfledger auf deinen Namen eingetragen.",

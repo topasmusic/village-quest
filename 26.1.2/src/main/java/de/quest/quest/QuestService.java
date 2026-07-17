@@ -1,15 +1,19 @@
 package de.quest.quest;
 
 import de.quest.content.item.PeaceArmorHandler;
+import de.quest.content.story.ShadowsTradeRoadEncounterService;
 import de.quest.data.QuestState;
 import de.quest.party.QuestPartyService;
 import de.quest.painting.PaintingNameService;
 import de.quest.pilgrim.PilgrimContractService;
 import de.quest.pilgrim.PilgrimService;
 import de.quest.quest.daily.DailyQuestService;
+import de.quest.quest.special.MerchantSealQuestService;
 import de.quest.quest.special.SpecialQuestService;
+import de.quest.quest.special.SurveyorCompassQuestService;
 import de.quest.quest.story.StoryQuestService;
 import de.quest.quest.weekly.WeeklyQuestService;
+import de.quest.questmaster.QuestMasterUiService;
 import net.fabricmc.fabric.api.entity.event.v1.ServerEntityCombatEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
@@ -20,6 +24,7 @@ import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
 
 public final class QuestService {
@@ -27,15 +32,16 @@ public final class QuestService {
 
     public static void registerEvents() {
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+            resetTransientRuntimeState();
             QuestState.get(server).applyToRuntime();
             QuestPartyService.loadPersistentState(server);
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
-            QuestDropTracker.clear();
             QuestPartyService.persistRuntimeState(server);
             QuestState state = QuestState.get(server);
             state.updateFromRuntime();
             server.overworld().getDataStorage().saveAndJoin();
+            resetTransientRuntimeState();
         });
 
         ServerTickEvents.END_SERVER_TICK.register(QuestPartyService::onServerTick);
@@ -53,7 +59,7 @@ public final class QuestService {
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
                 server.execute(() -> QuestPartyService.handleJoin(handler.player)));
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
-                server.execute(() -> QuestPartyService.handleDisconnect(handler.player)));
+                server.execute(() -> handleDisconnect(handler.player)));
 
         ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
             if (entity instanceof net.minecraft.server.level.ServerPlayer player) {
@@ -130,5 +136,28 @@ public final class QuestService {
                 PilgrimContractService.onMonsterKill(sw, sp, killedEntity);
             }
         });
+    }
+
+    private static void handleDisconnect(ServerPlayer player) {
+        if (player == null) {
+            return;
+        }
+        var playerId = player.getUUID();
+        QuestBookHelper.handleDisconnect(playerId);
+        QuestTrackerService.handleDisconnect(playerId);
+        QuestMasterUiService.handleDisconnect(player);
+        MerchantSealQuestService.handleDisconnect(playerId);
+        SurveyorCompassQuestService.handleDisconnect(playerId);
+        QuestPartyService.handleDisconnect(player);
+    }
+
+    private static void resetTransientRuntimeState() {
+        QuestDropTracker.clear();
+        QuestBookHelper.resetAllSessions();
+        QuestTrackerService.resetAllRuntimeState();
+        QuestMasterUiService.resetAllSessions();
+        MerchantSealQuestService.resetRuntimeState();
+        SurveyorCompassQuestService.resetRuntimeState();
+        ShadowsTradeRoadEncounterService.resetRuntimeState();
     }
 }

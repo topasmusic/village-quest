@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 1.22.8 - Reliable Resets And Cleaner Sessions
+
+Release date: 2026-07-17
+
+- The complete admin reset now also clears quest parties, invites, shared sessions, and reconnect-grace state, so old multiplayer data cannot return on the next server shutdown or restart.
+- `Restless Pens` now shows both finale requirements correctly in English, German, and Spanish: the gathered bell call and the required Diamond Horse Armor.
+- Player-bound journals, trackers, Questmaster screens, and relic hints now clean up on disconnect, while every transient cache, including late-road encounters, resets at server start and stop so stale session state cannot carry into later worlds.
+- Repository checks now build all three maintained Minecraft lines from the root and verify JSON, translation keys, placeholders, and directly referenced localization entries before release artifacts are produced.
+
 ## 1.22.7 - Shard Bonus Daily Tracking Fixes
 
 Release date: 2026-07-01

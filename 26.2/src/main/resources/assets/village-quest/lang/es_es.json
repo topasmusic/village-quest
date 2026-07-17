@@ -1136,6 +1136,8 @@
     "quest.village-quest.story.restless_pens.chapter_4.offer.1":  "El último paso no supone un nuevo corte, sino una señal de que todo está listo para el camino que se abre ante nosotros. Si el rebaño y el cencerro responden al unísono, y la montura está debidamente protegida, el pueblo puede confiar en el camino que tiene por delante.",
     "quest.village-quest.story.restless_pens.chapter_4.offer.2":  "Toca una campana mientras al menos 10 animales de pastoreo se encuentran reunidos cerca, y lleva una armadura de diamante para caballos, de modo que puedas recorrer con seguridad el camino que hay más allá del pueblo.",
     "quest.village-quest.story.restless_pens.chapter_4.progress":  "Llamadas recibidas: %s/%s",
+    "quest.village-quest.story.restless_pens.chapter_4.progress.1":  "Llamadas recibidas: %s/%s",
+    "quest.village-quest.story.restless_pens.chapter_4.progress.2":  "Armadura de diamante para caballo: %s/%s",
     "quest.village-quest.story.restless_pens.chapter_4.complete.1":  "Ahora, el repique de la campana encuentra una respuesta, en lugar de un movimiento disperso.",
     "quest.village-quest.story.restless_pens.chapter_4.complete.2":  "A partir de hoy, los corrales ya no son motivo de preocupación, sino que vuelven a formar parte del orden del pueblo.",
     "quest.village-quest.story.restless_pens.chapter_4.complete.3":  "La escritura de Pasture ya figura en el registro municipal a tu nombre.",

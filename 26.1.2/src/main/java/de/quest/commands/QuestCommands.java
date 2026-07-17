@@ -10,6 +10,7 @@ import de.quest.economy.CurrencyService;
 import de.quest.party.QuestPartyService;
 import de.quest.pilgrim.PilgrimContractService;
 import de.quest.pilgrim.PilgrimService;
+import de.quest.quest.QuestDropTracker;
 import de.quest.quest.QuestTrackerService;
 import de.quest.questmaster.QuestMasterService;
 import de.quest.questmaster.QuestMasterUiService;
@@ -1149,6 +1150,8 @@ public final class QuestCommands {
         QuestBookHelper.resetAllSessions();
         QuestTrackerService.resetAllRuntimeState();
         QuestMasterUiService.resetAllSessions();
+        QuestDropTracker.clear();
+        QuestPartyService.resetRuntimeState();
         MerchantSealQuestService.resetRuntimeState();
         SurveyorCompassQuestService.resetRuntimeState();
         ShadowsTradeRoadEncounterService.resetRuntimeState();

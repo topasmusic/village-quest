@@ -132,6 +132,20 @@ public final class QuestMasterUiService {
         OPEN_SESSIONS.clear();
     }
 
+    public static void handleDisconnect(ServerPlayerEntity player) {
+        if (player == null) {
+            return;
+        }
+        Integer entityId = OPEN_SESSIONS.remove(player.getUuid());
+        if (entityId == null) {
+            return;
+        }
+        QuestMasterEntity questMaster = resolveQuestMaster((ServerWorld) player.getEntityWorld(), entityId);
+        if (questMaster != null && questMaster.isCustomer(player)) {
+            questMaster.clearCustomer();
+        }
+    }
+
     public static void handleSession(ServerPlayerEntity player, Payloads.QuestMasterSessionPayload payload) {
         if (player == null || payload == null || payload.action() != Payloads.QuestMasterSessionPayload.ACTION_CLOSE) {
             return;

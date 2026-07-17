@@ -164,6 +164,12 @@ public final class MerchantSealQuestService {
         LAST_PILGRIM_SEAL_USE_TICK.clear();
     }
 
+    public static void handleDisconnect(UUID playerId) {
+        if (playerId != null) {
+            LAST_PILGRIM_SEAL_USE_TICK.remove(playerId);
+        }
+    }
+
     public static void onVillagerTrade(ServerWorld world, ServerPlayerEntity player, ItemStack stack) {
         if (world == null || player == null) {
             return;

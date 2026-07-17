@@ -95,6 +95,12 @@ public final class SurveyorCompassQuestService {
         LAST_HINTS.clear();
     }
 
+    public static void handleDisconnect(UUID playerId) {
+        if (playerId != null) {
+            LAST_HINTS.remove(playerId);
+        }
+    }
+
     private record CompassTarget(BlockPos pos, Component label) {}
     private record HomeTarget(ServerLevel world, BlockPos pos, float yaw) {}
     private record HintCandidate(String key, Component message) {}

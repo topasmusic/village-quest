@@ -88,6 +88,12 @@ public final class QuestTrackerService {
         LAST_TRACKER_REFRESH.clear();
     }
 
+    public static void handleDisconnect(UUID playerId) {
+        if (playerId != null) {
+            LAST_TRACKER_REFRESH.remove(playerId);
+        }
+    }
+
     public static void enableForAcceptedQuest(ServerLevel world, ServerPlayer player) {
         if (world == null || player == null) {
             return;

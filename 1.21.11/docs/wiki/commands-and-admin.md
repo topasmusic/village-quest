@@ -111,6 +111,7 @@ This command clears the saved Village Quest state for every player at once:
 - daily, weekly, story, special, and pilgrim progress
 - unlocked village projects
 - pilgrim natural spawn cooldown state
+- quest parties, pending invites, shared sessions, and reconnect-grace state
 - active Village Quest journals, trackers, questmaster sessions, and pilgrim trades
 - spawned Questmasters and Pilgrims plus runtime quest-session caches
 - late-road runtime entities such as caravan merchants, couriers, spawned hostiles, and traitors

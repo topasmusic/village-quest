@@ -3,9 +3,11 @@
 This wiki covers the current maintained `1.21.11` line of `Village Quest`.
 
 Latest stable release:
-- `1.22.5` on `2026-05-14`
+- `1.22.8` on `2026-07-17`
 
 Current highlights:
+- complete resets now reliably clear quest parties and shared multiplayer state as well
+- `Restless Pens` shows both finale requirements correctly in all three shipped languages
 - multiplayer quest parties are now available on dedicated servers
 - `Daily`, `Weekly`, the main `Story` arcs, and normal `Pilgrim` combat contracts can be shared cooperatively
 - repeatable quests now use more varied target numbers and rewards that scale with them
