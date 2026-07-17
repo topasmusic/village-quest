@@ -18,6 +18,7 @@
 
 # fabric run data
 **/run/
+/local-test/
 
 # platform files
 **/.DS_Store

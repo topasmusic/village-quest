@@ -79,7 +79,7 @@ These are intended for server admins, pack makers, and testing only:
 - `/vq admin wallet remove <player> <amount> [silvermark|crown]`
 - `/vq admin wallet set <player> <amount> [silvermark|crown]`
 
-`/vq admin reset complete` resets the saved Village Quest server data for every player, including wallet, reputation, daily/weekly progress, story and project state, special quests, pilgrim contracts, and cooldowns. It also closes active Village Quest UIs and trades, clears runtime quest-session caches, and despawns spawned Questmasters, Pilgrims, caravan merchants, couriers, traitors, and active road-defense mobs. It does not wipe world blocks or player inventories.
+`/vq admin reset complete` resets the saved Village Quest server data for every player, including wallet, reputation, daily/weekly progress, story and project state, special quests, pilgrim contracts, cooldowns, quest parties, invites, shared sessions, and reconnect-grace state. It also closes active Village Quest UIs and trades, clears runtime quest-session caches, and despawns spawned Questmasters, Pilgrims, caravan merchants, couriers, traitors, and active road-defense mobs. It does not wipe world blocks or player inventories.
 
 ## License
 

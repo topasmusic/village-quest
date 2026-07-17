@@ -2,10 +2,13 @@
 
 ## Current Release State
 
-As of `2026-07-01`, `Village Quest 1.22.7` is now shipped on all three maintained lines, with `26.2` as the active default work line.
+As of `2026-07-17`, `Village Quest 1.22.8` is shipped on all three maintained lines, with `26.2` as the active default work line.
 
 Current stable tags:
 
+- `v1.22.8-mc1.21.11`
+- `v1.22.8-mc26.1.2`
+- `v1.22.8-mc26.2`
 - `v1.22.7-mc1.21.11`
 - `v1.22.7-mc26.1.2`
 - `v1.22.7-mc26.2`
@@ -17,6 +20,10 @@ Current stable tags:
 
 The carried-forward modern baseline includes:
 
+- reliable global resets that clear saved and live party/invite/shared-session state together
+- lifecycle cleanup for journal, tracker, Questmaster, relic-hint, party, and late-road runtime caches
+- complete two-line `Restless Pens` finale progress in English, German, and Spanish
+- a recognized root CI workflow that validates resources and builds all three maintained lines
 - Fabric Loader `0.19.3` on `26.2`
 - Fabric API `0.153.0+26.2` on `26.2`
 - the late `Questmaster` story arc `Shadows on the Trade Road`
@@ -86,7 +93,7 @@ The carried-forward modern baseline includes:
 
 ## Verified State
 
-- `1.21.11`, `26.1.2`, and `26.2` builds verified on `2026-07-01`
+- `1.21.11`, `26.1.2`, and `26.2` clean builds verified on `2026-07-17`
 - copied local test world:
   - `26.2/run/saves/New World`
 

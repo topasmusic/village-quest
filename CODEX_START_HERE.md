@@ -29,7 +29,7 @@ Baue zuerst belastbaren Kontext aus Maintainer-Daten, Changelog und Wiki auf, da
 
 ## Aktuell wichtige Versionsfakten
 
-Stand dieser Datei: `2026-07-01`
+Stand dieser Datei: `2026-07-17`
 
 - `26.2`
   - Minecraft `26.2`
@@ -52,16 +52,19 @@ Stand dieser Datei: `2026-07-01`
 
 ## Aktuell wichtige inhaltliche Fakten
 
-- `26.2` ist jetzt die aktive Stable- und Arbeitslinie fuer `Village Quest 1.22.7`.
-- `26.1.2` und `1.21.11` sind ebenfalls auf `1.22.7` veroeffentlicht.
+- `26.2` ist jetzt die aktive Stable- und Arbeitslinie fuer `Village Quest 1.22.8`.
+- `26.1.2` und `1.21.11` sind ebenfalls auf `1.22.8` veroeffentlicht.
 - Die frueheren Multiplayer-Betas sind Teil des aktuellen Stable-Gameplays.
+- `1.22.8` verhindert, dass globale Resets alte Party-, Invite- oder Shared-Session-Daten beim Serverstopp wiederherstellen, und bereinigt kurzlebige Runtime-Zustaende sauber an Server- und Spieler-Lifecycle-Grenzen.
+- `Restless Pens` Kapitel 4 zeigt jetzt beide Fortschrittszeilen in `en_us`, `de_de` und `es_es` korrekt an.
 - `1.22.7` enthaelt die Quest-Tracking-Fixes fuer Halsband-Faerbung, Bienenstock-Ernten, Schaf-Scheren, die korrigierten `The Failing Harvest`-Ziele und das reparierte Shard-Bonus-Tracking fuer actionbasierte `Daily`-Quests.
 - Alle drei gepflegten Linien haben jetzt die groessere `Questmaster`-Hover-Vorschau fuer lange Beschreibungen.
-- Der globale Reset-Befehl existiert auf den modernen Linien:
+- Der globale Reset-Befehl existiert auf allen drei gepflegten Linien:
   - `/vq admin reset complete`
   - `/villagequest admin reset complete`
 - Die modernen Linien nutzen fuer Commands nur noch `/vq ...` und `/villagequest ...`.
-- Der Reset leert sowohl SavedData als auch laufende Village-Quest-Runtime-Session-Zustaende.
+- Der Reset leert sowohl SavedData als auch laufende Village-Quest-Runtime-Session-Zustaende, einschliesslich Quest-Partys, Invites, Shared Sessions und Reconnect Grace.
+- Der erkannte Root-Workflow unter `.github/workflows/build.yml` baut alle drei Linien und prueft Ressourcen sowie Sprachparitaet.
 - Wolkensprung wurde restlos aus Code, Ressourcen, Skripten und Templates entfernt.
 - `Shadows on the Trade Road` bleibt der spaete Story-Batch, der bei Aenderungen bewusst gegen die Legacy-Linie verglichen werden muss.
 

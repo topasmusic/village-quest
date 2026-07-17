@@ -2,10 +2,12 @@
 
 This wiki covers the current maintained `26.2` line of `Village Quest`.
 
-Current working baseline:
-- `1.22.5` ported to Minecraft `26.2` on `2026-06-23`
+Current stable release:
+- `1.22.8` for Minecraft `26.2` on `2026-07-17`
 
 Current highlights:
+- complete resets now reliably clear quest parties and shared multiplayer state as well
+- `Restless Pens` shows both finale requirements correctly in all three shipped languages
 - multiplayer quest parties are now available on dedicated servers
 - the current modern line now compiles and runs against Minecraft `26.2`
 - `Daily`, `Weekly`, the main `Story` arcs, and normal `Pilgrim` combat contracts can be shared cooperatively

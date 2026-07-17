@@ -207,6 +207,14 @@ public final class QuestBookHelper {
         LAST_JOURNAL_REFRESH.clear();
     }
 
+    public static void handleDisconnect(UUID playerId) {
+        if (playerId == null) {
+            return;
+        }
+        JOURNAL_ENABLED.remove(playerId);
+        LAST_JOURNAL_REFRESH.remove(playerId);
+    }
+
     public static void onServerTick(MinecraftServer server) {
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             UUID pid = player.getUUID();
