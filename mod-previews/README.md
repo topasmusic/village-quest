@@ -22,4 +22,4 @@ The current images show:
 - the compact Cartographer's Notes help page
 - the final compact modular Quest Board with Daily, Weekly, Story, and Special category tabs
 
-Images `01` through `05` predate the later five-route waypoint/survey polish. Images `06` and `07` show the intermediate live-navigation build. Images `08` through `15` are current 2560x1440 real-client captures of the unreleased unified UI and terrain-map pass.
+Images `01` through `05` predate the later five-route waypoint/survey polish. Images `06` and `07` show the intermediate live-navigation build. Images `08` through `15` are current 2560x1440 real-client captures of the released unified UI and terrain-map pass.

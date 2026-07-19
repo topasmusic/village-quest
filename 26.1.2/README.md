@@ -126,4 +126,4 @@ Village Quest uses a mixed-license model beginning with `2.0.0`:
 - third-party and provenance-sensitive files keep their own terms and are listed in [THIRD_PARTY_ASSETS.md](THIRD_PARTY_ASSETS.md) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md); and
 - releases already published under MIT remain MIT-licensed under the notice preserved in [LICENSE-MIT](LICENSE-MIT).
 
-See [LICENSE](LICENSE), [COPYING](COPYING), and [COPYING.LESSER](COPYING.LESSER) for the complete terms. The unresolved legacy entity skins listed in `THIRD_PARTY_ASSETS.md` remain an asset-provenance release gate.
+See [LICENSE](LICENSE), [COPYING](COPYING), and [COPYING.LESSER](COPYING.LESSER) for the complete terms. The unresolved legacy entity skins listed in `THIRD_PARTY_ASSETS.md` are excluded from Village Quest ownership and licensing claims; replacement or source clearance remains a priority.

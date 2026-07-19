@@ -204,7 +204,7 @@ Current unlockable project ids:
 - `/vq admin routes testsetup [player]`
 - `/vq admin routes reset [player]`
 
-`testsetup` is the one-command core test for the unreleased caravan batch. It unlocks the `Caravan Yard`, gives the ledger and a Wayfinder if needed, completes the older story prerequisites, creates five surveyed routes with different security and quality values, adds all route specializations, multiple upgrade states, rank-five guild progress and `300 Silvermarks`, starts two event scenarios, prepares `The Empty Caravan` to be offered by the Questmaster, and opens the route map.
+`testsetup` is the one-command core test for the Village Quest 2.0 caravan systems. It unlocks the `Caravan Yard`, gives the ledger and a Wayfinder if needed, completes the older story prerequisites, creates five surveyed routes with different security and quality values, adds all route specializations, multiple upgrade states, rank-five guild progress and `300 Silvermarks`, starts two event scenarios, prepares `The Empty Caravan` to be offered by the Questmaster, and opens the route map.
 
 `reset` clears the selected player's registered villages, route progress, route events, earnings, and materialized route NPCs. It does not remove world blocks or revoke unrelated progression.
 

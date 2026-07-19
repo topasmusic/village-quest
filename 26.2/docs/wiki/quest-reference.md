@@ -117,7 +117,7 @@ This appears only after `Watch Bell` plus `3` completed `Pilgrim` combat rumors:
 
 ### `The Empty Caravan`
 
-This unreleased solo follow-up appears after `Shadows on the Trade Road` is complete:
+This solo follow-up appears after `Shadows on the Trade Road` is complete:
 
 1. `The Cart That Returned Alone`
 2. `Three Broken Signs`
