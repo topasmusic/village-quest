@@ -1,5 +1,6 @@
 package de.quest.quest.story;
 
+import de.quest.caravan.TradeRouteService;
 import de.quest.content.story.FailingHarvestStoryArc;
 import de.quest.content.story.MarketRoadTroublesStoryArc;
 import de.quest.content.story.NightBellsStoryArc;
@@ -7,9 +8,12 @@ import de.quest.content.story.RestlessPensStoryArc;
 import de.quest.content.story.ShadowsOnTheTradeRoadStoryArc;
 import de.quest.content.story.ShadowsTradeRoadEncounterService;
 import de.quest.content.story.SilentForgeStoryArc;
+import de.quest.content.story.EmptyCaravanStoryService;
+import de.quest.content.story.TheEmptyCaravanStoryArc;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.economy.CurrencyService;
+import de.quest.economy.QuestExperienceService;
 import de.quest.party.QuestPartyService;
 import de.quest.party.QuestShareProfiles;
 import de.quest.quest.QuestBookHelper;
@@ -50,6 +54,7 @@ public final class StoryQuestService {
             StoryArcType.MARKET_ROAD_TROUBLES, new MarketRoadTroublesStoryArc(),
             StoryArcType.RESTLESS_PENS, new RestlessPensStoryArc(),
             StoryArcType.SHADOWS_ON_THE_TRADE_ROAD, new ShadowsOnTheTradeRoadStoryArc(),
+            StoryArcType.THE_EMPTY_CARAVAN, new TheEmptyCaravanStoryArc(),
             StoryArcType.NIGHT_BELLS, new NightBellsStoryArc()
     );
 
@@ -226,6 +231,7 @@ public final class StoryQuestService {
                 ServerPlayer recipient = world.getServer().getPlayerList().getPlayer(recipientId);
                 if (recipient != null) {
                     deliverCompletion(world, recipient, completion);
+                    chapter.onClaimed(world, recipient);
                 }
                 finishChapterProgress(world, recipientId, arcType, chapterIndex);
             }
@@ -234,6 +240,7 @@ public final class StoryQuestService {
         }
 
         deliverCompletion(world, player, completion);
+        chapter.onClaimed(world, player);
         finishChapterProgress(world, player.getUUID(), arcType, chapterIndex);
         return true;
     }
@@ -371,7 +378,9 @@ public final class StoryQuestService {
         return ARCS.get(arcType);
     }
 
-    public static List<Component> previewRewardLines(StoryChapterCompletion completion) {
+    public static List<Component> previewRewardLines(ServerLevel world,
+                                                     UUID playerId,
+                                                     StoryChapterCompletion completion) {
         if (completion == null) {
             return List.of();
         }
@@ -391,7 +400,17 @@ public final class StoryQuestService {
             rewards.add(Component.translatable("screen.village-quest.questmaster.reward.effect." + completion.unlockedProject().id()).withStyle(ChatFormatting.GRAY));
         }
         if (completion.levels() > 0) {
-            rewards.add(Component.translatable("screen.village-quest.questmaster.reward.levels", completion.levels()).withStyle(ChatFormatting.GREEN));
+            int projectExperienceBonus = VillageProjectService.bonusLevels(
+                    world,
+                    playerId,
+                    completion.reputationTrack(),
+                    completion.unlockedProject()
+            );
+            rewards.add(QuestExperienceService.rewardLine(
+                    completion.levels(),
+                    projectExperienceBonus,
+                    QuestExperienceService.RewardType.STORY
+            ));
         }
         return rewards;
     }
@@ -463,6 +482,7 @@ public final class StoryQuestService {
                 ServerPlayer recipient = world.getServer().getPlayerList().getPlayer(recipientId);
                 if (recipient != null) {
                     deliverCompletion(world, recipient, completion);
+                    chapter.onClaimed(world, recipient);
                 }
                 finishChapterProgress(world, recipientId, arcType, chapterIndex);
             }
@@ -471,13 +491,41 @@ public final class StoryQuestService {
         }
 
         deliverCompletion(world, player, completion);
+        chapter.onClaimed(world, player);
         finishChapterProgress(world, player.getUUID(), arcType, chapterIndex);
         return true;
+    }
+
+    public static void adminUnlockEmptyCaravanForTesting(ServerLevel world, UUID playerId) {
+        if (world == null || playerId == null) {
+            return;
+        }
+        PlayerQuestData data = data(world, playerId);
+        data.clearStoryProgress();
+        data.setActiveStoryArc(null);
+        for (StoryArcType type : StoryArcType.questmasterArcs()) {
+            if (type == StoryArcType.THE_EMPTY_CARAVAN) {
+                continue;
+            }
+            StoryArcDefinition arc = definition(type);
+            data.setStoryCompleted(type.id(), true);
+            data.setStoryDiscovered(type.id(), true);
+            if (arc != null) {
+                data.setStoryChapterProgress(type.id(), arc.chapterCount());
+            }
+        }
+        data.setStoryCompleted(StoryArcType.THE_EMPTY_CARAVAN.id(), false);
+        data.setStoryDiscovered(StoryArcType.THE_EMPTY_CARAVAN.id(), false);
+        data.setStoryChapterProgress(StoryArcType.THE_EMPTY_CARAVAN.id(), 0);
+        data.setStoryCooldownUntil(0L);
+        QuestState.get(world.getServer()).setDirty();
+        refreshQuestUi(world, playerId);
     }
 
     public static void onServerTick(MinecraftServer server) {
         ServerLevel world = server.overworld();
         ShadowsTradeRoadEncounterService.onServerTick(server);
+        EmptyCaravanStoryService.onServerTick(server);
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             syncDerivedProgression(world, player);
             StoryChapterDefinition chapter = currentChapter(world, player.getUUID());
@@ -576,6 +624,14 @@ public final class StoryQuestService {
     }
 
     private static void deliverCompletion(ServerLevel world, ServerPlayer player, StoryChapterCompletion completion) {
+        boolean unlockedProject = completion.unlockedProject() != null
+                && VillageProjectService.unlock(world, player.getUUID(), completion.unlockedProject());
+        if (unlockedProject) {
+            SurveyorCompassQuestService.onVillageProjectUnlocked(world, player, completion.unlockedProject());
+            if (completion.unlockedProject() == VillageProjectType.MARKET_CHARTER) {
+                TradeRouteService.initializeProvisionalNetwork(world, player);
+            }
+        }
         long actualCurrencyReward = scaledCurrencyReward(completion.currencyReward())
                 + VillageProjectService.bonusCurrency(world, player.getUUID(), completion.reputationTrack());
         if (actualCurrencyReward > 0L) {
@@ -585,17 +641,21 @@ public final class StoryQuestService {
         if (completion.reputationTrack() != null && completion.reputationAmount() > 0) {
             actualReputation = VillageProjectService.applyReputationReward(world, player.getUUID(), completion.reputationTrack(), completion.reputationAmount());
         }
-        boolean unlockedProject = completion.unlockedProject() != null
-                && VillageProjectService.unlock(world, player.getUUID(), completion.unlockedProject());
-        if (unlockedProject) {
-            SurveyorCompassQuestService.onVillageProjectUnlocked(world, player, completion.unlockedProject());
-        }
-        int actualLevelReward = completion.levels() + VillageProjectService.bonusLevels(world, player.getUUID(), completion.reputationTrack());
+        int projectExperienceBonus = VillageProjectService.bonusLevels(
+                world,
+                player.getUUID(),
+                completion.reputationTrack(),
+                completion.unlockedProject()
+        );
 
         Component divider = Component.literal("------------------------------").withStyle(ChatFormatting.GRAY);
         Component rewardsTitle = Component.translatable("text.village-quest.daily.rewards").withStyle(ChatFormatting.GRAY);
         Component levelLine = Component.empty().append(Component.literal("    "))
-                .append(Component.translatable("text.village-quest.daily.level_reward", actualLevelReward).withStyle(ChatFormatting.GREEN));
+                .append(QuestExperienceService.rewardLine(
+                        completion.levels(),
+                        projectExperienceBonus,
+                        QuestExperienceService.RewardType.STORY
+                ));
 
         MutableComponent rewardBody = Component.empty()
                 .append(divider.copy()).append(Component.literal("\n"))
@@ -621,9 +681,12 @@ public final class StoryQuestService {
 
         player.sendSystemMessage(rewardBody, false);
         world.playSound(null, player.blockPosition(), SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 0.9f, 1.0f);
-        if (actualLevelReward > 0) {
-            player.giveExperienceLevels(actualLevelReward);
-        }
+        QuestExperienceService.grant(
+                player,
+                completion.levels(),
+                projectExperienceBonus,
+                QuestExperienceService.RewardType.STORY
+        );
     }
 
     private static void appendCurrencyRewardLine(MutableComponent body, long amount) {

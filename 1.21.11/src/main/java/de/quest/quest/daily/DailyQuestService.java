@@ -4,6 +4,7 @@ import de.quest.content.daily.PetCollarDailyQuest;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.economy.CurrencyService;
+import de.quest.economy.QuestExperienceService;
 import de.quest.party.QuestPartyService;
 import de.quest.painting.PaintingStackFactory;
 import de.quest.pilgrim.PilgrimContractService;
@@ -596,6 +597,40 @@ public final class DailyQuestService {
         return Text.empty();
     }
 
+    public static boolean rerollQuestForToday(ServerWorld world, ServerPlayerEntity player) {
+        if (world == null || player == null) return false;
+        UUID playerId = player.getUuid();
+        if (isAcceptedToday(world, playerId) || hasCompletedToday(world, playerId)) {
+            player.sendMessage(Text.translatable("message.village-quest.daily.reroll.active").formatted(Formatting.RED), false);
+            return false;
+        }
+        PlayerQuestData data = data(world, playerId);
+        int day = (int) currentDay();
+        int used = data.getPilgrimInt("balance.daily_reroll_day") == day
+                ? data.getPilgrimInt("balance.daily_reroll_count") : 0;
+        int allowance = ReputationService.totalMastery(world, playerId) >= 3 ? 2 : 1;
+        if (used >= allowance) {
+            player.sendMessage(Text.translatable("message.village-quest.daily.reroll.used", allowance)
+                    .formatted(Formatting.RED), false);
+            return false;
+        }
+        DailyQuestType previous = ensureQuestChoice(world, playerId, data);
+        DailyQuestDefinition replacement = DailyQuestGenerator.pick(world, previous, previous.category());
+        if (replacement == null) replacement = DailyQuestGenerator.pick(world, previous);
+        if (replacement == null) return false;
+        data.setDailyChoice(replacement.type());
+        data.setDailyChoiceDay(currentDay());
+        data.setDailyTargetProfile(rollTargetProfile(world));
+        resetProgressFor(data);
+        data.setPilgrimInt("balance.daily_reroll_day", day);
+        data.setPilgrimInt("balance.daily_reroll_count", used + 1);
+        markDirty(world);
+        player.sendMessage(Text.translatable("message.village-quest.daily.reroll.success",
+                replacement.title(), used + 1, allowance).formatted(Formatting.GREEN), false);
+        refreshQuestUi(world, playerId);
+        return true;
+    }
+
     private static QuestStatusSnapshot captureActiveQuestSnapshot(ServerWorld world, UUID playerId) {
         QuestStatus status = openQuestStatus(world, playerId);
         if (status == null) {
@@ -795,15 +830,15 @@ public final class DailyQuestService {
         RepeatableTargetProfile profile = contextTargetProfile();
         return switch (difficulty(type)) {
             case EASY -> new DailyQuestRewardProfile(
-                    RepeatableRewardTuning.adjustCurrency(CurrencyService.SILVERMARK * 2L, profile),
+                    RepeatableRewardTuning.adjustCurrency(CurrencyService.SILVERMARK * 3L, profile),
                     RepeatableRewardTuning.adjustLevels(2, profile)
             );
             case STANDARD -> new DailyQuestRewardProfile(
-                    RepeatableRewardTuning.adjustCurrency(CurrencyService.SILVERMARK * 5L, profile),
+                    RepeatableRewardTuning.adjustCurrency(CurrencyService.SILVERMARK * 6L, profile),
                     RepeatableRewardTuning.adjustLevels(4, profile)
             );
             case HARD -> new DailyQuestRewardProfile(
-                    RepeatableRewardTuning.adjustCurrency(CurrencyService.CROWN, profile),
+                    RepeatableRewardTuning.adjustCurrency(CurrencyService.SILVERMARK * 12L, profile),
                     RepeatableRewardTuning.adjustLevels(6, profile)
             );
         };
@@ -1620,15 +1655,15 @@ public final class DailyQuestService {
         giveReward(player, bonusReward);
         int shardCountAfter = ModItems.MAGIC_SHARD == null ? 0 : countInventoryItem(player, ModItems.MAGIC_SHARD);
         QuestMasterProgressionService.onMagicShardCountChanged(world, player, shardCountBefore, shardCountAfter);
-        int actualLevelReward = completion.levels() + VillageProjectService.bonusLevels(world, player.getUuid(), track);
-        if (actualLevelReward > 0) {
-            player.addExperienceLevels(actualLevelReward);
-        }
+        int projectExperienceBonus = VillageProjectService.bonusLevels(world, player.getUuid(), track);
+        QuestExperienceService.grant(player, completion.levels(), projectExperienceBonus,
+                QuestExperienceService.RewardType.DAILY);
 
         Text divider = Text.literal("------------------------------").formatted(Formatting.GRAY);
         Text rewardsTitle = Text.translatable("text.village-quest.daily.rewards").formatted(Formatting.GRAY);
         Text levelLine = Text.empty().append(Text.literal("    "))
-                .append(Text.translatable("text.village-quest.daily.level_reward", actualLevelReward).formatted(Formatting.GREEN));
+                .append(QuestExperienceService.rewardLine(completion.levels(), projectExperienceBonus,
+                        QuestExperienceService.RewardType.DAILY));
 
         net.minecraft.text.MutableText rewardBody = Text.empty()
                 .append(divider.copy()).append(Text.literal("\n"))
@@ -1914,6 +1949,10 @@ public final class DailyQuestService {
 
     public static int honeyTarget() {
         return tunedTarget(HONEY_TARGET, "daily.honey.honey");
+    }
+
+    public static int petCollarTarget() {
+        return tunedTarget(3, "daily.pet_collar.recolors");
     }
 
     public static int combTarget() {

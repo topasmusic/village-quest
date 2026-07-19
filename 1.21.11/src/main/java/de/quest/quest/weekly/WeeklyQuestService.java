@@ -3,6 +3,7 @@ package de.quest.quest.weekly;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.economy.CurrencyService;
+import de.quest.economy.QuestExperienceService;
 import de.quest.party.QuestPartyService;
 import de.quest.quest.QuestBookHelper;
 import de.quest.quest.QuestTrackerService;
@@ -902,15 +903,15 @@ public final class WeeklyQuestService {
         }
         giveReward(player, completion.rewardB());
         giveReward(player, completion.rewardC());
-        int actualLevelReward = completion.levels() + VillageProjectService.bonusLevels(world, player.getUuid(), completion.reputationTrack());
-        if (actualLevelReward > 0) {
-            player.addExperienceLevels(actualLevelReward);
-        }
+        int projectExperienceBonus = VillageProjectService.bonusLevels(world, player.getUuid(), completion.reputationTrack());
+        QuestExperienceService.grant(player, completion.levels(), projectExperienceBonus,
+                QuestExperienceService.RewardType.WEEKLY);
 
         Text divider = Text.literal("------------------------------").formatted(Formatting.GRAY);
         Text rewardsTitle = Text.translatable("text.village-quest.daily.rewards").formatted(Formatting.GRAY);
         Text levelLine = Text.empty().append(Text.literal("    "))
-                .append(Text.translatable("text.village-quest.daily.level_reward", actualLevelReward).formatted(Formatting.GREEN));
+                .append(QuestExperienceService.rewardLine(completion.levels(), projectExperienceBonus,
+                        QuestExperienceService.RewardType.WEEKLY));
 
         MutableText rewardBody = Text.empty()
                 .append(divider.copy()).append(Text.literal("\n"))

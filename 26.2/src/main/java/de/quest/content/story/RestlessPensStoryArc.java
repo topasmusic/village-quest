@@ -100,6 +100,11 @@ public final class RestlessPensStoryArc implements StoryArcDefinition {
             return player != null && StoryQuestService.countCompletionItem(world, player.getUUID(), item) >= amount;
         }
 
+        protected boolean hasQualityHorseArmor(ServerLevel world, ServerPlayer player) {
+            return hasItem(world, player, Items.DIAMOND_HORSE_ARMOR, 1)
+                    || hasItem(world, player, Items.GOLDEN_HORSE_ARMOR, 1);
+        }
+
         protected boolean consumeItem(ServerLevel world, ServerPlayer player, Item item, int amount) {
             return player != null && StoryQuestService.consumeCompletionItem(world, player.getUUID(), item, amount);
         }
@@ -182,7 +187,7 @@ public final class RestlessPensStoryArc implements StoryArcDefinition {
                     Component.translatable("quest.village-quest.story.restless_pens.chapter_1.complete.1").withStyle(ChatFormatting.GRAY),
                     Component.translatable("quest.village-quest.story.restless_pens.chapter_1.complete.2").withStyle(ChatFormatting.GRAY),
                     Component.translatable("quest.village-quest.story.restless_pens.chapter_1.complete.3").withStyle(ChatFormatting.GRAY),
-                    CurrencyService.SILVERMARK * 8L,
+                    CurrencyService.SILVERMARK * 10L,
                     8,
                     ReputationService.ReputationTrack.ANIMALS,
                     10,
@@ -262,7 +267,7 @@ public final class RestlessPensStoryArc implements StoryArcDefinition {
                     Component.translatable("quest.village-quest.story.restless_pens.chapter_2.complete.1").withStyle(ChatFormatting.GRAY),
                     Component.translatable("quest.village-quest.story.restless_pens.chapter_2.complete.2").withStyle(ChatFormatting.GRAY),
                     Component.translatable("quest.village-quest.story.restless_pens.chapter_2.complete.3").withStyle(ChatFormatting.GRAY),
-                    CurrencyService.CROWN,
+                    CurrencyService.SILVERMARK * 14L,
                     10,
                     ReputationService.ReputationTrack.ANIMALS,
                     12,
@@ -342,7 +347,7 @@ public final class RestlessPensStoryArc implements StoryArcDefinition {
                     Component.translatable("quest.village-quest.story.restless_pens.chapter_3.complete.1").withStyle(ChatFormatting.GRAY),
                     Component.translatable("quest.village-quest.story.restless_pens.chapter_3.complete.2").withStyle(ChatFormatting.GRAY),
                     Component.translatable("quest.village-quest.story.restless_pens.chapter_3.complete.3").withStyle(ChatFormatting.GRAY),
-                    CurrencyService.CROWN + (CurrencyService.SILVERMARK * 4L),
+                    CurrencyService.SILVERMARK * 18L,
                     12,
                     ReputationService.ReputationTrack.ANIMALS,
                     15,
@@ -370,7 +375,7 @@ public final class RestlessPensStoryArc implements StoryArcDefinition {
         @Override
         public void onServerTick(ServerLevel world, ServerPlayer player) {
             if (progress(world, player.getUUID(), StoryQuestKeys.RESTLESS_PENS_CALL) >= SHEPHERDS_CALL_TARGET
-                    && hasItem(world, player, Items.DIAMOND_HORSE_ARMOR, 1)) {
+                    && hasQualityHorseArmor(world, player)) {
                 StoryQuestService.completeIfEligible(world, player);
             }
         }
@@ -378,7 +383,7 @@ public final class RestlessPensStoryArc implements StoryArcDefinition {
         @Override
         public List<Component> progressLines(ServerLevel world, UUID playerId) {
             ServerPlayer player = world.getServer().getPlayerList().getPlayer(playerId);
-            int horseArmorReady = player != null && hasItem(world, player, Items.DIAMOND_HORSE_ARMOR, 1) ? 1 : 0;
+            int horseArmorReady = player != null && hasQualityHorseArmor(world, player) ? 1 : 0;
             return List.of(
                     Component.translatable(
                             "quest.village-quest.story.restless_pens.chapter_4.progress.1",
@@ -396,7 +401,7 @@ public final class RestlessPensStoryArc implements StoryArcDefinition {
         @Override
         public boolean isComplete(ServerLevel world, ServerPlayer player) {
             return progress(world, player.getUUID(), StoryQuestKeys.RESTLESS_PENS_CALL) >= SHEPHERDS_CALL_TARGET
-                    && hasItem(world, player, Items.DIAMOND_HORSE_ARMOR, 1);
+                    && hasQualityHorseArmor(world, player);
         }
 
         @Override
@@ -406,7 +411,7 @@ public final class RestlessPensStoryArc implements StoryArcDefinition {
                     Component.translatable("quest.village-quest.story.restless_pens.chapter_4.complete.1").withStyle(ChatFormatting.GRAY),
                     Component.translatable("quest.village-quest.story.restless_pens.chapter_4.complete.2").withStyle(ChatFormatting.GRAY),
                     Component.translatable("quest.village-quest.story.restless_pens.chapter_4.complete.3").withStyle(ChatFormatting.GRAY),
-                    CurrencyService.CROWN * 2L,
+                    CurrencyService.SILVERMARK * 24L,
                     20,
                     ReputationService.ReputationTrack.ANIMALS,
                     40,

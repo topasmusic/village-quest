@@ -37,7 +37,7 @@ import java.util.UUID;
 
 public class PilgrimEntity extends PathAwareEntity {
     public static final int DEFAULT_DESPAWN_TICKS = 24000;
-    public static final int DEFAULT_OFFER_COUNT = 5;
+    public static final int DEFAULT_OFFER_COUNT = 4;
     private static final int ARRIVAL_TRACK_TICKS = 20 * 15;
     private static final double ARRIVAL_TRACK_SPEED = 0.95;
     private static final double ARRIVAL_STOP_DISTANCE_SQUARED = 9.0;
@@ -226,6 +226,9 @@ public class PilgrimEntity extends PathAwareEntity {
         String encodedOffers = data.getString("Offers", "");
         if (!encodedOffers.isBlank()) {
             for (String offerId : encodedOffers.split(",")) {
+                if (this.offerIds.size() >= DEFAULT_OFFER_COUNT) {
+                    break;
+                }
                 if (!offerId.isBlank()) {
                     this.offerIds.add(offerId);
                 }
@@ -264,6 +267,9 @@ public class PilgrimEntity extends PathAwareEntity {
         this.offerIds.clear();
         if (offerIds != null) {
             for (String offerId : offerIds) {
+                if (this.offerIds.size() >= DEFAULT_OFFER_COUNT) {
+                    break;
+                }
                 if (offerId != null && !offerId.isBlank()) {
                     this.offerIds.add(offerId);
                 }

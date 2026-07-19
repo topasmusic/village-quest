@@ -6,9 +6,20 @@
 |---|---|---|
 | `Apiarist's Smoker` | `The Failing Harvest` + `200 Farming` | readies up to `10` hives per day and calms nearby bees |
 | `Wayfinder's Compass` | `The Silent Forge` + `200 Crafting` | `Home`, later land bearings and roadmarks |
-| `Merchant's Seal` | `Market Road Troubles` + `200 Village Trade` | rerolls pilgrim or wandering trader wares once per in-game day |
-| `Shepherd's Flute` | `Restless Pens` + `200 Animals` | calls nearby animals for a short while |
+| `Merchant's Seal` | `Market Road Troubles` + `200 Village Trade` | rerolls wares and prioritizes unlocked collectibles not bought before |
+| `Shepherd's Flute` | `Restless Pens` + `200 Animals` | calls nearby animals; sneak-use holds them in place |
+| `Roadwarden Horn` | `200 Monster Hunting` | posts one daily road watch and guides the Wayfinder toward route trouble |
 | `Starreach Ring` | hidden shard trial | `+2` block reach in the offhand while building |
+
+## Reputation Mastery
+
+Reputation continues to have purpose beyond the `200` relic threshold. Each track gains one capped Mastery level per additional `50` reputation, up to Mastery `5`. Mastery is deliberately a completion/choice track rather than an uncapped damage or income multiplier. Reaching three combined Mastery levels grants a second `/vq daily reroll` each reset day.
+
+## Roadwarden Horn
+
+Reaching `200 Monster Hunting` awards the horn directly once. Its first use per real-world reset day posts one protection charge over the player's trade network. That charge prevents the next non-tutorial route incident; it does not erase the guaranteed first incident tutorial. Further uses direct the Wayfinder toward current route trouble or confirm that the roads are quiet.
+
+Players whose existing save already has at least `200 Monster Hunting` receive a missing horn on their first login after updating. If the horn is already in their inventory, the compatibility marker is recorded without creating a duplicate.
 
 ## Apiarist's Smoker
 

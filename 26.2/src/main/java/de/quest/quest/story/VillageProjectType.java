@@ -6,7 +6,8 @@ public enum VillageProjectType {
     FORGE_CHARTER("forge_charter", false),
     MARKET_CHARTER("market_charter", false),
     PASTURE_CHARTER("pasture_charter", false),
-    WATCH_BELL("watch_bell", false);
+    WATCH_BELL("watch_bell", false),
+    CARAVAN_YARD("caravan_yard", false);
 
     private final String id;
     private final boolean alwaysUnlocked;

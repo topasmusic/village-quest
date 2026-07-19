@@ -21,20 +21,16 @@ import net.minecraft.util.Identifier;
 public final class CaravanMerchantEntityRenderer extends MobEntityRenderer<CaravanMerchantEntity, PlayerEntityRenderState, PlayerEntityModel> {
     public static final EntityModelLayer CARAVAN_MERCHANT_LAYER =
             new EntityModelLayer(Identifier.of(VillageQuest.MOD_ID, "caravan_merchant"), "main");
-    private static final Identifier TEXTURE = Identifier.of(VillageQuest.MOD_ID, "textures/entity/caravan.png");
-    private static final AssetInfo.TextureAsset CARAVAN_TEXTURE_ASSET = new AssetInfo.TextureAsset() {
-        @Override
-        public Identifier id() {
-            return TEXTURE;
-        }
-
-        @Override
-        public Identifier texturePath() {
-            return TEXTURE;
-        }
+    private static final Identifier[] TEXTURES = {
+            texture("caravan_burgundy.png"),
+            texture("caravan_forest.png"),
+            texture("caravan.png"),
+            texture("caravan_ochre.png"),
+            texture("caravan_violet.png")
     };
-    private static final SkinTextures CARAVAN_SKIN =
-            SkinTextures.create(CARAVAN_TEXTURE_ASSET, null, null, PlayerSkinType.WIDE);
+    private static final SkinTextures[] SKINS = {
+            skin(TEXTURES[0]), skin(TEXTURES[1]), skin(TEXTURES[2]), skin(TEXTURES[3]), skin(TEXTURES[4])
+    };
     private final ItemModelManager itemModelManager;
     private final boolean heldItemRenderingEnabled;
 
@@ -73,11 +69,30 @@ public final class CaravanMerchantEntityRenderer extends MobEntityRenderer<Carav
         if (!entity.getMainHandStack().isEmpty()) {
             state.rightArmPose = BipedEntityModel.ArmPose.BLOCK;
         }
-        state.skinTextures = CARAVAN_SKIN;
+        state.skinTextures = SKINS[Math.floorMod(entity.getRouteIndex(), SKINS.length)];
     }
 
     @Override
     public Identifier getTexture(PlayerEntityRenderState state) {
-        return TEXTURE;
+        return state.skinTextures == null ? TEXTURES[0] : state.skinTextures.body().texturePath();
+    }
+
+    private static Identifier texture(String filename) {
+        return Identifier.of(VillageQuest.MOD_ID, "textures/entity/" + filename);
+    }
+
+    private static SkinTextures skin(Identifier texture) {
+        AssetInfo.TextureAsset asset = new AssetInfo.TextureAsset() {
+            @Override
+            public Identifier id() {
+                return texture;
+            }
+
+            @Override
+            public Identifier texturePath() {
+                return texture;
+            }
+        };
+        return SkinTextures.create(asset, null, null, PlayerSkinType.WIDE);
     }
 }

@@ -55,9 +55,20 @@ tasks.named("remapSourcesJar").configure {
     archiveFileName = "${releaseFileStem}-sources.jar"
 }
 
-jar {
-    inputs.property "archivesName", project.base.archivesName
-    from("LICENSE") { rename { "${it}_${inputs.properties.archivesName}" } }
+def bundledLicenseFiles = files(
+        "LICENSE",
+        "COPYING",
+        "COPYING.LESSER",
+        "LICENSE-MIT",
+        "THIRD_PARTY_ASSETS.md",
+        "THIRD_PARTY_NOTICES.md"
+)
+
+tasks.withType(Jar).configureEach {
+    inputs.files(bundledLicenseFiles)
+    from(bundledLicenseFiles) {
+        into("META-INF/village-quest")
+    }
 }
 
 publishing {

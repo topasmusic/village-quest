@@ -92,12 +92,14 @@ public final class QuestBookHelper {
         boolean hasShepherdFlute = hasInventoryItem(player, ModItems.SHEPHERD_FLUTE);
         boolean hasApiaristSmoker = hasInventoryItem(player, ModItems.APIARISTS_SMOKER);
         boolean hasSurveyorCompass = hasInventoryItem(player, ModItems.SURVEYORS_COMPASS);
+        boolean hasCaravanLedger = hasInventoryItem(player, ModItems.CARAVAN_LEDGER);
         boolean hasVillageLedgerProject = VillageProjectService.isUnlocked(world, pid, VillageProjectType.VILLAGE_LEDGER);
         boolean hasApiaryCharterProject = VillageProjectService.isUnlocked(world, pid, VillageProjectType.APIARY_CHARTER);
         boolean hasForgeCharterProject = VillageProjectService.isUnlocked(world, pid, VillageProjectType.FORGE_CHARTER);
         boolean hasMarketCharterProject = VillageProjectService.isUnlocked(world, pid, VillageProjectType.MARKET_CHARTER);
         boolean hasPastureCharterProject = VillageProjectService.isUnlocked(world, pid, VillageProjectType.PASTURE_CHARTER);
         boolean hasWatchBellProject = VillageProjectService.isUnlocked(world, pid, VillageProjectType.WATCH_BELL);
+        boolean hasCaravanYardProject = VillageProjectService.isUnlocked(world, pid, VillageProjectType.CARAVAN_YARD);
 
         return new JournalPayload(
                 action,
@@ -116,6 +118,7 @@ public final class QuestBookHelper {
                 hasShepherdFlute,
                 hasApiaristSmoker,
                 hasSurveyorCompass,
+                hasCaravanLedger,
                 dailyActive,
                 dailyTitle,
                 dailyProgress,
@@ -136,7 +139,8 @@ public final class QuestBookHelper {
                 hasForgeCharterProject,
                 hasMarketCharterProject,
                 hasPastureCharterProject,
-                hasWatchBellProject
+                hasWatchBellProject,
+                hasCaravanYardProject
         );
     }
 
@@ -180,8 +184,6 @@ public final class QuestBookHelper {
                 false,
                 false,
                 false,
-                Text.empty(),
-                Text.empty(),
                 false,
                 Text.empty(),
                 Text.empty(),
@@ -194,6 +196,10 @@ public final class QuestBookHelper {
                 false,
                 Text.empty(),
                 Text.empty(),
+                false,
+                Text.empty(),
+                Text.empty(),
+                false,
                 false,
                 false,
                 false,

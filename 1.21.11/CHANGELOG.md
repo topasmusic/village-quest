@@ -1,6 +1,77 @@
 # Changelog
 
-## Unreleased
+## 2.0.0 - Roads Between Villages
+
+Release date: pending
+
+### Licensing and packaging
+
+- Adopted a mixed license for `2.0.0`: functional source code is now `LGPL-3.0-only`, while original Village Quest assets, narrative content, branding, and promotional material remain All Rights Reserved under the project licensing notice.
+- Added the complete GPLv3 and LGPLv3 texts, preserved the historical MIT notice for already published releases and compatible carried-forward material, and documented third-party software and assets explicitly.
+- Recorded every unresolved legacy NPC and caravan skin by shipped filename. Those files are excluded from both the LGPL and the Village Quest ownership claim and remain the final asset-provenance release gate until replaced or cleared.
+- Updated Fabric metadata to advertise both the code and protected-asset terms, and embedded the complete licensing package into runtime and sources JARs.
+
+### Unified interfaces and live navigation
+
+- Limited every Pilgrim stock rotation to at most four offers. New spawns and Merchant's Seal rerolls use the four-offer cap, while Pilgrims loaded from older saves automatically trim a previously stored fifth offer instead of carrying it forward.
+- Fixed the Pilgrim shop with a clipped four-row goods viewport, defensive mouse-wheel scrolling, matching hitboxes, and one centered title; offers and footer text no longer escape their panels.
+- Replaced the cramped Questmaster board with the compact Journal-style `392 x 220` dashboard, dedicated Daily/Weekly/Story/Special icon tabs, a separate quest list, and a scrollable detail card while preserving actions, timers, locked states, and multiplayer party controls.
+- Unified Journal, Questmaster, Pilgrim, Caravan Ledger, and Route Office around the same dark-oak, parchment, brass, teal, world-shade, and soft ambient/lower-right shadow system.
+- Replaced the long Journal tutorial flow with a compact five-tab dashboard and concise English, German, and Spanish guidance.
+- Added the cached terrain-backed full route map and live corner minimap with player, village, caravan, incident, and surveyed-route overlays. The full map supports left-button dragging and defers terrain resampling until the gesture ends.
+- Added the configurable default `,` minimap key and `/vq routes minimap`, plus improved overlapping marker tooltips and player/caravan navigation details.
+- Added five route-owned caravan outfit/color families shared by merchants, route cards, the full map, and minimap.
+- Removed ordinary caravan rubber-banding, improved safe-footing and formation recovery, delayed hard recovery until groups are off-screen, and strengthened pause/removal cleanup so stale merchants and attackers cannot accumulate.
+- Added compact running/paused route indicators, readable wrapped tooltips, corrected map/footer alignment, persistent destination renaming in the ledger, and `/vq routes rename <1-5> <name>`.
+- Normalized German player-facing text to real UTF-8 umlauts and carried the deterministic normalization helper into this line.
+- Hardened vanilla and CTOV village registration through `#minecraft:village`, the structure's real footprint, and a living normal-villager requirement so large settlements work while abandoned and zombie villages remain rejected.
+- Added `/vq admin routes testevent <1-5> <event|clear>` and admin-only Questmaster/Pilgrim UI fixtures for repeatable functional and layout QA.
+- Hardened the older `Shadows on the Trade Road` convoys with broader stable-footprint checks, all-or-nothing merchant spawning, and recovery for merchants knocked below or outside the encounter area.
+
+### Trade Guild, rewards, and long-term progression
+
+- Added the `Village Trade Guild`, a five-rank long-term progression built from route count, road quality, resolved incidents, and completed freight contracts.
+- Added a rotating board of up to three daily freight contracts. Players assign one to a route, load the requested cargo, and complete it on that route's next arrival; long routes, matching specializations, and a Trade Office increase the payout.
+- Added six route specializations (`general`, `provisions`, `forge`, `livestock`, `courier`, and `guarded`) and six permanent Silvermark investments: reinforced wheels, lantern crews, weather covers, escorts, insurance, and trade offices.
+- The `Market Charter` now opens the ledger, map, and one provisional route much earlier. Completing `The Empty Caravan` and its `Caravan Yard` expands that network to the full five routes and enables recurring incidents.
+- Rebalanced route economics around installed path length, security, and quality. Purposeful detours are now paid for, ordinary route income has network-wide daily limits, and offline proceeds wait in a capped trade-office escrow until the owner returns.
+- Route incidents are now limited to one active event per player network, no longer mark a route dangerous merely by starting, occur less often on high-quality/fully upgraded roads, and grant tiered rewards based on difficulty and distance. The first full-network incident remains a guaranteed tutorial.
+- Added long-term reputation Mastery levels beyond `200` reputation. Mastery is capped at five per track and unlocks a second daily reroll after three combined Mastery levels rather than stacking unlimited raw power.
+- Added `/vq daily reroll`, `/vq routes guild`, `/vq routes contracts`, contract accept/supply actions, route specialization, and route upgrade commands. The ledger map now shows guild rank, daily earnings, route specializations, and installed upgrades.
+- Added the `Roadwarden Horn` at `200` Monster Hunting reputation. It posts one daily road watch that prevents the next non-tutorial incident and points the Wayfinder toward live route trouble on later uses.
+- Improved the other long-term relic loops: sneak-use of the `Shepherd's Flute` now holds nearby animals in place, while the completed `Merchant's Seal` prioritizes unlocked collectibles the player has not bought before.
+- Reworked quest experience into bounded level-bar rewards that remain worthwhile at both low and very high vanilla levels. Normal Dailies grant `1.5/3/4.5` bars, normal Weeklies `5.25/6/6.75`, Pilgrim tiers `3/4.5/6`, story chapters scale up to `7.5`, and the Forge Charter adds another `0.75` bar; light/heavy repeatable profiles still adjust their payout.
+- Raised daily wallet rewards to `3/6/12` Silvermarks, changed `Fresh Finery for Your Companions!` from one recolor to a tuned multi-recolor objective, and made every Pilgrim combat offer include an Overworld-safe choice plus a second alternative.
+- Repriced all large Pilgrim supply bundles individually, reduced the excessive Provisions Satchel baseline and jackpot odds, raised the underpaid Forge/Market/Pasture story rewards, and accepted gold or diamond horse armor in the `Restless Pens` finale.
+- Village-project bonuses now apply consistently to the chapter that unlocks them instead of only some reward types seeing the newly completed project.
+- Expanded `/vq admin routes testsetup [player]` with all five specializations, multiple upgrade states, a rank-five guild test profile, contract access, and enough wallet funds to exercise the remaining investments.
+- Completed a full native-client polish pass on the `26.2` reference line for the expanded network: all five routes, map tooltips, guild commands, contract loading and arrival, specialization/refit, upgrades, the Roadwarden Horn, daily rerolls, reputation Mastery, low- and high-level XP rewards, and save/reload persistence were verified together.
+- Freight contracts now complete on their assigned arrival even after ordinary route income has reached its daily network cap. The reputation admin parser also accepts `monster_hunting` and `monster-hunting`, and the English specialization result no longer repeats the word `freight`.
+- Existing saves now receive a one-time progression backfill on login: players who already unlocked the `Market Charter` or `Caravan Yard` receive a missing `Caravan Ledger`, and players who already reached `200` Monster Hunting receive a missing `Roadwarden Horn`. Persistent claim flags and inventory checks prevent repeated grants.
+
+### The roads between villages
+
+- Added the six-chapter late story `The Empty Caravan`, which follows the aftermath of `Shadows on the Trade Road` through an abandoned wreck, a trail of clues, village witnesses, a player-chosen amnesty or justice plan, a bait-caravan defense, and the rebuilding of the roads between villages.
+- Completing the new story unlocks the permanent `Caravan Yard` village project and the `Caravan Ledger`, creating a new trade-route endgame rather than ending the road storyline at one final battle.
+- Players can register villages and maintain up to five persistent trade routes. Routes continue their journeys without force-loading chunks, make deliveries, earn route income, improve from successful intervention, and can be paused or removed from the ledger map.
+- Added persistent route surveying for genuine player-built detours. A route can hold up to `48` marked bends or anchors; the map, virtual travel distance, road-quality sampling, event targets, and visible caravan navigation all follow the installed line instead of a forced straight connection.
+- Active routes now materialize as named three-merchant caravans when players are nearby. They visibly travel toward their destination, favor suitable player-built road surfaces, and disappear safely back into the persistent simulation outside observation range.
+- Expanded the parchment-style trade-route map for five compact route rows, waypoint polylines, survey/install/cancel controls, and a guarded two-click route-removal action alongside caravan positions, direction, security, road quality, earnings, and emergencies.
+- Roads now matter mechanically: path blocks, gravel, cobblestone, stone bricks, planks, slabs, and lighting improve route quality, while better routes move faster and earn more.
+- Added eight recurring road situations: broken wheels, injured pack animals, washed-out bridges, false distress calls, hungry travelers, road tolls, missing couriers, and storm camps.
+- The `Wayfinder's Compass` now automatically selects dedicated targets for route emergencies and `The Empty Caravan` investigations.
+- Added `/vq routes`, `/vq routes register`, `/vq routes remove <1-5>`, and the `/vq routes survey ...` workflow. `/vq admin routes testsetup [player]` now creates a complete five-route surveyed test network with two live event scenarios; `/vq admin routes reset [player]` removes that route data again.
+- Hardened caravan and ambusher placement in dense or uneven terrain. Physical groups now search nearby safe surfaces, and a false-distress event can no longer complete successfully when no attackers were actually spawned.
+- Polished the new interfaces after an in-client QA pass: route-event help wraps into a compact tooltip, and active story chapters now show a disabled `Still Working` action instead of an empty button area.
+- A focused five-route client pass on the reference line confirmed survey start, waypoint marking, installation, command removal, and guarded map removal; it also tightened the compact row layout and extended the second-click removal window to `30 seconds`.
+- A dedicated native `1.21.11` client pass confirmed the complete five-route ledger, surveyed detours, pause/resume, guarded and command-based removal, the ledger and Wayfinder visuals, and a full broken-wheel repair with the required supplies consumed.
+- Fixed automatic route caravans, false-distress attackers, and `The Empty Caravan` bait groups failing to appear on Minecraft `1.21.11`. Their collision bounds are now refreshed at the chosen safe surface before space validation, while the existing dry-footing and obstruction checks remain intact.
+- Rechecked the fix in the native `1.21.11` client on dry land: nearby caravans materialize automatically, move physically, disappear when their route is paused, and return when it resumes. The terrain map, minimap, Route Office, Questmaster, and four-offer Pilgrim layout also passed the target-line regression pass.
+
+### Compatibility and maintenance
+
+- Farming quests now recognize successful mature-crop harvests from compatible right-click-and-replant mods, including the event flow used by `RightClickHarvest`. Holding bone meal during that harvest no longer loses progress, while merely clicking a ripe crop still grants nothing.
+- Updated the journal, project overview, item reference, complete-reset cleanup, English/German/Spanish localization, and maintainer documentation for the new caravan systems.
 
 ## 1.22.8 - Reliable Resets And Cleaner Sessions
 

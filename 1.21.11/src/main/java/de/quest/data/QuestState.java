@@ -142,6 +142,9 @@ public final class QuestState extends PersistentState {
         readUuidNamedIntMap(root, "reputation", (id, stateKey, value) -> getPlayerData(id).setReputation(stateKey, value));
         readUuidNamedIntMap(root, "storyProgressInts", (id, stateKey, value) -> getPlayerData(id).setStoryInt(stateKey, value));
         readUuidNamedSet(root, "storyProgressFlags", (id, stateKey) -> getPlayerData(id).setStoryFlag(stateKey, true));
+        readUuidNamedIntMap(root, "tradeRouteInts", (id, stateKey, value) -> getPlayerData(id).setTradeRouteInt(stateKey, value));
+        readUuidNamedStringMap(root, "tradeRouteStrings", (id, stateKey, value) -> getPlayerData(id).setTradeRouteString(stateKey, value));
+        readUuidNamedSet(root, "tradeRouteFlags", (id, stateKey) -> getPlayerData(id).setTradeRouteFlag(stateKey, true));
         readUuidNamedIntMap(root, "pilgrimProgressInts", (id, stateKey, value) -> getPlayerData(id).setPilgrimInt(stateKey, value));
         readUuidNamedSet(root, "pilgrimProgressFlags", (id, stateKey) -> getPlayerData(id).setPilgrimFlag(stateKey, true));
         readUuidNamedIntMap(root, "storyChapterProgress", (id, storyId, value) -> getPlayerData(id).setStoryChapterProgress(storyId, value));
@@ -216,6 +219,9 @@ public final class QuestState extends PersistentState {
         NbtList reputation = new NbtList();
         NbtList storyProgressInts = new NbtList();
         NbtList storyProgressFlags = new NbtList();
+        NbtList tradeRouteInts = new NbtList();
+        NbtList tradeRouteStrings = new NbtList();
+        NbtList tradeRouteFlags = new NbtList();
         NbtList pilgrimProgressInts = new NbtList();
         NbtList pilgrimProgressFlags = new NbtList();
         NbtList storyChapterProgress = new NbtList();
@@ -385,6 +391,19 @@ public final class QuestState extends PersistentState {
             for (String stateKey : data.getStoryFlags()) {
                 storyProgressFlags.add(entryNamedKey(id, stateKey));
             }
+            for (var stateEntry : data.getTradeRouteIntState().entrySet()) {
+                if (stateEntry.getValue() != null && stateEntry.getValue() != 0) {
+                    tradeRouteInts.add(entryNamedInt(id, stateEntry.getKey(), stateEntry.getValue()));
+                }
+            }
+            for (var stateEntry : data.getTradeRouteStringState().entrySet()) {
+                if (stateEntry.getValue() != null && !stateEntry.getValue().isBlank()) {
+                    tradeRouteStrings.add(entryNamedString(id, stateEntry.getKey(), stateEntry.getValue()));
+                }
+            }
+            for (String stateKey : data.getTradeRouteFlags()) {
+                tradeRouteFlags.add(entryNamedKey(id, stateKey));
+            }
             for (var stateEntry : data.getPilgrimIntState().entrySet()) {
                 if (stateEntry.getValue() != null && stateEntry.getValue() != 0) {
                     pilgrimProgressInts.add(entryNamedInt(id, stateEntry.getKey(), stateEntry.getValue()));
@@ -463,6 +482,9 @@ public final class QuestState extends PersistentState {
         root.put("reputation", reputation);
         root.put("storyProgressInts", storyProgressInts);
         root.put("storyProgressFlags", storyProgressFlags);
+        root.put("tradeRouteInts", tradeRouteInts);
+        root.put("tradeRouteStrings", tradeRouteStrings);
+        root.put("tradeRouteFlags", tradeRouteFlags);
         root.put("pilgrimProgressInts", pilgrimProgressInts);
         root.put("pilgrimProgressFlags", pilgrimProgressFlags);
         root.put("storyChapterProgress", storyChapterProgress);
@@ -528,6 +550,19 @@ public final class QuestState extends PersistentState {
             String stateKey = item.getString("key", "");
             if (id != null && !stateKey.isEmpty()) {
                 consumer.accept(id, stateKey, item.getInt("v", 0));
+            }
+        }
+    }
+
+    private static void readUuidNamedStringMap(NbtCompound root, String key, NamedStringConsumer consumer) {
+        NbtList list = root.getListOrEmpty(key);
+        for (int i = 0; i < list.size(); i++) {
+            NbtCompound item = list.getCompoundOrEmpty(i);
+            UUID id = parseUuid(item.getString("id", ""));
+            String stateKey = item.getString("key", "");
+            String value = item.getString("v", "");
+            if (id != null && !stateKey.isEmpty() && !value.isBlank()) {
+                consumer.accept(id, stateKey, value);
             }
         }
     }
@@ -627,6 +662,14 @@ public final class QuestState extends PersistentState {
         item.putString("id", id.toString());
         item.putString("key", key);
         item.putInt("v", value);
+        return item;
+    }
+
+    private static NbtCompound entryNamedString(UUID id, String key, String value) {
+        NbtCompound item = new NbtCompound();
+        item.putString("id", id.toString());
+        item.putString("key", key);
+        item.putString("v", value);
         return item;
     }
 
@@ -858,6 +901,11 @@ public final class QuestState extends PersistentState {
     @FunctionalInterface
     private interface NamedIntConsumer {
         void accept(UUID id, String key, int value);
+    }
+
+    @FunctionalInterface
+    private interface NamedStringConsumer {
+        void accept(UUID id, String key, String value);
     }
 
     @FunctionalInterface

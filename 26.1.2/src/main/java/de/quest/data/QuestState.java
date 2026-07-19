@@ -142,6 +142,9 @@ public final class QuestState extends SavedData {
         readUuidNamedIntMap(root, "reputation", (id, stateKey, value) -> getPlayerData(id).setReputation(stateKey, value));
         readUuidNamedIntMap(root, "storyProgressInts", (id, stateKey, value) -> getPlayerData(id).setStoryInt(stateKey, value));
         readUuidNamedSet(root, "storyProgressFlags", (id, stateKey) -> getPlayerData(id).setStoryFlag(stateKey, true));
+        readUuidNamedIntMap(root, "tradeRouteInts", (id, stateKey, value) -> getPlayerData(id).setTradeRouteInt(stateKey, value));
+        readUuidNamedStringMap(root, "tradeRouteStrings", (id, stateKey, value) -> getPlayerData(id).setTradeRouteString(stateKey, value));
+        readUuidNamedSet(root, "tradeRouteFlags", (id, stateKey) -> getPlayerData(id).setTradeRouteFlag(stateKey, true));
         readUuidNamedIntMap(root, "pilgrimProgressInts", (id, stateKey, value) -> getPlayerData(id).setPilgrimInt(stateKey, value));
         readUuidNamedSet(root, "pilgrimProgressFlags", (id, stateKey) -> getPlayerData(id).setPilgrimFlag(stateKey, true));
         readUuidNamedIntMap(root, "storyChapterProgress", (id, storyId, value) -> getPlayerData(id).setStoryChapterProgress(storyId, value));
@@ -216,6 +219,9 @@ public final class QuestState extends SavedData {
         ListTag reputation = new ListTag();
         ListTag storyProgressInts = new ListTag();
         ListTag storyProgressFlags = new ListTag();
+        ListTag tradeRouteInts = new ListTag();
+        ListTag tradeRouteStrings = new ListTag();
+        ListTag tradeRouteFlags = new ListTag();
         ListTag pilgrimProgressInts = new ListTag();
         ListTag pilgrimProgressFlags = new ListTag();
         ListTag storyChapterProgress = new ListTag();
@@ -385,6 +391,19 @@ public final class QuestState extends SavedData {
             for (String stateKey : data.getStoryFlags()) {
                 storyProgressFlags.add(entryNamedKey(id, stateKey));
             }
+            for (var stateEntry : data.getTradeRouteIntState().entrySet()) {
+                if (stateEntry.getValue() != null && stateEntry.getValue() != 0) {
+                    tradeRouteInts.add(entryNamedInt(id, stateEntry.getKey(), stateEntry.getValue()));
+                }
+            }
+            for (var stateEntry : data.getTradeRouteStringState().entrySet()) {
+                if (stateEntry.getValue() != null && !stateEntry.getValue().isBlank()) {
+                    tradeRouteStrings.add(entryNamedString(id, stateEntry.getKey(), stateEntry.getValue()));
+                }
+            }
+            for (String stateKey : data.getTradeRouteFlags()) {
+                tradeRouteFlags.add(entryNamedKey(id, stateKey));
+            }
             for (var stateEntry : data.getPilgrimIntState().entrySet()) {
                 if (stateEntry.getValue() != null && stateEntry.getValue() != 0) {
                     pilgrimProgressInts.add(entryNamedInt(id, stateEntry.getKey(), stateEntry.getValue()));
@@ -463,6 +482,9 @@ public final class QuestState extends SavedData {
         root.put("reputation", reputation);
         root.put("storyProgressInts", storyProgressInts);
         root.put("storyProgressFlags", storyProgressFlags);
+        root.put("tradeRouteInts", tradeRouteInts);
+        root.put("tradeRouteStrings", tradeRouteStrings);
+        root.put("tradeRouteFlags", tradeRouteFlags);
         root.put("pilgrimProgressInts", pilgrimProgressInts);
         root.put("pilgrimProgressFlags", pilgrimProgressFlags);
         root.put("storyChapterProgress", storyChapterProgress);
@@ -528,6 +550,19 @@ public final class QuestState extends SavedData {
             String stateKey = item.getStringOr("key", "");
             if (id != null && !stateKey.isEmpty()) {
                 consumer.accept(id, stateKey, item.getIntOr("v", 0));
+            }
+        }
+    }
+
+    private static void readUuidNamedStringMap(CompoundTag root, String key, NamedStringConsumer consumer) {
+        ListTag list = root.getListOrEmpty(key);
+        for (int i = 0; i < list.size(); i++) {
+            CompoundTag item = list.getCompoundOrEmpty(i);
+            UUID id = parseUuid(item.getStringOr("id", ""));
+            String stateKey = item.getStringOr("key", "");
+            String value = item.getStringOr("v", "");
+            if (id != null && !stateKey.isEmpty() && !value.isBlank()) {
+                consumer.accept(id, stateKey, value);
             }
         }
     }
@@ -627,6 +662,14 @@ public final class QuestState extends SavedData {
         item.putString("id", id.toString());
         item.putString("key", key);
         item.putInt("v", value);
+        return item;
+    }
+
+    private static CompoundTag entryNamedString(UUID id, String key, String value) {
+        CompoundTag item = new CompoundTag();
+        item.putString("id", id.toString());
+        item.putString("key", key);
+        item.putString("v", value);
         return item;
     }
 
@@ -858,6 +901,11 @@ public final class QuestState extends SavedData {
     @FunctionalInterface
     private interface NamedIntConsumer {
         void accept(UUID id, String key, int value);
+    }
+
+    @FunctionalInterface
+    private interface NamedStringConsumer {
+        void accept(UUID id, String key, String value);
     }
 
     @FunctionalInterface

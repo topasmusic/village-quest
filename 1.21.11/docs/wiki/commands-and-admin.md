@@ -18,10 +18,52 @@ All commands are available as `/villagequest ...` and the short alias `/vq ...`.
 - `/vq reputation`
   Show your current reputation.
 
+- `/vq routes`
+  Open the `Caravan Ledger` route map after the `Market Charter` is unlocked.
+
+- `/vq routes guild`
+  Show trade-guild rank, score, daily income, escrow, route specialization, road length, quality, and solved incidents.
+
+- `/vq routes contracts`
+  Show the current freight contract or up to three daily guild offers.
+
+- `/vq routes contracts accept <1-3> <route 1-5>`
+  Assign one board offer to a registered route.
+
+- `/vq routes contracts supply`
+  Load the active contract from the player's inventory. The assigned route's next arrival completes it.
+
+- `/vq routes specialize <route> <general|provisions|forge|livestock|courier|guarded>`
+  Choose a freight identity. The first choice is free; later refits cost `15 Silvermarks`.
+
+- `/vq routes upgrade <route> <wheels|lanterns|covers|escorts|insurance|office>`
+  Buy a permanent route investment, subject to guild rank and wallet cost.
+
+- `/vq routes register`
+  Register the generated village around the player as a route node.
+
+- `/vq routes remove <1-5>`
+  Remove one registered route. Later routes are shifted down into the open slot.
+
+- `/vq routes survey start <1-5>`
+  Start a persistent waypoint draft for the selected route and temporarily pause its caravan.
+
+- `/vq routes survey mark`
+  Mark the player's current Overworld position as the next bend or anchor. Sneak-using the `Caravan Ledger` does the same while a survey is active.
+
+- `/vq routes survey finish`
+  Install the draft so the map, simulation, quality sampling, event targets, and visible caravan use it.
+
+- `/vq routes survey cancel`
+  Discard the draft and restore the previous route and pause state.
+
 ### Quest Commands
 
 - `/vq daily accept`
   Accept the currently pending daily-related offer.
+
+- `/vq daily reroll`
+  Replace today's unaccepted daily quest once. Three combined post-200 Mastery levels grant a second reroll.
 
 ### Quest Party
 
@@ -72,7 +114,7 @@ Quest-party notes:
 - this surface is only active on dedicated multiplayer servers
 - the `Questmaster` party drawer is intentionally hidden on singleplayer and integrated worlds
 - co-op scope currently covers shareable `Daily`, `Weekly`, core `Story`, and normal `Pilgrim` combat-contract flows
-- `Shadows on the Trade Road`, relic/special quests, and compass-item quest lines remain solo by design
+- `Shadows on the Trade Road`, `The Empty Caravan`, persistent route events, relic/special quests, and compass-item quest lines remain solo by design
 
 ### Quest Tracker
 
@@ -110,11 +152,12 @@ This command clears the saved Village Quest state for every player at once:
 - wallet and reputation
 - daily, weekly, story, special, and pilgrim progress
 - unlocked village projects
+- registered villages, persistent trade routes, route events, quality, and earnings
 - pilgrim natural spawn cooldown state
 - quest parties, pending invites, shared sessions, and reconnect-grace state
 - active Village Quest journals, trackers, questmaster sessions, and pilgrim trades
 - spawned Questmasters and Pilgrims plus runtime quest-session caches
-- late-road runtime entities such as caravan merchants, couriers, spawned hostiles, and traitors
+- late-road runtime entities such as caravan merchants, route couriers, bait caravans, spawned hostiles, and traitors
 
 It is a Village Quest data reset, not a world or inventory wipe.
 
@@ -139,6 +182,8 @@ It is a Village Quest data reset, not a world or inventory wipe.
 
 `/vq admin story shadows testfinal` jumps the player into the final large-convoy defense test state and arms the convoy for the current day/night cycle instead of the normal two-night story wait.
 
+`The Empty Caravan` can be prepared together with the new route network through `/vq admin routes testsetup [player]` below.
+
 ### Village Projects
 
 - `/vq admin project show [player]`
@@ -152,6 +197,16 @@ Current unlockable project ids:
 - `market_charter`
 - `pasture_charter`
 - `watch_bell`
+- `caravan_yard`
+
+### Trade Routes
+
+- `/vq admin routes testsetup [player]`
+- `/vq admin routes reset [player]`
+
+`testsetup` is the one-command core test for the unreleased caravan batch. It unlocks the `Caravan Yard`, gives the ledger and a Wayfinder if needed, completes the older story prerequisites, creates five surveyed routes with different security and quality values, adds all route specializations, multiple upgrade states, rank-five guild progress and `300 Silvermarks`, starts two event scenarios, prepares `The Empty Caravan` to be offered by the Questmaster, and opens the route map.
+
+`reset` clears the selected player's registered villages, route progress, route events, earnings, and materialized route NPCs. It does not remove world blocks or revoke unrelated progression.
 
 ### Pilgrim
 
@@ -239,6 +294,27 @@ Note:
 ```
 
 Use `/vq admin story shadows testfinal` when you specifically want the chapter `6` convoy-defense setup.
+
+### Test the complete caravan batch
+
+```mcfunction
+/vq admin routes testsetup
+```
+
+Then:
+
+1. Inspect all five surveyed route lines, moving markers, security states, road quality values, and event summaries.
+2. Approach a marker and verify that three named merchants materialize and start traveling.
+3. Resolve route 1 by carrying `8` planks and `2` iron ingots and interacting with its caravan.
+4. Trigger route 3 by interacting with the false-distress caravan, then defeat its traitors.
+5. Build suitable lit road surfaces near a route and allow several samples for quality to react.
+6. Run `/vq questmaster` to start the prepared `The Empty Caravan` story path.
+
+Clean up only the route test data with:
+
+```mcfunction
+/vq admin routes reset
+```
 
 ## Notes for Testers
 

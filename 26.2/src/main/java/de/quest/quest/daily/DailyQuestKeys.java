@@ -30,6 +30,7 @@ public final class DailyQuestKeys {
     public static final String SPIDER_SWEEP_PROGRESS = "daily.spider_sweep.progress";
     public static final String CREEPER_WATCH_PROGRESS = "daily.creeper_watch.progress";
     public static final String PET_COLLAR_DONE = "daily.pet_collar.done";
+    public static final String PET_COLLAR_PROGRESS = "daily.pet_collar.progress";
     public static final String EXPECTED_HONEY = "daily.honey.expected";
     public static final String EXPECTED_COMB = "daily.honeycomb.expected";
     public static final String LAST_HONEY_COUNT = "daily.honey.last_count";

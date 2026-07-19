@@ -1,7 +1,9 @@
 package de.quest.quest.special;
 
 import com.mojang.datafixers.util.Pair;
+import de.quest.caravan.TradeRouteService;
 import de.quest.content.story.ShadowsTradeRoadEncounterService;
+import de.quest.content.story.EmptyCaravanStoryService;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.pilgrim.PilgrimContractType;
@@ -144,7 +146,9 @@ public final class SurveyorCompassQuestService {
         SHIPWRECK("text.village-quest.special.surveyor_compass.mode.shipwreck", CompassModeGroup.STRUCTURE),
         RUINED_PORTAL("text.village-quest.special.surveyor_compass.mode.ruined_portal", CompassModeGroup.STRUCTURE),
         CARAVAN_DISTRESS("text.village-quest.special.surveyor_compass.mode.caravan_distress", CompassModeGroup.STORY),
-        GUILD_CONVOY("text.village-quest.special.surveyor_compass.mode.guild_convoy", CompassModeGroup.STORY);
+        GUILD_CONVOY("text.village-quest.special.surveyor_compass.mode.guild_convoy", CompassModeGroup.STORY),
+        ROUTE_EVENT("text.village-quest.special.surveyor_compass.mode.route_event", CompassModeGroup.STORY),
+        EMPTY_CARAVAN("text.village-quest.special.surveyor_compass.mode.empty_caravan", CompassModeGroup.STORY);
 
         private final String translationKey;
         private final CompassModeGroup group;
@@ -698,6 +702,30 @@ public final class SurveyorCompassQuestService {
         return modes.get(nextIndex);
     }
 
+    public static void selectRouteEventMode(ServerLevel world, UUID playerId) {
+        selectModeIfAvailable(world, playerId, CompassMode.ROUTE_EVENT);
+    }
+
+    public static void selectEmptyCaravanMode(ServerLevel world, UUID playerId) {
+        selectModeIfAvailable(world, playerId, CompassMode.EMPTY_CARAVAN);
+    }
+
+    private static void selectModeIfAvailable(ServerLevel world, UUID playerId, CompassMode requested) {
+        if (world == null || playerId == null || requested == null) {
+            return;
+        }
+        List<CompassMode> modes = availableModes(world, playerId);
+        int index = modes.indexOf(requested);
+        if (index < 0) {
+            return;
+        }
+        PlayerQuestData data = data(world, playerId);
+        if (data.getSurveyorCompassModeIndex() != index) {
+            data.setSurveyorCompassModeIndex(index);
+            markDirty(world);
+        }
+    }
+
     private static List<CompassMode> availableModes(ServerLevel world, UUID playerId) {
         List<CompassMode> modes = new ArrayList<>();
         for (CompassMode mode : CompassMode.values()) {
@@ -723,6 +751,8 @@ public final class SurveyorCompassQuestService {
                 case CARAVAN_DISTRESS -> ShadowsTradeRoadEncounterService.currentDistressKind(world, playerId) == ShadowsTradeRoadEncounterService.RESCUE_KIND_FIRST_SIGNAL
                         || ShadowsTradeRoadEncounterService.currentDistressKind(world, playerId) == ShadowsTradeRoadEncounterService.RESCUE_KIND_HOLDING;
                 case GUILD_CONVOY -> ShadowsTradeRoadEncounterService.currentDistressKind(world, playerId) == ShadowsTradeRoadEncounterService.RESCUE_KIND_FINAL;
+                case ROUTE_EVENT -> TradeRouteService.activeRouteTarget(world, playerId) != null;
+                case EMPTY_CARAVAN -> EmptyCaravanStoryService.currentTarget(world, playerId) != null;
                 default -> false;
             };
         };
@@ -908,6 +938,8 @@ public final class SurveyorCompassQuestService {
             case SHIPWRECK -> structureTarget(world, origin, COMPASS_SHIPWRECKS, mode.label());
             case RUINED_PORTAL -> structureTarget(world, origin, COMPASS_RUINED_PORTALS, mode.label());
             case CARAVAN_DISTRESS, GUILD_CONVOY -> storyTarget(world, playerId, mode);
+            case ROUTE_EVENT -> routeEventTarget(world, playerId);
+            case EMPTY_CARAVAN -> emptyCaravanTarget(world, playerId);
         };
     }
 
@@ -943,6 +975,18 @@ public final class SurveyorCompassQuestService {
         }
         ShadowsTradeRoadEncounterService.DistressTarget target = ShadowsTradeRoadEncounterService.currentDistressTarget(world, playerId);
         return target == null ? null : new CompassTarget(target.pos(), target.label());
+    }
+
+    private static CompassTarget routeEventTarget(ServerLevel world, UUID playerId) {
+        BlockPos target = TradeRouteService.activeRouteTarget(world, playerId);
+        Component label = TradeRouteService.activeRouteTargetLabel(world, playerId);
+        return target == null || label == null ? null : new CompassTarget(target, label);
+    }
+
+    private static CompassTarget emptyCaravanTarget(ServerLevel world, UUID playerId) {
+        BlockPos target = EmptyCaravanStoryService.currentTarget(world, playerId);
+        Component label = EmptyCaravanStoryService.currentTargetLabel(world, playerId);
+        return target == null || label == null ? null : new CompassTarget(target, label);
     }
 
     private static InteractionResult returnHome(ServerLevel world, ServerPlayer player, ItemStack stack) {

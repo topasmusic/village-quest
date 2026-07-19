@@ -9,6 +9,9 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.PathfinderMob;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.FloatGoal;
@@ -19,12 +22,15 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.pathfinder.PathType;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 
 public final class CaravanMerchantEntity extends PathfinderMob {
     public static final int DEFAULT_DESPAWN_TICKS = 20 * 60 * 8;
     private static final int DEFENSE_COOLDOWN_TICKS = 60;
+    private static final EntityDataAccessor<Integer> ROUTE_INDEX =
+            SynchedEntityData.defineId(CaravanMerchantEntity.class, EntityDataSerializers.INT);
 
     private int despawnTicks = DEFAULT_DESPAWN_TICKS;
     private int encounterControlTicks;
@@ -36,6 +42,10 @@ public final class CaravanMerchantEntity extends PathfinderMob {
         super(entityType, world);
         this.setPersistenceRequired();
         this.setDropChance(EquipmentSlot.MAINHAND, 0.0f);
+        // Vanilla ground navigation considers leaf canopies walkable. Trade-route
+        // NPCs must stay on roads and terrain instead of climbing treetops.
+        this.setPathfindingMalus(PathType.LEAVES, -1.0f);
+        this.setPathfindingMalus(PathType.POWDER_SNOW, -1.0f);
     }
 
     @Override
@@ -43,6 +53,12 @@ public final class CaravanMerchantEntity extends PathfinderMob {
         this.goalSelector.addGoal(0, new FloatGoal(this));
         this.goalSelector.addGoal(1, new LookAtPlayerGoal(this, Player.class, 10.0f));
         this.goalSelector.addGoal(2, new RandomLookAroundGoal(this));
+    }
+
+    @Override
+    protected void defineSynchedData(SynchedEntityData.Builder builder) {
+        super.defineSynchedData(builder);
+        builder.define(ROUTE_INDEX, 0);
     }
 
     public static AttributeSupplier.Builder createAttributes() {
@@ -96,6 +112,7 @@ public final class CaravanMerchantEntity extends PathfinderMob {
         super.addAdditionalSaveData(data);
         data.putInt("DespawnTicks", this.despawnTicks);
         data.putBoolean("Courier", this.courier);
+        data.putInt("RouteIndex", getRouteIndex());
     }
 
     @Override
@@ -103,6 +120,7 @@ public final class CaravanMerchantEntity extends PathfinderMob {
         super.readAdditionalSaveData(data);
         this.despawnTicks = Math.max(0, data.getIntOr("DespawnTicks", DEFAULT_DESPAWN_TICKS));
         this.courier = data.getBooleanOr("Courier", false);
+        setRouteIndex(data.getIntOr("RouteIndex", 0));
     }
 
     public void setCourier(boolean courier) {
@@ -112,6 +130,14 @@ public final class CaravanMerchantEntity extends PathfinderMob {
 
     public boolean isCourier() {
         return this.courier;
+    }
+
+    public int getRouteIndex() {
+        return Math.max(0, Math.min(4, this.entityData.get(ROUTE_INDEX)));
+    }
+
+    public void setRouteIndex(int routeIndex) {
+        this.entityData.set(ROUTE_INDEX, Math.max(0, Math.min(4, routeIndex)));
     }
 
     public void setDespawnTicks(int despawnTicks) {

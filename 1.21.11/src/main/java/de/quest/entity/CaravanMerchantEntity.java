@@ -3,6 +3,9 @@ package de.quest.entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.data.DataTracker;
+import net.minecraft.entity.data.TrackedData;
+import net.minecraft.entity.data.TrackedDataHandlerRegistry;
 import net.minecraft.entity.ai.goal.LookAroundGoal;
 import net.minecraft.entity.ai.goal.LookAtEntityGoal;
 import net.minecraft.entity.ai.goal.SwimGoal;
@@ -10,6 +13,7 @@ import net.minecraft.entity.attribute.DefaultAttributeContainer;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.entity.mob.PathAwareEntity;
+import net.minecraft.entity.ai.pathing.PathNodeType;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -25,6 +29,8 @@ import net.minecraft.world.World;
 public final class CaravanMerchantEntity extends PathAwareEntity {
     public static final int DEFAULT_DESPAWN_TICKS = 20 * 60 * 8;
     private static final int DEFENSE_COOLDOWN_TICKS = 60;
+    private static final TrackedData<Integer> ROUTE_INDEX =
+            DataTracker.registerData(CaravanMerchantEntity.class, TrackedDataHandlerRegistry.INTEGER);
 
     private int despawnTicks = DEFAULT_DESPAWN_TICKS;
     private int encounterControlTicks;
@@ -36,6 +42,8 @@ public final class CaravanMerchantEntity extends PathAwareEntity {
         super(entityType, world);
         this.setPersistent();
         this.setEquipmentDropChance(EquipmentSlot.MAINHAND, 0.0f);
+        this.setPathfindingPenalty(PathNodeType.LEAVES, -1.0f);
+        this.setPathfindingPenalty(PathNodeType.POWDER_SNOW, -1.0f);
     }
 
     @Override
@@ -43,6 +51,12 @@ public final class CaravanMerchantEntity extends PathAwareEntity {
         this.goalSelector.add(0, new SwimGoal(this));
         this.goalSelector.add(1, new LookAtEntityGoal(this, PlayerEntity.class, 10.0f));
         this.goalSelector.add(2, new LookAroundGoal(this));
+    }
+
+    @Override
+    protected void initDataTracker(DataTracker.Builder builder) {
+        super.initDataTracker(builder);
+        builder.add(ROUTE_INDEX, 0);
     }
 
     public static DefaultAttributeContainer.Builder createAttributes() {
@@ -96,6 +110,7 @@ public final class CaravanMerchantEntity extends PathAwareEntity {
         super.writeCustomData(data);
         data.putInt("DespawnTicks", this.despawnTicks);
         data.putBoolean("Courier", this.courier);
+        data.putInt("RouteIndex", getRouteIndex());
     }
 
     @Override
@@ -103,6 +118,7 @@ public final class CaravanMerchantEntity extends PathAwareEntity {
         super.readCustomData(data);
         this.despawnTicks = Math.max(0, data.getInt("DespawnTicks", DEFAULT_DESPAWN_TICKS));
         this.courier = data.getBoolean("Courier", false);
+        setRouteIndex(data.getInt("RouteIndex", 0));
     }
 
     public void setCourier(boolean courier) {
@@ -112,6 +128,14 @@ public final class CaravanMerchantEntity extends PathAwareEntity {
 
     public boolean isCourier() {
         return this.courier;
+    }
+
+    public int getRouteIndex() {
+        return Math.max(0, Math.min(4, this.dataTracker.get(ROUTE_INDEX)));
+    }
+
+    public void setRouteIndex(int routeIndex) {
+        this.dataTracker.set(ROUTE_INDEX, Math.max(0, Math.min(4, routeIndex)));
     }
 
     public void setDespawnTicks(int despawnTicks) {

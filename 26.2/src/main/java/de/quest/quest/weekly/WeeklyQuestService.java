@@ -3,6 +3,7 @@ package de.quest.quest.weekly;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.economy.CurrencyService;
+import de.quest.economy.QuestExperienceService;
 import de.quest.party.QuestPartyService;
 import de.quest.quest.QuestBookHelper;
 import de.quest.quest.QuestTrackerService;
@@ -896,15 +897,22 @@ public final class WeeklyQuestService {
         }
         giveReward(player, completion.rewardB());
         giveReward(player, completion.rewardC());
-        int actualLevelReward = completion.levels() + VillageProjectService.bonusLevels(world, player.getUUID(), completion.reputationTrack());
-        if (actualLevelReward > 0) {
-            player.giveExperienceLevels(actualLevelReward);
-        }
+        int projectExperienceBonus = VillageProjectService.bonusLevels(world, player.getUUID(), completion.reputationTrack());
+        QuestExperienceService.grant(
+                player,
+                completion.levels(),
+                projectExperienceBonus,
+                QuestExperienceService.RewardType.WEEKLY
+        );
 
         Component divider = Component.literal("------------------------------").withStyle(ChatFormatting.GRAY);
         Component rewardsTitle = Component.translatable("text.village-quest.daily.rewards").withStyle(ChatFormatting.GRAY);
         Component levelLine = Component.empty().append(Component.literal("    "))
-                .append(Component.translatable("text.village-quest.daily.level_reward", actualLevelReward).withStyle(ChatFormatting.GREEN));
+                .append(QuestExperienceService.rewardLine(
+                        completion.levels(),
+                        projectExperienceBonus,
+                        QuestExperienceService.RewardType.WEEKLY
+                ));
 
         MutableComponent rewardBody = Component.empty()
                 .append(divider.copy()).append(Component.literal("\n"))

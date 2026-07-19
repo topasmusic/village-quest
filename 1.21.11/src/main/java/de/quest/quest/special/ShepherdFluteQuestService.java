@@ -220,13 +220,20 @@ public final class ShepherdFluteQuestService {
             return false;
         }
 
+        boolean holdingPosition = player.isSneaking();
         for (AnimalEntity animal : animals) {
-            animal.getNavigation().startMovingTo(player, 1.15);
-            animal.getLookControl().lookAt(player.getX(), player.getEyeY(), player.getZ());
+            if (holdingPosition) {
+                animal.getNavigation().stop();
+            } else {
+                animal.getNavigation().startMovingTo(player, 1.15);
+                animal.getLookControl().lookAt(player.getX(), player.getEyeY(), player.getZ());
+            }
         }
 
         world.playSound(null, player.getBlockPos(), SoundEvents.BLOCK_NOTE_BLOCK_FLUTE.value(), SoundCategory.PLAYERS, 0.9f, 1.05f);
-        player.sendMessage(Text.translatable("message.village-quest.special.flute.used", animals.size()).formatted(Formatting.AQUA), true);
+        player.sendMessage(Text.translatable(holdingPosition
+                ? "message.village-quest.special.flute.held"
+                : "message.village-quest.special.flute.used", animals.size()).formatted(Formatting.AQUA), true);
         return true;
     }
 

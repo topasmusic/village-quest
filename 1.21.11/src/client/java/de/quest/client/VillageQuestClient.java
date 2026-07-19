@@ -3,6 +3,7 @@ package de.quest.client;
 import de.quest.client.compat.ClientModCompat;
 import de.quest.client.network.ClientQuestNetworking;
 import de.quest.client.hud.QuestTrackerHud;
+import de.quest.client.hud.TradeRouteMinimapHud;
 import de.quest.client.render.CaravanMerchantEntityRenderer;
 import de.quest.client.render.PilgrimEntityRenderer;
 import de.quest.client.render.QuestMasterEntityRenderer;
@@ -39,6 +40,7 @@ public class VillageQuestClient implements ClientModInitializer {
         EntityRendererFactories.register(ModEntities.TRAITOR, TraitorEntityRenderer::new);
         ClientQuestNetworking.register();
         QuestTrackerHud.register();
+        TradeRouteMinimapHud.register();
         InventoryJournalTutorialState.bootstrap();
     }
 }
