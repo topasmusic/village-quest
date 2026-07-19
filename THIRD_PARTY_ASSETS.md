@@ -17,18 +17,20 @@ establish ownership of the underlying skin.
 
 | File | Recorded origin | Creator | License or permission | Status |
 | --- | --- | --- | --- | --- |
-| `src/main/resources/assets/village-quest/textures/entity/caravan.png` | Public Minecraft skin website | Unknown | Unknown | Unresolved; replacement or source clearance required before release |
+| `src/main/resources/assets/village-quest/textures/entity/caravan.png` | Public Minecraft skin website | Unknown | Unknown | Unresolved legacy file shipped in `2.0.0`; no reuse rights asserted or granted |
 | `src/main/resources/assets/village-quest/textures/entity/caravan_burgundy.png` | Derived recolor of an unresolved caravan skin | Unknown | Unknown | Unresolved derivative |
 | `src/main/resources/assets/village-quest/textures/entity/caravan_forest.png` | Derived recolor of an unresolved caravan skin | Unknown | Unknown | Unresolved derivative |
 | `src/main/resources/assets/village-quest/textures/entity/caravan_ochre.png` | Derived recolor of an unresolved caravan skin | Unknown | Unknown | Unresolved derivative |
 | `src/main/resources/assets/village-quest/textures/entity/caravan_violet.png` | Derived recolor of an unresolved caravan skin | Unknown | Unknown | Unresolved derivative |
-| `src/main/resources/assets/village-quest/textures/entity/pilgrim.png` | Public Minecraft skin website | Unknown | Unknown | Unresolved; replacement or source clearance required before release |
-| `src/main/resources/assets/village-quest/textures/entity/quest_master.png` | Public Minecraft skin website | Unknown | Unknown | Unresolved; replacement or source clearance required before release |
-| `src/main/resources/assets/village-quest/textures/entity/traitor.png` | Public Minecraft skin website | Unknown | Unknown | Unresolved; replacement or source clearance required before release |
+| `src/main/resources/assets/village-quest/textures/entity/pilgrim.png` | Public Minecraft skin website | Unknown | Unknown | Unresolved legacy file shipped in `2.0.0`; no reuse rights asserted or granted |
+| `src/main/resources/assets/village-quest/textures/entity/quest_master.png` | Public Minecraft skin website | Unknown | Unknown | Unresolved legacy file shipped in `2.0.0`; no reuse rights asserted or granted |
+| `src/main/resources/assets/village-quest/textures/entity/traitor.png` | Public Minecraft skin website | Unknown | Unknown | Unresolved legacy file shipped in `2.0.0`; no reuse rights asserted or granted |
 
-These entries are the outstanding asset-provenance release gate. They must not be
-described as owned by Village Quest merely because their filenames are known or
-because some colors were changed.
+The maintainer explicitly authorized the `2.0.0` publication with these warnings
+intact. That decision does not establish ownership or permission: the files must
+not be described as owned by Village Quest merely because their filenames are
+known or because some colors were changed. Replacement or source clearance
+remains priority follow-up work.
 
 ## Spanish localization contribution
 

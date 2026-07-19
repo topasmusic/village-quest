@@ -43,7 +43,7 @@ The audit covers the three maintained lines:
 ### Existing MIT releases
 
 - Versions already distributed under MIT retain the permissions granted with those copies. A new license can govern only future versions and commits distributed with it.
-- The current unreleased working tree may use the mixed notice locally, but it must not be published until every entity skin marked unresolved in `THIRD_PARTY_ASSETS.md` is replaced or its source and permission are recovered.
+- The maintainer explicitly authorized the `2.0.0` publication on `2026-07-19` with the entity skins still marked unresolved in `THIRD_PARTY_ASSETS.md`. This exception does not establish ownership or permission and must not be read as clearance for reuse.
 
 ## Adopted mixed-license model
 
@@ -93,7 +93,7 @@ PolyForm Strict permits noncommercial use while prohibiting distribution and mod
 - Creative Commons licenses are primarily designed for creative works; variants that allow redistribution or adaptation do not match the requested control, and they are not a good primary software license.
 - A license covering the complete mod package would grant unwanted rights to the creative assets. The adopted split model instead applies LGPL only to functional code and keeps the protected asset scope separate.
 
-## Remaining cleanup before publication
+## Remaining provenance cleanup
 
 1. Replace every web-downloaded NPC/caravan skin with provably original, commissioned, or appropriately licensed artwork, or record the creator, source URL, license, and permission.
 2. Keep written confirmation of the reported `Landschaftswart` handover for durable project records.
@@ -101,6 +101,6 @@ PolyForm Strict permits noncommercial use while prohibiting distribution and mod
 4. Keep `THIRD_PARTY_ASSETS.md` and `THIRD_PARTY_NOTICES.md` current whenever an asset, dependency, or provenance record changes.
 5. Keep hosting-page license descriptions aligned with the mixed package rather than presenting either the entire JAR as LGPL or the entire repository as exclusively owned.
 
-## Release gate
+## Published exception and continuing restriction
 
-The mixed-license files and metadata may remain in the unreleased source tree. Publication is blocked only by material still marked unresolved in the bundled provenance inventory, currently the legacy NPC and caravan skins. No maintainer should describe the entire mod package as exclusively owned or describe the protected creative assets as LGPL-covered.
+Village Quest `2.0.0` was published by explicit maintainer instruction with the legacy NPC and caravan skins still marked unresolved in the bundled provenance inventory. This recorded exception does not cure the missing provenance: replacement or source clearance remains priority work. No maintainer should describe the entire mod package as exclusively owned or describe the protected creative assets as LGPL-covered.

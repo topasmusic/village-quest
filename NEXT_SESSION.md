@@ -2,9 +2,9 @@
 
 ## Current Release State
 
-As of `2026-07-19`, `Village Quest 1.22.8` remains the public stable release on all three maintained Minecraft lines. The local source tree is prepared as the unreleased `Village Quest 2.0.0 - Roads Between Villages` release candidate.
+As of `2026-07-19`, `Village Quest 2.0.0 - Roads Between Villages` is the public stable release on all three maintained Minecraft lines.
 
-The `2.0.0` candidate is present on:
+The `2.0.0` release is present on:
 
 - Minecraft `26.2`, Java `25`, Fabric Loader `0.19.3`, Fabric API `0.153.0+26.2`, Mojang names
 - Minecraft `26.1.2`, Java `25`, Fabric Loader `0.19.2`, Fabric API `0.146.0+26.1.2`, Mojang names
@@ -12,9 +12,9 @@ The `2.0.0` candidate is present on:
 
 All three lines now contain the same intended gameplay and presentation layer. The unified UI, terrain-backed full map and minimap, caravan reliability, inhabited-village validation, route-owned outfits, pause/removal cleanup, destination renaming, German umlaut normalization, deterministic QA helpers, and four-offer Pilgrim cap were deliberately ported from the `26.2` reference to `26.1.2` and `1.21.11` with target-appropriate APIs.
 
-The `2.0.0` source candidate is intentionally kept in version control, but it remains untagged and unpublished. Every changelog uses `Release date: pending` until the actual publishing turn.
+The release uses the tags `v2.0.0-mc1.21.11`, `v2.0.0-mc26.1.2`, and `v2.0.0-mc26.2`. All three changelogs record the publication date `2026-07-19`.
 
-The candidate now uses one mixed-license package on all three lines. Functional code is `LGPL-3.0-only`; original Village Quest assets and creative content remain All Rights Reserved under the limited-use project notice; earlier MIT releases keep their granted permissions. The complete license and notice set is embedded in runtime and sources JARs. The legacy NPC and caravan skins listed with unknown provenance in `THIRD_PARTY_ASSETS.md` remain a release gate until replaced or cleared.
+The release uses one mixed-license package on all three lines. Functional code is `LGPL-3.0-only`; original Village Quest assets and creative content remain All Rights Reserved under the limited-use project notice; earlier MIT releases keep their granted permissions. The complete license and notice set is embedded in runtime and sources JARs. The maintainer explicitly authorized publication with the legacy NPC and caravan skins still listed as unresolved in `THIRD_PARTY_ASSETS.md`; they are excluded from ownership/license claims and remain priority replacement or clearance work.
 
 ## Village Quest 2.0 Scope
 
@@ -57,14 +57,13 @@ These two checks are intentionally not release blockers for the prepared candida
 
 ## Release Handling
 
-- Public stable remains `1.22.8` until the actual release is published.
-- Candidate version is `2.0.0`; expected tags are `v2.0.0-mc26.2`, `v2.0.0-mc26.1.2`, and `v2.0.0-mc1.21.11`.
-- Expected primary artifacts are `village-quest-2.0.0-mc<target>.jar`, with matching sources jars.
+- Public stable is `2.0.0` on all three maintained lines.
+- Release tags are `v2.0.0-mc26.2`, `v2.0.0-mc26.1.2`, and `v2.0.0-mc1.21.11`.
+- Primary artifacts are `village-quest-2.0.0-mc<target>.jar`, with matching sources jars.
 - Release title: `Village Quest 2.0 - Roads Between Villages`.
 - Keep GitHub release notes short and player-facing; use `RELEASE_NOTES_2.0.0.md` as the prepared source.
-- Replace `Release date: pending` in all three changelogs with the real publication date immediately before the release commit.
-- Do not commit, push, tag, or publish until the user explicitly requests that action.
-- Do not publish while an entity skin remains marked unresolved in `THIRD_PARTY_ASSETS.md`.
+- The `2.0.0` release was explicitly requested by the maintainer and published on `2026-07-19`.
+- Keep the unresolved entity-skin warnings intact until original replacements or valid source permissions are available.
 
 ## Workflow Rules
 
@@ -79,6 +78,6 @@ These two checks are intentionally not release blockers for the prepared candida
 
 ## Next Sensible Work
 
-- On explicit release instruction: first resolve the entity-skin provenance gate, insert the real release date, run the final three builds/resource validator, review the staged file list, commit any final release-only metadata, tag, push, and publish the three jars using the repository's local push rules.
+- For the next release, retain the three-line build/resource audit, staged-file review, human-facing notes, sources JARs, and per-Minecraft-line tags used for `2.0.0`.
 - If the user later wants the deferred checks, run the short native `26.1.2` smoke pass and/or the no-admin-completion `The Empty Caravan` playthrough.
 - For future caravan regressions, start from the completed `26.2` reference pass and the focused `1.21.11` target regression pass.

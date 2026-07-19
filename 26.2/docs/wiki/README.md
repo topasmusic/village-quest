@@ -1,19 +1,19 @@
 # Village Quest Wiki
 
-This wiki covers the shared `Village Quest 2.0` release candidate for Minecraft `1.21.11`, `26.1.2`, and `26.2`.
+This wiki covers the shared `Village Quest 2.0` release for Minecraft `1.21.11`, `26.1.2`, and `26.2`.
 
 Current stable release:
-- `1.22.8` for Minecraft `26.2` on `2026-07-17`
+- `2.0.0 - Roads Between Villages` for Minecraft `1.21.11`, `26.1.2`, and `26.2` on `2026-07-19`
 
-Current development line:
-- `2.0.0 - Roads Between Villages` is the prepared local release candidate and remains unpublished
+Current major release:
+- `2.0.0 - Roads Between Villages` is published across all three maintained lines
 - it adds `The Empty Caravan`, an early Market-Charter route, the `Caravan Yard`, five persistent surveyed routes, visible caravans, the waypoint-aware ledger map, the five-rank Village Trade Guild, freight contracts, specializations, upgrades, road quality, and recurring route events
 
 Current highlights:
 - complete resets now reliably clear quest parties and shared multiplayer state as well
 - `Restless Pens` shows both finale requirements correctly in all three shipped languages
 - multiplayer quest parties are now available on dedicated servers
-- the release candidate builds for Minecraft `1.21.11`, `26.1.2`, and `26.2`
+- the release builds for Minecraft `1.21.11`, `26.1.2`, and `26.2`
 - `Daily`, `Weekly`, the main `Story` arcs, and normal `Pilgrim` combat contracts can be shared cooperatively
 - repeatable quests now use more varied target numbers and rewards that scale with them
 - quest experience now advances bounded level bars, keeping rewards relevant even for players above vanilla level `200`

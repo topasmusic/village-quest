@@ -30,7 +30,7 @@ Unlock rules:
 
 This arc is intentionally separate from the four core village-growth arcs above.
 
-In the prepared `2.0.0` release candidate, completing it opens one more solo follow-up:
+Beginning with the `2.0.0` release, completing it opens one more solo follow-up:
 
 - `The Empty Caravan`
 

@@ -2,6 +2,8 @@
 
 Village Quest 2.0 turns the roads beyond your first settlement into a long-term village network.
 
+Available for Minecraft `1.21.11`, `26.1.2`, and `26.2`. Existing Village Quest worlds are supported; no save wipe is required.
+
 ## Build real trade routes
 
 Register inhabited villages, survey up to five routes with your own waypoint detours, improve the roads, and watch route-colored merchant caravans travel through the world. The new terrain map and configurable live minimap show villages, the player, caravans, incidents, and the paths you actually built.
@@ -26,4 +28,6 @@ Experience rewards now remain useful at both low and very high vanilla levels. T
 
 Caravans recover more naturally from rough terrain, paused or removed routes clean up their physical members, abandoned villages are rejected, CTOV village structures are recognized through the shared village tag, and farming quests support compatible right-click-and-replant harvest mods without double counting normal harvests.
 
-Existing Village Quest worlds are supported. No save wipe is required.
+## Licensing
+
+Beginning with `2.0.0`, functional source code is licensed under `LGPL-3.0-only`, while original Village Quest creative assets and branding use the bundled Village Quest All Rights Reserved terms. Historical MIT releases keep their existing permissions, and all known third-party or unresolved legacy material is itemized in the bundled notices.

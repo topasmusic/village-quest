@@ -2,13 +2,13 @@
 
 ## 2.0.0 - Roads Between Villages
 
-Release date: pending
+Release date: 2026-07-19
 
 ### Licensing and packaging
 
 - Adopted a mixed license for `2.0.0`: functional source code is now `LGPL-3.0-only`, while original Village Quest assets, narrative content, branding, and promotional material remain All Rights Reserved under the project licensing notice.
 - Added the complete GPLv3 and LGPLv3 texts, preserved the historical MIT notice for already published releases and compatible carried-forward material, and documented third-party software and assets explicitly.
-- Recorded every unresolved legacy NPC and caravan skin by shipped filename. Those files are excluded from both the LGPL and the Village Quest ownership claim and remain the final asset-provenance release gate until replaced or cleared.
+- Recorded every unresolved legacy NPC and caravan skin by shipped filename. Those files are excluded from both the LGPL and the Village Quest ownership claim; the maintainer authorized the `2.0.0` publication with this provenance warning intact, while replacement or source clearance remains a priority.
 - Updated Fabric metadata to advertise both the code and protected-asset terms, and embedded the complete licensing package into runtime and sources JARs.
 
 ### Unified interfaces and live navigation
