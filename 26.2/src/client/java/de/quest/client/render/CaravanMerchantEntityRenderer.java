@@ -23,19 +23,16 @@ import net.minecraft.world.item.Items;
 public final class CaravanMerchantEntityRenderer extends MobRenderer<CaravanMerchantEntity, AvatarRenderState, QuestNpcPlayerModel> {
     public static final ModelLayerLocation CARAVAN_MERCHANT_LAYER =
             new ModelLayerLocation(Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "caravan_merchant"), "main");
-    private static final Identifier TEXTURE = Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "textures/entity/caravan.png");
-    private static final ClientAsset.Texture TEXTURE_ASSET = new ClientAsset.Texture() {
-        @Override
-        public Identifier id() {
-            return TEXTURE;
-        }
-
-        @Override
-        public Identifier texturePath() {
-            return TEXTURE;
-        }
+    private static final Identifier[] TEXTURES = {
+            texture("caravan_burgundy.png"),
+            texture("caravan_forest.png"),
+            texture("caravan.png"),
+            texture("caravan_ochre.png"),
+            texture("caravan_violet.png")
     };
-    private static final PlayerSkin SKIN = PlayerSkin.insecure(TEXTURE_ASSET, null, null, PlayerModelType.WIDE);
+    private static final PlayerSkin[] SKINS = {
+            skin(TEXTURES[0]), skin(TEXTURES[1]), skin(TEXTURES[2]), skin(TEXTURES[3]), skin(TEXTURES[4])
+    };
     private final ItemModelResolver itemModelManager;
     private final boolean heldItemRenderingEnabled;
 
@@ -70,11 +67,32 @@ public final class CaravanMerchantEntityRenderer extends MobRenderer<CaravanMerc
         if (entity.getMainHandItem().getItem() == Items.TORCH) {
             state.rightArmPose = HumanoidModel.ArmPose.BLOCK;
         }
-        state.skin = SKIN;
+        // Every member of one route shares an outfit. This makes a caravan readable
+        // at a glance and matches the route color used by the ledger and minimap.
+        state.skin = SKINS[Math.floorMod(entity.getRouteIndex(), SKINS.length)];
     }
 
     @Override
     public Identifier getTextureLocation(AvatarRenderState state) {
-        return TEXTURE;
+        return state.skin == null ? TEXTURES[0] : state.skin.body().texturePath();
+    }
+
+    private static Identifier texture(String filename) {
+        return Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "textures/entity/" + filename);
+    }
+
+    private static PlayerSkin skin(Identifier texture) {
+        ClientAsset.Texture asset = new ClientAsset.Texture() {
+            @Override
+            public Identifier id() {
+                return texture;
+            }
+
+            @Override
+            public Identifier texturePath() {
+                return texture;
+            }
+        };
+        return PlayerSkin.insecure(asset, null, null, PlayerModelType.WIDE);
     }
 }

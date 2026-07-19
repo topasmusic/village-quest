@@ -1,21 +1,116 @@
-MIT License
+Village Quest Licensing Notice
 
-Copyright (c) 2026 TopasMusic
+Effective for Village Quest 2.0.0 and later releases that include this notice.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Copyright (c) 2026 Raphael Huschin
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+Village Quest is distributed as a mixed-license package. Different parts of the
+project are governed by different terms. No license named in this notice grants
+rights to material that the named licensor does not own or have authority to
+license.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+1. Source code
+
+Unless a file or directory states otherwise, the functional source code of
+Village Quest is licensed under the GNU Lesser General Public License, version
+3.0 only (LGPL-3.0-only).
+
+This includes the Java implementation, build logic, project-maintained scripts,
+and functional configuration needed to build and run the mod. The complete GNU
+General Public License version 3 and GNU Lesser General Public License version 3
+texts are provided in COPYING and COPYING.LESSER.
+
+The LGPL permits modification and redistribution of the covered code subject to
+its terms. It does not grant rights to the protected assets, creative content,
+name, logo, or branding described below. A code fork must replace or separately
+license those materials before distributing a complete modified mod package.
+
+2. Original assets and creative content
+
+Unless stated otherwise in THIRD_PARTY_ASSETS.md or in an individual file, all
+original textures, models, animations, sounds, music, written dialogue, quest
+prose, characters, artwork, logos, promotional material, user-interface art,
+and other creative assets created specifically for Village Quest are:
+
+Copyright (c) 2026 Raphael Huschin. All Rights Reserved.
+
+This reservation applies only to the extent that the material is protected by
+applicable law and the stated copyright holder owns the relevant rights. It does
+not claim third-party material, underlying third-party characters, trademarks,
+Minecraft assets, or rights that cannot legally be claimed.
+
+Except for the limited package-use permission below, these original assets and
+creative materials may not be extracted, copied, modified, redistributed,
+sublicensed, sold, or used in another project or derivative work without prior
+written permission from the copyright holder.
+
+3. Limited permission to use official releases
+
+You may download an official, unmodified Village Quest release from a channel
+authorized by the copyright holder and:
+
+- install and run it with Minecraft;
+- use it for private play or on a Minecraft server;
+- make reasonable private backup copies; and
+- create screenshots, gameplay videos, streams, reviews, and other ordinary
+  coverage of the mod.
+
+This permission does not authorize extracting or reusing protected assets,
+reuploading the mod, distributing it in a third-party modpack, selling it,
+misrepresenting its origin, or distributing a modified package. Separate written
+permission is required for those activities unless another applicable license or
+law independently permits them.
+
+4. AI-assisted and generated project assets
+
+Some Village Quest interface art, promotional art, and other creative material
+was generated or refined with software tools at the direction of the project
+maintainer. Those files are treated as original project assets only to the extent
+that applicable law recognizes protectable rights owned by the stated copyright
+holder. No ownership is claimed over third-party works, characters, marks, or
+unprotectable elements that may be referenced by such material.
+
+5. Third-party assets and contributions
+
+Some files were created by third parties and are not owned by Raphael Huschin.
+They are excluded from the All Rights Reserved declaration above and remain
+subject to the terms, permissions, attribution requirements, and legal rights of
+their respective creators.
+
+Known third-party and provenance-sensitive material is documented in
+THIRD_PARTY_ASSETS.md. General software and dependency notices are documented in
+THIRD_PARTY_NOTICES.md. Inclusion in Village Quest does not transfer ownership,
+does not place that material under the LGPL, and does not grant permission to
+reuse it separately.
+
+An entry marked "unknown" or "unresolved" records missing provenance only. It
+is not a license, permission, or representation that redistribution is lawful.
+
+6. Name and branding
+
+The name "Village Quest", its logo, and its associated visual branding are not
+licensed under the LGPL. They may not be used to present an unofficial fork,
+modified version, derivative project, product, or service as official or endorsed
+without prior written permission.
+
+This section does not prohibit truthful, nominative references that are required
+to describe compatibility, identify the origin of LGPL-covered code, preserve
+notices, or comply with applicable law.
+
+7. Earlier MIT releases
+
+Village Quest versions and copies that were already published under the MIT
+License remain available under the MIT permissions granted with those copies.
+Nothing in this notice revokes or narrows permissions already granted for an
+earlier release. The historical MIT text is retained in LICENSE-MIT.
+
+Material carried forward under compatible MIT terms retains its original notice
+and may remain MIT-licensed even when it is distributed alongside LGPL-covered
+Village Quest code.
+
+8. No warranty for protected assets and content
+
+To the maximum extent permitted by applicable law, the protected assets and
+creative content are provided "as is", without warranty of any kind, express or
+implied. The warranty and liability terms for LGPL-covered code are governed by
+COPYING and COPYING.LESSER.

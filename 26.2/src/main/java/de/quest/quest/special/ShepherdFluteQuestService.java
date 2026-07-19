@@ -219,13 +219,20 @@ public final class ShepherdFluteQuestService {
             return false;
         }
 
+        boolean holdingPosition = player.isShiftKeyDown();
         for (Animal animal : animals) {
-            animal.getNavigation().moveTo(player, 1.15);
-            animal.getLookControl().setLookAt(player.getX(), player.getEyeY(), player.getZ());
+            if (holdingPosition) {
+                animal.getNavigation().stop();
+            } else {
+                animal.getNavigation().moveTo(player, 1.15);
+                animal.getLookControl().setLookAt(player.getX(), player.getEyeY(), player.getZ());
+            }
         }
 
         world.playSound(null, player.blockPosition(), SoundEvents.NOTE_BLOCK_FLUTE.value(), SoundSource.PLAYERS, 0.9f, 1.05f);
-        player.sendSystemMessage(Component.translatable("message.village-quest.special.flute.used", animals.size()).withStyle(ChatFormatting.AQUA), true);
+        player.sendSystemMessage(Component.translatable(holdingPosition
+                ? "message.village-quest.special.flute.held"
+                : "message.village-quest.special.flute.used", animals.size()).withStyle(ChatFormatting.AQUA), true);
         return true;
     }
 

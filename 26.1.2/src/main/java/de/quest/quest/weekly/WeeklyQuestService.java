@@ -3,6 +3,7 @@ package de.quest.quest.weekly;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.economy.CurrencyService;
+import de.quest.economy.QuestExperienceService;
 import de.quest.party.QuestPartyService;
 import de.quest.quest.QuestBookHelper;
 import de.quest.quest.QuestTrackerService;
@@ -17,6 +18,7 @@ import de.quest.registry.ModItems;
 import de.quest.reputation.ReputationService;
 import de.quest.util.Texts;
 import de.quest.util.TimeUtil;
+import de.quest.util.WoolItems;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.item.Item;
@@ -67,13 +69,6 @@ public final class WeeklyQuestService {
             return category;
         }
     }
-
-    private static final Item[] WOOL_ITEMS = new Item[] {
-            Items.WHITE_WOOL, Items.LIGHT_GRAY_WOOL, Items.GRAY_WOOL, Items.BLACK_WOOL,
-            Items.BROWN_WOOL, Items.RED_WOOL, Items.ORANGE_WOOL, Items.YELLOW_WOOL,
-            Items.LIME_WOOL, Items.GREEN_WOOL, Items.CYAN_WOOL, Items.LIGHT_BLUE_WOOL,
-            Items.BLUE_WOOL, Items.PURPLE_WOOL, Items.MAGENTA_WOOL, Items.PINK_WOOL
-    };
 
     private static final int HARVEST_WHEAT_TARGET = 64;
     private static final int HARVEST_CARROT_TARGET = 32;
@@ -818,7 +813,7 @@ public final class WeeklyQuestService {
 
     public static int totalWoolPickedUp(ServerPlayer player) {
         int total = 0;
-        for (Item item : WOOL_ITEMS) {
+        for (Item item : WoolItems.ALL) {
             total += getPickedUpStat(player, item);
         }
         return total;
@@ -902,15 +897,22 @@ public final class WeeklyQuestService {
         }
         giveReward(player, completion.rewardB());
         giveReward(player, completion.rewardC());
-        int actualLevelReward = completion.levels() + VillageProjectService.bonusLevels(world, player.getUUID(), completion.reputationTrack());
-        if (actualLevelReward > 0) {
-            player.giveExperienceLevels(actualLevelReward);
-        }
+        int projectExperienceBonus = VillageProjectService.bonusLevels(world, player.getUUID(), completion.reputationTrack());
+        QuestExperienceService.grant(
+                player,
+                completion.levels(),
+                projectExperienceBonus,
+                QuestExperienceService.RewardType.WEEKLY
+        );
 
         Component divider = Component.literal("------------------------------").withStyle(ChatFormatting.GRAY);
         Component rewardsTitle = Component.translatable("text.village-quest.daily.rewards").withStyle(ChatFormatting.GRAY);
         Component levelLine = Component.empty().append(Component.literal("    "))
-                .append(Component.translatable("text.village-quest.daily.level_reward", actualLevelReward).withStyle(ChatFormatting.GREEN));
+                .append(QuestExperienceService.rewardLine(
+                        completion.levels(),
+                        projectExperienceBonus,
+                        QuestExperienceService.RewardType.WEEKLY
+                ));
 
         MutableComponent rewardBody = Component.empty()
                 .append(divider.copy()).append(Component.literal("\n"))

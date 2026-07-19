@@ -3,6 +3,7 @@ package de.quest.pilgrim;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.economy.CurrencyService;
+import de.quest.economy.QuestExperienceService;
 import de.quest.party.QuestPartyService;
 import de.quest.quest.QuestBookHelper;
 import de.quest.quest.QuestTrackerService;
@@ -899,10 +900,9 @@ public final class PilgrimContractService {
         if (completion.reputationTrack() != null && completion.reputationAmount() > 0) {
             actualReputation = VillageProjectService.applyReputationReward(world, player.getUuid(), completion.reputationTrack(), completion.reputationAmount());
         }
-        int actualLevelReward = completion.levels() + VillageProjectService.bonusLevels(world, player.getUuid(), completion.reputationTrack());
-        if (actualLevelReward > 0) {
-            player.addExperienceLevels(actualLevelReward);
-        }
+        int projectExperienceBonus = VillageProjectService.bonusLevels(world, player.getUuid(), completion.reputationTrack());
+        QuestExperienceService.grant(player, completion.levels(), projectExperienceBonus,
+                QuestExperienceService.RewardType.PILGRIM);
         boolean unlockedCompassStructures = completion.unlocksCompassStructures()
                 && SurveyorCompassQuestService.unlockStructureModes(world, player);
 
@@ -941,8 +941,9 @@ public final class PilgrimContractService {
         if (!completion.specialRewardLine().getString().isEmpty() && (!completion.unlocksCompassStructures() || unlockedCompassStructures)) {
             appendTextRewardLine(rewardBody, completion.specialRewardLine());
         }
-        if (actualLevelReward > 0) {
-            appendTextRewardLine(rewardBody, Text.translatable("screen.village-quest.questmaster.reward.levels", actualLevelReward).formatted(Formatting.GREEN));
+        if (completion.levels() + projectExperienceBonus > 0) {
+            appendTextRewardLine(rewardBody, QuestExperienceService.rewardLine(completion.levels(), projectExperienceBonus,
+                    QuestExperienceService.RewardType.PILGRIM));
         }
         rewardBody.append(divider.copy());
 
@@ -1017,7 +1018,9 @@ public final class PilgrimContractService {
             rewards.add(completion.specialRewardLine());
         }
         if (completion.levels() > 0) {
-            rewards.add(Text.translatable("screen.village-quest.questmaster.reward.levels", completion.levels()).formatted(Formatting.GREEN));
+            rewards.add(QuestExperienceService.rewardLine(completion.levels(),
+                    VillageProjectService.bonusLevels(world, playerId, completion.reputationTrack()),
+                    QuestExperienceService.RewardType.PILGRIM));
         }
         return rewards;
     }

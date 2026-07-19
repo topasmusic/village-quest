@@ -26,6 +26,9 @@ public final class PlayerQuestData {
     private final Set<String> weeklyFlags = new HashSet<>();
     private final Map<String, Integer> storyIntState = new HashMap<>();
     private final Set<String> storyFlags = new HashSet<>();
+    private final Map<String, Integer> tradeRouteIntState = new HashMap<>();
+    private final Map<String, String> tradeRouteStringState = new HashMap<>();
+    private final Set<String> tradeRouteFlags = new HashSet<>();
     private final Map<String, Integer> pilgrimIntState = new HashMap<>();
     private final Set<String> pilgrimFlags = new HashSet<>();
     private final Set<String> milestoneFlags = new HashSet<>();
@@ -220,6 +223,56 @@ public final class PlayerQuestData {
         return Collections.unmodifiableMap(storyIntState);
     }
 
+    public int getTradeRouteInt(String key) {
+        if (key == null || key.isEmpty()) {
+            return 0;
+        }
+        return tradeRouteIntState.getOrDefault(key, 0);
+    }
+
+    public void setTradeRouteInt(String key, int value) {
+        if (key == null || key.isEmpty()) {
+            return;
+        }
+        if (value == 0) {
+            tradeRouteIntState.remove(key);
+        } else {
+            tradeRouteIntState.put(key, value);
+        }
+    }
+
+    public void addTradeRouteInt(String key, int amount) {
+        if (amount != 0) {
+            setTradeRouteInt(key, getTradeRouteInt(key) + amount);
+        }
+    }
+
+    public Map<String, Integer> getTradeRouteIntState() {
+        return Collections.unmodifiableMap(tradeRouteIntState);
+    }
+
+    public String getTradeRouteString(String key) {
+        if (key == null || key.isEmpty()) {
+            return "";
+        }
+        return tradeRouteStringState.getOrDefault(key, "");
+    }
+
+    public void setTradeRouteString(String key, String value) {
+        if (key == null || key.isEmpty()) {
+            return;
+        }
+        if (value == null || value.isBlank()) {
+            tradeRouteStringState.remove(key);
+        } else {
+            tradeRouteStringState.put(key, value);
+        }
+    }
+
+    public Map<String, String> getTradeRouteStringState() {
+        return Collections.unmodifiableMap(tradeRouteStringState);
+    }
+
     public int getPilgrimInt(String key) {
         if (key == null || key.isEmpty()) {
             return 0;
@@ -313,6 +366,31 @@ public final class PlayerQuestData {
 
     public Set<String> getStoryFlags() {
         return Collections.unmodifiableSet(storyFlags);
+    }
+
+    public boolean hasTradeRouteFlag(String key) {
+        return key != null && !key.isEmpty() && tradeRouteFlags.contains(key);
+    }
+
+    public void setTradeRouteFlag(String key, boolean enabled) {
+        if (key == null || key.isEmpty()) {
+            return;
+        }
+        if (enabled) {
+            tradeRouteFlags.add(key);
+        } else {
+            tradeRouteFlags.remove(key);
+        }
+    }
+
+    public Set<String> getTradeRouteFlags() {
+        return Collections.unmodifiableSet(tradeRouteFlags);
+    }
+
+    public void clearTradeRoutes() {
+        tradeRouteIntState.clear();
+        tradeRouteStringState.clear();
+        tradeRouteFlags.clear();
     }
 
     public boolean hasPilgrimFlag(String key) {

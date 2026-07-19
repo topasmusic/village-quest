@@ -5,6 +5,9 @@ import de.quest.data.QuestState;
 import de.quest.quest.daily.DailyQuestService;
 import de.quest.quest.special.RelicQuestProgressionService;
 import de.quest.questmaster.QuestMasterProgressionService;
+import de.quest.registry.ModItems;
+import net.minecraft.item.ItemStack;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
@@ -18,6 +21,10 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 public final class ReputationService {
+    public static final int MASTERY_START = 200;
+    public static final int MASTERY_STEP = 50;
+    public static final int MAX_MASTERY = 5;
+    private static final String ROADWARDEN_HORN_CLAIMED = "relic.roadwarden_horn.claimed";
     public enum ReputationTrack {
         FARMING("farming", "text.village-quest.reputation.track.farming", Formatting.GREEN),
         CRAFTING("crafting", "text.village-quest.reputation.track.crafting", Formatting.GOLD),
@@ -138,9 +145,50 @@ public final class ReputationService {
         int previousTotal = total(world, playerId);
         PlayerQuestData data = data(world, playerId);
         data.addReputation(track.id(), amount);
+        if (track == ReputationTrack.MONSTER_HUNTING) {
+            ServerPlayerEntity player = world.getServer().getPlayerManager().getPlayer(playerId);
+            if (player != null) {
+                backfillRoadwardenHorn(world, player);
+            }
+        }
         QuestState.get(world.getServer()).markDirty();
         QuestMasterProgressionService.onReputationChanged(world, playerId, previousTotal);
         return data.getReputation(track.id());
+    }
+
+    public static boolean backfillRoadwardenHorn(ServerWorld world, ServerPlayerEntity player) {
+        if (world == null || player == null || ModItems.ROADWARDEN_HORN == null
+                || get(world, player.getUuid(), ReputationTrack.MONSTER_HUNTING) < MASTERY_START) {
+            return false;
+        }
+        PlayerQuestData data = data(world, player.getUuid());
+        if (data.hasMilestoneFlag(ROADWARDEN_HORN_CLAIMED)) {
+            return false;
+        }
+        boolean alreadyPresent = hasRoadwardenHorn(player);
+        if (!alreadyPresent) {
+            ItemStack horn = new ItemStack(ModItems.ROADWARDEN_HORN);
+            if (!player.getInventory().insertStack(horn)) {
+                player.dropItem(horn, false);
+            }
+            player.playerScreenHandler.sendContentUpdates();
+        }
+        data.setMilestoneFlag(ROADWARDEN_HORN_CLAIMED, true);
+        QuestState.get(world.getServer()).markDirty();
+        if (!alreadyPresent) {
+            player.sendMessage(Text.translatable("message.village-quest.roadwarden_horn.awarded")
+                    .formatted(Formatting.GOLD), false);
+        }
+        return !alreadyPresent;
+    }
+
+    private static boolean hasRoadwardenHorn(ServerPlayerEntity player) {
+        for (int slot = 0; slot < player.getInventory().size(); slot++) {
+            if (player.getInventory().getStack(slot).isOf(ModItems.ROADWARDEN_HORN)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static int total(ServerWorld world, UUID playerId) {
@@ -183,8 +231,10 @@ public final class ReputationService {
         if (raw == null || raw.isBlank()) {
             return null;
         }
+        String normalized = raw.trim().replace('-', '_');
+        if (normalized.equalsIgnoreCase("monster_hunting")) return ReputationTrack.MONSTER_HUNTING;
         for (ReputationTrack track : ReputationTrack.values()) {
-            if (track.id().equalsIgnoreCase(raw)) {
+            if (track.id().equalsIgnoreCase(normalized)) {
                 return track;
             }
         }
@@ -199,6 +249,16 @@ public final class ReputationService {
             }
         }
         return current;
+    }
+
+    public static int masteryLevel(int reputation) {
+        return Math.max(0, Math.min(MAX_MASTERY, (reputation - MASTERY_START) / MASTERY_STEP));
+    }
+
+    public static int totalMastery(ServerWorld world, UUID playerId) {
+        int total = 0;
+        for (ReputationTrack track : ReputationTrack.values()) total += masteryLevel(get(world, playerId, track));
+        return total;
     }
 
     public static Text displayRank(ReputationRank rank) {
@@ -285,6 +345,11 @@ public final class ReputationService {
     public static Text formatOverviewLine(ServerWorld world, UUID playerId, ReputationTrack track) {
         int currentValue = get(world, playerId, track);
         MutableText value = Text.literal(Integer.toString(currentValue)).formatted(track.color());
+        int mastery = masteryLevel(currentValue);
+        if (mastery > 0) {
+            return Text.translatable("text.village-quest.reputation.overview_mastery_line", displayName(track), value,
+                    displayRank(rankFor(currentValue)), mastery, MAX_MASTERY).formatted(Formatting.GRAY);
+        }
         return Text.translatable("text.village-quest.reputation.overview_line", displayName(track), value, displayRank(rankFor(currentValue)))
                 .formatted(Formatting.GRAY);
     }
@@ -317,6 +382,12 @@ public final class ReputationService {
             }
         }
         if (nextUnlock == null) {
+            int mastery = masteryLevel(currentValue);
+            if (mastery < MAX_MASTERY) {
+                int nextMastery = MASTERY_START + (mastery + 1) * MASTERY_STEP;
+                return Text.translatable("text.village-quest.reputation.next_mastery", mastery + 1,
+                        Text.literal(Integer.toString(nextMastery)).formatted(track.color())).formatted(Formatting.GRAY);
+            }
             return Text.translatable("text.village-quest.reputation.all_unlocked").formatted(Formatting.DARK_GREEN);
         }
         return Text.translatable(

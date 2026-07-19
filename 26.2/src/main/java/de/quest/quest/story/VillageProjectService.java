@@ -3,6 +3,7 @@ package de.quest.quest.story;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.economy.CurrencyService;
+import de.quest.economy.QuestExperienceService;
 import de.quest.reputation.ReputationService;
 import java.util.ArrayList;
 import java.util.List;
@@ -62,10 +63,20 @@ public final class VillageProjectService {
     }
 
     public static int bonusLevels(ServerLevel world, UUID playerId, ReputationService.ReputationTrack track) {
+        return bonusLevels(world, playerId, track, null);
+    }
+
+    public static int bonusLevels(ServerLevel world,
+                                  UUID playerId,
+                                  ReputationService.ReputationTrack track,
+                                  VillageProjectType completingProject) {
         if (track != ReputationService.ReputationTrack.CRAFTING) {
             return 0;
         }
-        return isUnlocked(world, playerId, VillageProjectType.FORGE_CHARTER) ? FORGE_CHARTER_CRAFTING_LEVEL_BONUS : 0;
+        return isUnlocked(world, playerId, VillageProjectType.FORGE_CHARTER)
+                || completingProject == VillageProjectType.FORGE_CHARTER
+                ? FORGE_CHARTER_CRAFTING_LEVEL_BONUS
+                : 0;
     }
 
     public static long bonusCurrency(ServerLevel world, UUID playerId, ReputationService.ReputationTrack track) {
@@ -120,7 +131,7 @@ public final class VillageProjectService {
             return Component.translatable(
                     "message.village-quest.project.level_bonus",
                     Component.translatable("quest.village-quest.project." + project.id() + ".title"),
-                    Component.literal("+" + levelBonus).withStyle(ChatFormatting.GREEN)
+                    QuestExperienceService.projectBonusAmount(levelBonus)
             ).withStyle(ChatFormatting.GRAY);
         }
 

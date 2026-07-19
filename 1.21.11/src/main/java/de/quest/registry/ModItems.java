@@ -2,9 +2,11 @@ package de.quest.registry;
 
 import de.quest.VillageQuest;
 import de.quest.content.item.ApiaristSmokerItem;
+import de.quest.content.item.CaravanLedgerItem;
 import de.quest.content.item.GroschenItem;
 import de.quest.content.item.MagicShardItem;
 import de.quest.content.item.MerchantSealItem;
+import de.quest.content.item.RoadwardenHornItem;
 import de.quest.content.item.ShepherdFluteItem;
 import de.quest.content.item.StarreachRingItem;
 import de.quest.content.item.SurveyorCompassItem;
@@ -32,6 +34,8 @@ public final class ModItems {
     public static Item SHEPHERD_FLUTE;
     public static Item APIARISTS_SMOKER;
     public static Item SURVEYORS_COMPASS;
+    public static Item CARAVAN_LEDGER;
+    public static Item ROADWARDEN_HORN;
     public static Item APIARY_CHARTER_PLAQUE;
     public static Item VILLAGE_LEDGER_PLAQUE;
     public static Item FORGE_CHARTER_PLAQUE;
@@ -112,6 +116,23 @@ public final class ModItems {
                 .maxCount(1)
                 .component(DataComponentTypes.LORE, lore("item." + VillageQuest.MOD_ID + ".surveyors_compass.lore")));
         Registry.register(Registries.ITEM, compassId, SURVEYORS_COMPASS);
+
+        Identifier ledgerId = id("caravan_ledger");
+        RegistryKey<Item> ledgerKey = RegistryKey.of(RegistryKeys.ITEM, ledgerId);
+        CARAVAN_LEDGER = new CaravanLedgerItem(new Item.Settings()
+                .registryKey(ledgerKey)
+                .maxCount(1)
+                .component(DataComponentTypes.LORE, lore("item." + VillageQuest.MOD_ID + ".caravan_ledger.lore")));
+        Registry.register(Registries.ITEM, ledgerId, CARAVAN_LEDGER);
+
+        Identifier hornId = id("roadwarden_horn");
+        RegistryKey<Item> hornKey = RegistryKey.of(RegistryKeys.ITEM, hornId);
+        ROADWARDEN_HORN = new RoadwardenHornItem(new Item.Settings()
+                .registryKey(hornKey)
+                .maxCount(1)
+                .component(DataComponentTypes.LORE, lore("item." + VillageQuest.MOD_ID + ".roadwarden_horn.lore")));
+        Registry.register(Registries.ITEM, hornId, ROADWARDEN_HORN);
+
         APIARY_CHARTER_PLAQUE = registerBlockItem("apiary_charter_plaque", ModBlocks.APIARY_CHARTER_PLAQUE);
         VILLAGE_LEDGER_PLAQUE = registerBlockItem("village_ledger_plaque", ModBlocks.VILLAGE_LEDGER_PLAQUE);
         FORGE_CHARTER_PLAQUE = registerBlockItem("forge_charter_plaque", ModBlocks.FORGE_CHARTER_PLAQUE);

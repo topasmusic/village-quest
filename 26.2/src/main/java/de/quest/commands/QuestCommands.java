@@ -1,11 +1,17 @@
 package de.quest.commands;
 
 import com.mojang.brigadier.arguments.LongArgumentType;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import com.mojang.brigadier.tree.CommandNode;
 import de.quest.data.QuestState;
+import de.quest.caravan.TradeRouteService;
+import de.quest.caravan.TradeGuildService;
+import de.quest.caravan.TradeRouteEventType;
+import de.quest.caravan.TradeRouteSpecialization;
+import de.quest.caravan.TradeRouteUpgrade;
 import de.quest.economy.CurrencyService;
 import de.quest.party.QuestPartyService;
 import de.quest.pilgrim.PilgrimContractService;
@@ -22,6 +28,7 @@ import de.quest.quest.special.ShardRelicQuestService;
 import de.quest.quest.special.SpecialQuestService;
 import de.quest.quest.special.SurveyorCompassQuestService;
 import de.quest.content.story.ShadowsTradeRoadEncounterService;
+import de.quest.content.story.EmptyCaravanStoryService;
 import de.quest.quest.story.StoryQuestService;
 import de.quest.quest.story.VillageProjectService;
 import de.quest.quest.story.VillageProjectType;
@@ -78,6 +85,22 @@ public final class QuestCommands {
                 builder.suggest(project.id());
             }
         }
+        return builder.buildFuture();
+    };
+
+    private static final SuggestionProvider<CommandSourceStack> ROUTE_SPECIALIZATION_SUGGESTIONS = (ctx, builder) -> {
+        for (TradeRouteSpecialization value : TradeRouteSpecialization.values()) builder.suggest(value.key());
+        return builder.buildFuture();
+    };
+
+    private static final SuggestionProvider<CommandSourceStack> ROUTE_UPGRADE_SUGGESTIONS = (ctx, builder) -> {
+        for (TradeRouteUpgrade value : TradeRouteUpgrade.values()) builder.suggest(value.key());
+        return builder.buildFuture();
+    };
+
+    private static final SuggestionProvider<CommandSourceStack> ROUTE_EVENT_SUGGESTIONS = (ctx, builder) -> {
+        builder.suggest("clear");
+        for (TradeRouteEventType value : TradeRouteEventType.values()) builder.suggest(value.key());
         return builder.buildFuture();
     };
 
@@ -231,6 +254,35 @@ public final class QuestCommands {
                                                             parseProject(StringArgumentType.getString(ctx, "project")),
                                                             false
                                                     ))))))
+                    .then(literal("routes")
+                            .then(literal("testsetup")
+                                    .executes(ctx -> setupRouteTest(ctx.getSource(), ctx.getSource().getPlayer()))
+                                    .then(argument("player", EntityArgument.player())
+                                            .executes(ctx -> setupRouteTest(
+                                                    ctx.getSource(),
+                                                    EntityArgument.getPlayer(ctx, "player")
+                                            ))))
+                            .then(literal("testevent")
+                                    .then(argument("route", IntegerArgumentType.integer(1, TradeRouteService.MAX_ROUTES))
+                                            .then(argument("event", StringArgumentType.word())
+                                                    .suggests(ROUTE_EVENT_SUGGESTIONS)
+                                                    .executes(ctx -> setRouteTestEvent(
+                                                            ctx.getSource(),
+                                                            IntegerArgumentType.getInteger(ctx, "route"),
+                                                            StringArgumentType.getString(ctx, "event")
+                                                    )))))
+                            .then(literal("reset")
+                                    .executes(ctx -> resetRoutesForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
+                                    .then(argument("player", EntityArgument.player())
+                                            .executes(ctx -> resetRoutesForPlayer(
+                                                    ctx.getSource(),
+                                                    EntityArgument.getPlayer(ctx, "player")
+                                            )))))
+                    .then(literal("uitest")
+                            .then(literal("questmaster")
+                                    .executes(ctx -> openQuestMasterUiTest(ctx.getSource())))
+                            .then(literal("pilgrim")
+                                    .executes(ctx -> openPilgrimUiTest(ctx.getSource()))))
                     .then(literal("shardcache")
                             .executes(ctx -> startShardCacheForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
                             .then(argument("player", EntityArgument.player())
@@ -315,7 +367,8 @@ public final class QuestCommands {
                     .then(literal("off").executes(ctx -> setQuestTracker(ctx.getSource(), false)));
 
             LiteralArgumentBuilder<CommandSourceStack> dailyQuestCommand = literal("daily")
-                    .then(literal("accept").executes(ctx -> acceptQuest(ctx.getSource())));
+                    .then(literal("accept").executes(ctx -> acceptQuest(ctx.getSource())))
+                    .then(literal("reroll").executes(ctx -> rerollDailyQuest(ctx.getSource())));
 
             LiteralArgumentBuilder<CommandSourceStack> partyCommand = literal("party")
                     .executes(ctx -> showParty(ctx.getSource()))
@@ -350,6 +403,53 @@ public final class QuestCommands {
             LiteralArgumentBuilder<CommandSourceStack> reputationCommand = literal("reputation")
                     .executes(ctx -> showReputation(ctx.getSource()));
 
+            LiteralArgumentBuilder<CommandSourceStack> routesCommand = literal("routes")
+                    .executes(ctx -> openRoutes(ctx.getSource()))
+                    .then(literal("minimap").executes(ctx -> toggleRouteMinimap(ctx.getSource())))
+                    .then(literal("guild").executes(ctx -> showTradeGuild(ctx.getSource())))
+                    .then(literal("specialize")
+                            .then(argument("route", IntegerArgumentType.integer(1, TradeRouteService.MAX_ROUTES))
+                                    .then(argument("specialization", StringArgumentType.word())
+                                            .suggests(ROUTE_SPECIALIZATION_SUGGESTIONS)
+                                            .executes(ctx -> specializeRoute(ctx.getSource(),
+                                                    IntegerArgumentType.getInteger(ctx, "route"),
+                                                    StringArgumentType.getString(ctx, "specialization"))))))
+                    .then(literal("upgrade")
+                            .then(argument("route", IntegerArgumentType.integer(1, TradeRouteService.MAX_ROUTES))
+                                    .then(argument("upgrade", StringArgumentType.word())
+                                            .suggests(ROUTE_UPGRADE_SUGGESTIONS)
+                                            .executes(ctx -> upgradeRoute(ctx.getSource(),
+                                                    IntegerArgumentType.getInteger(ctx, "route"),
+                                                    StringArgumentType.getString(ctx, "upgrade"))))))
+                    .then(literal("contracts")
+                            .executes(ctx -> showTradeContracts(ctx.getSource()))
+                            .then(literal("accept")
+                                    .then(argument("offer", IntegerArgumentType.integer(1, 3))
+                                            .then(argument("route", IntegerArgumentType.integer(1, TradeRouteService.MAX_ROUTES))
+                                                    .executes(ctx -> acceptTradeContract(ctx.getSource(),
+                                                            IntegerArgumentType.getInteger(ctx, "offer"),
+                                                            IntegerArgumentType.getInteger(ctx, "route"))))))
+                            .then(literal("supply").executes(ctx -> supplyTradeContract(ctx.getSource()))))
+                    .then(literal("register").executes(ctx -> registerRoute(ctx.getSource())))
+                    .then(literal("rename")
+                            .then(argument("route", IntegerArgumentType.integer(1, TradeRouteService.MAX_ROUTES))
+                                    .then(argument("name", StringArgumentType.greedyString())
+                                            .executes(ctx -> renameRoute(ctx.getSource(),
+                                                    IntegerArgumentType.getInteger(ctx, "route"),
+                                                    StringArgumentType.getString(ctx, "name"))))))
+                    .then(literal("remove")
+                            .then(argument("route", IntegerArgumentType.integer(1, TradeRouteService.MAX_ROUTES))
+                                    .executes(ctx -> removeRoute(ctx.getSource(),
+                                            IntegerArgumentType.getInteger(ctx, "route")))))
+                    .then(literal("survey")
+                            .then(literal("start")
+                                    .then(argument("route", IntegerArgumentType.integer(1, TradeRouteService.MAX_ROUTES))
+                                            .executes(ctx -> startRouteSurvey(ctx.getSource(),
+                                                    IntegerArgumentType.getInteger(ctx, "route")))))
+                            .then(literal("mark").executes(ctx -> markRouteSurvey(ctx.getSource())))
+                            .then(literal("finish").executes(ctx -> finishRouteSurvey(ctx.getSource())))
+                            .then(literal("cancel").executes(ctx -> cancelRouteSurvey(ctx.getSource()))));
+
             CommandNode<CommandSourceStack> villageQuestCommand = dispatcher.register(literal("villagequest")
                     .then(questAdminCommand)
                     .then(journalCommand)
@@ -358,7 +458,8 @@ public final class QuestCommands {
                     .then(dailyQuestCommand)
                     .then(partyCommand)
                     .then(walletCommand)
-                    .then(reputationCommand));
+                    .then(reputationCommand)
+                    .then(routesCommand));
             dispatcher.register(literal("vq").redirect(villageQuestCommand));
         });
     }
@@ -745,6 +846,11 @@ public final class QuestCommands {
             source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.project.no_change").withStyle(ChatFormatting.RED), false);
             return 0;
         }
+        if (unlocked && project == VillageProjectType.CARAVAN_YARD) {
+            TradeRouteService.initializeCaravanYard(world, target);
+        } else if (unlocked && project == VillageProjectType.MARKET_CHARTER) {
+            TradeRouteService.initializeProvisionalNetwork(world, target);
+        }
         refreshQuestUi(world, target);
 
         source.sendSuccess(() -> Component.translatable(
@@ -768,6 +874,157 @@ public final class QuestCommands {
         source.sendSuccess(() -> Component.empty()
                 .append(Component.translatable("command.village-quest.wallet.balance").withStyle(ChatFormatting.GRAY))
                 .append(CurrencyService.formatBalance(balance)), false);
+        return 1;
+    }
+
+    private static int openRoutes(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            return 0;
+        }
+        if (!TradeRouteService.hasRouteAccess(source.getServer().overworld(), player.getUUID())) {
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.locked").withStyle(ChatFormatting.RED), false);
+            return 0;
+        }
+        TradeRouteService.openMap(source.getServer().overworld(), player);
+        return 1;
+    }
+
+    private static int registerRoute(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        return player != null && TradeRouteService.registerCurrentVillage(source.getServer().overworld(), player) ? 1 : 0;
+    }
+
+    private static int rerollDailyQuest(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        return player != null && DailyQuestService.rerollQuestForToday(
+                source.getServer().overworld(), player) ? 1 : 0;
+    }
+
+    private static int showTradeGuild(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) return 0;
+        for (Component line : TradeGuildService.overview(source.getServer().overworld(), player.getUUID())) {
+            source.sendSuccess(() -> line, false);
+        }
+        return 1;
+    }
+
+    private static int specializeRoute(CommandSourceStack source, int routeNumber, String rawSpecialization) {
+        ServerPlayer player = source.getPlayer();
+        TradeRouteSpecialization specialization = TradeRouteSpecialization.fromName(rawSpecialization);
+        return player != null && specialization != null && TradeRouteService.specialize(
+                source.getServer().overworld(), player, routeNumber - 1, specialization) ? 1 : 0;
+    }
+
+    private static int upgradeRoute(CommandSourceStack source, int routeNumber, String rawUpgrade) {
+        ServerPlayer player = source.getPlayer();
+        TradeRouteUpgrade upgrade = TradeRouteUpgrade.fromName(rawUpgrade);
+        return player != null && upgrade != null && TradeRouteService.buyUpgrade(
+                source.getServer().overworld(), player, routeNumber - 1, upgrade) ? 1 : 0;
+    }
+
+    private static int showTradeContracts(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) return 0;
+        for (Component line : TradeGuildService.contractBoard(source.getServer().overworld(), player.getUUID())) {
+            source.sendSuccess(() -> line, false);
+        }
+        return 1;
+    }
+
+    private static int acceptTradeContract(CommandSourceStack source, int offer, int routeNumber) {
+        ServerPlayer player = source.getPlayer();
+        return player != null && TradeGuildService.acceptContract(
+                source.getServer().overworld(), player, offer, routeNumber - 1) ? 1 : 0;
+    }
+
+    private static int supplyTradeContract(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        return player != null && TradeGuildService.supplyContract(
+                source.getServer().overworld(), player) ? 1 : 0;
+    }
+
+    private static int removeRoute(CommandSourceStack source, int routeNumber) {
+        ServerPlayer player = source.getPlayer();
+        return player != null && TradeRouteService.removeRoute(
+                source.getServer().overworld(), player, routeNumber - 1) ? 1 : 0;
+    }
+
+    private static int renameRoute(CommandSourceStack source, int routeNumber, String name) {
+        ServerPlayer player = source.getPlayer();
+        return player != null && TradeRouteService.renameRoute(
+                source.getServer().overworld(), player, routeNumber - 1, name) ? 1 : 0;
+    }
+
+    private static int startRouteSurvey(CommandSourceStack source, int routeNumber) {
+        ServerPlayer player = source.getPlayer();
+        return player != null && TradeRouteService.startRouteSurvey(
+                source.getServer().overworld(), player, routeNumber - 1) ? 1 : 0;
+    }
+
+    private static int markRouteSurvey(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        return player != null && TradeRouteService.markSurveyWaypoint(
+                source.getServer().overworld(), player) ? 1 : 0;
+    }
+
+    private static int finishRouteSurvey(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        return player != null && TradeRouteService.finishRouteSurvey(
+                source.getServer().overworld(), player, -1) ? 1 : 0;
+    }
+
+    private static int cancelRouteSurvey(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        return player != null && TradeRouteService.cancelRouteSurvey(
+                source.getServer().overworld(), player, -1) ? 1 : 0;
+    }
+
+    private static int resetRoutesForPlayer(CommandSourceStack source, ServerPlayer target) {
+        if (target == null) {
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
+            return 0;
+        }
+        TradeRouteService.resetRoutes(source.getServer().overworld(), target.getUUID());
+        source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.routes.reset", target.getDisplayName())
+                .withStyle(ChatFormatting.GREEN), false);
+        return 1;
+    }
+
+    private static int setupRouteTest(CommandSourceStack source, ServerPlayer target) {
+        if (target == null) {
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
+            return 0;
+        }
+        var world = source.getServer().overworld();
+        StoryQuestService.adminUnlockEmptyCaravanForTesting(world, target.getUUID());
+        TradeRouteService.adminCreateTestNetwork(world, target);
+        source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.routes.testsetup", target.getDisplayName())
+                .withStyle(ChatFormatting.GREEN), false);
+        target.sendSystemMessage(Component.translatable("command.village-quest.questadmin.routes.testsetup.hint")
+                .withStyle(ChatFormatting.GOLD), false);
+        return 1;
+    }
+
+    private static int setRouteTestEvent(CommandSourceStack source, int routeNumber, String eventKey) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required")
+                    .withStyle(ChatFormatting.RED), false);
+            return 0;
+        }
+        boolean changed = TradeRouteService.adminSetTestEvent(
+                source.getServer().overworld(), player, routeNumber - 1, eventKey);
+        return changed ? 1 : 0;
+    }
+
+    private static int toggleRouteMinimap(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            return 0;
+        }
+        TradeRouteService.toggleMinimap(source.getServer().overworld(), player);
         return 1;
     }
 
@@ -862,6 +1119,56 @@ public final class QuestCommands {
         }
 
         source.sendSuccess(() -> Component.translatable("command.village-quest.questmaster.spawn.success").withStyle(ChatFormatting.GREEN), false);
+        return 1;
+    }
+
+    private static int openQuestMasterUiTest(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required")
+                    .withStyle(ChatFormatting.RED), false);
+            return 0;
+        }
+
+        var world = source.getServer().overworld();
+        var questMaster = QuestMasterService.findNearbyQuestMaster(
+                world, player.getX(), player.getY(), player.getZ());
+        if (questMaster == null) {
+            questMaster = QuestMasterService.spawnNearPlayer(world, player);
+        }
+        if (questMaster == null) {
+            source.sendSuccess(() -> Component.translatable(
+                    "command.village-quest.questmaster.spawn.failed").withStyle(ChatFormatting.RED), false);
+            return 0;
+        }
+
+        QuestMasterUiService.open(world, player, questMaster);
+        return 1;
+    }
+
+    private static int openPilgrimUiTest(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required")
+                    .withStyle(ChatFormatting.RED), false);
+            return 0;
+        }
+
+        var world = source.getServer().overworld();
+        var pilgrim = PilgrimService.findActivePilgrim(world);
+        if (pilgrim == null) {
+            pilgrim = PilgrimService.spawnNearPlayer(world, player, true);
+        }
+        if (pilgrim != null && player.distanceToSqr(pilgrim) > 16.0d) {
+            pilgrim.setPos(player.getX() + 1.5d, player.getY(), player.getZ() + 1.5d);
+        }
+        if (pilgrim == null) {
+            source.sendSuccess(() -> Component.translatable(
+                    "command.village-quest.questadmin.pilgrim.spawn.failed").withStyle(ChatFormatting.RED), false);
+            return 0;
+        }
+
+        PilgrimService.openTrade(world, player, pilgrim);
         return 1;
     }
 
@@ -1155,6 +1462,8 @@ public final class QuestCommands {
         MerchantSealQuestService.resetRuntimeState();
         SurveyorCompassQuestService.resetRuntimeState();
         ShadowsTradeRoadEncounterService.resetRuntimeState();
+        TradeRouteService.despawnAll(world);
+        EmptyCaravanStoryService.despawnAll(world);
         int removedQuestMasters = QuestMasterService.despawnAll(world);
         int removedPilgrims = PilgrimService.despawnAll(world);
         int removedTradeRoad = ShadowsTradeRoadEncounterService.despawnAll(world);

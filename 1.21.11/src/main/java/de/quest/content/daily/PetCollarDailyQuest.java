@@ -36,15 +36,18 @@ public final class PetCollarDailyQuest implements DailyQuestDefinition {
 
     @Override
     public Text progressLine(ServerWorld world, UUID playerId) {
+        int target = DailyQuestService.petCollarTarget();
         return Text.translatable(
                 "quest.village-quest.daily.pet_collar.progress",
-                DailyQuestService.hasQuestFlag(world, playerId, DailyQuestKeys.PET_COLLAR_DONE) ? 1 : 0
+                Math.min(target, DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.PET_COLLAR_PROGRESS)), target
         ).formatted(Formatting.GRAY);
     }
 
     @Override
     public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
-        return DailyQuestService.hasQuestFlag(world, player.getUuid(), DailyQuestKeys.PET_COLLAR_DONE);
+        int progress = DailyQuestService.getQuestInt(world, player.getUuid(), DailyQuestKeys.PET_COLLAR_PROGRESS);
+        return progress >= DailyQuestService.petCollarTarget()
+                || (progress == 0 && DailyQuestService.hasQuestFlag(world, player.getUuid(), DailyQuestKeys.PET_COLLAR_DONE));
     }
 
     @Override
@@ -67,7 +70,8 @@ public final class PetCollarDailyQuest implements DailyQuestDefinition {
         if (!DailyQuestService.isTrackingQuest(world, player.getUuid(), DailyQuestService.DailyQuestType.PET_COLLAR)) {
             return;
         }
-        DailyQuestService.setQuestFlag(world, player.getUuid(), DailyQuestKeys.PET_COLLAR_DONE, true);
+        int progress = DailyQuestService.getQuestInt(world, player.getUuid(), DailyQuestKeys.PET_COLLAR_PROGRESS) + 1;
+        DailyQuestService.setQuestInt(world, player.getUuid(), DailyQuestKeys.PET_COLLAR_PROGRESS, progress);
         DailyQuestService.completeIfEligible(world, player);
         DailyQuestService.sendCurrentProgressActionbar(world, player);
     }

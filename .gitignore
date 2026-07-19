@@ -29,3 +29,9 @@
 **/*.hprof
 **/*.jfr
 **/run_verbose.log
+
+# local release QA output and scratch exports
+/26.2/runclient-*.log
+/tools/__pycache__/
+/es_es.json
+/es_es. original.json

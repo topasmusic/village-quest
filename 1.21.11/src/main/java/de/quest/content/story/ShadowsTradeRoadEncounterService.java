@@ -20,6 +20,7 @@ import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.LoreComponent;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.boss.BossBar;
 import net.minecraft.entity.boss.ServerBossBar;
@@ -92,6 +93,9 @@ public final class ShadowsTradeRoadEncounterService {
     private static final int MERCHANT_SPAWN_MIN_RADIUS = 3;
     private static final int MERCHANT_SPAWN_MAX_RADIUS = 9;
     private static final int MERCHANT_SPAWN_MIN_DISTANCE = 3;
+    private static final int ENCOUNTER_MAX_VERTICAL_DELTA = 3;
+    private static final int ENCOUNTER_FOOTPRINT_RADIUS = 8;
+    private static final int ENCOUNTER_MIN_LEVEL_SAMPLES = 50;
     private static final double MERCHANT_RETREAT_SPEED = 1.0D;
     private static final double MERCHANT_RETURN_SPEED = 0.78D;
     private static final int AGGRO_TICKS = 20 * 7;
@@ -109,7 +113,8 @@ public final class ShadowsTradeRoadEncounterService {
 
     private ShadowsTradeRoadEncounterService() {}
 
-    public record VillageMarker(String key, int centerX, int centerZ) {}
+    public record VillageMarker(String key, int centerX, int centerZ,
+                                int minX, int maxX, int minZ, int maxZ) {}
     public record DistressTarget(BlockPos pos, Text label) {}
 
     private record WaveSpec(int zombies, int skeletons, int spiders, int traitors) {}
@@ -243,7 +248,8 @@ public final class ShadowsTradeRoadEncounterService {
         BlockBox box = start.getBoundingBox();
         int centerX = (box.getMinX() + box.getMaxX()) / 2;
         int centerZ = (box.getMinZ() + box.getMaxZ()) / 2;
-        return new VillageMarker(centerX + "_" + centerZ, centerX, centerZ);
+        return new VillageMarker(centerX + "_" + centerZ, centerX, centerZ,
+                box.getMinX(), box.getMaxX(), box.getMinZ(), box.getMaxZ());
     }
 
     public static boolean hasHomeVillage(ServerWorld world, UUID playerId) {
@@ -618,6 +624,9 @@ public final class ShadowsTradeRoadEncounterService {
         List<BlockPos> merchantPositions = new ArrayList<>();
         for (int i = 0; i < spec.merchants(); i++) {
             BlockPos merchantPos = findMerchantSpawn(world, anchorPos, merchantPositions);
+            if (merchantPos == null) {
+                continue;
+            }
             CaravanMerchantEntity merchant = new CaravanMerchantEntity(ModEntities.CARAVAN_MERCHANT, world);
             merchant.refreshPositionAndAngles(merchantPos.getX() + 0.5, merchantPos.getY(), merchantPos.getZ() + 0.5, world.random.nextFloat() * 360.0f, 0.0f);
             merchant.setHealth(merchant.getMaxHealth());
@@ -635,7 +644,8 @@ public final class ShadowsTradeRoadEncounterService {
                 encounter.guardMerchantIds.add(merchant.getUuid());
             }
         }
-        if (encounter.merchantIds.isEmpty()) {
+        if (encounter.merchantIds.size() < spec.merchants()) {
+            cleanupEncounterEntities(world, encounter, true);
             return null;
         }
         startNextWave(world, encounter);
@@ -756,8 +766,17 @@ public final class ShadowsTradeRoadEncounterService {
             boolean guard = encounter.guardMerchantIds.contains(merchant.getUuid());
             merchant.refreshEncounterControl(guard);
 
-            if (merchant.getBlockPos().getSquaredDistance(encounter.anchorPos) > (double) (MERCHANT_MAX_RADIUS * MERCHANT_MAX_RADIUS)) {
-                moveMerchantTo(merchant, encounter.anchorPos, MERCHANT_RETURN_SPEED);
+            BlockPos merchantPos = merchant.getBlockPos();
+            if (Math.abs(merchantPos.getY() - encounter.anchorPos.getY()) > ENCOUNTER_MAX_VERTICAL_DELTA * 2) {
+                if (!recoverEncounterMerchant(world, encounter, merchant, merchants)) {
+                    moveMerchantTo(merchant, encounter.anchorPos, MERCHANT_RETURN_SPEED);
+                }
+                continue;
+            }
+            if (merchantPos.getSquaredDistance(encounter.anchorPos) > (double) (MERCHANT_MAX_RADIUS * MERCHANT_MAX_RADIUS)) {
+                if (!recoverEncounterMerchant(world, encounter, merchant, merchants)) {
+                    moveMerchantTo(merchant, encounter.anchorPos, MERCHANT_RETURN_SPEED);
+                }
                 continue;
             }
 
@@ -786,6 +805,28 @@ public final class ShadowsTradeRoadEncounterService {
             return;
         }
         merchant.getNavigation().startMovingTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, speed);
+    }
+
+    private static boolean recoverEncounterMerchant(ServerWorld world,
+                                                      ActiveEncounter encounter,
+                                                      CaravanMerchantEntity merchant,
+                                                      List<CaravanMerchantEntity> merchants) {
+        List<BlockPos> occupied = new ArrayList<>();
+        for (CaravanMerchantEntity other : merchants) {
+            if (other != null && other != merchant && other.isAlive() && !other.isRemoved()
+                    && Math.abs(other.getY() - encounter.anchorPos.getY()) <= ENCOUNTER_MAX_VERTICAL_DELTA) {
+                occupied.add(other.getBlockPos());
+            }
+        }
+        BlockPos recovery = findMerchantSpawn(world, encounter.anchorPos, occupied);
+        if (recovery == null) {
+            return false;
+        }
+        merchant.getNavigation().stop();
+        merchant.setVelocity(0.0, 0.0, 0.0);
+        moveEntityTo(merchant, recovery.getX() + 0.5, recovery.getY(), recovery.getZ() + 0.5,
+                merchant.getYaw(), merchant.getPitch());
+        return true;
     }
 
     private static BlockPos findMerchantRetreatPos(ServerWorld world, ActiveEncounter encounter, MobEntity threat) {
@@ -913,31 +954,31 @@ public final class ShadowsTradeRoadEncounterService {
 
     private static void spawnHostile(ServerWorld world, ActiveEncounter encounter, HostileSpawnType type) {
         switch (type) {
-            case ZOMBIE -> spawnZombies(world, encounter, 1);
-            case SKELETON -> spawnSkeletons(world, encounter, 1);
-            case SPIDER -> spawnSpiders(world, encounter, 1);
+            case ZOMBIE -> spawnZombieEntitys(world, encounter, 1);
+            case SKELETON -> spawnSkeletonEntitys(world, encounter, 1);
+            case SPIDER -> spawnSpiderEntitys(world, encounter, 1);
             case TRAITOR -> spawnTraitors(world, encounter, 1);
         }
     }
 
-    private static void spawnZombies(ServerWorld world, ActiveEncounter encounter, int count) {
+    private static void spawnZombieEntitys(ServerWorld world, ActiveEncounter encounter, int count) {
         for (int i = 0; i < count; i++) {
-            ZombieEntity zombie = new ZombieEntity(net.minecraft.entity.EntityType.ZOMBIE, world);
+            ZombieEntity zombie = new ZombieEntity(EntityType.ZOMBIE, world);
             prepareHostile(world, encounter, zombie, false);
         }
     }
 
-    private static void spawnSkeletons(ServerWorld world, ActiveEncounter encounter, int count) {
+    private static void spawnSkeletonEntitys(ServerWorld world, ActiveEncounter encounter, int count) {
         for (int i = 0; i < count; i++) {
-            SkeletonEntity skeleton = new SkeletonEntity(net.minecraft.entity.EntityType.SKELETON, world);
+            SkeletonEntity skeleton = new SkeletonEntity(EntityType.SKELETON, world);
             skeleton.equipStack(EquipmentSlot.MAINHAND, new ItemStack(Items.BOW));
             prepareHostile(world, encounter, skeleton, false);
         }
     }
 
-    private static void spawnSpiders(ServerWorld world, ActiveEncounter encounter, int count) {
+    private static void spawnSpiderEntitys(ServerWorld world, ActiveEncounter encounter, int count) {
         for (int i = 0; i < count; i++) {
-            SpiderEntity spider = new SpiderEntity(net.minecraft.entity.EntityType.SPIDER, world);
+            SpiderEntity spider = new SpiderEntity(EntityType.SPIDER, world);
             prepareHostile(world, encounter, spider, false);
         }
     }
@@ -1104,6 +1145,9 @@ public final class ShadowsTradeRoadEncounterService {
             return;
         }
         BlockPos anchor = findEncounterAnchor(world, player.getBlockPos());
+        if (anchor == null) {
+            return;
+        }
         int targetDay = currentWorldDay(world) + Math.max(0, nightsUntilStart);
         StoryQuestService.setQuestInt(world, player.getUuid(), StoryQuestKeys.SHADOWS_RESCUE_TARGET_X, anchor.getX());
         StoryQuestService.setQuestInt(world, player.getUuid(), StoryQuestKeys.SHADOWS_RESCUE_TARGET_Z, anchor.getZ());
@@ -1144,9 +1188,13 @@ public final class ShadowsTradeRoadEncounterService {
             }
         }
 
-        BlockPos spawnPos = findEncounterAnchor(world, player.getBlockPos()).withY(world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, player.getBlockX(), player.getBlockZ()));
+        BlockPos spawnPos = safeSurface(world, MathHelper.floor(player.getX() + 2.0), MathHelper.floor(player.getZ() + 2.0));
+        if (spawnPos == null) {
+            return;
+        }
         CaravanMerchantEntity courier = new CaravanMerchantEntity(ModEntities.CARAVAN_MERCHANT, world);
-        courier.refreshPositionAndAngles(player.getX() + 2.0, spawnPos.getY(), player.getZ() + 2.0, world.random.nextFloat() * 360.0f, 0.0f);
+        moveEntityTo(courier, spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5,
+                world.getRandom().nextFloat() * 360.0f, 0.0f);
         courier.setCourier(true);
         courier.setDespawnTicks(COURIER_DESPAWN_TICKS);
         courier.addCommandTag(TAG_CARAVAN);
@@ -1230,6 +1278,17 @@ public final class ShadowsTradeRoadEncounterService {
         return world == null ? 0 : (int) (world.getTimeOfDay() / 24000L);
     }
 
+    private static void moveEntityTo(Entity entity, double x, double y, double z, float yaw, float pitch) {
+        if (entity == null) {
+            return;
+        }
+        entity.setPos(x, y, z);
+        entity.setYaw(yaw);
+        entity.setPitch(pitch);
+        entity.setHeadYaw(yaw);
+        entity.setBodyYaw(yaw);
+    }
+
     private static Text distressLabel(int kind) {
         return Text.translatable(
                 kind == RESCUE_KIND_FINAL
@@ -1250,7 +1309,11 @@ public final class ShadowsTradeRoadEncounterService {
             }
         }
         BlockPos fallback = safeSurface(world, origin.getX() + MIN_RESCUE_DISTANCE, origin.getZ());
-        return fallback != null && hasDryEncounterFootprint(world, fallback) ? fallback : origin;
+        if (fallback != null && hasDryEncounterFootprint(world, fallback)) {
+            return fallback;
+        }
+        BlockPos localFallback = safeSurface(world, origin.getX(), origin.getZ());
+        return localFallback != null && hasDryEncounterFootprint(world, localFallback) ? localFallback : null;
     }
 
     private static BlockPos findMerchantSpawn(ServerWorld world, BlockPos anchor, List<BlockPos> existingSpawns) {
@@ -1271,7 +1334,9 @@ public final class ShadowsTradeRoadEncounterService {
                 MERCHANT_MAX_RADIUS,
                 existingSpawns
         );
-        return widerSpawn != null ? widerSpawn : findRingSpawn(world, anchor, MERCHANT_SPAWN_MIN_RADIUS, MERCHANT_SPAWN_MAX_RADIUS);
+        // A partial encounter is retried by the caller. Never use the old unspaced
+        // ring fallback: it could select a block already occupied by another merchant.
+        return widerSpawn;
     }
 
     private static BlockPos findSpacedRingSpawn(ServerWorld world,
@@ -1285,7 +1350,9 @@ public final class ShadowsTradeRoadEncounterService {
             int x = anchor.getX() + MathHelper.floor(Math.cos(angle) * distance);
             int z = anchor.getZ() + MathHelper.floor(Math.sin(angle) * distance);
             BlockPos pos = safeSurface(world, x, z);
-            if (pos != null && isMerchantSpawnFarEnough(pos, existingSpawns)) {
+            if (pos != null
+                    && Math.abs(pos.getY() - anchor.getY()) <= ENCOUNTER_MAX_VERTICAL_DELTA
+                    && isMerchantSpawnFarEnough(pos, existingSpawns)) {
                 return pos;
             }
         }
@@ -1312,7 +1379,7 @@ public final class ShadowsTradeRoadEncounterService {
             int x = anchor.getX() + MathHelper.floor(Math.cos(angle) * distance);
             int z = anchor.getZ() + MathHelper.floor(Math.sin(angle) * distance);
             BlockPos pos = safeSurface(world, x, z);
-            if (pos != null) {
+            if (pos != null && Math.abs(pos.getY() - anchor.getY()) <= ENCOUNTER_MAX_VERTICAL_DELTA) {
                 return pos;
             }
         }
@@ -1343,15 +1410,19 @@ public final class ShadowsTradeRoadEncounterService {
             return false;
         }
         int drySpots = 0;
-        for (int dx = -4; dx <= 4; dx += 2) {
-            for (int dz = -4; dz <= 4; dz += 2) {
+        int levelSpots = 0;
+        for (int dx = -ENCOUNTER_FOOTPRINT_RADIUS; dx <= ENCOUNTER_FOOTPRINT_RADIUS; dx += 2) {
+            for (int dz = -ENCOUNTER_FOOTPRINT_RADIUS; dz <= ENCOUNTER_FOOTPRINT_RADIUS; dz += 2) {
                 BlockPos sample = safeSurface(world, center.getX() + dx, center.getZ() + dz);
                 if (sample != null) {
                     drySpots++;
+                    if (Math.abs(sample.getY() - center.getY()) <= ENCOUNTER_MAX_VERTICAL_DELTA) {
+                        levelSpots++;
+                    }
                 }
             }
         }
-        return drySpots >= 6;
+        return drySpots >= ENCOUNTER_MIN_LEVEL_SAMPLES && levelSpots >= ENCOUNTER_MIN_LEVEL_SAMPLES;
     }
 
     private static Entity findEntity(ServerWorld world, UUID entityId) {

@@ -30,6 +30,12 @@ Unlock rules:
 
 This arc is intentionally separate from the four core village-growth arcs above.
 
+In the prepared `2.0.0` release candidate, completing it opens one more solo follow-up:
+
+- `The Empty Caravan`
+
+That arc turns the road-defense storyline into the persistent `Caravan Yard` trade-route system.
+
 `Night Bells` still exists in code as older combat-side story content, but it is no longer part of the visible Questmaster story flow.
 
 ## Story Arc Overview
@@ -84,6 +90,47 @@ This is the late road-defense follow-up unlocked after `Watch Bell` and `3` comp
 - use the `Guild Convoy` compass mode on the attack night
 - defend the larger guild caravan through the full assault
 - the last wave adds elite `Traitor` bandits
+
+### `The Empty Caravan`
+
+This six-chapter solo follow-up becomes available after `Shadows on the Trade Road` is complete.
+
+#### Chapter 1: `The Cart That Returned Alone`
+
+- follow the `Wayfinder's Compass` to the abandoned caravan site
+- investigate what returned without its crew
+
+#### Chapter 2: `Three Broken Signs`
+
+- follow a sequence of `3` clue sites along the road
+- each discovery advances the investigation to the next sign
+
+#### Chapter 3: `Ink Beneath Wax`
+
+- turn in `12` paper
+- turn in `3` ink sacs
+- turn in `2` honeycomb
+
+#### Chapter 4: `Names Behind the Seal`
+
+- interview an adult `Cartographer`
+- interview an adult `Librarian`
+- interview an adult `Cleric`
+
+#### Chapter 5: `A Caravan Made of Bait`
+
+- make a visible choice at the `Questmaster`
+- hold any banner and interact to offer amnesty, or hold an iron sword and interact to demand justice
+- defend the bait caravan from the resulting attack
+- amnesty favors trade reputation; justice favors currency and roadside-watch reputation
+
+#### Chapter 6: `Roads Between Villages`
+
+- turn in `32` gravel
+- turn in `24` stone bricks
+- turn in `8` lanterns
+- turn in `4` leads
+- unlock the `Caravan Yard` and receive the `Caravan Ledger`
 
 ## The Failing Harvest
 
@@ -214,12 +261,14 @@ These must be made for the chapter and be present for turn-in.
 
 ### Forge Charter
 
-- future `Crafting` rewards gain `+2 levels`
+- future `Crafting` rewards gain `+0.75` experience levels, scaled to the player's current vanilla level
 - unlocks the matching `Forge Charter Plaque` trophy offer in the `Pilgrim` shop
 
 ### Market Charter
 
 - lets the `Pilgrim` later add old roadmarks to the `Wayfinder's Compass`
+- immediately grants the `Caravan Ledger`, map access, and one provisional route with an `8 Silvermark` daily network cap
+- provisional caravans use two merchants and do not yet roll recurring incidents
 - unlocks the matching `Market Charter Plaque` trophy offer in the `Pilgrim` shop
 
 ### Pasture Charter
@@ -233,3 +282,18 @@ These must be made for the chapter and be present for turn-in.
 - unlocks the late dangerous `Pilgrim` rumor lane
 - reveals the locked late `Shadows on the Trade Road` story entry once the project exists
 - unlocks the `Watch Bell Reliquary` trophy offer in the `Pilgrim` shop
+
+### Caravan Yard
+
+- unlocks after completing `The Empty Caravan`
+- grants and enables the `Caravan Ledger`
+- supports a home hub and up to `5` persistent trade routes between registered villages
+- stores up to `48` surveyed waypoints per route, allowing deliberate player-built detours
+- makes nearby simulated caravans appear as traveling merchant NPC groups
+- lets player-built road surfaces and lighting improve speed and delivery earnings
+- adds recurring route emergencies, security progression, and a live trade-route map
+- expands the provisional route limit from `1` to `5`
+- enables the five-rank Village Trade Guild, freight contracts, specializations, upgrades, and the `60 Silvermark` route-income cap
+- keeps offline route proceeds in a capped trade-office escrow until the ledger is opened
+
+See [Trade Routes and Caravans](./trade-routes-and-caravans.md) for the complete system and its in-game test command.

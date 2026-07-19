@@ -1,5 +1,7 @@
 # Codex Start Here
 
+> Current local note (2026-07-19): all three maintained lines contain the prepared, unreleased `Village Quest 2.0.0 - Roads Between Villages` release candidate. The balance/Trade-Guild expansion, unified UI, terrain map/minimap, caravan reliability, inhabited-village validation, five route-owned outfits, destination renaming, four-offer Pilgrim cap, German umlauts, old-save Ledger/Horn backfills, and the mixed licensing package have all been deliberately ported. Automated gates and all three builds pass. `26.2` is the native reference; `1.21.11` received a focused native regression pass and target-specific collision-bound refresh fix. The user explicitly deferred a native `26.1.2` smoke test and a full no-admin-completion `The Empty Caravan` run. The source candidate may live in Git, but it remains untagged and unpublished while the legacy entity skins are unresolved.
+
 Wenn in einer neuen Session auf diese Datei verwiesen wird, arbeite nach diesem Ablauf, bevor du Annahmen triffst oder Aenderungen machst.
 
 ## Ziel
@@ -29,7 +31,7 @@ Baue zuerst belastbaren Kontext aus Maintainer-Daten, Changelog und Wiki auf, da
 
 ## Aktuell wichtige Versionsfakten
 
-Stand dieser Datei: `2026-07-17`
+Stand dieser Datei: `2026-07-19`
 
 - `26.2`
   - Minecraft `26.2`
@@ -52,8 +54,13 @@ Stand dieser Datei: `2026-07-17`
 
 ## Aktuell wichtige inhaltliche Fakten
 
-- `26.2` ist jetzt die aktive Stable- und Arbeitslinie fuer `Village Quest 1.22.8`.
-- `26.1.2` und `1.21.11` sind ebenfalls auf `1.22.8` veroeffentlicht.
+- `26.2` ist die aktive Referenz- und Arbeitslinie; `1.22.8` bleibt bis zur Publikation der oeffentliche Stable-Stand.
+- In allen drei lokalen Versionsordnern liegt der unveroeffentlichte Release Candidate `2.0.0` mit `The Empty Caravan`, `Caravan Yard`, persistenten Handelsrouten, sichtbaren Karawanen, Terrainkarte/Minimap, Strassenqualitaet, acht dynamischen Ereignissen und kompatiblem Rechtsklick-Erntetracking.
+- Der lokale Karawanenstand unterstuetzt bis zu fuenf Routen, persistente Vermessungsentwuerfe mit bis zu `48` Wegpunkten, echte Umwege auf Karte und Simulation sowie das Entfernen einzelner Routen. Der komplette Fuenf-Routen-/Vermessungs-/Entfernungsablauf wurde am `2026-07-18` auf der Referenzlinie `26.2` im echten Client geprueft; dabei wurden die kompakte Zeilenaufteilung und das `30`-Sekunden-Bestaetigungsfenster finalisiert.
+- Alle drei Linien enthalten die Reliability-/Live-Navigation-/UI-Paesse: robuste Karawanen-Recovery, sichere Gruppenplatzierung, bewohnte echte Dorfziele, Terrain-Minimap per `,`/Command, terrainbasierte Vollkarte, Spieler-/Karawanen-Tooltips, fuenf routeigene Outfit-Farben, das kompakte Journal und deterministische QA-Befehle.
+- Der native Java-`21`-/Minecraft-`1.21.11`-Clientlauf bestaetigte die Yarn-Paritaet fuer die zentralen Routen- und UI-Flaechen. Ein anschliessend entdeckter automatischer Spawnfehler wurde zielversionsspezifisch durch das Aktualisieren der Kollisionsbox vor `isSpaceEmpty` behoben und im Client nachgeprueft.
+- Commit und Push eines unveroeffentlichten Release Candidates brauchen eine ausdrueckliche User-Anweisung; Tag und Release brauchen danach noch einmal eine eigene ausdrueckliche Freigabe.
+- `1.22.8` bleibt auf `26.2`, `26.1.2` und `1.21.11` der veroeffentlichte Stable-Stand; `2.0.0` bleibt bis dahin lokal und unveroeffentlicht.
 - Die frueheren Multiplayer-Betas sind Teil des aktuellen Stable-Gameplays.
 - `1.22.8` verhindert, dass globale Resets alte Party-, Invite- oder Shared-Session-Daten beim Serverstopp wiederherstellen, und bereinigt kurzlebige Runtime-Zustaende sauber an Server- und Spieler-Lifecycle-Grenzen.
 - `Restless Pens` Kapitel 4 zeigt jetzt beide Fortschrittszeilen in `en_us`, `de_de` und `es_es` korrekt an.
@@ -67,6 +74,7 @@ Stand dieser Datei: `2026-07-17`
 - Der erkannte Root-Workflow unter `.github/workflows/build.yml` baut alle drei Linien und prueft Ressourcen sowie Sprachparitaet.
 - Wolkensprung wurde restlos aus Code, Ressourcen, Skripten und Templates entfernt.
 - `Shadows on the Trade Road` bleibt der spaete Story-Batch, der bei Aenderungen bewusst gegen die Legacy-Linie verglichen werden muss.
+- Fuer den neuen Karawanen-Batch ist `/vq admin routes testsetup` der zentrale Ingame-Testbefehl; Details stehen in der jeweiligen `docs/wiki/trade-routes-and-caravans.md`.
 
 ## Wenn der User nach "latest" fragt
 

@@ -3,12 +3,14 @@
 	"id": "village-quest",
 	"version": "${version}",
 	"name": "Village Quest",
-	"description": "Village progression through quests, reputation, stories, projects, relics, quest parties, and the traveling Pilgrim.",
+	"description": "Village progression through quests, stories, trade routes, visible caravans, guild contracts, reputation, projects, relics, and quest parties.",
 	"authors": [
-		"TopasMusic",
-		"Landschaftswart"
+		"TopasMusic"
 	],
-	"license": "MIT",
+	"license": [
+		"LGPL-3.0-only",
+		"LicenseRef-Village-Quest-Assets-ARR"
+	],
 	"icon": "assets/village-quest/icon.png",
 	"environment": "*",
 	"entrypoints": {

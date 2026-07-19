@@ -36,6 +36,8 @@ public interface StoryChapterDefinition {
 
     default void onAccepted(ServerWorld world, ServerPlayerEntity player) {}
 
+    default void onClaimed(ServerWorld world, ServerPlayerEntity player) {}
+
     default void onServerTick(ServerWorld world, ServerPlayerEntity player) {}
 
     default void onUseBlock(ServerWorld world, ServerPlayerEntity player, BlockPos pos, BlockState state, ItemStack inHand) {}

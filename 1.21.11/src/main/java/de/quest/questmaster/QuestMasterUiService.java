@@ -3,6 +3,7 @@ package de.quest.questmaster;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.economy.CurrencyService;
+import de.quest.economy.QuestExperienceService;
 import de.quest.entity.QuestMasterEntity;
 import de.quest.network.Payloads;
 import de.quest.party.QuestPartyService;
@@ -562,6 +563,9 @@ public final class QuestMasterUiService {
                     : Text.translatable("screen.village-quest.questmaster.status.active").formatted(Formatting.GREEN);
             if (ready) {
                 primary = new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_CLAIM, Text.translatable("screen.village-quest.questmaster.action.claim"), true);
+            } else {
+                primary = new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_NONE,
+                        Text.translatable("screen.village-quest.pilgrim.contract.action.in_progress"), false);
             }
             secondary = new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_CANCEL, Text.translatable("screen.village-quest.questmaster.action.cancel"), true);
         } else if (completed) {
@@ -659,7 +663,7 @@ public final class QuestMasterUiService {
                     Text.translatable("screen.village-quest.questmaster.status.completed").formatted(Formatting.AQUA),
                     List.of(Text.translatable("screen.village-quest.questmaster.story." + arcType.id() + ".completed").formatted(Formatting.GRAY)),
                     List.of(),
-                    appendRewardEcho(world, playerId, StoryQuestService.previewRewardLines(completion), completion.reputationTrack()),
+                    appendRewardEcho(world, playerId, StoryQuestService.previewRewardLines(world, playerId, completion), completion.reputationTrack()),
                     ActionSpec.NONE,
                     ActionSpec.NONE,
                     false
@@ -723,7 +727,7 @@ public final class QuestMasterUiService {
                 partyStatus,
                 description,
                 List.copyOf(objectives),
-                appendRewardEcho(world, playerId, StoryQuestService.previewRewardLines(completion), completion.reputationTrack()),
+                appendRewardEcho(world, playerId, StoryQuestService.previewRewardLines(world, playerId, completion), completion.reputationTrack()),
                 primary,
                 ActionSpec.NONE,
                 false
@@ -1517,7 +1521,9 @@ public final class QuestMasterUiService {
         appendRewardStack(rewards, completion.rewardB());
         appendRewardStack(rewards, completion.rewardC());
         if (completion.levels() > 0) {
-            rewards.add(Text.translatable("screen.village-quest.questmaster.reward.levels", completion.levels()).formatted(Formatting.GREEN));
+            rewards.add(QuestExperienceService.rewardLine(completion.levels(),
+                    VillageProjectService.bonusLevels(world, playerId, completion.reputationTrack()),
+                    QuestExperienceService.RewardType.DAILY));
         }
         return List.copyOf(rewards);
     }
@@ -1586,7 +1592,9 @@ public final class QuestMasterUiService {
         appendRewardStack(rewards, completion.rewardB());
         appendRewardStack(rewards, completion.rewardC());
         if (completion.levels() > 0) {
-            rewards.add(Text.translatable("screen.village-quest.questmaster.reward.levels", completion.levels()).formatted(Formatting.GREEN));
+            rewards.add(QuestExperienceService.rewardLine(completion.levels(),
+                    VillageProjectService.bonusLevels(world, playerId, completion.reputationTrack()),
+                    QuestExperienceService.RewardType.WEEKLY));
         }
         return rewards;
     }

@@ -1,10 +1,12 @@
 package de.quest.client.network;
 
 import de.quest.client.hud.QuestTrackerHud;
+import de.quest.client.hud.TradeRouteMinimapHud;
 import de.quest.client.screen.AdminJournalScreen;
 import de.quest.client.screen.JournalScreen;
 import de.quest.client.screen.PilgrimTradeScreen;
 import de.quest.client.screen.QuestMasterScreen;
+import de.quest.client.screen.TradeRouteMapScreen;
 import de.quest.network.Payloads;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
@@ -43,6 +45,7 @@ public final class ClientQuestNetworking {
                         payload.hasShepherdFlute(),
                         payload.hasApiaristSmoker(),
                         payload.hasSurveyorCompass(),
+                        payload.hasCaravanLedger(),
                         payload.dailyActive(),
                         payload.dailyTitle(),
                         payload.dailyProgress(),
@@ -63,7 +66,8 @@ public final class ClientQuestNetworking {
                         payload.hasForgeCharterProject(),
                         payload.hasMarketCharterProject(),
                         payload.hasPastureCharterProject(),
-                        payload.hasWatchBellProject()
+                        payload.hasWatchBellProject(),
+                        payload.hasCaravanYardProject()
                 );
 
                 if (payload.action() == Payloads.JournalPayload.ACTION_OPEN) {
@@ -250,6 +254,37 @@ public final class ClientQuestNetworking {
                 }
 
                 client.setScreen(new QuestMasterScreen(data));
+            });
+        });
+
+        ClientPlayNetworking.registerGlobalReceiver(Payloads.TradeRouteMapPayload.ID, (payload, context) -> {
+            var client = context.client();
+            client.execute(() -> {
+                if (payload.action() == Payloads.TradeRouteMapPayload.ACTION_CLOSE) {
+                    if (client.currentScreen instanceof TradeRouteMapScreen) {
+                        client.setScreen(null);
+                    }
+                    return;
+                }
+                if (payload.action() == Payloads.TradeRouteMapPayload.ACTION_MINIMAP_DISABLE) {
+                    TradeRouteMinimapHud.disable();
+                    return;
+                }
+                if (payload.action() == Payloads.TradeRouteMapPayload.ACTION_MINIMAP_ENABLE) {
+                    TradeRouteMinimapHud.enable(payload);
+                    return;
+                }
+                if (payload.action() == Payloads.TradeRouteMapPayload.ACTION_MINIMAP_UPDATE) {
+                    TradeRouteMinimapHud.update(payload);
+                    return;
+                }
+                if (payload.action() == Payloads.TradeRouteMapPayload.ACTION_OPEN) {
+                    client.setScreen(new TradeRouteMapScreen(payload));
+                    return;
+                }
+                if (client.currentScreen instanceof TradeRouteMapScreen screen) {
+                    screen.updateData(payload);
+                }
             });
         });
     }

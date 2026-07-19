@@ -79,6 +79,15 @@ public final class StoryQuestKeys {
     public static final String SHADOWS_LETTER_RECEIVED = "shadows_letter_received";
     public static final String SHADOWS_FINAL_TARGET_DAY = "shadows_final_target_day";
     public static final String SHADOWS_FINAL_WON = "shadows_final_won";
+    public static final String EMPTY_CARAVAN_TARGET_X = "empty_caravan_target_x";
+    public static final String EMPTY_CARAVAN_TARGET_Z = "empty_caravan_target_z";
+    public static final String EMPTY_CARAVAN_SITE_FOUND = "empty_caravan_site_found";
+    public static final String EMPTY_CARAVAN_CLUES = "empty_caravan_clues";
+    public static final String EMPTY_CARAVAN_WITNESSES = "empty_caravan_witnesses";
+    public static final String EMPTY_CARAVAN_WITNESS_PREFIX = "empty_caravan_witness_";
+    public static final String EMPTY_CARAVAN_CHOICE_AMNESTY = "empty_caravan_choice_amnesty";
+    public static final String EMPTY_CARAVAN_CHOICE_JUSTICE = "empty_caravan_choice_justice";
+    public static final String EMPTY_CARAVAN_BAIT_STATE = "empty_caravan_bait_state";
 
     private StoryQuestKeys() {}
 }

@@ -1,12 +1,14 @@
 package de.quest.shop;
 
 import de.quest.VillageQuest;
+import de.quest.data.QuestState;
 import de.quest.economy.CurrencyService;
 import de.quest.painting.PaintingStackFactory;
 import de.quest.pilgrim.PilgrimContractService;
 import de.quest.pilgrim.PilgrimContractType;
 import de.quest.quest.daily.DailyQuestService;
 import de.quest.quest.special.SpecialQuestService;
+import de.quest.quest.special.MerchantSealQuestService;
 import de.quest.quest.story.VillageProjectService;
 import de.quest.quest.story.VillageProjectType;
 import de.quest.quest.weekly.WeeklyQuestService;
@@ -30,7 +32,16 @@ import net.minecraft.item.Items;
 
 public final class ShopService {
     private static final long PRICE_MULTIPLIER = 3L;
-    private static final long MULTI_ITEM_BUNDLE_PRICE = price(6L);
+    private static final long PROVISIONS_PRICE = price(12L);
+    private static final long HUNTER_PRICE = price(8L);
+    private static final long BEEKEEPER_PRICE = price(8L);
+    private static final long ROAD_CAMP_PRICE = price(10L);
+    private static final long LEDGER_DESK_PRICE = price(10L);
+    private static final long APIARY_SUPPLIES_PRICE = price(11L);
+    private static final long SMITHING_SUPPLIES_PRICE = price(12L);
+    private static final long MARKET_STALL_PRICE = price(11L);
+    private static final long PASTURE_TACK_PRICE = price(13L);
+    private static final long WATCH_POST_PRICE = price(15L);
     private static final long PREMIUM_HEAD_PRICE = CurrencyService.toBase(5L, CurrencyService.CurrencyUnit.CROWN);
     private static final long PLAQUE_PRICE = CurrencyService.toBase(3L, CurrencyService.CurrencyUnit.CROWN)
             + CurrencyService.toBase(5L, CurrencyService.CurrencyUnit.SILVERMARK);
@@ -92,7 +103,7 @@ public final class ShopService {
                 "travel",
                 Text.translatable("text.village-quest.shop.offer.proviantbeutel.title"),
                 Text.translatable("text.village-quest.shop.offer.proviantbeutel.description"),
-                MULTI_ITEM_BUNDLE_PRICE,
+                PROVISIONS_PRICE,
                 world -> previewStack(Items.BUNDLE, "text.village-quest.shop.offer.proviantbeutel.title"),
                 (world, player) -> deliver(player, createProvisionsSatchelLoot(world))
         ));
@@ -101,7 +112,7 @@ public final class ShopService {
                 "travel",
                 Text.translatable("text.village-quest.shop.offer.hunters_satchel.title"),
                 Text.translatable("text.village-quest.shop.offer.hunters_satchel.description"),
-                MULTI_ITEM_BUNDLE_PRICE,
+                HUNTER_PRICE,
                 world -> previewStack(Items.BUNDLE, "text.village-quest.shop.offer.hunters_satchel.title"),
                 (world, player) -> deliver(player,
                         new ItemStack(Items.ARROW, 32),
@@ -214,7 +225,7 @@ public final class ShopService {
                 "utility",
                 Text.translatable("text.village-quest.shop.offer.beekeepers_kit.title"),
                 Text.translatable("text.village-quest.shop.offer.beekeepers_kit.description"),
-                MULTI_ITEM_BUNDLE_PRICE,
+                BEEKEEPER_PRICE,
                 world -> previewStack(Items.BEEHIVE, "text.village-quest.shop.offer.beekeepers_kit.title"),
                 (world, player) -> deliver(player,
                         new ItemStack(Items.BEEHIVE),
@@ -226,7 +237,7 @@ public final class ShopService {
                 "travel",
                 Text.translatable("text.village-quest.shop.offer.road_camp_kit.title"),
                 Text.translatable("text.village-quest.shop.offer.road_camp_kit.description"),
-                MULTI_ITEM_BUNDLE_PRICE,
+                ROAD_CAMP_PRICE,
                 world -> previewStack(Items.CAMPFIRE, "text.village-quest.shop.offer.road_camp_kit.title"),
                 (world, player) -> deliver(player,
                         new ItemStack(Items.WHITE_BED),
@@ -242,7 +253,7 @@ public final class ShopService {
                 "decor",
                 Text.translatable("text.village-quest.shop.offer.village_ledger_desk.title"),
                 Text.translatable("text.village-quest.shop.offer.village_ledger_desk.description"),
-                MULTI_ITEM_BUNDLE_PRICE,
+                LEDGER_DESK_PRICE,
                 world -> previewStack(Items.LECTERN, "text.village-quest.shop.offer.village_ledger_desk.title"),
                 (world, player) -> deliver(player,
                         new ItemStack(Items.LECTERN),
@@ -311,7 +322,7 @@ public final class ShopService {
                 "utility",
                 Text.translatable("text.village-quest.shop.offer.apiary_supply_crate.title"),
                 Text.translatable("text.village-quest.shop.offer.apiary_supply_crate.description"),
-                MULTI_ITEM_BUNDLE_PRICE,
+                APIARY_SUPPLIES_PRICE,
                 world -> previewStack(Items.BEEHIVE, "text.village-quest.shop.offer.apiary_supply_crate.title"),
                 (world, player) -> deliver(player,
                         new ItemStack(Items.BEEHIVE, 2),
@@ -325,7 +336,7 @@ public final class ShopService {
                 "utility",
                 Text.translatable("text.village-quest.shop.offer.smithing_supply_rack.title"),
                 Text.translatable("text.village-quest.shop.offer.smithing_supply_rack.description"),
-                MULTI_ITEM_BUNDLE_PRICE,
+                SMITHING_SUPPLIES_PRICE,
                 world -> previewStack(Items.SMITHING_TABLE, "text.village-quest.shop.offer.smithing_supply_rack.title"),
                 (world, player) -> deliver(player,
                         new ItemStack(Items.SMITHING_TABLE, 2),
@@ -339,7 +350,7 @@ public final class ShopService {
                 "utility",
                 Text.translatable("text.village-quest.shop.offer.market_stall_kit.title"),
                 Text.translatable("text.village-quest.shop.offer.market_stall_kit.description"),
-                MULTI_ITEM_BUNDLE_PRICE,
+                MARKET_STALL_PRICE,
                 world -> previewStack(Items.BARREL, "text.village-quest.shop.offer.market_stall_kit.title"),
                 (world, player) -> deliver(player,
                         new ItemStack(Items.BARREL, 4),
@@ -354,7 +365,7 @@ public final class ShopService {
                 "utility",
                 Text.translatable("text.village-quest.shop.offer.pasture_tack_bundle.title"),
                 Text.translatable("text.village-quest.shop.offer.pasture_tack_bundle.description"),
-                MULTI_ITEM_BUNDLE_PRICE,
+                PASTURE_TACK_PRICE,
                 world -> previewStack(Items.LEAD, "text.village-quest.shop.offer.pasture_tack_bundle.title"),
                 (world, player) -> deliver(player,
                         new ItemStack(Items.LEAD, 8),
@@ -369,7 +380,7 @@ public final class ShopService {
                 "utility",
                 Text.translatable("text.village-quest.shop.offer.watch_post_kit.title"),
                 Text.translatable("text.village-quest.shop.offer.watch_post_kit.description"),
-                MULTI_ITEM_BUNDLE_PRICE,
+                WATCH_POST_PRICE,
                 world -> previewStack(Items.BELL, "text.village-quest.shop.offer.watch_post_kit.title"),
                 (world, player) -> deliver(player,
                         new ItemStack(Items.BELL, 2),
@@ -525,6 +536,15 @@ public final class ShopService {
         if (ids.isEmpty()) {
             ids = new ArrayList<>(OFFERS.keySet());
         }
+        if (world != null && playerId != null && MerchantSealQuestService.isCompleted(world, playerId)) {
+            List<String> unseen = new ArrayList<>();
+            List<String> repeats = new ArrayList<>();
+            splitCollectibles(world, playerId, ids, unseen, repeats);
+            shuffle(random, unseen);
+            shuffle(random, repeats);
+            unseen.addAll(repeats);
+            return trimInOrder(unseen, count);
+        }
         return shuffleAndTrim(random, ids, count);
     }
 
@@ -626,11 +646,11 @@ public final class ShopService {
         if (ids.isEmpty() || count <= 0) {
             return List.of();
         }
-        for (int i = ids.size() - 1; i > 0; i--) {
-            int swapIndex = random.nextInt(i + 1);
-            Collections.swap(ids, i, swapIndex);
-        }
+        shuffle(random, ids);
+        return trimInOrder(ids, count);
+    }
 
+    private static List<String> trimInOrder(List<String> ids, int count) {
         List<String> selected = new ArrayList<>(Math.min(count, ids.size()));
         boolean usedHeadDecor = false;
         for (String offerId : ids) {
@@ -647,6 +667,28 @@ public final class ShopService {
             }
         }
         return selected;
+    }
+
+    private static void shuffle(net.minecraft.util.math.random.Random random, List<String> ids) {
+        for (int i = ids.size() - 1; i > 0; i--) {
+            int swapIndex = random.nextInt(i + 1);
+            Collections.swap(ids, i, swapIndex);
+        }
+    }
+
+    private static boolean isCollectible(String offerId) {
+        return HEAD_DECOR_OFFERS.contains(offerId)
+                || offerId.startsWith("gemaelde_")
+                || offerId.endsWith("_trophy");
+    }
+
+    private static void splitCollectibles(ServerWorld world, UUID playerId, List<String> ids,
+                                          List<String> unseen, List<String> repeats) {
+        var data = QuestState.get(world.getServer()).getPlayerData(playerId);
+        for (String id : ids) {
+            if (isCollectible(id) && !data.hasMilestoneFlag("shop.collectible." + id)) unseen.add(id);
+            else repeats.add(id);
+        }
     }
 
     public static int buy(ServerWorld world, ServerPlayerEntity player, String offerId) {
@@ -689,6 +731,11 @@ public final class ShopService {
 
         SpecialQuestService.onPilgrimPurchase(world, player, offerId);
         WeeklyQuestService.onPilgrimPurchase(world, player, offerId);
+        if (isCollectible(offerId)) {
+            QuestState.get(world.getServer()).getPlayerData(player.getUuid())
+                    .setMilestoneFlag("shop.collectible." + offerId, true);
+            QuestState.get(world.getServer()).markDirty();
+        }
         long newBalance = CurrencyService.getBalance(world, player.getUuid());
         player.sendMessage(Text.translatable(
                 "command.village-quest.shop.buy.success",
@@ -715,14 +762,14 @@ public final class ShopService {
 
     private static ItemStack[] createProvisionsSatchelLoot(ServerWorld world) {
         List<ItemStack> rewards = new ArrayList<>();
-        rewards.add(new ItemStack(Items.GOLDEN_CARROT, 32));
+        rewards.add(new ItemStack(Items.GOLDEN_CARROT, 24));
 
-        if (world != null && world.random.nextFloat() < 0.10f) {
+        if (world != null && world.random.nextFloat() < 0.05f) {
             rewards.add(new ItemStack(Items.GOLDEN_APPLE, 1));
         }
 
         rewards.add(rollProvisionsSatchelBonus(world));
-        if (world != null && world.random.nextFloat() < 0.65f) {
+        if (world != null && world.random.nextFloat() < 0.45f) {
             rewards.add(rollProvisionsSatchelBonus(world));
         }
 
@@ -741,13 +788,13 @@ public final class ShopService {
         if (roll < 56) {
             return new ItemStack(Items.EMERALD, randomRange(world, 4, 10));
         }
-        if (roll < 64) {
+        if (roll < 59) {
             return new ItemStack(Items.DIAMOND, randomRange(world, 1, 4));
         }
-        if (roll < 76) {
+        if (roll < 73) {
             return new ItemStack(Items.TORCH, randomRange(world, 24, 48));
         }
-        if (roll < 88) {
+        if (roll < 87) {
             return new ItemStack(Items.COOKED_BEEF, randomRange(world, 8, 16));
         }
         return new ItemStack(Items.COAL, randomRange(world, 16, 32));

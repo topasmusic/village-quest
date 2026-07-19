@@ -2,104 +2,83 @@
 
 ## Current Release State
 
-As of `2026-07-17`, `Village Quest 1.22.8` is shipped on all three maintained lines, with `26.2` as the active default work line.
+As of `2026-07-19`, `Village Quest 1.22.8` remains the public stable release on all three maintained Minecraft lines. The local source tree is prepared as the unreleased `Village Quest 2.0.0 - Roads Between Villages` release candidate.
 
-Current stable tags:
+The `2.0.0` candidate is present on:
 
-- `v1.22.8-mc1.21.11`
-- `v1.22.8-mc26.1.2`
-- `v1.22.8-mc26.2`
-- `v1.22.7-mc1.21.11`
-- `v1.22.7-mc26.1.2`
-- `v1.22.7-mc26.2`
-- `v1.22.6-mc1.21.11`
-- `v1.22.6-mc26.1.2`
-- `v1.22.6-mc26.2`
-- `v1.22.5-mc1.21.11`
-- `v1.22.5-mc26.1.2`
+- Minecraft `26.2`, Java `25`, Fabric Loader `0.19.3`, Fabric API `0.153.0+26.2`, Mojang names
+- Minecraft `26.1.2`, Java `25`, Fabric Loader `0.19.2`, Fabric API `0.146.0+26.1.2`, Mojang names
+- Minecraft `1.21.11`, Java `21`, Fabric Loader `0.19.2`, Fabric API `0.141.3+1.21.11`, Yarn `1.21.11+build.4`
 
-The carried-forward modern baseline includes:
+All three lines now contain the same intended gameplay and presentation layer. The unified UI, terrain-backed full map and minimap, caravan reliability, inhabited-village validation, route-owned outfits, pause/removal cleanup, destination renaming, German umlaut normalization, deterministic QA helpers, and four-offer Pilgrim cap were deliberately ported from the `26.2` reference to `26.1.2` and `1.21.11` with target-appropriate APIs.
 
-- reliable global resets that clear saved and live party/invite/shared-session state together
-- lifecycle cleanup for journal, tracker, Questmaster, relic-hint, party, and late-road runtime caches
-- complete two-line `Restless Pens` finale progress in English, German, and Spanish
-- a recognized root CI workflow that validates resources and builds all three maintained lines
-- Fabric Loader `0.19.3` on `26.2`
-- Fabric API `0.153.0+26.2` on `26.2`
-- the late `Questmaster` story arc `Shadows on the Trade Road`
-- the global reset command `/vq admin reset complete`
-- late-road admin test helpers under `/vq admin story shadows ...`
-- contextual villager dialogue for talk-based objectives
-- the accepted `Wayfinder's Compass` art pass
-- `Questmaster` and `Pilgrim` inventory-key close support
-- the shipped multiplayer quest-party feature set
-- the `1.22.6` quest-tracking fixes for collar recolors, hive harvests, sheep shearing, and `The Failing Harvest` targets
-- the `1.22.7` shard-bonus fix for action-based `Daily` quests like `Autumn Harvest`
-- the larger `Questmaster` description hover preview on all three maintained lines
+The `2.0.0` source candidate is intentionally kept in version control, but it remains untagged and unpublished. Every changelog uses `Release date: pending` until the actual publishing turn.
 
-## Version-Line Differences
+The candidate now uses one mixed-license package on all three lines. Functional code is `LGPL-3.0-only`; original Village Quest assets and creative content remain All Rights Reserved under the limited-use project notice; earlier MIT releases keep their granted permissions. The complete license and notice set is embedded in runtime and sources JARs. The legacy NPC and caravan skins listed with unknown provenance in `THIRD_PARTY_ASSETS.md` remain a release gate until replaced or cleared.
 
-`26.2`:
+## Village Quest 2.0 Scope
 
-- active default line
-- Java `25`
-- Minecraft `26.2`
-- Fabric Loader `0.19.3`
-- Fabric API `0.153.0+26.2`
-- official Mojang-name environment
-- documented command roots are only `/vq ...` and `/villagequest ...`
-
-`26.1.2`:
-
-- last shipped modern reference line
-- Java `25`
-- Minecraft `26.1.2`
-- Fabric Loader `0.19.2`
-- Fabric API `0.146.0+26.1.2`
-- official Mojang-name environment
-
-`1.21.11`:
-
-- legacy/backport line
-- Java `21`
-- Fabric Loader `0.19.2`
-- Fabric API `0.141.3+1.21.11`
-- Yarn `1.21.11+build.4`
-
-## Workflow Rules
-
-- Git operations happen at the root repo:
-  - `C:\Users\me\Desktop\Topas Mods\MC MODS\Topas Mods\Village Quest`
-- If the user asks for parity, a backport, or release maintenance, re-read:
-  - `CHANGELOG.md`
-  - `README.md`
-  - `docs/wiki/`
-  - `NEXT_SESSION.md`
-  - the matching `MEMORY.md`
-- if the task touches the late road-defense story, also re-read:
-  - `WATCH_BELL_EXPANSION_PLAN.md`
-- Do not blindly copy files between `26.2` and `1.21.11`; port behavior deliberately against that line's APIs and mappings.
-- `26.2` is Mojang-named and `1.21.11` is Yarn-mapped; treat that as a real implementation difference.
-- Use `26.1.2` as the last shipped modern comparison point when the `26.2` port behaves differently.
-- Do not launch `runClient` yourself unless the user explicitly asks.
-- When handing off tests, always include the correct version-specific `runClient` command.
-- Current party UI remains intentionally hidden on singleplayer or integrated worlds.
-
-## Useful Test Reset
-
-- The onboarding state is client-side and persisted in:
-  - `run/config/village-quest-client.properties`
-- Delete that file in the relevant version folder if the first-use journal hints need to be replayed locally.
+- `The Empty Caravan`, a six-chapter follow-up to `Shadows on the Trade Road`
+- permanent `Caravan Yard` and `Caravan Ledger` progression
+- up to five persistent village-to-village routes per player
+- persistent surveys with up to `48` waypoint anchors for real player-built detours
+- nearby physical three-merchant caravans plus unloaded-chunk background simulation
+- route-quality, lighting, distance, security, earnings, daily caps, and offline escrow
+- eight recurring route incidents and automatic Wayfinder targets
+- five-rank Village Trade Guild, daily freight contracts, six specializations, and six investments
+- route-owned burgundy, forest, blue, ochre, and violet caravan outfits matching the maps
+- cached terrain-backed full route map with left-button dragging, zoom, tooltips, player/caravan markers, and guarded removal
+- configurable live terrain minimap through the default `,` key or `/vq routes minimap`
+- inhabited vanilla/CTOV village validation that rejects abandoned and zombie villages
+- compact unified Journal, Questmaster, Pilgrim, Ledger, and Route Office presentation
+- Pilgrim stock capped at four offers, including old-save trimming
+- bounded level-bar experience rewards, Mastery, rerolls, relic improvements, and broad economy/reward retuning
+- `Roadwarden Horn` and one-time old-save backfills for qualifying missing Ledger/Horn items
+- mature-crop compatibility for normal breaking and right-click-and-replant mods
 
 ## Verified State
 
-- `1.21.11`, `26.1.2`, and `26.2` clean builds verified on `2026-07-17`
-- copied local test world:
-  - `26.2/run/saves/New World`
+- `python tools/validate_resources.py` passes with `1701` matching localization keys across all three lines.
+- All three `2.0.0` Gradle projects build successfully with their required Java versions.
+- `git diff --check` passes; line-ending messages are informational Windows warnings.
+- `26.2` remains the native visual/gameplay reference. Its client passes covered the unified full-screen interfaces, map/minimap, five-route lifecycle, measurable caravan movement, obstruction recovery, inhabited/depopulated village validation, pause cleanup, reload without duplication, representative route incidents, Guild/contracts, route upgrades, Roadwarden Horn, rerolls, Mastery, low/high-level XP, and persistence.
+- The vanilla/RightClickHarvest comparison passed on `26.2`, including bone-meal-held right-click harvesting without false credit or double counting.
+- The native `1.21.11` pass covered the five-route UI, survey/install, both removal paths, Wayfinder, Broken Wheel consumption, automatic caravan materialization, physical position updates, pause cleanup, resume respawn, and the unified interfaces.
+- A real `1.21.11` port regression was fixed on `2026-07-19`: route merchants and story/incident attackers now refresh their collision bounds before strict space validation. A dry artificial-grass reproduction proved water was not the cause.
+
+## Explicitly Deferred By The User
+
+These two checks are intentionally not release blockers for the prepared candidate unless the user later reopens them:
+
+- native `26.1.2` client smoke test
+- full `The Empty Caravan` playthrough without admin chapter completion
+
+`26.1.2` is compiler/build/resource verified and uses the same newer Mojang-named spawn behavior already exercised on `26.2`; it has not received a separate native client pass for this candidate.
+
+## Release Handling
+
+- Public stable remains `1.22.8` until the actual release is published.
+- Candidate version is `2.0.0`; expected tags are `v2.0.0-mc26.2`, `v2.0.0-mc26.1.2`, and `v2.0.0-mc1.21.11`.
+- Expected primary artifacts are `village-quest-2.0.0-mc<target>.jar`, with matching sources jars.
+- Release title: `Village Quest 2.0 - Roads Between Villages`.
+- Keep GitHub release notes short and player-facing; use `RELEASE_NOTES_2.0.0.md` as the prepared source.
+- Replace `Release date: pending` in all three changelogs with the real publication date immediately before the release commit.
+- Do not commit, push, tag, or publish until the user explicitly requests that action.
+- Do not publish while an entity skin remains marked unresolved in `THIRD_PARTY_ASSETS.md`.
+
+## Workflow Rules
+
+- Git operations happen at the repository root.
+- `26.2` is the default implementation/reference line.
+- Never blindly copy Mojang-named code to Yarn `1.21.11`; port behavior and preserve API differences.
+- Read the matching `MEMORY.md`, `CHANGELOG.md`, README, and relevant wiki before version-specific changes.
+- If work touches `Shadows on the Trade Road`, also read `WATCH_BELL_EXPANSION_PLAN.md`.
+- `/vq admin routes testsetup [player]` is the central five-route QA fixture.
+- The onboarding state is stored in `run/config/village-quest-client.properties` per line.
+- Party UI remains intentionally hidden in singleplayer/integrated worlds.
 
 ## Next Sensible Work
 
-- validate the `26.2` port in-game against the copied world
-- if the next request is about `Shadows on the Trade Road`, expect follow-up tuning, polish, or bugfixes rather than a greenfield implementation
-- if the next task touches the new global reset command, keep documenting clearly that it is a Village Quest data reset, not a world or inventory wipe
-- if the next task continues the multiplayer quest-party batch, re-read both `26.2/MEMORY.md` and `1.21.11/MEMORY.md` first and preserve the dedicated-server-only rule
+- On explicit release instruction: first resolve the entity-skin provenance gate, insert the real release date, run the final three builds/resource validator, review the staged file list, commit any final release-only metadata, tag, push, and publish the three jars using the repository's local push rules.
+- If the user later wants the deferred checks, run the short native `26.1.2` smoke pass and/or the no-admin-completion `The Empty Caravan` playthrough.
+- For future caravan regressions, start from the completed `26.2` reference pass and the focused `1.21.11` target regression pass.

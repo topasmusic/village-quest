@@ -376,7 +376,9 @@ public final class QuestShareProfiles {
     }
 
     public static boolean isStoryShareable(StoryArcType type) {
-        return type != null && type != StoryArcType.SHADOWS_ON_THE_TRADE_ROAD;
+        return type != null
+                && type != StoryArcType.SHADOWS_ON_THE_TRADE_ROAD
+                && type != StoryArcType.THE_EMPTY_CARAVAN;
     }
 
     public static boolean sharesStoryInt(StoryArcType type, int chapterIndex, String key) {

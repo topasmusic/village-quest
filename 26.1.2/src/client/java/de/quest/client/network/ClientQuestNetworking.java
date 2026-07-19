@@ -5,6 +5,8 @@ import de.quest.client.screen.AdminJournalScreen;
 import de.quest.client.screen.JournalScreen;
 import de.quest.client.screen.PilgrimTradeScreen;
 import de.quest.client.screen.QuestMasterScreen;
+import de.quest.client.screen.TradeRouteMapScreen;
+import de.quest.client.hud.TradeRouteMinimapHud;
 import de.quest.network.Payloads;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
@@ -14,6 +16,14 @@ import java.util.List;
 public final class ClientQuestNetworking {
     private ClientQuestNetworking() {}
 
+    private static net.minecraft.client.gui.screens.Screen currentScreen(net.minecraft.client.Minecraft client) {
+        return client.screen;
+    }
+
+    private static void setScreen(net.minecraft.client.Minecraft client, net.minecraft.client.gui.screens.Screen screen) {
+        client.setScreen(screen);
+    }
+
     public static void register() {
         Payloads.register();
 
@@ -21,8 +31,8 @@ public final class ClientQuestNetworking {
             var client = context.client();
             client.execute(() -> {
                 if (payload.action() == Payloads.JournalPayload.ACTION_CLOSE) {
-                    if (client.screen instanceof JournalScreen) {
-                        client.setScreen(null);
+                    if (currentScreen(client) instanceof JournalScreen) {
+                        setScreen(client, null);
                     }
                     return;
                 }
@@ -43,6 +53,7 @@ public final class ClientQuestNetworking {
                         payload.hasShepherdFlute(),
                         payload.hasApiaristSmoker(),
                         payload.hasSurveyorCompass(),
+                        payload.hasCaravanLedger(),
                         payload.dailyActive(),
                         payload.dailyTitle(),
                         payload.dailyProgress(),
@@ -63,15 +74,16 @@ public final class ClientQuestNetworking {
                         payload.hasForgeCharterProject(),
                         payload.hasMarketCharterProject(),
                         payload.hasPastureCharterProject(),
-                        payload.hasWatchBellProject()
+                        payload.hasWatchBellProject(),
+                        payload.hasCaravanYardProject()
                 );
 
                 if (payload.action() == Payloads.JournalPayload.ACTION_OPEN) {
-                    client.setScreen(new JournalScreen(data));
+                    setScreen(client, new JournalScreen(data));
                     return;
                 }
 
-                if (client.screen instanceof JournalScreen screen) {
+                if (currentScreen(client) instanceof JournalScreen screen) {
                     screen.updateData(data);
                 }
             });
@@ -79,7 +91,7 @@ public final class ClientQuestNetworking {
 
         ClientPlayNetworking.registerGlobalReceiver(Payloads.AdminJournalPayload.ID, (payload, context) -> {
             var client = context.client();
-            client.execute(() -> client.setScreen(new AdminJournalScreen(payload.lines())));
+            client.execute(() -> setScreen(client, new AdminJournalScreen(payload.lines())));
         });
 
         ClientPlayNetworking.registerGlobalReceiver(Payloads.QuestTrackerPayload.ID, (payload, context) -> {
@@ -108,8 +120,8 @@ public final class ClientQuestNetworking {
             var client = context.client();
             client.execute(() -> {
                 if (payload.action() == Payloads.PilgrimTradePayload.ACTION_CLOSE) {
-                    if (client.screen instanceof PilgrimTradeScreen) {
-                        client.setScreen(null);
+                    if (currentScreen(client) instanceof PilgrimTradeScreen) {
+                        setScreen(client, null);
                     }
                     return;
                 }
@@ -150,16 +162,16 @@ public final class ClientQuestNetworking {
                 );
 
                 if (payload.action() == Payloads.PilgrimTradePayload.ACTION_OPEN) {
-                    client.setScreen(new PilgrimTradeScreen(data));
+                    setScreen(client, new PilgrimTradeScreen(data));
                     return;
                 }
 
-                if (client.screen instanceof PilgrimTradeScreen screen) {
+                if (currentScreen(client) instanceof PilgrimTradeScreen screen) {
                     screen.updateData(data);
                     return;
                 }
 
-                client.setScreen(new PilgrimTradeScreen(data));
+                setScreen(client, new PilgrimTradeScreen(data));
             });
         });
 
@@ -167,8 +179,8 @@ public final class ClientQuestNetworking {
             var client = context.client();
             client.execute(() -> {
                 if (payload.action() == Payloads.QuestMasterPayload.ACTION_CLOSE) {
-                    if (client.screen instanceof QuestMasterScreen) {
-                        client.setScreen(null);
+                    if (currentScreen(client) instanceof QuestMasterScreen) {
+                        setScreen(client, null);
                     }
                     return;
                 }
@@ -240,16 +252,47 @@ public final class ClientQuestNetworking {
                 );
 
                 if (payload.action() == Payloads.QuestMasterPayload.ACTION_OPEN) {
-                    client.setScreen(new QuestMasterScreen(data));
+                    setScreen(client, new QuestMasterScreen(data));
                     return;
                 }
 
-                if (client.screen instanceof QuestMasterScreen screen) {
+                if (currentScreen(client) instanceof QuestMasterScreen screen) {
                     screen.updateData(data);
                     return;
                 }
 
-                client.setScreen(new QuestMasterScreen(data));
+                setScreen(client, new QuestMasterScreen(data));
+            });
+        });
+
+        ClientPlayNetworking.registerGlobalReceiver(Payloads.TradeRouteMapPayload.ID, (payload, context) -> {
+            var client = context.client();
+            client.execute(() -> {
+                if (payload.action() == Payloads.TradeRouteMapPayload.ACTION_CLOSE) {
+                    if (currentScreen(client) instanceof TradeRouteMapScreen) {
+                        setScreen(client, null);
+                    }
+                    return;
+                }
+                if (payload.action() == Payloads.TradeRouteMapPayload.ACTION_MINIMAP_DISABLE) {
+                    TradeRouteMinimapHud.disable();
+                    return;
+                }
+                if (payload.action() == Payloads.TradeRouteMapPayload.ACTION_MINIMAP_ENABLE) {
+                    TradeRouteMinimapHud.enable(payload);
+                    return;
+                }
+                if (payload.action() == Payloads.TradeRouteMapPayload.ACTION_MINIMAP_UPDATE) {
+                    TradeRouteMinimapHud.update(payload);
+                    return;
+                }
+                if (payload.action() == Payloads.TradeRouteMapPayload.ACTION_OPEN) {
+                    setScreen(client, new TradeRouteMapScreen(payload));
+                    return;
+                }
+                if (currentScreen(client) instanceof TradeRouteMapScreen screen) {
+                    screen.updateData(payload);
+                }
             });
         });
     }

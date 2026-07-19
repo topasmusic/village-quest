@@ -1,5 +1,6 @@
 package de.quest.network;
 
+import de.quest.caravan.TradeRouteService;
 import de.quest.pilgrim.PilgrimService;
 import de.quest.quest.QuestBookHelper;
 import de.quest.quest.daily.DailyQuestService;
@@ -55,6 +56,11 @@ public final class QuestNetworking {
         ServerPlayNetworking.registerGlobalReceiver(Payloads.QuestMasterSessionPayload.ID, (payload, context) -> {
             ServerPlayerEntity player = context.player();
             context.server().execute(() -> QuestMasterUiService.handleSession(player, payload));
+        });
+
+        ServerPlayNetworking.registerGlobalReceiver(Payloads.TradeRouteActionPayload.ID, (payload, context) -> {
+            ServerPlayerEntity player = context.player();
+            context.server().execute(() -> TradeRouteService.handleMapAction(player, payload));
         });
     }
 }
