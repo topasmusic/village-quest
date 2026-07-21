@@ -95,8 +95,9 @@ public class PilgrimTradeScreen extends Screen {
     private static final int HEADER_WALLET_RIGHT_INSET = 24;
     private static final int HEADER_WALLET_GAP = 3;
     private static final int HEADER_WALLET_TOP = 7;
+    private static final int FOOTER_LEFT_INSET = 22;
     private static final int FOOTER_RIGHT_INSET = 35;
-    private static final int FOOTER_TEXT_Y_OFFSET = WINDOW_HEIGHT - 19;
+    private static final int FOOTER_TEXT_Y_OFFSET = WINDOW_HEIGHT - 16;
     private static final float DETAIL_PRICE_COIN_SCALE = 1.08f;
     private static final int RUMOR_TAB_WIDTH = 58;
     private static final int RUMOR_TAB_HEIGHT = 16;
@@ -310,6 +311,14 @@ public class PilgrimTradeScreen extends Screen {
     }
 
     private void drawBoard(DrawContext context, int left, int top) {
+        // The generated board keeps transparent pixels along the inner top-left
+        // wood joint. Back only that joint so the world cannot show through it.
+        context.fill(left + 93, top + 3, left + 96, top + 18, 0xFF41200B);
+        context.fill(left + 9, top + 18, left + 96, top + 19, 0xFF2E1606);
+        context.fill(left + 9, top + 19, left + 96, top + 20, 0xFF241001);
+        context.fill(left + 9, top + 20, left + 96, top + 21, 0xFF140B00);
+        context.fill(left + 11, top + 21, left + 12, top + 184, 0xFF321807);
+        context.fill(left + 12, top + 21, left + 13, top + 184, 0xFF180B02);
         context.drawTexture(
                 RenderPipelines.GUI_TEXTURED,
                 this.showContract && hasContract() ? RUMOR_BOARD_TEXTURE : BOARD_TEXTURE,
@@ -609,7 +618,7 @@ public class PilgrimTradeScreen extends Screen {
 
     private void drawFooter(DrawContext context, int left, int top) {
         String hint = Text.translatable("screen.village-quest.pilgrim.close_hint").getString();
-        drawScaledText(context, hint, left + 16, top + FOOTER_TEXT_Y_OFFSET,
+        drawScaledText(context, hint, left + FOOTER_LEFT_INSET, top + FOOTER_TEXT_Y_OFFSET,
                 VillageUiTheme.LIGHT_TEXT, 0.85f);
 
         String timerText = Text.translatable(

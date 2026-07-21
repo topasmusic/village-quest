@@ -2,6 +2,8 @@
 
 `Village Quest` is a Fabric mod built around village progression. Take on daily and weekly work, build reputation, unlock story arcs and village projects, and later deal with the `Pilgrim` and the road beyond the village.
 
+Current release: `2.0.1`, a visual hotfix for the Quest Board and Pilgrim Trader frames.
+
 ## Requirements
 
 - Minecraft `26.1.2`

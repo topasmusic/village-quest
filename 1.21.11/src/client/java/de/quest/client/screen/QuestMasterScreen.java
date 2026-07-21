@@ -9,7 +9,6 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.input.KeyInput;
 import net.minecraft.client.gui.Click;
-import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.sound.PositionedSoundInstance;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
@@ -368,18 +367,9 @@ public final class QuestMasterScreen extends Screen {
     }
 
     private void drawBoard(DrawContext context, int left, int top) {
-        context.drawTexture(
-                RenderPipelines.GUI_TEXTURED,
-                BOARD_TEXTURE,
-                left,
-                top,
-                0.0f,
-                0.0f,
-                WINDOW_WIDTH,
-                WINDOW_HEIGHT,
-                BOARD_TEXTURE_WIDTH,
-                BOARD_TEXTURE_HEIGHT
-        );
+        // Keep the Quest Board compact while sampling the complete journal frame.
+        VillageUiTheme.blitScaled(context, BOARD_TEXTURE, left, top,
+                WINDOW_WIDTH, WINDOW_HEIGHT, BOARD_TEXTURE_WIDTH, BOARD_TEXTURE_HEIGHT);
     }
 
     private void drawHeader(DrawContext context, int left, int top) {

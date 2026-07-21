@@ -2,9 +2,9 @@
 
 ## Current Release State
 
-As of `2026-07-19`, `Village Quest 2.0.0 - Roads Between Villages` is the public stable release on all three maintained Minecraft lines.
+As of `2026-07-21`, `Village Quest 2.0.1 - Interface Frame Hotfix` is the public stable release on all three maintained Minecraft lines.
 
-The `2.0.0` release is present on:
+The `2.0.1` release is present on:
 
 - Minecraft `26.2`, Java `25`, Fabric Loader `0.19.3`, Fabric API `0.153.0+26.2`, Mojang names
 - Minecraft `26.1.2`, Java `25`, Fabric Loader `0.19.2`, Fabric API `0.146.0+26.1.2`, Mojang names
@@ -12,7 +12,7 @@ The `2.0.0` release is present on:
 
 All three lines now contain the same intended gameplay and presentation layer. The unified UI, terrain-backed full map and minimap, caravan reliability, inhabited-village validation, route-owned outfits, pause/removal cleanup, destination renaming, German umlaut normalization, deterministic QA helpers, and four-offer Pilgrim cap were deliberately ported from the `26.2` reference to `26.1.2` and `1.21.11` with target-appropriate APIs.
 
-The release uses the tags `v2.0.0-mc1.21.11`, `v2.0.0-mc26.1.2`, and `v2.0.0-mc26.2`. All three changelogs record the publication date `2026-07-19`.
+The release uses the tags `v2.0.1-mc1.21.11`, `v2.0.1-mc26.1.2`, and `v2.0.1-mc26.2`. All three changelogs record the publication date `2026-07-21`. This focused hotfix scales the complete Quest Board texture into its compact window, restores the Pilgrim Trader's transparent inner wood seams, and centers its footer labels; no gameplay or save data changed.
 
 The release uses one mixed-license package on all three lines. Functional code is `LGPL-3.0-only`; original Village Quest assets and creative content remain All Rights Reserved under the limited-use project notice; earlier MIT releases keep their granted permissions. The complete license and notice set is embedded in runtime and sources JARs. The maintainer explicitly authorized publication with the legacy NPC and caravan skins still listed as unresolved in `THIRD_PARTY_ASSETS.md`; they are excluded from ownership/license claims and remain priority replacement or clearance work.
 
@@ -39,7 +39,7 @@ The release uses one mixed-license package on all three lines. Functional code i
 ## Verified State
 
 - `python tools/validate_resources.py` passes with `1701` matching localization keys across all three lines.
-- All three `2.0.0` Gradle projects build successfully with their required Java versions.
+- All three `2.0.1` Gradle projects build successfully with their required Java versions.
 - `git diff --check` passes; line-ending messages are informational Windows warnings.
 - `26.2` remains the native visual/gameplay reference. Its client passes covered the unified full-screen interfaces, map/minimap, five-route lifecycle, measurable caravan movement, obstruction recovery, inhabited/depopulated village validation, pause cleanup, reload without duplication, representative route incidents, Guild/contracts, route upgrades, Roadwarden Horn, rerolls, Mastery, low/high-level XP, and persistence.
 - The vanilla/RightClickHarvest comparison passed on `26.2`, including bone-meal-held right-click harvesting without false credit or double counting.
@@ -57,12 +57,12 @@ These two checks are intentionally not release blockers for the prepared candida
 
 ## Release Handling
 
-- Public stable is `2.0.0` on all three maintained lines.
-- Release tags are `v2.0.0-mc26.2`, `v2.0.0-mc26.1.2`, and `v2.0.0-mc1.21.11`.
-- Primary artifacts are `village-quest-2.0.0-mc<target>.jar`, with matching sources jars.
-- Release title: `Village Quest 2.0 - Roads Between Villages`.
-- Keep GitHub release notes short and player-facing; use `RELEASE_NOTES_2.0.0.md` as the prepared source.
-- The `2.0.0` release was explicitly requested by the maintainer and published on `2026-07-19`.
+- Public stable is `2.0.1` on all three maintained lines.
+- Release tags are `v2.0.1-mc26.2`, `v2.0.1-mc26.1.2`, and `v2.0.1-mc1.21.11`.
+- Primary artifacts are `village-quest-2.0.1-mc<target>.jar`, with matching sources jars.
+- Release title: `Village Quest 2.0.1 - Interface Frame Hotfix`.
+- Keep GitHub release notes short and player-facing; use `RELEASE_NOTES_2.0.1.md` as the prepared source.
+- The `2.0.1` release was explicitly requested by the maintainer and published on `2026-07-21`.
 - Keep the unresolved entity-skin warnings intact until original replacements or valid source permissions are available.
 
 ## Workflow Rules
