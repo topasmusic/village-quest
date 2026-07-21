@@ -9,7 +9,6 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -368,18 +367,9 @@ public final class QuestMasterScreen extends CompatScreen {
     }
 
     private void drawBoard(GuiGraphics context, int left, int top) {
-        context.blit(
-                RenderPipelines.GUI_TEXTURED,
-                BOARD_TEXTURE,
-                left,
-                top,
-                0.0f,
-                0.0f,
-                WINDOW_WIDTH,
-                WINDOW_HEIGHT,
-                BOARD_TEXTURE_WIDTH,
-                BOARD_TEXTURE_HEIGHT
-        );
+        // Keep the Quest Board compact while sampling the complete journal frame.
+        VillageUiTheme.blitScaled(context, BOARD_TEXTURE, left, top,
+                WINDOW_WIDTH, WINDOW_HEIGHT, BOARD_TEXTURE_WIDTH, BOARD_TEXTURE_HEIGHT);
     }
 
     private void drawHeader(GuiGraphics context, int left, int top) {

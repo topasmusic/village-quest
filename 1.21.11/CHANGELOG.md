@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.1 - Quest Board Frame Hotfix
+
+Release date: 2026-07-21
+
+- Fixed the compact Quest Board rendering only a `392 x 220` crop of its `416 x 234` background texture. The complete wood and brass frame is now scaled into the intended window, restoring the missing right and bottom edges without making the interface larger.
+- Closed the transparent inner wood seams along the Pilgrim Trader's upper-left and left frame, and centered both footer labels vertically; the white exit hint also has additional left padding so it no longer touches the border.
+
 ## 2.0.0 - Roads Between Villages
 
 Release date: 2026-07-19

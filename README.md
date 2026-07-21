@@ -2,9 +2,9 @@
 
 This repository currently contains three active version folders of `Village Quest`.
 
-Current stable release: `2.0.0 - Roads Between Villages` on all three maintained lines.
+Current stable release: `2.0.1 - Interface Frame Hotfix` on all three maintained lines.
 
-Village Quest `2.0.0` is published for Minecraft `1.21.11`, `26.1.2`, and `26.2`. It contains `The Empty Caravan`, the `Caravan Yard`, five persistent surveyed trade routes, visible traveling caravans, the cached terrain map and configurable minimap, inhabited vanilla/CTOV village validation, route-owned caravan outfits, pause/removal cleanup, the unified Journal/Questmaster/Pilgrim interface, compatible right-click crop-harvest tracking, the five-rank Village Trade Guild, freight contracts, route specializations and investments, length-aware capped economics, Mastery, reward/shop retuning, the Roadwarden Horn, and one-time old-save backfills for missing unlock items.
+Village Quest `2.0.1` is published for Minecraft `1.21.11`, `26.1.2`, and `26.2`. It retains the complete `Roads Between Villages` feature set from `2.0.0` and corrects the Quest Board's clipped right/bottom frame plus transparent Pilgrim Trader frame seams and misaligned footer labels.
 
 Automated build and resource gates pass across all three lines with `1701` matching localization keys. Native gameplay/visual QA is anchored to `26.2`, with a focused `1.21.11` regression pass covering the target-specific caravan-spawn fix. The maintainer explicitly deferred the native `26.1.2` smoke test and a full no-admin-completion playthrough of `The Empty Caravan`.
 
