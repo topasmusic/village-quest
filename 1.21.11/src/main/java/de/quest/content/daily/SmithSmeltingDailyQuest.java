@@ -1,10 +1,12 @@
 package de.quest.content.daily;
 
+import de.quest.quest.QuestCompletionMode;
 import de.quest.quest.daily.DailyQuestCompletion;
 import de.quest.quest.daily.DailyQuestDefinition;
 import de.quest.quest.daily.DailyQuestKeys;
 import de.quest.quest.daily.DailyQuestService;
 import de.quest.util.Texts;
+import java.util.Map;
 import java.util.UUID;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -14,6 +16,11 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
 public final class SmithSmeltingDailyQuest implements DailyQuestDefinition {
+    @Override
+    public QuestCompletionMode completionMode() {
+        return QuestCompletionMode.QUESTMASTER_TURN_IN;
+    }
+
     @Override
     public DailyQuestService.DailyQuestType type() {
         return DailyQuestService.DailyQuestType.SMITH_SMELTING;
@@ -36,6 +43,24 @@ public final class SmithSmeltingDailyQuest implements DailyQuestDefinition {
 
     @Override
     public Text progressLine(ServerWorld world, UUID playerId) {
+        int oreProgress = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.SMITH_SMELT_ORE_PROGRESS);
+        if (oreProgress < DailyQuestService.smithSmeltOreTarget()) {
+            return Text.translatable(
+                    "quest.village-quest.daily.smelt.stage.1",
+                    oreProgress,
+                    DailyQuestService.smithSmeltOreTarget()
+            ).formatted(Formatting.GRAY);
+        }
+
+        int ingotProgress = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.SMITH_SMELT_INGOT_PROGRESS);
+        if (ingotProgress < DailyQuestService.smithSmeltIngotTarget()) {
+            return Text.translatable(
+                    "quest.village-quest.daily.smelt.stage.2",
+                    ingotProgress,
+                    DailyQuestService.smithSmeltIngotTarget()
+            ).formatted(Formatting.GRAY);
+        }
+
         ServerPlayerEntity player = world == null ? null : world.getServer().getPlayerManager().getPlayer(playerId);
         if (player != null) {
             Text blocked = claimBlockedMessage(world, player);
@@ -44,13 +69,7 @@ public final class SmithSmeltingDailyQuest implements DailyQuestDefinition {
             }
         }
 
-        return Text.translatable(
-                "quest.village-quest.daily.smelt.progress",
-                DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.SMITH_SMELT_ORE_PROGRESS),
-                DailyQuestService.smithSmeltOreTarget(),
-                DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.SMITH_SMELT_INGOT_PROGRESS),
-                DailyQuestService.smithSmeltIngotTarget()
-        ).formatted(Formatting.GRAY);
+        return Text.translatable("quest.village-quest.daily.smelt.stage.3").formatted(Formatting.GRAY);
     }
 
     @Override
@@ -79,8 +98,10 @@ public final class SmithSmeltingDailyQuest implements DailyQuestDefinition {
         if (!hasTurnInItems(player)) {
             return false;
         }
-        return DailyQuestService.consumeCompletionItem(world, player, Items.RAW_IRON, DailyQuestService.smithSmeltOreTarget())
-                && DailyQuestService.consumeCompletionItem(world, player, Items.IRON_INGOT, DailyQuestService.smithSmeltIngotTarget());
+        return DailyQuestService.consumeCompletionItemRequirements(world, player, Map.of(
+                Items.RAW_IRON, DailyQuestService.smithSmeltOreTarget(),
+                Items.IRON_INGOT, DailyQuestService.smithSmeltIngotTarget()
+        ));
     }
 
     @Override
@@ -119,6 +140,10 @@ public final class SmithSmeltingDailyQuest implements DailyQuestDefinition {
     @Override
     public void onFurnaceOutput(ServerWorld world, ServerPlayerEntity player, ItemStack stack) {
         if (!DailyQuestService.isTrackingQuest(world, player.getUuid(), type())) return;
+        if (DailyQuestService.getQuestInt(world, player.getUuid(), DailyQuestKeys.SMITH_SMELT_ORE_PROGRESS)
+                < DailyQuestService.smithSmeltOreTarget()) {
+            return;
+        }
         if (!stack.isOf(Items.IRON_INGOT)) {
             return;
         }

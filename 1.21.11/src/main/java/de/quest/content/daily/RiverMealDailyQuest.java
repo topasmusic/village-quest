@@ -1,5 +1,6 @@
 package de.quest.content.daily;
 
+import de.quest.quest.QuestCompletionMode;
 import de.quest.quest.daily.DailyQuestCompletion;
 import de.quest.quest.daily.DailyQuestDefinition;
 import de.quest.quest.daily.DailyQuestKeys;
@@ -15,6 +16,11 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
 public final class RiverMealDailyQuest implements DailyQuestDefinition {
+    @Override
+    public QuestCompletionMode completionMode() {
+        return QuestCompletionMode.QUESTMASTER_TURN_IN;
+    }
+
     @Override
     public DailyQuestService.DailyQuestType type() {
         return DailyQuestService.DailyQuestType.RIVER_MEAL;
@@ -37,6 +43,24 @@ public final class RiverMealDailyQuest implements DailyQuestDefinition {
 
     @Override
     public Text progressLine(ServerWorld world, UUID playerId) {
+        int fishProgress = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.RIVER_FISH_PROGRESS);
+        if (fishProgress < DailyQuestService.riverFishTarget()) {
+            return Text.translatable(
+                    "quest.village-quest.daily.river.stage.1",
+                    fishProgress,
+                    DailyQuestService.riverFishTarget()
+            ).formatted(Formatting.GRAY);
+        }
+
+        int cookedProgress = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.RIVER_COOKED_FISH_PROGRESS);
+        if (cookedProgress < DailyQuestService.riverCookedFishTarget()) {
+            return Text.translatable(
+                    "quest.village-quest.daily.river.stage.2",
+                    cookedProgress,
+                    DailyQuestService.riverCookedFishTarget()
+            ).formatted(Formatting.GRAY);
+        }
+
         ServerPlayerEntity player = world == null ? null : world.getServer().getPlayerManager().getPlayer(playerId);
         if (player != null) {
             Text blocked = claimBlockedMessage(world, player);
@@ -45,13 +69,7 @@ public final class RiverMealDailyQuest implements DailyQuestDefinition {
             }
         }
 
-        return Text.translatable(
-                "quest.village-quest.daily.river.progress",
-                DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.RIVER_FISH_PROGRESS),
-                DailyQuestService.riverFishTarget(),
-                DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.RIVER_COOKED_FISH_PROGRESS),
-                DailyQuestService.riverCookedFishTarget()
-        ).formatted(Formatting.GRAY);
+        return Text.translatable("quest.village-quest.daily.river.stage.3").formatted(Formatting.GRAY);
     }
 
     @Override
@@ -139,6 +157,10 @@ public final class RiverMealDailyQuest implements DailyQuestDefinition {
     @Override
     public void onFurnaceOutput(ServerWorld world, ServerPlayerEntity player, ItemStack stack) {
         if (!DailyQuestService.isTrackingQuest(world, player.getUuid(), type())) return;
+        if (DailyQuestService.getQuestInt(world, player.getUuid(), DailyQuestKeys.RIVER_FISH_PROGRESS)
+                < DailyQuestService.riverFishTarget()) {
+            return;
+        }
 
         int cookedFish = cookedFishCount(stack);
         if (cookedFish <= 0) {

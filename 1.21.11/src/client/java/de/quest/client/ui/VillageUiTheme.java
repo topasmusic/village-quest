@@ -1,11 +1,15 @@
 package de.quest.client.ui;
 
 import de.quest.VillageQuest;
+import de.quest.economy.CurrencyService;
+import de.quest.registry.ModItems;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gl.RenderPipelines;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.Identifier;
 
 /**
@@ -46,6 +50,14 @@ public final class VillageUiTheme {
     private static final Identifier CARD = texture("card");
     private static final Identifier SCROLL_TRACK = texture("scroll_track");
     private static final Identifier SCROLL_THUMB = texture("scroll_thumb");
+    private static final int SCROLL_TRACK_TEXTURE_WIDTH = 12;
+    private static final int SCROLL_TRACK_TEXTURE_HEIGHT = 96;
+    private static final int SCROLL_THUMB_TEXTURE_WIDTH = 16;
+    private static final int SCROLL_THUMB_TEXTURE_HEIGHT = 32;
+    private static final int SCROLL_TRACK_RENDER_WIDTH = 7;
+    private static final int SCROLL_THUMB_RENDER_WIDTH = 13;
+    private static final int SCROLL_THUMB_SOURCE_CAP = 10;
+    private static final int WALLET_GAP = 3;
     private static final int CARD_TEXTURE_SIZE = 64;
     private static final int CARD_SOURCE_BORDER = 5;
     private static final int CARD_RENDER_BORDER = 5;
@@ -142,12 +154,92 @@ public final class VillageUiTheme {
         if (contentHeight <= viewportHeight || height <= 12) {
             return;
         }
-        blitScaled(graphics, SCROLL_TRACK, x, y, 7, height, 12, 96);
-        int thumbHeight = Math.max(14, (int) Math.round((double) viewportHeight / contentHeight * height));
+        blitScaled(graphics, SCROLL_TRACK, x, y, SCROLL_TRACK_RENDER_WIDTH, height,
+                SCROLL_TRACK_TEXTURE_WIDTH, SCROLL_TRACK_TEXTURE_HEIGHT);
+        int thumbHeight = Math.max(24, (int) Math.round((double) viewportHeight / contentHeight * height));
+        thumbHeight = Math.min(height, thumbHeight);
         int travel = Math.max(0, height - thumbHeight);
         int thumbOffset = maxOffset <= 0 ? 0
                 : (int) Math.round((double) Math.max(0, Math.min(offset, maxOffset)) / maxOffset * travel);
-        blitScaled(graphics, SCROLL_THUMB, x - 1, y + thumbOffset, 9, thumbHeight, 12, 20);
+        int thumbX = x - (SCROLL_THUMB_RENDER_WIDTH - SCROLL_TRACK_RENDER_WIDTH) / 2;
+        blitScrollThumb(graphics, thumbX, y + thumbOffset, SCROLL_THUMB_RENDER_WIDTH, thumbHeight);
+    }
+
+    /** Draws the shared compact icon wallet used in every Village Quest wood header. */
+    public static void drawWalletStrip(DrawContext graphics, TextRenderer font,
+                                       int left, int top, int windowWidth, long balance,
+                                       int rightInset, int topOffset) {
+        long crownAmount = balance / CurrencyService.CROWN;
+        long silverAmount = balance % CurrencyService.CROWN;
+        String crownText = compactWalletAmount(crownAmount);
+        String silverText = compactWalletAmount(silverAmount);
+        int crownWidth = walletEntryWidth(font, crownText);
+        int silverWidth = walletEntryWidth(font, silverText);
+        int totalWidth = crownWidth + silverWidth + WALLET_GAP;
+        int startX = left + windowWidth - rightInset - totalWidth;
+        drawWalletEntry(graphics, font, startX, top + topOffset, crownWidth,
+                new ItemStack(ModItems.CROWN), crownText, crownAmount > 0L, 0xFFFFD27A, 0.74f);
+        drawWalletEntry(graphics, font, startX + crownWidth + WALLET_GAP, top + topOffset, silverWidth,
+                new ItemStack(ModItems.SILVERMARK), silverText, silverAmount > 0L, 0xFFD9E2F0, 0.68f);
+    }
+
+    private static void blitScrollThumb(DrawContext graphics, int x, int y, int width, int height) {
+        int renderCap = Math.min(9, height / 2);
+        int sourceMiddleHeight = SCROLL_THUMB_TEXTURE_HEIGHT - (SCROLL_THUMB_SOURCE_CAP * 2);
+        int renderMiddleHeight = Math.max(0, height - (renderCap * 2));
+        blitRegionScaled(graphics, SCROLL_THUMB, x, y, width, renderCap,
+                0, 0, SCROLL_THUMB_TEXTURE_WIDTH, SCROLL_THUMB_SOURCE_CAP,
+                SCROLL_THUMB_TEXTURE_WIDTH, SCROLL_THUMB_TEXTURE_HEIGHT);
+        blitRegionScaled(graphics, SCROLL_THUMB, x, y + renderCap, width, renderMiddleHeight,
+                0, SCROLL_THUMB_SOURCE_CAP, SCROLL_THUMB_TEXTURE_WIDTH, sourceMiddleHeight,
+                SCROLL_THUMB_TEXTURE_WIDTH, SCROLL_THUMB_TEXTURE_HEIGHT);
+        blitRegionScaled(graphics, SCROLL_THUMB, x, y + height - renderCap, width, renderCap,
+                0, SCROLL_THUMB_TEXTURE_HEIGHT - SCROLL_THUMB_SOURCE_CAP,
+                SCROLL_THUMB_TEXTURE_WIDTH, SCROLL_THUMB_SOURCE_CAP,
+                SCROLL_THUMB_TEXTURE_WIDTH, SCROLL_THUMB_TEXTURE_HEIGHT);
+    }
+
+    private static void drawWalletEntry(DrawContext graphics, TextRenderer font, int x, int y, int entryWidth,
+                                        ItemStack stack, String amountText, boolean positive,
+                                        int countColor, float iconScale) {
+        drawScaledItem(graphics, stack, x + 1, y + 1, iconScale);
+        int amountX = x + entryWidth - 1 - font.getWidth(amountText);
+        graphics.drawText(font, amountText, amountX, y + 4,
+                positive ? countColor : 0xFFBDAF9B, false);
+    }
+
+    private static int walletEntryWidth(TextRenderer font, String amountText) {
+        return 17 + font.getWidth(amountText);
+    }
+
+    private static String compactWalletAmount(long amount) {
+        if (amount < 1_000L) {
+            return Long.toString(amount);
+        }
+        if (amount < 1_000_000L) {
+            return compactWalletUnit(amount / 1_000.0d, "k");
+        }
+        if (amount < 1_000_000_000L) {
+            return compactWalletUnit(amount / 1_000_000.0d, "m");
+        }
+        return compactWalletUnit(amount / 1_000_000_000.0d, "b");
+    }
+
+    private static String compactWalletUnit(double value, String suffix) {
+        String pattern = value >= 100.0d ? "%.0f%s" : "%.1f%s";
+        return String.format(Locale.ROOT, pattern, value, suffix);
+    }
+
+    private static void drawScaledItem(DrawContext graphics, ItemStack stack, int x, int y, float scale) {
+        if (stack == null || stack.isEmpty()) {
+            return;
+        }
+        var matrices = graphics.getMatrices();
+        matrices.pushMatrix();
+        matrices.translate(x, y);
+        matrices.scale(scale, scale);
+        graphics.drawItem(stack, 0, 0);
+        matrices.popMatrix();
     }
 
     public static void blitScaled(DrawContext graphics, Identifier texture, int x, int y,

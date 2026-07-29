@@ -144,17 +144,19 @@ public final class QuestBookHelper {
         );
     }
 
-    public static boolean toggleJournal(ServerWorld world, ServerPlayerEntity player) {
+    public static boolean openJournal(ServerWorld world, ServerPlayerEntity player) {
         UUID pid = player.getUuid();
-        if (JOURNAL_ENABLED.contains(pid)) {
-            JOURNAL_ENABLED.remove(pid);
-            sendPayload(player, buildPayload(world, player, JournalPayload.ACTION_CLOSE));
-            LAST_JOURNAL_REFRESH.remove(pid);
-            return false;
-        }
         JOURNAL_ENABLED.add(pid);
         sendPayload(player, buildPayload(world, player, JournalPayload.ACTION_OPEN));
         return true;
+    }
+
+    public static boolean toggleJournal(ServerWorld world, ServerPlayerEntity player) {
+        if (JOURNAL_ENABLED.contains(player.getUuid())) {
+            closeJournal(player);
+            return false;
+        }
+        return openJournal(world, player);
     }
 
     public static void closeJournal(ServerPlayerEntity player) {

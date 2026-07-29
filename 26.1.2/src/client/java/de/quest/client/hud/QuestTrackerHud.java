@@ -8,10 +8,17 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public final class QuestTrackerHud {
     private static final Identifier HUD_LAYER_ID = Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "quest_tracker");
+    private static final int MAX_CONTENT_WIDTH = 220;
+    private static final int LINE_HEIGHT = 10;
+    private static final int COMPLETED_OBJECTIVE_COLOR = 0xFF00AA00;
+    private static final Pattern PROGRESS_FRACTION_PATTERN = Pattern.compile("(\\d+)\\s*/\\s*(\\d+)");
     private static TrackerState state = TrackerState.disabled();
 
     private QuestTrackerHud() {}
@@ -40,57 +47,35 @@ public final class QuestTrackerHud {
         }
 
         Font renderer = client.font;
-        int maxWidth = renderer.width(Component.translatable("text.village-quest.tracker.header"));
+        List<RenderEntry> renderLines = new ArrayList<>();
+        addEntry(renderLines, renderer, Component.translatable("text.village-quest.tracker.header"), 0xFFF0D7A7);
+        int headerLineCount = renderLines.size();
         if (tracker.dailyActive()) {
-            maxWidth = Math.max(maxWidth, renderer.width(tracker.dailyTitle()));
-            for (Component line : tracker.dailyLines()) {
-                maxWidth = Math.max(maxWidth, renderer.width(line));
-            }
+            addSection(renderLines, renderer, tracker.dailyTitle(), tracker.dailyLines(), 0xFFD8D8D8);
         }
         if (tracker.weeklyActive()) {
-            maxWidth = Math.max(maxWidth, renderer.width(tracker.weeklyTitle()));
-            for (Component line : tracker.weeklyLines()) {
-                maxWidth = Math.max(maxWidth, renderer.width(line));
-            }
+            addSection(renderLines, renderer, tracker.weeklyTitle(), tracker.weeklyLines(), 0xFFF0E2B0);
         }
         if (tracker.storyActive()) {
-            maxWidth = Math.max(maxWidth, renderer.width(tracker.storyTitle()));
-            for (Component line : tracker.storyLines()) {
-                maxWidth = Math.max(maxWidth, renderer.width(line));
-            }
+            addSection(renderLines, renderer, tracker.storyTitle(), tracker.storyLines(), 0xFFD7E9A9);
         }
         if (tracker.pilgrimActive()) {
-            maxWidth = Math.max(maxWidth, renderer.width(tracker.pilgrimTitle()));
-            for (Component line : tracker.pilgrimLines()) {
-                maxWidth = Math.max(maxWidth, renderer.width(line));
-            }
+            addSection(renderLines, renderer, tracker.pilgrimTitle(), tracker.pilgrimLines(), 0xFFE7D1A4);
         }
         if (tracker.specialActive()) {
-            maxWidth = Math.max(maxWidth, renderer.width(tracker.specialTitle()));
-            for (Component line : tracker.specialLines()) {
-                maxWidth = Math.max(maxWidth, renderer.width(line));
-            }
+            addSection(renderLines, renderer, tracker.specialTitle(), tracker.specialLines(), 0xFFE2D0FF);
         }
 
-        int lineHeight = 10;
-        int contentLines = 1;
-        if (tracker.dailyActive()) {
-            contentLines += 1 + tracker.dailyLines().size();
-        }
-        if (tracker.weeklyActive()) {
-            contentLines += 1 + tracker.weeklyLines().size();
-        }
-        if (tracker.storyActive()) {
-            contentLines += 1 + tracker.storyLines().size();
-        }
-        if (tracker.pilgrimActive()) {
-            contentLines += 1 + tracker.pilgrimLines().size();
-        }
-        if (tracker.specialActive()) {
-            contentLines += 1 + tracker.specialLines().size();
+        int maxWidth = 1;
+        int contentLines = 0;
+        for (RenderEntry line : renderLines) {
+            for (String wrappedLine : line.lines()) {
+                maxWidth = Math.max(maxWidth, renderer.width(wrappedLine));
+                contentLines++;
+            }
         }
         int boxWidth = maxWidth + 12;
-        int boxHeight = contentLines * lineHeight + 8;
+        int boxHeight = contentLines * LINE_HEIGHT + 10;
         int x = drawContext.guiWidth() - boxWidth - 8;
         int y = 8;
 
@@ -100,54 +85,103 @@ public final class QuestTrackerHud {
 
         int textX = x + 6;
         int textY = y + 4;
-        drawContext.drawString(renderer, Component.translatable("text.village-quest.tracker.header"), textX, textY, 0xFFF0D7A7);
-        textY += lineHeight + 2;
-
-        if (tracker.dailyActive()) {
-            drawContext.drawString(renderer, tracker.dailyTitle(), textX, textY, 0xFFFFFFFF);
-            textY += lineHeight;
-            for (Component line : tracker.dailyLines()) {
-                drawContext.drawString(renderer, line, textX, textY, 0xFFD8D8D8);
-                textY += lineHeight;
+        for (int index = 0; index < renderLines.size(); index++) {
+            RenderEntry line = renderLines.get(index);
+            for (String wrappedLine : line.lines()) {
+                drawContext.drawString(renderer, wrappedLine, textX, textY, line.color(), false);
+                textY += LINE_HEIGHT;
             }
-        }
-
-        if (tracker.weeklyActive()) {
-            drawContext.drawString(renderer, tracker.weeklyTitle(), textX, textY, 0xFFFFFFFF);
-            textY += lineHeight;
-            for (Component line : tracker.weeklyLines()) {
-                drawContext.drawString(renderer, line, textX, textY, 0xFFF0E2B0);
-                textY += lineHeight;
-            }
-        }
-
-        if (tracker.storyActive()) {
-            drawContext.drawString(renderer, tracker.storyTitle(), textX, textY, 0xFFFFFFFF);
-            textY += lineHeight;
-            for (Component line : tracker.storyLines()) {
-                drawContext.drawString(renderer, line, textX, textY, 0xFFD7E9A9);
-                textY += lineHeight;
-            }
-        }
-
-        if (tracker.pilgrimActive()) {
-            drawContext.drawString(renderer, tracker.pilgrimTitle(), textX, textY, 0xFFFFFFFF);
-            textY += lineHeight;
-            for (Component line : tracker.pilgrimLines()) {
-                drawContext.drawString(renderer, line, textX, textY, 0xFFE7D1A4);
-                textY += lineHeight;
-            }
-        }
-
-        if (tracker.specialActive()) {
-            drawContext.drawString(renderer, tracker.specialTitle(), textX, textY, 0xFFFFFFFF);
-            textY += lineHeight;
-            for (Component line : tracker.specialLines()) {
-                drawContext.drawString(renderer, line, textX, textY, 0xFFE2D0FF);
-                textY += lineHeight;
+            if (index + 1 == headerLineCount) {
+                textY += 2;
             }
         }
     }
+
+    private static void addSection(List<RenderEntry> output,
+                                   Font font,
+                                   Component title,
+                                   List<Component> lines,
+                                   int lineColor) {
+        addEntry(output, font, title, 0xFFFFFFFF);
+        for (Component line : lines) {
+            boolean completedObjective = isCompletedObjective(line);
+            addEntry(output, font, line,
+                    completedObjective ? COMPLETED_OBJECTIVE_COLOR : lineColor,
+                    completedObjective);
+        }
+    }
+
+    private static void addEntry(List<RenderEntry> output, Font font, Component component, int color) {
+        addEntry(output, font, component, color, false);
+    }
+
+    private static void addEntry(List<RenderEntry> output,
+                                 Font font,
+                                 Component component,
+                                 int color,
+                                 boolean forceColor) {
+        int resolvedColor = forceColor || component.getStyle().getColor() == null
+                ? color
+                : 0xFF000000 | component.getStyle().getColor().getValue();
+        output.add(new RenderEntry(wrapText(font, component.getString()), resolvedColor));
+    }
+
+    private static boolean isCompletedObjective(Component component) {
+        if (component == null) {
+            return false;
+        }
+        Matcher matcher = PROGRESS_FRACTION_PATTERN.matcher(component.getString());
+        boolean foundProgress = false;
+        while (matcher.find()) {
+            foundProgress = true;
+            try {
+                long current = Long.parseLong(matcher.group(1));
+                long target = Long.parseLong(matcher.group(2));
+                if (target <= 0L || current < target) {
+                    return false;
+                }
+            } catch (NumberFormatException ignored) {
+                return false;
+            }
+        }
+        return foundProgress;
+    }
+
+    private static List<String> wrapText(Font font, String text) {
+        List<String> lines = new ArrayList<>();
+        if (text == null || text.isBlank()) {
+            lines.add("");
+            return lines;
+        }
+
+        for (String paragraph : text.split("\\R", -1)) {
+            StringBuilder current = new StringBuilder();
+            for (String word : paragraph.trim().split("\\s+")) {
+                if (word.isEmpty()) {
+                    continue;
+                }
+                String candidate = current.isEmpty() ? word : current + " " + word;
+                if (!current.isEmpty() && font.width(candidate) > MAX_CONTENT_WIDTH) {
+                    lines.add(current.toString());
+                    current.setLength(0);
+                    current.append(word);
+                } else {
+                    current.setLength(0);
+                    current.append(candidate);
+                }
+            }
+            if (!current.isEmpty()) {
+                lines.add(current.toString());
+            }
+        }
+
+        if (lines.isEmpty()) {
+            lines.add("");
+        }
+        return lines;
+    }
+
+    private record RenderEntry(List<String> lines, int color) {}
 
     public record TrackerState(
             boolean enabled,

@@ -87,7 +87,7 @@ public abstract class HandledScreenMixin extends Screen {
             Minecraft client = Minecraft.getInstance();
             if (client.player != null && client.player.connection != null) {
                 InventoryJournalTutorialState.markInventoryHintSeen();
-                client.player.connection.sendCommand("vq journal");
+                client.player.connection.sendCommand("vq journal open");
                 cir.setReturnValue(true);
             }
         } catch (Throwable throwable) {

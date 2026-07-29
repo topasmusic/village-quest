@@ -1,6 +1,7 @@
 package de.quest.network;
 
 import de.quest.caravan.TradeRouteService;
+import de.quest.economy.ProsperityService;
 import de.quest.pilgrim.PilgrimService;
 import de.quest.quest.QuestBookHelper;
 import de.quest.quest.daily.DailyQuestService;
@@ -41,6 +42,11 @@ public final class QuestNetworking {
         ServerPlayNetworking.registerGlobalReceiver(Payloads.PilgrimTradeSessionPayload.ID, (payload, context) -> {
             ServerPlayerEntity player = context.player();
             context.server().execute(() -> PilgrimService.handleTradeSession(player, payload));
+        });
+
+        ServerPlayNetworking.registerGlobalReceiver(Payloads.EconomyActionPayload.ID, (payload, context) -> {
+            ServerPlayerEntity player = context.player();
+            context.server().execute(() -> ProsperityService.handleAction(player, payload));
         });
 
         ServerPlayNetworking.registerGlobalReceiver(Payloads.QuestMasterActionPayload.ID, (payload, context) -> {

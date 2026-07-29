@@ -31,6 +31,8 @@ public final class CaravanMerchantEntity extends PathfinderMob {
     private static final int DEFENSE_COOLDOWN_TICKS = 60;
     private static final EntityDataAccessor<Integer> ROUTE_INDEX =
             SynchedEntityData.defineId(CaravanMerchantEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> LIVERY_INDEX =
+            SynchedEntityData.defineId(CaravanMerchantEntity.class, EntityDataSerializers.INT);
 
     private int despawnTicks = DEFAULT_DESPAWN_TICKS;
     private int encounterControlTicks;
@@ -59,6 +61,7 @@ public final class CaravanMerchantEntity extends PathfinderMob {
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
         builder.define(ROUTE_INDEX, 0);
+        builder.define(LIVERY_INDEX, 0);
     }
 
     public static AttributeSupplier.Builder createAttributes() {
@@ -113,6 +116,7 @@ public final class CaravanMerchantEntity extends PathfinderMob {
         data.putInt("DespawnTicks", this.despawnTicks);
         data.putBoolean("Courier", this.courier);
         data.putInt("RouteIndex", getRouteIndex());
+        data.putInt("LiveryIndex", getLiveryIndex());
     }
 
     @Override
@@ -121,6 +125,7 @@ public final class CaravanMerchantEntity extends PathfinderMob {
         this.despawnTicks = Math.max(0, data.getIntOr("DespawnTicks", DEFAULT_DESPAWN_TICKS));
         this.courier = data.getBooleanOr("Courier", false);
         setRouteIndex(data.getIntOr("RouteIndex", 0));
+        setLiveryIndex(data.getIntOr("LiveryIndex", getRouteIndex()));
     }
 
     public void setCourier(boolean courier) {
@@ -138,6 +143,14 @@ public final class CaravanMerchantEntity extends PathfinderMob {
 
     public void setRouteIndex(int routeIndex) {
         this.entityData.set(ROUTE_INDEX, Math.max(0, Math.min(4, routeIndex)));
+    }
+
+    public int getLiveryIndex() {
+        return Math.max(0, Math.min(4, this.entityData.get(LIVERY_INDEX)));
+    }
+
+    public void setLiveryIndex(int liveryIndex) {
+        this.entityData.set(LIVERY_INDEX, Math.max(0, Math.min(4, liveryIndex)));
     }
 
     public void setDespawnTicks(int despawnTicks) {

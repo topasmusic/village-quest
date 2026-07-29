@@ -18,7 +18,6 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.item.ItemStack;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 public class PilgrimTradeScreen extends CompatScreen {
@@ -92,9 +91,9 @@ public class PilgrimTradeScreen extends CompatScreen {
     private static final float HEADER_TITLE_SCALE = 0.92f;
     private static final int HEADER_TITLE_TOP = 3;
     private static final int HEADER_TITLE_HEIGHT = 26;
-    private static final int HEADER_WALLET_RIGHT_INSET = 24;
-    private static final int HEADER_WALLET_GAP = 3;
-    private static final int HEADER_WALLET_TOP = 7;
+    private static final int HEADER_WALLET_RIGHT_INSET = 32;
+    private static final int HEADER_WALLET_TOP = 5;
+    private static final int HEADER_CONTRACT_TOP = 7;
     private static final int FOOTER_LEFT_INSET = 22;
     private static final int FOOTER_RIGHT_INSET = 35;
     private static final int FOOTER_TEXT_Y_OFFSET = WINDOW_HEIGHT - 16;
@@ -209,20 +208,26 @@ public class PilgrimTradeScreen extends CompatScreen {
 
     @Override
     public void render(GuiGraphics context, int mouseX, int mouseY, float delta) {
-        int left = (this.width - WINDOW_WIDTH) / 2;
-        int top = (this.height - WINDOW_HEIGHT) / 2;
-
         VillageUiTheme.drawScreenShade(context, this.width, this.height);
-        VillageUiTheme.drawPanelShadow(context, left, top, WINDOW_WIDTH, WINDOW_HEIGHT);
-        drawBoard(context, left, top);
-        drawHeader(context, left, top, mouseX, mouseY);
-        drawWalletStrip(context, left, top);
-        drawGoodsPanel(context, left, top, mouseX, mouseY);
-        drawDetailPanel(context, left, top, mouseX, mouseY);
-        drawFooter(context, left, top);
+        int uiMouseX = responsiveMouseX(mouseX, WINDOW_WIDTH, WINDOW_HEIGHT);
+        int uiMouseY = responsiveMouseY(mouseY, WINDOW_WIDTH, WINDOW_HEIGHT);
+        float panelScale = beginResponsivePanel(context, WINDOW_WIDTH, WINDOW_HEIGHT);
+        try {
+            int left = (this.width - WINDOW_WIDTH) / 2;
+            int top = (this.height - WINDOW_HEIGHT) / 2;
+            VillageUiTheme.drawPanelShadow(context, left, top, WINDOW_WIDTH, WINDOW_HEIGHT);
+            drawBoard(context, left, top);
+            drawHeader(context, left, top, uiMouseX, uiMouseY);
+            drawWalletStrip(context, left, top);
+            drawGoodsPanel(context, left, top, uiMouseX, uiMouseY);
+            drawDetailPanel(context, left, top, uiMouseX, uiMouseY);
+            drawFooter(context, left, top);
 
-        super.render(context, mouseX, mouseY, delta);
-        drawOfferTooltip(context, left, top, mouseX, mouseY);
+            super.render(context, uiMouseX, uiMouseY, delta);
+            drawOfferTooltip(context, left, top, uiMouseX, uiMouseY);
+        } finally {
+            endResponsivePanel(context, panelScale);
+        }
     }
 
     @Override
@@ -233,8 +238,8 @@ public class PilgrimTradeScreen extends CompatScreen {
 
         int left = (this.width - WINDOW_WIDTH) / 2;
         int top = (this.height - WINDOW_HEIGHT) / 2;
-        int mouseX = (int) click.x();
-        int mouseY = (int) click.y();
+        int mouseX = responsiveMouseX(click.x(), WINDOW_WIDTH, WINDOW_HEIGHT);
+        int mouseY = responsiveMouseY(click.y(), WINDOW_WIDTH, WINDOW_HEIGHT);
 
         int firstOffer = this.goodsScrollIndex;
         int lastOffer = Math.min(data.offers().size(), firstOffer + GOODS_VISIBLE_ENTRIES);
@@ -281,8 +286,10 @@ public class PilgrimTradeScreen extends CompatScreen {
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
         int left = (this.width - WINDOW_WIDTH) / 2;
         int top = (this.height - WINDOW_HEIGHT) / 2;
+        int uiMouseX = responsiveMouseX(mouseX, WINDOW_WIDTH, WINDOW_HEIGHT);
+        int uiMouseY = responsiveMouseY(mouseY, WINDOW_WIDTH, WINDOW_HEIGHT);
         if (maxGoodsScrollIndex() > 0
-                && isWithin((int) mouseX, (int) mouseY,
+                && isWithin(uiMouseX, uiMouseY,
                 left + GOODS_X + 6, top + GOODS_Y + 6, GOODS_WIDTH - 12, GOODS_HEIGHT - 12)) {
             this.goodsScrollIndex -= (int) Math.signum(verticalAmount);
             clampGoodsScroll();
@@ -293,7 +300,7 @@ public class PilgrimTradeScreen extends CompatScreen {
         if (this.showContract
                 && hasContract()
                 && this.contractScrollMax > 0
-                && isWithin((int) mouseX, (int) mouseY, left + DETAIL_X + 8, bodyTop, DETAIL_WIDTH - 16, Math.max(0, bodyBottom - bodyTop))) {
+                && isWithin(uiMouseX, uiMouseY, left + DETAIL_X + 8, bodyTop, DETAIL_WIDTH - 16, Math.max(0, bodyBottom - bodyTop))) {
             int step = Math.max(8, Math.round((this.font.lineHeight + 2) * DETAIL_BODY_SCALE) * 2);
             this.contractScrollOffset -= (int) Math.signum(verticalAmount) * step;
             clampContractScroll();
@@ -301,7 +308,7 @@ public class PilgrimTradeScreen extends CompatScreen {
         }
         if (!this.showContract
                 && this.shopDetailScrollMax > 0
-                && isWithin((int) mouseX, (int) mouseY, left + DETAIL_X + 8, top + DETAIL_Y + 70, DETAIL_WIDTH - 16, Math.max(0, getBuyButtonY(top) - 10 - (top + DETAIL_Y + 70)))) {
+                && isWithin(uiMouseX, uiMouseY, left + DETAIL_X + 8, top + DETAIL_Y + 70, DETAIL_WIDTH - 16, Math.max(0, getBuyButtonY(top) - 10 - (top + DETAIL_Y + 70)))) {
             int step = Math.max(8, Math.round((this.font.lineHeight + 2) * DETAIL_BODY_SCALE) * 2);
             this.shopDetailScrollOffset -= (int) Math.signum(verticalAmount) * step;
             clampShopDetailScroll();
@@ -429,18 +436,8 @@ public class PilgrimTradeScreen extends CompatScreen {
     }
 
     private void drawWalletStrip(GuiGraphics context, int left, int top) {
-        long crownAmount = data.balance() / CurrencyService.CROWN;
-        long silverAmount = data.balance() % CurrencyService.CROWN;
-        String crownText = compactWalletAmount(crownAmount);
-        String silverText = compactWalletAmount(silverAmount);
-        int goldEntryWidth = getWalletEntryWidth(crownText);
-        int silverEntryWidth = getWalletEntryWidth(silverText);
-        int totalWidth = goldEntryWidth + silverEntryWidth + HEADER_WALLET_GAP;
-        int startX = left + WINDOW_WIDTH - HEADER_WALLET_RIGHT_INSET - totalWidth;
-        drawWalletEntry(context, startX, top + HEADER_WALLET_TOP, goldEntryWidth,
-                new ItemStack(ModItems.CROWN), crownText, crownAmount > 0L, 0xFFFFD27A, 0.74f);
-        drawWalletEntry(context, startX + goldEntryWidth + HEADER_WALLET_GAP, top + HEADER_WALLET_TOP, silverEntryWidth,
-                new ItemStack(ModItems.SILVERMARK), silverText, silverAmount > 0L, 0xFFD9E2F0, 0.68f);
+        VillageUiTheme.drawWalletStrip(context, this.font, left, top, WINDOW_WIDTH, data.balance(),
+                HEADER_WALLET_RIGHT_INSET, HEADER_WALLET_TOP);
     }
 
     private void drawGoodsPanel(GuiGraphics context, int left, int top, int mouseX, int mouseY) {
@@ -628,38 +625,6 @@ public class PilgrimTradeScreen extends CompatScreen {
         int timerX = left + WINDOW_WIDTH - FOOTER_RIGHT_INSET - Math.round(this.font.width(timerText) * 0.85f);
         drawScaledText(context, timerText, timerX, top + FOOTER_TEXT_Y_OFFSET,
                 0xFFE2CFAD, 0.85f);
-    }
-
-    private void drawWalletEntry(GuiGraphics context, int x, int y, int entryWidth, ItemStack stack,
-                                 String amountText, boolean positive, int countColor, float iconScale) {
-        if (!stack.isEmpty()) {
-            drawScaledItem(context, stack, x + 1, y + 1, iconScale);
-        }
-        int amountX = x + entryWidth - 1 - this.font.width(amountText);
-        context.drawString(this.font, amountText, amountX, y + 4,
-                positive ? countColor : 0xFFBDAF9B, false);
-    }
-
-    private int getWalletEntryWidth(String amountText) {
-        return 17 + this.font.width(amountText);
-    }
-
-    private String compactWalletAmount(long amount) {
-        if (amount < 1_000L) {
-            return Long.toString(amount);
-        }
-        if (amount < 1_000_000L) {
-            return compactWalletUnit(amount / 1_000.0d, "k");
-        }
-        if (amount < 1_000_000_000L) {
-            return compactWalletUnit(amount / 1_000_000.0d, "m");
-        }
-        return compactWalletUnit(amount / 1_000_000_000.0d, "b");
-    }
-
-    private String compactWalletUnit(double value, String suffix) {
-        String pattern = value >= 100.0d ? "%.0f%s" : "%.1f%s";
-        return String.format(Locale.ROOT, pattern, value, suffix);
     }
 
     private void drawTradeSlot(GuiGraphics context, int x, int y, ItemStack stack, float iconScale) {
@@ -873,11 +838,11 @@ public class PilgrimTradeScreen extends CompatScreen {
     }
 
     private int getContractTabX(int left) {
-        return left + DETAIL_X + DETAIL_WIDTH - RUMOR_TAB_WIDTH;
+        return left + 22;
     }
 
     private int getContractTabY(int top) {
-        return top + GOODS_Y - 16;
+        return top + HEADER_CONTRACT_TOP;
     }
 
     private int getContractBodyTop(int top) {

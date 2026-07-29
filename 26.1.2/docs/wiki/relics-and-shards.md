@@ -29,8 +29,11 @@ Unlock:
 - finish the `Apiarist's Smoker` special commission
 
 Quest steps:
-- harvest `8` honey bottles
-- harvest `4` honeycomb cuts
+- after accepting, harvest `10` honey bottles from full hives
+- after accepting, cut `10` honeycomb from full hives
+- breed `4` bees
+- craft `5` honey blocks after accepting
+- carry and turn in `10` honey bottles, `10` honeycomb, and `5` honey blocks
 
 Effect:
 - up to `10` uses per in-game day
@@ -46,9 +49,12 @@ Requirements:
 - reach `200 Crafting Reputation`
 
 Quest:
-- mine `16` redstone ore
+- mine enough ore after accepting to gather `64` redstone dust
+- mine enough ore after accepting to gather `64` lapis lazuli
 - craft `1` netherite pickaxe after accepting the quest
-- turn in `1` plain unenchanted netherite pickaxe made for the quest
+- turn in `1` plain, undamaged, unenchanted netherite pickaxe
+
+The mining and crafting are recorded as fresh quest progress. The eligible pickaxe carried at hand-in is checked separately and consumed.
 
 Reward:
 - `Wayfinder's Compass`
@@ -153,9 +159,10 @@ Unlock:
 - reach `200 Village Trade Reputation`
 
 Quest steps:
-- complete `5` villager trades
-- earn `8` emeralds from those deals
-- make `1` purchase from a pilgrim stall
+- complete `20` villager trades after accepting
+- earn `128` emeralds from those deals
+- buy `10` goods from villagers
+- make `2` purchases from a Pilgrim stall
 
 Effect:
 - once per in-game day, sneak-use it on a `Pilgrim` or `Wandering Trader`
@@ -169,9 +176,10 @@ Unlock:
 - reach `200 Animals Reputation`
 
 Quest steps:
-- breed `4` animals
-- shear `3` sheep
-- gather `8` wool
+- breed `20` animals after accepting
+- tame `1` wolf
+- tame `1` cat
+- tame `1` parrot
 
 Effect:
 - draws nearby animals toward you for a short while
@@ -187,7 +195,7 @@ Effect:
 - carrying `10 Magic Shards` unlocks the hidden special path `Whispers of the Shards`
 
 Trial tasks:
-- obtain `4` amethyst clusters
+- obtain `16` amethyst shards after accepting
 - brew `3` potions
 - enchant `1` item
 - obtain `1` ender pearl

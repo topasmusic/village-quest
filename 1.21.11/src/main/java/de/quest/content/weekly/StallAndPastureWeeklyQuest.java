@@ -1,5 +1,6 @@
 package de.quest.content.weekly;
 
+import de.quest.quest.QuestCompletionMode;
 import de.quest.quest.weekly.WeeklyQuestCompletion;
 import de.quest.quest.weekly.WeeklyQuestDefinition;
 import de.quest.quest.weekly.WeeklyQuestKeys;
@@ -21,6 +22,11 @@ import java.util.List;
 import java.util.UUID;
 
 public final class StallAndPastureWeeklyQuest implements WeeklyQuestDefinition {
+    @Override
+    public QuestCompletionMode completionMode() {
+        return QuestCompletionMode.QUESTMASTER_TURN_IN;
+    }
+
     private static final Item[] WOOL_ITEMS = new Item[] {
             Items.WHITE_WOOL, Items.LIGHT_GRAY_WOOL, Items.GRAY_WOOL, Items.BLACK_WOOL,
             Items.BROWN_WOOL, Items.RED_WOOL, Items.ORANGE_WOOL, Items.YELLOW_WOOL,

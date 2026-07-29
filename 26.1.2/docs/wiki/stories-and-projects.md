@@ -47,6 +47,13 @@ That arc turns the road-defense storyline into the persistent `Caravan Yard` tra
 | `Market Road Troubles` | trade flow, ledgers, staffed stalls | `Market Charter` |
 | `Restless Pens` | breeding, wool, pasture order | `Pasture Charter` |
 
+## Reading Story Objectives
+
+- Action verbs such as `mine`, `harvest`, `craft`, `smelt`, `trade`, `breed`, and `speak` describe progress that must happen after accepting the chapter.
+- Delivery verbs such as `bring`, `supply`, and `turn in` describe items that must be carried when claiming. Stored or traded goods are valid for a pure delivery.
+- Hybrid chapters require both: complete the fresh action, then return with the full listed bundle. The Questmaster validates the entire bundle before consuming any part of it.
+- Individual stacks are not permanently tagged. Fresh work is recorded as chapter progress, while the carried delivery is checked separately at the end.
+
 ## Late Arc Overview
 
 ### `Shadows on the Trade Road`
@@ -111,6 +118,8 @@ This six-chapter solo follow-up becomes available after `Shadows on the Trade Ro
 - turn in `3` ink sacs
 - turn in `2` honeycomb
 
+This is a pure supply delivery. Stored or traded goods are valid, and the full bundle is consumed together.
+
 #### Chapter 4: `Names Behind the Seal`
 
 - interview an adult `Cartographer`
@@ -132,22 +141,27 @@ This six-chapter solo follow-up becomes available after `Shadows on the Trade Ro
 - turn in `4` leads
 - unlock the `Caravan Yard` and receive the `Caravan Ledger`
 
+This is also a pure supply delivery. The guild accepts stored or traded building materials.
+
 ## The Failing Harvest
 
 ### Chapter 1: `Thin Fields`
 
-- harvest `16` ripe wheat crops
-- harvest `8` ripe potato plants
+- harvest `16` Wheat items from ripe wheat crops after accepting
+- harvest `8` Potato items from ripe potato plants after accepting
+- carry and turn in `16` Wheat and `8` Potatoes
 
 ### Chapter 2: `Quiet Hives`
 
-- collect `3` honey bottles from full hives
-- collect `1` honeycomb cut from a full hive
+- collect `3` honey bottles from full hives after accepting
+- collect `1` honeycomb from a full hive after accepting
+- carry and turn in the same honey bundle
 
 ### Chapter 3: `Bread For The Square`
 
-- craft `6` bread
+- craft `6` bread after accepting
 - pull `4` baked potatoes from an oven after accepting the chapter
+- carry and turn in all `6` bread and `4` baked potatoes
 
 ### Chapter 4: `Market Relief`
 
@@ -162,34 +176,45 @@ This six-chapter solo follow-up becomes available after `Shadows on the Trade Ro
 
 ### Chapter 1: `Cold Hearth`
 
-- mine `70` coal
-- mine `50` raw iron
-- mine `30` redstone
-- mine `20` raw gold
-- mine `5` diamonds
+- mine `67` coal
+- mine `47` raw iron
+- mine `29` redstone
+- mine `17` raw gold
+- mine `4` diamonds
+- carry the complete mineral bundle for turn-in
 
 ### Chapter 2: `The Bellows Breathe Again`
 
-- pull `36` iron ingots from a furnace
+- pull `31` iron ingots from a furnace after accepting
+- turn in `31` iron ingots
 - turn in `3` blast furnaces
 - turn in `3` cauldrons
 
+The furnace work must be fresh. The blast furnaces and cauldrons are supplies, so stored or traded stations are valid.
+
 ### Chapter 3: `Tools For The Hall`
 
-Fresh work only:
+Craft after accepting:
 
 - `3` iron pickaxes
 - `3` buckets
 - `3` shears
 - `3` shields
 
-These must be made for the chapter and be present for turn-in.
+At turn-in, carry a complete pristine kit with those quantities. The craft progress and the carried kit are checked separately, then the kit is consumed.
 
 ### Chapter 4: `The Master's Edge`
 
-- buy `Sharpness`, `Fire Protection`, `Protection`, `Blast Protection`, and `Projectile Protection` books from villagers
-- apply them to a fresh `Diamond Sword` and a full `Iron Armor` set
-- carry the finished arms to the Questmaster
+This chapter now advances through one visible stage at a time:
+
+1. buy `Sharpness`, `Fire Protection`, `Protection`, `Blast Protection`, and `Projectile Protection` enchanted books from villagers; every enchantment level counts
+2. craft one each of the `Iron Helmet`, `Iron Chestplate`, `Iron Leggings`, and `Iron Boots`
+3. apply `Protection`, `Fire Protection`, `Blast Protection`, or `Projectile Protection` at any level to every armor piece; the four protections can be assigned to the four pieces in any order
+4. craft a `Diamond Sword`
+5. apply `Sharpness` at any level to that sword
+6. carry the four qualifying armor pieces and qualifying sword to the Questmaster for the final hand-in
+
+Finishing a stage unlocks the next automatically. Only the final five-piece delivery needs the Questmaster, and those delivered arms are consumed together.
 
 ### Result
 
@@ -199,22 +224,25 @@ These must be made for the chapter and be present for turn-in.
 
 ### Chapter 1: `Shuttered Stalls`
 
-- earn `80` emeralds from real villager trades
+- earn `73` emeralds from real villager trades
 
 ### Chapter 2: `Ledger And Notices`
 
-- craft and turn in `64` paper
-- craft and turn in `20` books
+1. craft `57` paper
+2. after the paper stage completes, craft `17` books
+3. carry and turn in the complete paper-and-book bundle
+
+Each completed stage unlocks the next automatically. Books crafted before the paper stage is complete do not count for this chapter.
 
 ### Chapter 3: `Goods Must Flow`
 
-- complete `35` real villager trades
+- complete `31` real villager trades
 - speak to the `Toolsmith`, `Weaponsmith`, `Farmer`, `Fisherman`, `Shepherd`, and `Librarian`
 
 ### Chapter 4: `Market Day Returns`
 
-- speak with `20` different villagers
-- ring a bell while `20` villagers are within earshot
+- speak with `17` different adult villagers
+- ring a bell while at least `18` adult villagers are within `20` blocks
 
 ### Result
 
@@ -224,23 +252,23 @@ These must be made for the chapter and be present for turn-in.
 
 ### Chapter 1: `Empty Troughs`
 
-- trigger `20` breedings
-- keep `64` hay bales ready for turn-in
+- trigger `17` breedings
+- keep `53` hay bales ready for turn-in
 
 ### Chapter 2: `Wool Before Weather`
 
-- shear `32` sheep
-- turn in `64` wool of any color
+- shear `29` sheep
+- turn in `57` wool of any color
 
 ### Chapter 3: `New Pastures`
 
-- ride `1 kilometer` on horseback after accepting the chapter
+- ride `930` blocks on horseback after accepting the chapter
 
 ### Chapter 4: `The Shepherd's Call`
 
 - ring a bell
-- have at least `10` adult pasture animals nearby when the bell rings
-- carry `Diamond Horse Armor`
+- have at least `9` adult pasture animals within `12` blocks when the bell rings
+- carry `Gold Horse Armor` or `Diamond Horse Armor`
 
 ### Result
 

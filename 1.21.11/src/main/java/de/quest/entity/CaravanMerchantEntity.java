@@ -31,6 +31,8 @@ public final class CaravanMerchantEntity extends PathAwareEntity {
     private static final int DEFENSE_COOLDOWN_TICKS = 60;
     private static final TrackedData<Integer> ROUTE_INDEX =
             DataTracker.registerData(CaravanMerchantEntity.class, TrackedDataHandlerRegistry.INTEGER);
+    private static final TrackedData<Integer> LIVERY_INDEX =
+            DataTracker.registerData(CaravanMerchantEntity.class, TrackedDataHandlerRegistry.INTEGER);
 
     private int despawnTicks = DEFAULT_DESPAWN_TICKS;
     private int encounterControlTicks;
@@ -57,6 +59,7 @@ public final class CaravanMerchantEntity extends PathAwareEntity {
     protected void initDataTracker(DataTracker.Builder builder) {
         super.initDataTracker(builder);
         builder.add(ROUTE_INDEX, 0);
+        builder.add(LIVERY_INDEX, 0);
     }
 
     public static DefaultAttributeContainer.Builder createAttributes() {
@@ -111,6 +114,7 @@ public final class CaravanMerchantEntity extends PathAwareEntity {
         data.putInt("DespawnTicks", this.despawnTicks);
         data.putBoolean("Courier", this.courier);
         data.putInt("RouteIndex", getRouteIndex());
+        data.putInt("LiveryIndex", getLiveryIndex());
     }
 
     @Override
@@ -119,6 +123,7 @@ public final class CaravanMerchantEntity extends PathAwareEntity {
         this.despawnTicks = Math.max(0, data.getInt("DespawnTicks", DEFAULT_DESPAWN_TICKS));
         this.courier = data.getBoolean("Courier", false);
         setRouteIndex(data.getInt("RouteIndex", 0));
+        setLiveryIndex(data.getInt("LiveryIndex", getRouteIndex()));
     }
 
     public void setCourier(boolean courier) {
@@ -136,6 +141,14 @@ public final class CaravanMerchantEntity extends PathAwareEntity {
 
     public void setRouteIndex(int routeIndex) {
         this.dataTracker.set(ROUTE_INDEX, Math.max(0, Math.min(4, routeIndex)));
+    }
+
+    public int getLiveryIndex() {
+        return Math.max(0, Math.min(4, this.dataTracker.get(LIVERY_INDEX)));
+    }
+
+    public void setLiveryIndex(int liveryIndex) {
+        this.dataTracker.set(LIVERY_INDEX, Math.max(0, Math.min(4, liveryIndex)));
     }
 
     public void setDespawnTicks(int despawnTicks) {

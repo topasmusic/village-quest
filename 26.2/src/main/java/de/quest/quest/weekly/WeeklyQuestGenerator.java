@@ -34,12 +34,22 @@ public final class WeeklyQuestGenerator {
     public static WeeklyQuestDefinition pick(ServerLevel world,
                                              WeeklyQuestService.WeeklyQuestType excludedType,
                                              WeeklyQuestService.WeeklyQuestCategory excludedCategory) {
+        return pick(world, excludedType, excludedCategory, true);
+    }
+
+    public static WeeklyQuestDefinition pick(ServerLevel world,
+                                             WeeklyQuestService.WeeklyQuestType excludedType,
+                                             WeeklyQuestService.WeeklyQuestCategory excludedCategory,
+                                             boolean allowMarketWeek) {
         if (world == null || DEFINITIONS.isEmpty()) {
             return null;
         }
 
         List<WeeklyQuestDefinition> candidates = withoutType(CORE_DEFINITIONS, excludedType);
         candidates = withoutCategory(candidates, excludedCategory);
+        if (!allowMarketWeek) {
+            candidates = withoutType(candidates, WeeklyQuestService.WeeklyQuestType.MARKET_WEEK);
+        }
         return candidates.get(world.getRandom().nextInt(candidates.size()));
     }
 

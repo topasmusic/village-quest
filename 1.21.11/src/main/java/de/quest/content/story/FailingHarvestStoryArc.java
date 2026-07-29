@@ -14,16 +14,15 @@ import de.quest.util.Texts;
 import net.minecraft.block.BeehiveBlock;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
-import net.minecraft.block.CropBlock;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
-import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public final class FailingHarvestStoryArc implements StoryArcDefinition {
@@ -116,7 +115,43 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
         public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
             UUID playerId = player.getUuid();
             return progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_WHEAT) >= THIN_FIELDS_WHEAT_TARGET
-                    && progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_POTATO) >= THIN_FIELDS_POTATO_TARGET;
+                    && progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_POTATO) >= THIN_FIELDS_POTATO_TARGET
+                    && hasItem(world, player, Items.WHEAT, THIN_FIELDS_WHEAT_TARGET)
+                    && hasItem(world, player, Items.POTATO, THIN_FIELDS_POTATO_TARGET);
+        }
+
+        @Override
+        public boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) {
+            return isComplete(world, player) && StoryQuestService.consumeCompletionItems(
+                    world,
+                    player.getUuid(),
+                    Map.of(
+                            Items.WHEAT, THIN_FIELDS_WHEAT_TARGET,
+                            Items.POTATO, THIN_FIELDS_POTATO_TARGET
+                    )
+            );
+        }
+
+        @Override
+        public Text claimBlockedMessage(ServerWorld world, ServerPlayerEntity player) {
+            if (player == null || world == null) {
+                return null;
+            }
+            UUID playerId = player.getUuid();
+            if (progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_WHEAT) < THIN_FIELDS_WHEAT_TARGET
+                    || progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_POTATO) < THIN_FIELDS_POTATO_TARGET
+                    || (hasItem(world, player, Items.WHEAT, THIN_FIELDS_WHEAT_TARGET)
+                    && hasItem(world, player, Items.POTATO, THIN_FIELDS_POTATO_TARGET))) {
+                return null;
+            }
+            return Texts.turnInMissing(
+                    Items.WHEAT.getDefaultStack().toHoverableText(),
+                    StoryQuestService.countCompletionItem(world, playerId, Items.WHEAT),
+                    THIN_FIELDS_WHEAT_TARGET,
+                    Items.POTATO.getDefaultStack().toHoverableText(),
+                    StoryQuestService.countCompletionItem(world, playerId, Items.POTATO),
+                    THIN_FIELDS_POTATO_TARGET
+            );
         }
 
         @Override
@@ -135,17 +170,11 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
         }
 
         @Override
-        public void onBlockBreak(ServerWorld world, ServerPlayerEntity player, BlockPos pos, BlockState state) {
-            if (!(state.getBlock() instanceof CropBlock crop)) {
-                return;
-            }
-            if (!state.contains(CropBlock.AGE) || state.get(CropBlock.AGE) < crop.getMaxAge()) {
-                return;
-            }
-            if (state.isOf(Blocks.WHEAT)) {
-                addProgress(world, player, StoryQuestKeys.FAILING_HARVEST_WHEAT, 1, THIN_FIELDS_WHEAT_TARGET);
-            } else if (state.isOf(Blocks.POTATOES)) {
-                addProgress(world, player, StoryQuestKeys.FAILING_HARVEST_POTATO, 1, THIN_FIELDS_POTATO_TARGET);
+        public void onTrackedItemPickup(ServerWorld world, ServerPlayerEntity player, ItemStack stack, int count) {
+            if (stack.isOf(Items.WHEAT)) {
+                addProgress(world, player, StoryQuestKeys.FAILING_HARVEST_WHEAT, count, THIN_FIELDS_WHEAT_TARGET);
+            } else if (stack.isOf(Items.POTATO)) {
+                addProgress(world, player, StoryQuestKeys.FAILING_HARVEST_POTATO, count, THIN_FIELDS_POTATO_TARGET);
             }
         }
     }
@@ -181,7 +210,43 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
         public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
             UUID playerId = player.getUuid();
             return progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_HONEY) >= QUIET_HIVES_HONEY_TARGET
-                    && progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_COMB) >= QUIET_HIVES_COMB_TARGET;
+                    && progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_COMB) >= QUIET_HIVES_COMB_TARGET
+                    && hasItem(world, player, Items.HONEY_BOTTLE, QUIET_HIVES_HONEY_TARGET)
+                    && hasItem(world, player, Items.HONEYCOMB, QUIET_HIVES_COMB_TARGET);
+        }
+
+        @Override
+        public boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) {
+            return isComplete(world, player) && StoryQuestService.consumeCompletionItems(
+                    world,
+                    player.getUuid(),
+                    Map.of(
+                            Items.HONEY_BOTTLE, QUIET_HIVES_HONEY_TARGET,
+                            Items.HONEYCOMB, QUIET_HIVES_COMB_TARGET
+                    )
+            );
+        }
+
+        @Override
+        public Text claimBlockedMessage(ServerWorld world, ServerPlayerEntity player) {
+            if (player == null || world == null) {
+                return null;
+            }
+            UUID playerId = player.getUuid();
+            if (progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_HONEY) < QUIET_HIVES_HONEY_TARGET
+                    || progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_COMB) < QUIET_HIVES_COMB_TARGET
+                    || (hasItem(world, player, Items.HONEY_BOTTLE, QUIET_HIVES_HONEY_TARGET)
+                    && hasItem(world, player, Items.HONEYCOMB, QUIET_HIVES_COMB_TARGET))) {
+                return null;
+            }
+            return Texts.turnInMissing(
+                    Items.HONEY_BOTTLE.getDefaultStack().toHoverableText(),
+                    StoryQuestService.countCompletionItem(world, playerId, Items.HONEY_BOTTLE),
+                    QUIET_HIVES_HONEY_TARGET,
+                    Items.HONEYCOMB.getDefaultStack().toHoverableText(),
+                    StoryQuestService.countCompletionItem(world, playerId, Items.HONEYCOMB),
+                    QUIET_HIVES_COMB_TARGET
+            );
         }
 
         @Override
@@ -259,8 +324,14 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
             if (!isComplete(world, player)) {
                 return false;
             }
-            return consumeItem(world, player, Items.BREAD, BREAD_BREAD_TARGET)
-                    && consumeItem(world, player, Items.BAKED_POTATO, BREAD_POTATO_TARGET);
+            return StoryQuestService.consumeCompletionItems(
+                    world,
+                    player.getUuid(),
+                    Map.of(
+                            Items.BREAD, BREAD_BREAD_TARGET,
+                            Items.BAKED_POTATO, BREAD_POTATO_TARGET
+                    )
+            );
         }
 
         @Override

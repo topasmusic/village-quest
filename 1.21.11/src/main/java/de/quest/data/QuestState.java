@@ -108,6 +108,9 @@ public final class QuestState extends PersistentState {
         readUuidLongMap(root, "weeklyProgressCycle", (id, value) -> getPlayerData(id).setWeeklyProgressCycle(value));
         readUuidLongMap(root, "weeklyAcceptedCycle", (id, value) -> getPlayerData(id).setWeeklyAcceptedCycle(value));
         readUuidLongMap(root, "weeklyRewardCycle", (id, value) -> getPlayerData(id).setWeeklyRewardCycle(value));
+        readUuidLongMap(root, "dailyOfferNoticeDay", (id, value) -> getPlayerData(id).setDailyOfferNoticeDay(value));
+        readUuidLongMap(root, "weeklyOfferNoticeCycle", (id, value) -> getPlayerData(id).setWeeklyOfferNoticeCycle(value));
+        readUuidStringMap(root, "storyOfferNoticeKey", (id, value) -> getPlayerData(id).setStoryOfferNoticeKey(value));
         readUuidQuestMap(root, "dailyChoice", (id, value) -> getPlayerData(id).setDailyChoice(value));
         readUuidLongMap(root, "dailyChoiceDay", (id, value) -> getPlayerData(id).setDailyChoiceDay(value));
         readUuidIntMap(root, "dailyTargetProfile", (id, value) -> getPlayerData(id).setDailyTargetProfile(RepeatableTargetProfile.byId(value)));
@@ -185,6 +188,9 @@ public final class QuestState extends PersistentState {
         NbtList weeklyProgressCycle = new NbtList();
         NbtList weeklyAcceptedCycle = new NbtList();
         NbtList weeklyRewardCycle = new NbtList();
+        NbtList dailyOfferNoticeDay = new NbtList();
+        NbtList weeklyOfferNoticeCycle = new NbtList();
+        NbtList storyOfferNoticeKey = new NbtList();
         NbtList dailyChoice = new NbtList();
         NbtList dailyChoiceDay = new NbtList();
         NbtList dailyTargetProfile = new NbtList();
@@ -284,6 +290,15 @@ public final class QuestState extends PersistentState {
             }
             if (data.getWeeklyRewardCycle() != PlayerQuestData.UNSET_DAY) {
                 weeklyRewardCycle.add(entryLong(id, data.getWeeklyRewardCycle()));
+            }
+            if (data.getDailyOfferNoticeDay() != PlayerQuestData.UNSET_DAY) {
+                dailyOfferNoticeDay.add(entryLong(id, data.getDailyOfferNoticeDay()));
+            }
+            if (data.getWeeklyOfferNoticeCycle() != PlayerQuestData.UNSET_DAY) {
+                weeklyOfferNoticeCycle.add(entryLong(id, data.getWeeklyOfferNoticeCycle()));
+            }
+            if (data.getStoryOfferNoticeKey() != null) {
+                storyOfferNoticeKey.add(entryString(id, data.getStoryOfferNoticeKey()));
             }
             if (data.getDailyChoice() != null) {
                 dailyChoice.add(entryString(id, data.getDailyChoice().name()));
@@ -448,6 +463,9 @@ public final class QuestState extends PersistentState {
         root.put("weeklyProgressCycle", weeklyProgressCycle);
         root.put("weeklyAcceptedCycle", weeklyAcceptedCycle);
         root.put("weeklyRewardCycle", weeklyRewardCycle);
+        root.put("dailyOfferNoticeDay", dailyOfferNoticeDay);
+        root.put("weeklyOfferNoticeCycle", weeklyOfferNoticeCycle);
+        root.put("storyOfferNoticeKey", storyOfferNoticeKey);
         root.put("dailyChoice", dailyChoice);
         root.put("dailyChoiceDay", dailyChoiceDay);
         root.put("dailyTargetProfile", dailyTargetProfile);

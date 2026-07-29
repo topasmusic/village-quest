@@ -4,6 +4,7 @@ import de.quest.content.story.ShadowsTradeRoadEncounterService;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.economy.CurrencyService;
+import de.quest.economy.ProsperityService;
 import de.quest.entity.CaravanMerchantEntity;
 import de.quest.entity.TraitorEntity;
 import de.quest.network.Payloads;
@@ -870,6 +871,10 @@ public final class TradeRouteService {
             direction *= -1;
             setRouteInt(data, routeIndex, "runs", routeInt(data, routeIndex, "runs") + 1);
             setRouteInt(data, routeIndex, "direction", direction);
+            int patrolCycles = routeInt(data, routeIndex, "patrol_cycles");
+            if (patrolCycles > 0) {
+                setRouteInt(data, routeIndex, "patrol_cycles", patrolCycles - 1);
+            }
             payArrival(world, ownerId, data, routeIndex);
         }
         setRouteInt(data, routeIndex, "progress", progress);
@@ -898,13 +903,17 @@ public final class TradeRouteService {
             return;
         }
         setRouteInt(data, routeIndex, "event_stamp", runs + 1);
+        if (routeInt(data, routeIndex, "patrol_cycles") > 0) {
+            return;
+        }
         int quality = quality(data, routeIndex);
         int eventChance = Math.max(8, Math.min(40, 38 - quality / 4
                 + (status(data, routeIndex) == TradeRouteStatus.DANGEROUS ? 8 : 0)
                 - (status(data, routeIndex) == TradeRouteStatus.FLOURISHING ? 5 : 0)
                 - (hasUpgrade(data, routeIndex, TradeRouteUpgrade.LANTERN_CREW) ? 4 : 0)
                 - (hasUpgrade(data, routeIndex, TradeRouteUpgrade.WEATHER_COVERS) ? 3 : 0)
-                - (hasUpgrade(data, routeIndex, TradeRouteUpgrade.ESCORTS) ? 6 : 0)));
+                - (hasUpgrade(data, routeIndex, TradeRouteUpgrade.ESCORTS) ? 6 : 0)
+                - ProsperityService.roadWatchEventReduction(world, ownerId)));
         boolean tutorialEvent = !data.hasTradeRouteFlag(TUTORIAL_EVENT_SEEN);
         int roll = Math.floorMod(ownerId.hashCode() + routeIndex * 37 + runs * 17, 100);
         if (!tutorialEvent && roll >= eventChance) {
@@ -1182,6 +1191,7 @@ public final class TradeRouteService {
             merchant.setDespawnTicks(NPC_DESPAWN_TICKS);
             merchant.refreshEncounterControl(false);
             merchant.setRouteIndex(routeIndex);
+            merchant.setLiveryIndex(routeLivery(data, routeIndex));
             merchants.add(merchant);
         }
         if (merchants.isEmpty()) {
@@ -1365,6 +1375,7 @@ public final class TradeRouteService {
             merchant.addCommandTag(ownerTag(key.ownerId()));
             merchant.addCommandTag(routeTag(key.routeIndex()));
             merchant.setRouteIndex(key.routeIndex());
+            merchant.setLiveryIndex(routeLivery(data(world, key.ownerId()), key.routeIndex()));
             merchant.refreshEncounterControl(false);
             if (world.isSpaceEmpty(merchant) && world.spawnEntity(merchant)) {
                 runtime.merchantIds.add(merchant.getUuid());
@@ -1690,6 +1701,80 @@ public final class TradeRouteService {
                 ? Math.max(0, (int) Math.round(routeDistance(data(world, playerId), routeIndex))) : 0;
     }
 
+    public static Text routeDisplayName(ServerWorld world, UUID playerId, int routeIndex) {
+        return validRoute(world, playerId, routeIndex)
+                ? routeName(data(world, playerId), routeIndex)
+                : routeName(routeIndex);
+    }
+
+    public static boolean hireRoadPatrol(ServerWorld world, ServerPlayerEntity player, int routeIndex, int cycles) {
+        if (world == null || player == null || !validRoute(world, player.getUuid(), routeIndex)) {
+            return false;
+        }
+        PlayerQuestData data = data(world, player.getUuid());
+        setRouteInt(data, routeIndex, "patrol_cycles",
+                Math.max(routeInt(data, routeIndex, "patrol_cycles"), Math.max(1, cycles)));
+        QuestState.get(world.getServer()).setDirty(true);
+        refreshUi(world, player);
+        return true;
+    }
+
+    public static boolean buySurveyReport(ServerWorld world, ServerPlayerEntity player, int routeIndex, int improvement) {
+        if (world == null || player == null || !validRoute(world, player.getUuid(), routeIndex)) {
+            return false;
+        }
+        PlayerQuestData data = data(world, player.getUuid());
+        setRouteInt(data, routeIndex, "quality", Math.min(100,
+                quality(data, routeIndex) + Math.max(1, improvement)));
+        QuestState.get(world.getServer()).setDirty(true);
+        refreshUi(world, player);
+        return true;
+    }
+
+    public static boolean emergencyRecall(ServerWorld world, ServerPlayerEntity player, int routeIndex) {
+        if (world == null || player == null || !validRoute(world, player.getUuid(), routeIndex)) {
+            return false;
+        }
+        PlayerQuestData data = data(world, player.getUuid());
+        int progress = clampProgress(routeInt(data, routeIndex, "progress"));
+        int endpoint = progress < PROGRESS_MAX / 2 ? 0 : PROGRESS_MAX;
+        setRouteInt(data, routeIndex, "progress", endpoint);
+        setRouteInt(data, routeIndex, "direction", endpoint == 0 ? 1 : -1);
+        setRouteInt(data, routeIndex, "event", 0);
+        setRouteInt(data, routeIndex, "event_day", 0);
+        setRouteInt(data, routeIndex, "event_progress", 0);
+        removeRuntime(world, new RouteKey(player.getUuid(), routeIndex));
+        QuestState.get(world.getServer()).setDirty(true);
+        refreshUi(world, player);
+        return true;
+    }
+
+    public static int routeLivery(ServerWorld world, UUID playerId, int routeIndex) {
+        return validRoute(world, playerId, routeIndex)
+                ? routeLivery(data(world, playerId), routeIndex)
+                : Math.floorMod(routeIndex, MAX_ROUTES);
+    }
+
+    public static boolean setRouteLivery(ServerWorld world, ServerPlayerEntity player, int routeIndex, int liveryIndex) {
+        if (world == null || player == null || !validRoute(world, player.getUuid(), routeIndex)) {
+            return false;
+        }
+        PlayerQuestData data = data(world, player.getUuid());
+        int clamped = Math.max(0, Math.min(MAX_ROUTES - 1, liveryIndex));
+        setRouteInt(data, routeIndex, "livery", clamped + 1);
+        CaravanRuntime runtime = ACTIVE_CARAVANS.get(new RouteKey(player.getUuid(), routeIndex));
+        if (runtime != null) {
+            for (CaravanMerchantEntity merchant : livingMerchants(world, runtime)) {
+                merchant.setLiveryIndex(clamped);
+            }
+        }
+        QuestState.get(world.getServer()).setDirty(true);
+        refreshUi(world, player);
+        player.sendMessage(Text.translatable("message.village-quest.prosperity.livery_applied",
+                routeName(data, routeIndex)).formatted(Formatting.GREEN), false);
+        return true;
+    }
+
     public static TradeRouteSpecialization specialization(ServerWorld world, UUID playerId, int routeIndex) {
         return validRoute(world, playerId, routeIndex)
                 ? TradeRouteSpecialization.fromId(routeInt(data(world, playerId), routeIndex, "specialization"))
@@ -1734,15 +1819,16 @@ public final class TradeRouteService {
             player.sendMessage(Text.translatable("message.village-quest.trade_guild.upgrade_owned").formatted(Formatting.GRAY), false);
             return false;
         }
-        if (!CurrencyService.removeBalance(world, player.getUuid(), upgrade.cost())) {
+        long actualCost = ProsperityService.routeUpgradePrice(world, player.getUuid(), upgrade.cost());
+        if (!CurrencyService.removeBalance(world, player.getUuid(), actualCost)) {
             player.sendMessage(Text.translatable("message.village-quest.trade_guild.not_enough",
-                    CurrencyService.formatBalance(upgrade.cost())).formatted(Formatting.RED), false);
+                    CurrencyService.formatBalance(actualCost)).formatted(Formatting.RED), false);
             return false;
         }
         setRouteInt(data, routeIndex, "upgrades", routeInt(data, routeIndex, "upgrades") | upgrade.bit());
         QuestState.get(world.getServer()).setDirty(true);
         player.sendMessage(Text.translatable("message.village-quest.trade_guild.upgrade_bought", upgrade.label(),
-                routeName(routeIndex), CurrencyService.formatBalance(upgrade.cost())).formatted(Formatting.GREEN), false);
+                routeName(routeIndex), CurrencyService.formatBalance(actualCost)).formatted(Formatting.GREEN), false);
         refreshUi(world, player);
         return true;
     }
@@ -1805,6 +1891,7 @@ public final class TradeRouteService {
                     .toList();
             routes.add(new Payloads.TradeRouteLineData(
                     i,
+                    routeLivery(data, i),
                     routeName(data, i),
                     status(data, i).id(),
                     status(data, i).label(),
@@ -2456,6 +2543,12 @@ public final class TradeRouteService {
     private static int quality(PlayerQuestData data, int routeIndex) {
         int quality = routeInt(data, routeIndex, "quality");
         return quality <= 0 ? 20 : Math.min(100, quality);
+    }
+
+    private static int routeLivery(PlayerQuestData data, int routeIndex) {
+        int stored = routeInt(data, routeIndex, "livery");
+        return stored <= 0 ? Math.floorMod(routeIndex, MAX_ROUTES)
+                : Math.max(0, Math.min(MAX_ROUTES - 1, stored - 1));
     }
 
     private static TradeRouteStatus status(PlayerQuestData data, int routeIndex) {

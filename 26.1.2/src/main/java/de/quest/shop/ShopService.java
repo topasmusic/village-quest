@@ -2,6 +2,7 @@ package de.quest.shop;
 
 import de.quest.VillageQuest;
 import de.quest.economy.CurrencyService;
+import de.quest.economy.ProsperityService;
 import de.quest.painting.PaintingStackFactory;
 import de.quest.pilgrim.PilgrimContractService;
 import de.quest.pilgrim.PilgrimContractType;
@@ -714,10 +715,11 @@ public final class ShopService {
             player.sendSystemMessage(lockedMessage.copy().withStyle(ChatFormatting.RED), false);
             return 0;
         }
-        if (!CurrencyService.canAfford(world, player.getUUID(), offer.price())) {
+        long actualPrice = ProsperityService.shopPrice(world, player.getUUID(), offer);
+        if (!CurrencyService.canAfford(world, player.getUUID(), actualPrice)) {
             player.sendSystemMessage(Component.translatable(
                     "command.village-quest.shop.not_enough",
-                    CurrencyService.formatBalance(offer.price()),
+                    CurrencyService.formatBalance(actualPrice),
                     CurrencyService.formatBalance(CurrencyService.getBalance(world, player.getUUID()))
             ).withStyle(ChatFormatting.RED), false);
             return 0;
@@ -729,29 +731,52 @@ public final class ShopService {
             return 0;
         }
 
-        if (!CurrencyService.removeBalance(world, player.getUUID(), offer.price())) {
+        if (!CurrencyService.removeBalance(world, player.getUUID(), actualPrice)) {
             player.sendSystemMessage(Component.translatable("command.village-quest.shop.not_enough",
-                    CurrencyService.formatBalance(offer.price()),
+                    CurrencyService.formatBalance(actualPrice),
                     CurrencyService.formatBalance(CurrencyService.getBalance(world, player.getUUID()))
             ).withStyle(ChatFormatting.RED), false);
             return 0;
         }
 
-        SpecialQuestService.onPilgrimPurchase(world, player, offerId);
-        WeeklyQuestService.onPilgrimPurchase(world, player, offerId);
-        if (isCollectible(offerId)) {
-            QuestState.get(world.getServer()).getPlayerData(player.getUUID())
-                    .setMilestoneFlag("shop.collectible." + offerId, true);
-            QuestState.get(world.getServer()).setDirty();
-        }
+        recordCompletedPurchase(world, player, offerId);
         long newBalance = CurrencyService.getBalance(world, player.getUUID());
         player.sendSystemMessage(Component.translatable(
                 "command.village-quest.shop.buy.success",
                 offer.title(),
-                CurrencyService.formatBalance(offer.price()),
+                CurrencyService.formatBalance(actualPrice),
                 CurrencyService.formatBalance(newBalance)
         ).withStyle(ChatFormatting.GREEN), false);
         return 1;
+    }
+
+    /** Delivers a prepaid 2.1.0 commission without charging the wallet twice. */
+    public static boolean fulfillCommission(ServerLevel world, ServerPlayer player, String offerId) {
+        if (world == null || player == null || offerId == null || !isOfferUnlocked(world, player.getUUID(), offerId)) {
+            return false;
+        }
+        ShopOffer offer = offer(offerId);
+        if (offer == null) return false;
+        ShopOffer.PurchaseResult result = offer.purchaseHandler().purchase(world, player);
+        if (!result.success()) {
+            player.sendSystemMessage(result.message(), false);
+            return false;
+        }
+        recordCompletedPurchase(world, player, offerId);
+        return true;
+    }
+
+    private static void recordCompletedPurchase(ServerLevel world, ServerPlayer player, String offerId) {
+        SpecialQuestService.onPilgrimPurchase(world, player, offerId);
+        WeeklyQuestService.onPilgrimPurchase(world, player, offerId);
+        ProsperityService.recordShopPurchase(world, player.getUUID());
+        QuestState.get(world.getServer()).getPlayerData(player.getUUID())
+                .setMilestoneFlag("shop.known." + offerId, true);
+        if (isCollectible(offerId)) {
+            QuestState.get(world.getServer()).getPlayerData(player.getUUID())
+                    .setMilestoneFlag("shop.collectible." + offerId, true);
+        }
+        QuestState.get(world.getServer()).setDirty();
     }
 
     private static ShopOffer.PurchaseResult deliver(ServerPlayer player, ItemStack... stacks) {

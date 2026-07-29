@@ -3,8 +3,11 @@ package de.quest.quest.weekly;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.economy.CurrencyService;
+import de.quest.economy.ProsperityService;
 import de.quest.economy.QuestExperienceService;
 import de.quest.party.QuestPartyService;
+import de.quest.quest.QuestCompletionMode;
+import de.quest.quest.QuestSoundFeedback;
 import de.quest.quest.QuestBookHelper;
 import de.quest.quest.QuestTrackerService;
 import de.quest.quest.daily.DailyQuestService;
@@ -36,7 +39,9 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.Supplier;
 
@@ -219,11 +224,17 @@ public final class WeeklyQuestService {
         }
 
         WeeklyQuestType currentChoice = data.getWeeklyChoice();
-        if (currentChoice == null || data.getWeeklyChoiceCycle() != cycle) {
+        boolean allowMarketWeek = ProsperityService.canParticipateInMarketWeek(world, playerId);
+        boolean replaceLockedMarketOffer = currentChoice == WeeklyQuestType.MARKET_WEEK
+                && data.getWeeklyChoiceCycle() == cycle
+                && data.getWeeklyAcceptedCycle() != cycle
+                && !allowMarketWeek;
+        if (currentChoice == null || data.getWeeklyChoiceCycle() != cycle || replaceLockedMarketOffer) {
             WeeklyQuestDefinition definition = WeeklyQuestGenerator.pick(
                     world,
                     currentChoice,
-                    currentChoice == null ? null : currentChoice.category()
+                    currentChoice == null ? null : currentChoice.category(),
+                    allowMarketWeek
             );
             if (definition == null) {
                 return null;
@@ -263,17 +274,20 @@ public final class WeeklyQuestService {
             if (QuestPartyService.getSharedWeeklyInt(world, playerId, activeType, key) == value) {
                 return;
             }
+            List<UUID> recipients = progressRecipients(world, playerId, activeType);
+            Map<UUID, List<Text>> before = captureProgressSnapshots(world, recipients);
             QuestPartyService.setSharedWeeklyInt(world, playerId, activeType, key, value);
-            refreshRecipients(world, progressRecipients(world, playerId, activeType));
+            notifyProgressChange(world, recipients, before);
             return;
         }
         if (data.getWeeklyInt(key) == value) {
             return;
         }
+        List<Text> before = previewProgressLines(world, playerId);
         data.setWeeklyInt(key, value);
         data.setWeeklyProgressCycle(currentCycle());
         markDirty(world);
-        refreshQuestUi(world, playerId);
+        notifyProgressChange(world, playerId, before);
     }
 
     public static void addQuestInt(ServerWorld world, UUID playerId, String key, int amount) {
@@ -284,14 +298,17 @@ public final class WeeklyQuestService {
         ensureCurrentProgressCycle(data);
         WeeklyQuestType activeType = activeQuestType(world, playerId);
         if (QuestPartyService.usesSharedWeeklyInt(world, playerId, activeType, key)) {
+            List<UUID> recipients = progressRecipients(world, playerId, activeType);
+            Map<UUID, List<Text>> before = captureProgressSnapshots(world, recipients);
             QuestPartyService.addSharedWeeklyInt(world, playerId, activeType, key, amount);
-            refreshRecipients(world, progressRecipients(world, playerId, activeType));
+            notifyProgressChange(world, recipients, before);
             return;
         }
+        List<Text> before = previewProgressLines(world, playerId);
         data.addWeeklyInt(key, amount);
         data.setWeeklyProgressCycle(currentCycle());
         markDirty(world);
-        refreshQuestUi(world, playerId);
+        notifyProgressChange(world, playerId, before);
     }
 
     public static void addQuestIntClamped(ServerWorld world, UUID playerId, String key, int amount, int target) {
@@ -323,17 +340,20 @@ public final class WeeklyQuestService {
             if (QuestPartyService.getSharedWeeklyFlag(world, playerId, activeType, key) == enabled) {
                 return;
             }
+            List<UUID> recipients = progressRecipients(world, playerId, activeType);
+            Map<UUID, List<Text>> before = captureProgressSnapshots(world, recipients);
             QuestPartyService.setSharedWeeklyFlag(world, playerId, activeType, key, enabled);
-            refreshRecipients(world, progressRecipients(world, playerId, activeType));
+            notifyProgressChange(world, recipients, before);
             return;
         }
         if (data.hasWeeklyFlag(key) == enabled) {
             return;
         }
+        List<Text> before = previewProgressLines(world, playerId);
         data.setWeeklyFlag(key, enabled);
         data.setWeeklyProgressCycle(currentCycle());
         markDirty(world);
-        refreshQuestUi(world, playerId);
+        notifyProgressChange(world, playerId, before);
     }
 
     public static WeeklyQuestType previewQuestChoice(ServerWorld world, UUID playerId) {
@@ -413,13 +433,21 @@ public final class WeeklyQuestService {
         withTargetProfile(data, () -> definition.onAccepted(world, player));
         QuestPartyService.onWeeklyQuestAccepted(world, player, type, definition);
         player.sendMessage(Texts.acceptedTitle(definition.title(), Formatting.GOLD), false);
+        QuestSoundFeedback.playAccepted(world, player);
         QuestTrackerService.enableForAcceptedQuest(world, player);
-        world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, SoundCategory.PLAYERS, 0.6f, 1.0f);
         refreshQuestUi(world, playerId);
         return true;
     }
 
     public static boolean completeIfEligible(ServerWorld world, ServerPlayerEntity player) {
+        return completeIfEligible(world, player, false);
+    }
+
+    public static boolean claimFromQuestMaster(ServerWorld world, ServerPlayerEntity player) {
+        return completeIfEligible(world, player, true);
+    }
+
+    private static boolean completeIfEligible(ServerWorld world, ServerPlayerEntity player, boolean questMasterClaim) {
         if (world == null || player == null) {
             return false;
         }
@@ -431,6 +459,9 @@ public final class WeeklyQuestService {
 
         WeeklyQuestDefinition definition = WeeklyQuestGenerator.definition(previewQuestChoice(world, playerId));
         if (definition == null) {
+            return false;
+        }
+        if (!questMasterClaim && definition.completionMode() == QuestCompletionMode.QUESTMASTER_TURN_IN) {
             return false;
         }
         PlayerQuestData data = data(world, playerId);
@@ -555,7 +586,8 @@ public final class WeeklyQuestService {
         WeeklyQuestDefinition rerolled = WeeklyQuestGenerator.pick(
                 world,
                 previous,
-                previous == null ? null : previous.category()
+                previous == null ? null : previous.category(),
+                ProsperityService.canParticipateInMarketWeek(world, playerId)
         );
         if (rerolled == null) {
             return previous;
@@ -858,6 +890,28 @@ public final class WeeklyQuestService {
         return consumeInventoryItem(player, item, amount);
     }
 
+    public static boolean consumeCompletionItemRequirements(ServerWorld world,
+                                                            ServerPlayerEntity player,
+                                                            Map<Item, Integer> requirements) {
+        if (player == null || requirements == null || requirements.isEmpty()) {
+            return false;
+        }
+        for (Map.Entry<Item, Integer> requirement : requirements.entrySet()) {
+            if (requirement.getKey() == null
+                    || requirement.getValue() == null
+                    || requirement.getValue() <= 0
+                    || countCompletionItem(world, player, requirement.getKey()) < requirement.getValue()) {
+                return false;
+            }
+        }
+        for (Map.Entry<Item, Integer> requirement : requirements.entrySet()) {
+            if (!consumeCompletionItem(world, player, requirement.getKey(), requirement.getValue())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public static boolean consumeCompletionItems(ServerWorld world, ServerPlayerEntity player, int amount, Item... items) {
         if (player == null || amount <= 0 || items == null || items.length == 0) {
             return false;
@@ -893,7 +947,8 @@ public final class WeeklyQuestService {
     }
 
     private static void deliverCompletion(ServerWorld world, ServerPlayerEntity player, WeeklyQuestCompletion completion) {
-        long actualCurrencyReward = completion.currencyReward() + VillageProjectService.bonusCurrency(world, player.getUuid(), completion.reputationTrack());
+        long actualCurrencyReward = ProsperityService.applyFestivalBonus(world, player.getUuid(),
+                completion.currencyReward() + VillageProjectService.bonusCurrency(world, player.getUuid(), completion.reputationTrack()));
         if (actualCurrencyReward > 0L) {
             CurrencyService.addBalance(world, player.getUuid(), actualCurrencyReward);
         }
@@ -1016,6 +1071,42 @@ public final class WeeklyQuestService {
         }
         for (UUID playerId : playerIds) {
             refreshQuestUi(world, playerId);
+        }
+    }
+
+    private static Map<UUID, List<Text>> captureProgressSnapshots(ServerWorld world, List<UUID> playerIds) {
+        Map<UUID, List<Text>> snapshots = new LinkedHashMap<>();
+        if (playerIds == null) {
+            return snapshots;
+        }
+        for (UUID playerId : playerIds) {
+            snapshots.put(playerId, previewProgressLines(world, playerId));
+        }
+        return snapshots;
+    }
+
+    private static void notifyProgressChange(ServerWorld world, UUID playerId, List<Text> before) {
+        notifyProgressChange(world, List.of(playerId), Map.of(playerId, before == null ? List.of() : before));
+    }
+
+    private static void notifyProgressChange(ServerWorld world,
+                                             List<UUID> playerIds,
+                                             Map<UUID, List<Text>> beforeSnapshots) {
+        if (world == null || playerIds == null) {
+            return;
+        }
+        for (UUID playerId : playerIds) {
+            List<Text> after = previewProgressLines(world, playerId);
+            refreshQuestUi(world, playerId);
+            ServerPlayerEntity player = world.getServer().getPlayerManager().getPlayer(playerId);
+            if (player != null) {
+                QuestSoundFeedback.playProgressChange(
+                        world,
+                        player,
+                        beforeSnapshots.getOrDefault(playerId, List.of()),
+                        after
+                );
+            }
         }
     }
 

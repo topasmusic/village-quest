@@ -12,6 +12,9 @@ All commands are available as `/villagequest ...` and the short alias `/vq ...`.
 - `/vq journal`
   Open or close the journal.
 
+- `/vq prosperity`
+  Open the Prosperity, commissions, services, collection, and economy-ledger board after matching progression unlocks access.
+
 - `/vq wallet`
   Show your wallet balance.
 
@@ -207,6 +210,12 @@ Current unlockable project ids:
 `testsetup` is the one-command core test for the Village Quest 2.0 caravan systems. It unlocks the `Caravan Yard`, gives the ledger and a Wayfinder if needed, completes the older story prerequisites, creates five surveyed routes with different security and quality values, adds all route specializations, multiple upgrade states, rank-five guild progress and `300 Silvermarks`, starts two event scenarios, prepares `The Empty Caravan` to be offered by the Questmaster, and opens the route map.
 
 `reset` clears the selected player's registered villages, route progress, route events, earnings, and materialized route NPCs. It does not remove world blocks or revoke unrelated progression.
+
+### Prosperity and Economy
+
+- `/vq admin economy testsetup [player]`
+
+This focused `2.1.0` fixture unlocks the five matching project branches, prepares the five-route test network, sets the wallet to `500 Crowns`, and opens `Prosperity & Prestige`.
 
 ### Pilgrim
 

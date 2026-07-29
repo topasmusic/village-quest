@@ -1,5 +1,6 @@
 package de.quest.quest.story;
 
+import de.quest.quest.QuestCompletionMode;
 import java.util.List;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
@@ -24,6 +25,8 @@ public interface StoryChapterDefinition {
     boolean isComplete(ServerLevel world, ServerPlayer player);
 
     StoryChapterCompletion buildCompletion();
+
+    default QuestCompletionMode completionMode() { return QuestCompletionMode.QUESTMASTER_TURN_IN; }
 
     default boolean canAccept(ServerLevel world, ServerPlayer player) { return true; }
 

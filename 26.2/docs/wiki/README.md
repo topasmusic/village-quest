@@ -1,6 +1,6 @@
 # Village Quest Wiki
 
-This wiki covers the shared `Village Quest 2.0` release for Minecraft `1.21.11`, `26.1.2`, and `26.2`.
+This wiki covers the shared `Village Quest 2.0` release and the active three-line development of `2.1.0 - Prosperity & Prestige`.
 
 Current stable release:
 - `2.0.0 - Roads Between Villages` for Minecraft `1.21.11`, `26.1.2`, and `26.2` on `2026-07-19`
@@ -23,6 +23,7 @@ Current highlights:
 - the late `Questmaster` story arc `Shadows on the Trade Road` remains part of the current stable content
 - `The Empty Caravan` turns that road story into a persistent trade-route endgame
 - all three maintained lines share the unified medieval-Minecraft UI, compact card-based Journal, terrain-backed full map and minimap, varied caravan outfits, and the latest formation and recovery hardening
+- all three active development lines add five three-rank Prosperity branches, Pilgrim commissions, paid village services, a prestige collection, and an economy ledger
 
 The core loop is:
 - help a village through grounded daily and weekly work
@@ -35,6 +36,7 @@ The core loop is:
 
 - [Getting Started](./getting-started.md)
 - [Core Progression](./core-progression.md)
+- [Prosperity and the Village Economy](./prosperity-and-economy.md)
 - [Stories and Village Projects](./stories-and-projects.md)
 - [Trade Routes and Caravans](./trade-routes-and-caravans.md)
 - [Relics, Wayfinder, and Magic Shards](./relics-and-shards.md)

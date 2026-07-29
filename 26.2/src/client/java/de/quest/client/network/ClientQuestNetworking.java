@@ -4,6 +4,7 @@ import de.quest.client.hud.QuestTrackerHud;
 import de.quest.client.screen.AdminJournalScreen;
 import de.quest.client.screen.JournalScreen;
 import de.quest.client.screen.PilgrimTradeScreen;
+import de.quest.client.screen.ProsperityScreen;
 import de.quest.client.screen.QuestMasterScreen;
 import de.quest.client.screen.TradeRouteMapScreen;
 import de.quest.client.hud.TradeRouteMinimapHud;
@@ -175,6 +176,21 @@ public final class ClientQuestNetworking {
             });
         });
 
+        ClientPlayNetworking.registerGlobalReceiver(Payloads.EconomyPayload.ID, (payload, context) -> {
+            var client = context.client();
+            client.execute(() -> {
+                if (payload.action() == Payloads.EconomyPayload.ACTION_OPEN) {
+                    setScreen(client, new ProsperityScreen(payload));
+                    return;
+                }
+                if (currentScreen(client) instanceof ProsperityScreen screen) {
+                    screen.updateData(payload);
+                    return;
+                }
+                setScreen(client, new ProsperityScreen(payload));
+            });
+        });
+
         ClientPlayNetworking.registerGlobalReceiver(Payloads.QuestMasterPayload.ID, (payload, context) -> {
             var client = context.client();
             client.execute(() -> {
@@ -248,7 +264,8 @@ public final class ClientQuestNetworking {
                                 payload.party().summary(),
                                 members,
                                 candidates
-                        )
+                        ),
+                        payload.storyCooldownUntil()
                 );
 
                 if (payload.action() == Payloads.QuestMasterPayload.ACTION_OPEN) {

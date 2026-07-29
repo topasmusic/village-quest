@@ -73,7 +73,8 @@ public final class QuestMasterScreen extends CompatScreen {
             Component questMasterName,
             List<CategoryView> categories,
             List<EntryView> entries,
-            PartyView party
+            PartyView party,
+            long storyCooldownUntil
     ) {}
 
     private record DetailLine(String text, int color, int indent, boolean spacer, boolean descriptionPreview) {}
@@ -174,8 +175,12 @@ public final class QuestMasterScreen extends CompatScreen {
     private static final int PARTY_MUTED = 0xFF7F6A57;
     private static final int SCROLL_TRACK = 0x33A77A42;
     private static final int SCROLL_THUMB = 0xAA7C4A27;
+    private static final String CATEGORY_DAILY = "daily";
+    private static final String CATEGORY_WEEKLY = "weekly";
+    private static final String CATEGORY_STORY = "story";
     private static final String ENTRY_DAILY_MAIN = "daily_main";
     private static final String ENTRY_WEEKLY = "weekly_main";
+    private static final String ENTRY_STORY_COOLDOWN = "story_cooldown";
 
     private QuestMasterData data;
     private String selectedCategoryId = "";
@@ -239,24 +244,31 @@ public final class QuestMasterScreen extends CompatScreen {
 
     @Override
     public void render(GuiGraphics context, int mouseX, int mouseY, float delta) {
-        int left = (this.width - WINDOW_WIDTH) / 2;
-        int top = (this.height - WINDOW_HEIGHT) / 2;
         this.hoveredEntryTooltip = null;
         this.hoveredDescriptionLines = List.of();
 
         VillageUiTheme.drawScreenShade(context, this.width, this.height);
-        VillageUiTheme.drawPanelShadow(context, left, top, WINDOW_WIDTH, WINDOW_HEIGHT);
-        drawBoard(context, left, top);
-        drawHeader(context, left, top);
-        drawSidebar(context, left, top, mouseX, mouseY);
-        drawEntryList(context, left, top, mouseX, mouseY);
-        drawDetailPanel(context, left, top, mouseX, mouseY);
-        drawPartyDrawer(context, left, top, mouseX, mouseY);
-        drawFooter(context, left, top);
+        int uiMouseX = responsiveMouseX(mouseX, WINDOW_WIDTH, WINDOW_HEIGHT);
+        int uiMouseY = responsiveMouseY(mouseY, WINDOW_WIDTH, WINDOW_HEIGHT);
+        float panelScale = beginResponsivePanel(context, WINDOW_WIDTH, WINDOW_HEIGHT);
+        try {
+            int left = (this.width - WINDOW_WIDTH) / 2;
+            int top = (this.height - WINDOW_HEIGHT) / 2;
+            VillageUiTheme.drawPanelShadow(context, left, top, WINDOW_WIDTH, WINDOW_HEIGHT);
+            drawBoard(context, left, top);
+            drawHeader(context, left, top);
+            drawSidebar(context, left, top, uiMouseX, uiMouseY);
+            drawEntryList(context, left, top, uiMouseX, uiMouseY);
+            drawDetailPanel(context, left, top, uiMouseX, uiMouseY);
+            drawPartyDrawer(context, left, top, uiMouseX, uiMouseY);
+            drawFooter(context, left, top);
 
-        super.render(context, mouseX, mouseY, delta);
-        if (this.hoveredEntryTooltip != null) {
-            context.setTooltipForNextFrame(this.font, this.hoveredEntryTooltip, mouseX, mouseY);
+            super.render(context, uiMouseX, uiMouseY, delta);
+            if (this.hoveredEntryTooltip != null) {
+                context.setTooltipForNextFrame(this.font, this.hoveredEntryTooltip, uiMouseX, uiMouseY);
+            }
+        } finally {
+            endResponsivePanel(context, panelScale);
         }
     }
 
@@ -268,18 +280,19 @@ public final class QuestMasterScreen extends CompatScreen {
 
         int left = (this.width - WINDOW_WIDTH) / 2;
         int top = (this.height - WINDOW_HEIGHT) / 2;
-        int mouseX = (int) click.x();
-        int mouseY = (int) click.y();
+        int mouseX = responsiveMouseX(click.x(), WINDOW_WIDTH, WINDOW_HEIGHT);
+        int mouseY = responsiveMouseY(click.y(), WINDOW_WIDTH, WINDOW_HEIGHT);
 
         List<CategoryView> categories = data.categories();
         for (int i = 0; i < categories.size(); i++) {
-            if (categories.get(i).entryCount() <= 0) {
+            CategoryView category = categories.get(i);
+            if (!categoryHasEntries(category.categoryId())) {
                 continue;
             }
             int x = left + CATEGORY_SLOT_X;
             int y = top + CATEGORY_SLOT_Y + (i * (CATEGORY_SLOT_HEIGHT + CATEGORY_SLOT_GAP));
             if (isWithin(mouseX, mouseY, x, y, CATEGORY_SLOT_WIDTH, CATEGORY_SLOT_HEIGHT)) {
-                this.selectedCategoryId = categories.get(i).categoryId();
+                this.selectedCategoryId = category.categoryId();
                 this.selectedEntryId = "";
                 ensureSelection();
                 this.entryListScrollOffset = 0;
@@ -344,20 +357,22 @@ public final class QuestMasterScreen extends CompatScreen {
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
         int left = (this.width - WINDOW_WIDTH) / 2;
         int top = (this.height - WINDOW_HEIGHT) / 2;
-        if (this.entryListScrollMax > 0 && isWithin((int) mouseX, (int) mouseY, left + ENTRY_X, top + ENTRY_Y, ENTRY_WIDTH, entryViewportHeight())) {
+        int uiMouseX = responsiveMouseX(mouseX, WINDOW_WIDTH, WINDOW_HEIGHT);
+        int uiMouseY = responsiveMouseY(mouseY, WINDOW_WIDTH, WINDOW_HEIGHT);
+        if (this.entryListScrollMax > 0 && isWithin(uiMouseX, uiMouseY, left + ENTRY_X, top + ENTRY_Y, ENTRY_WIDTH, entryViewportHeight())) {
             int step = this.font.lineHeight * 2;
             this.entryListScrollOffset -= (int) Math.signum(verticalAmount) * step;
             clampEntryListScroll();
             return true;
         }
-        if (this.detailScrollMax > 0 && isWithin((int) mouseX, (int) mouseY, left + DETAIL_BODY_X, top + DETAIL_BODY_Y, DETAIL_BODY_WIDTH, DETAIL_BODY_HEIGHT)) {
+        if (this.detailScrollMax > 0 && isWithin(uiMouseX, uiMouseY, left + DETAIL_BODY_X, top + DETAIL_BODY_Y, DETAIL_BODY_WIDTH, DETAIL_BODY_HEIGHT)) {
             int step = this.font.lineHeight * 2;
             this.detailScrollOffset -= (int) Math.signum(verticalAmount) * step;
             clampDetailScroll();
             return true;
         }
         if (this.partyDrawerOpen
-                && isWithin((int) mouseX, (int) mouseY, left + PARTY_DRAWER_X, top + PARTY_DRAWER_Y, PARTY_DRAWER_WIDTH, PARTY_DRAWER_HEIGHT)
+                && isWithin(uiMouseX, uiMouseY, left + PARTY_DRAWER_X, top + PARTY_DRAWER_Y, PARTY_DRAWER_WIDTH, PARTY_DRAWER_HEIGHT)
                 && candidateScrollMax() > 0) {
             this.partyCandidateScrollIndex -= (int) Math.signum(verticalAmount);
             clampPartyDrawerState();
@@ -398,7 +413,7 @@ public final class QuestMasterScreen extends CompatScreen {
             int y = top + CATEGORY_SLOT_Y + (i * (CATEGORY_SLOT_HEIGHT + CATEGORY_SLOT_GAP));
             boolean hovered = isWithin(mouseX, mouseY, x, y, CATEGORY_SLOT_WIDTH, CATEGORY_SLOT_HEIGHT);
             boolean selected = category.categoryId().equals(selectedCategoryId);
-            boolean locked = category.entryCount() <= 0;
+            boolean locked = !categoryHasEntries(category.categoryId());
             drawCategorySlot(context, x, y, category, hovered, selected, locked);
         }
     }
@@ -512,7 +527,7 @@ public final class QuestMasterScreen extends CompatScreen {
         }
 
         VillageUiTheme.drawStringScaled(context, this.font, timerText,
-                left + 79, top + 196, MUTED, 0.68f);
+                left + 80, top + 188, MUTED, 0.68f);
     }
 
     private void drawDetailHeader(GuiGraphics context, int x, int y, EntryView entry) {
@@ -567,10 +582,41 @@ public final class QuestMasterScreen extends CompatScreen {
 
     private List<DetailLine> buildDetailLines(EntryView entry, int maxWidth) {
         List<DetailLine> lines = new ArrayList<>();
-        addDetailSection(lines, Component.translatable("screen.village-quest.questmaster.description"), entry.descriptionLines(), maxWidth, BODY, true);
-        addDetailSection(lines, Component.translatable("screen.village-quest.questmaster.objectives"), entry.objectiveLines(), maxWidth, BODY, false);
+        if (entry.locked()) {
+            List<Component> requirements = entry.objectiveLines().isEmpty()
+                    ? entry.descriptionLines()
+                    : entry.objectiveLines();
+            addStyledDetailSection(lines,
+                    Component.translatable("screen.village-quest.questmaster.unlock_requirements"),
+                    requirements,
+                    maxWidth);
+            if (!entry.objectiveLines().isEmpty()) {
+                addDetailSection(lines, Component.translatable("screen.village-quest.questmaster.description"), entry.descriptionLines(), maxWidth, BODY, true);
+            }
+        } else {
+            addDetailSection(lines, Component.translatable("screen.village-quest.questmaster.description"), entry.descriptionLines(), maxWidth, BODY, true);
+            addDetailSection(lines, Component.translatable("screen.village-quest.questmaster.objectives"), entry.objectiveLines(), maxWidth, BODY, false);
+        }
         addDetailSection(lines, Component.translatable("screen.village-quest.questmaster.rewards"), entry.rewardLines(), maxWidth, SECTION_HEADER, false);
         return lines;
+    }
+
+    private void addStyledDetailSection(List<DetailLine> lines, Component heading, List<Component> content, int maxWidth) {
+        if (content == null || content.isEmpty()) {
+            return;
+        }
+        if (!lines.isEmpty()) {
+            lines.add(new DetailLine("", BODY, 0, true, false));
+        }
+        lines.add(new DetailLine(heading.getString(), SECTION_HEADER, 0, false, false));
+        for (Component component : content) {
+            int color = component.getStyle().getColor() == null
+                    ? BODY
+                    : 0xFF000000 | component.getStyle().getColor().getValue();
+            for (String wrapped : wrapText(component.getString(), maxWidth - 2)) {
+                lines.add(new DetailLine(wrapped, color, 2, false, false));
+            }
+        }
     }
 
     private void addDetailSection(List<DetailLine> lines, Component heading, List<Component> content, int maxWidth, int bodyColor, boolean descriptionPreview) {
@@ -813,6 +859,15 @@ public final class QuestMasterScreen extends CompatScreen {
         return visible;
     }
 
+    private boolean categoryHasEntries(String categoryId) {
+        for (EntryView entry : data.entries()) {
+            if (entry.categoryId().equals(categoryId)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private EntryView getSelectedEntry() {
         for (EntryView entry : data.entries()) {
             if (entry.entryId().equals(selectedEntryId)) {
@@ -977,11 +1032,28 @@ public final class QuestMasterScreen extends CompatScreen {
 
     private String footerTimerText() {
         EntryView selected = getSelectedEntry();
-        if (selected != null && ENTRY_WEEKLY.equals(selected.entryId()) && shouldShowResetTimer(selected)) {
+        if (CATEGORY_STORY.equals(this.selectedCategoryId)
+                && selected != null
+                && ENTRY_STORY_COOLDOWN.equals(selected.entryId())) {
+            long remaining = Math.max(0L, data.storyCooldownUntil() - System.currentTimeMillis());
+            if (remaining > 0L) {
+                return Component.translatable(
+                        "screen.village-quest.questmaster.story_timer",
+                        formatRemainingResetTime(remaining)
+                ).getString();
+            }
+        }
+        if (CATEGORY_WEEKLY.equals(this.selectedCategoryId)
+                && selected != null
+                && ENTRY_WEEKLY.equals(selected.entryId())
+                && shouldShowResetTimer(selected)) {
             return Component.translatable(
                     "screen.village-quest.questmaster.weekly_timer",
                     formatRemainingResetTime(TimeUtil.millisUntilNextWeeklyReset())
             ).getString();
+        }
+        if (!CATEGORY_DAILY.equals(this.selectedCategoryId)) {
+            return null;
         }
         for (EntryView entry : data.entries()) {
             if (!ENTRY_DAILY_MAIN.equals(entry.entryId())) {

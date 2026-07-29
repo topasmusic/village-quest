@@ -2,6 +2,7 @@ package de.quest.pilgrim;
 
 import de.quest.data.QuestState;
 import de.quest.entity.PilgrimEntity;
+import de.quest.economy.ProsperityService;
 import de.quest.network.Payloads;
 import de.quest.registry.ModEntities;
 import de.quest.shop.ShopOffer;
@@ -150,6 +151,7 @@ public final class PilgrimService {
             player.sendSystemMessage(Component.translatable("message.village-quest.pilgrim.too_far").withStyle(ChatFormatting.RED), false);
             return;
         }
+        ProsperityService.deliverPendingCommission(world, player);
         pilgrim.setCustomer(player);
         ServerPlayNetworking.send(player, buildPayload(Payloads.PilgrimTradePayload.ACTION_OPEN, world, player, pilgrim));
     }
@@ -254,7 +256,7 @@ public final class PilgrimService {
                     offer.id(),
                     offer.title(),
                     offer.description(),
-                    offer.price(),
+                    ProsperityService.shopPrice(world, player.getUUID(), offer),
                     offer.previewStack(world)
             ));
         }

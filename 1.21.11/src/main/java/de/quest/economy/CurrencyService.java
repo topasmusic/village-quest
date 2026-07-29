@@ -37,7 +37,9 @@ public final class CurrencyService {
         PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(playerId);
         long next = clampAdd(data.getCurrencyBalance(), amount);
         if (next != data.getCurrencyBalance()) {
+            long appliedDelta = next - data.getCurrencyBalance();
             data.setCurrencyBalance(next);
+            ProsperityService.recordCurrencyDelta(world, playerId, appliedDelta);
             QuestState.get(world.getServer()).markDirty();
         }
         return next;

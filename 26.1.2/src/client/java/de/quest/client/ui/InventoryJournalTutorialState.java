@@ -13,9 +13,12 @@ import java.util.Properties;
 public final class InventoryJournalTutorialState {
     private static final String FILE_NAME = "village-quest-client.properties";
     private static final String JOURNAL_HINT_SEEN_KEY = "inventory_journal_hint_seen";
+    private static final String JOURNAL_HINT_VERSION_KEY = "inventory_journal_hint_version";
     private static final String QUESTMASTER_BUTTON_HINT_SEEN_KEY = "journal_questmaster_button_hint_seen";
+    private static final int CURRENT_JOURNAL_HINT_VERSION = 2;
     private static boolean loaded;
     private static boolean journalHintSeen;
+    private static int journalHintVersion;
     private static boolean questMasterButtonHintSeen;
 
     private InventoryJournalTutorialState() {}
@@ -26,15 +29,16 @@ public final class InventoryJournalTutorialState {
 
     public static boolean shouldShowInventoryHint() {
         loadIfNeeded();
-        return !journalHintSeen;
+        return !journalHintSeen || journalHintVersion < CURRENT_JOURNAL_HINT_VERSION;
     }
 
     public static void markInventoryHintSeen() {
         loadIfNeeded();
-        if (journalHintSeen) {
+        if (journalHintSeen && journalHintVersion >= CURRENT_JOURNAL_HINT_VERSION) {
             return;
         }
         journalHintSeen = true;
+        journalHintVersion = CURRENT_JOURNAL_HINT_VERSION;
         save();
     }
 
@@ -67,6 +71,10 @@ public final class InventoryJournalTutorialState {
         try (InputStream input = Files.newInputStream(configPath)) {
             properties.load(input);
             journalHintSeen = Boolean.parseBoolean(properties.getProperty(JOURNAL_HINT_SEEN_KEY, "false"));
+            journalHintVersion = parseHintVersion(
+                    properties.getProperty(JOURNAL_HINT_VERSION_KEY),
+                    journalHintSeen ? 1 : 0
+            );
             questMasterButtonHintSeen = Boolean.parseBoolean(properties.getProperty(QUESTMASTER_BUTTON_HINT_SEEN_KEY, "false"));
         } catch (IOException exception) {
             VillageQuest.LOGGER.warn("Failed to load Village Quest client settings from {}", configPath, exception);
@@ -86,6 +94,7 @@ public final class InventoryJournalTutorialState {
         }
 
         properties.setProperty(JOURNAL_HINT_SEEN_KEY, Boolean.toString(journalHintSeen));
+        properties.setProperty(JOURNAL_HINT_VERSION_KEY, Integer.toString(journalHintVersion));
         properties.setProperty(QUESTMASTER_BUTTON_HINT_SEEN_KEY, Boolean.toString(questMasterButtonHintSeen));
 
         try {
@@ -100,5 +109,16 @@ public final class InventoryJournalTutorialState {
 
     private static Path configPath() {
         return FabricLoader.getInstance().getConfigDir().resolve(FILE_NAME);
+    }
+
+    private static int parseHintVersion(String raw, int fallback) {
+        if (raw == null || raw.isBlank()) {
+            return fallback;
+        }
+        try {
+            return Math.max(0, Integer.parseInt(raw));
+        } catch (NumberFormatException ignored) {
+            return fallback;
+        }
     }
 }

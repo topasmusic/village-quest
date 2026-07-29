@@ -6,9 +6,16 @@ import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.Text;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public final class QuestTrackerHud {
+    private static final int MAX_CONTENT_WIDTH = 220;
+    private static final int LINE_HEIGHT = 10;
+    private static final int COMPLETED_OBJECTIVE_COLOR = 0xFF00AA00;
+    private static final Pattern PROGRESS_FRACTION_PATTERN = Pattern.compile("(\\d+)\\s*/\\s*(\\d+)");
     private static TrackerState state = TrackerState.disabled();
 
     private QuestTrackerHud() {}
@@ -33,57 +40,35 @@ public final class QuestTrackerHud {
         }
 
         TextRenderer renderer = client.textRenderer;
-        int maxWidth = renderer.getWidth(Text.translatable("text.village-quest.tracker.header"));
+        List<RenderEntry> renderLines = new ArrayList<>();
+        addEntry(renderLines, renderer, Text.translatable("text.village-quest.tracker.header"), 0xFFF0D7A7);
+        int headerLineCount = renderLines.size();
         if (tracker.dailyActive()) {
-            maxWidth = Math.max(maxWidth, renderer.getWidth(tracker.dailyTitle()));
-            for (Text line : tracker.dailyLines()) {
-                maxWidth = Math.max(maxWidth, renderer.getWidth(line));
-            }
+            addSection(renderLines, renderer, tracker.dailyTitle(), tracker.dailyLines(), 0xFFD8D8D8);
         }
         if (tracker.weeklyActive()) {
-            maxWidth = Math.max(maxWidth, renderer.getWidth(tracker.weeklyTitle()));
-            for (Text line : tracker.weeklyLines()) {
-                maxWidth = Math.max(maxWidth, renderer.getWidth(line));
-            }
+            addSection(renderLines, renderer, tracker.weeklyTitle(), tracker.weeklyLines(), 0xFFF0E2B0);
         }
         if (tracker.storyActive()) {
-            maxWidth = Math.max(maxWidth, renderer.getWidth(tracker.storyTitle()));
-            for (Text line : tracker.storyLines()) {
-                maxWidth = Math.max(maxWidth, renderer.getWidth(line));
-            }
+            addSection(renderLines, renderer, tracker.storyTitle(), tracker.storyLines(), 0xFFD7E9A9);
         }
         if (tracker.pilgrimActive()) {
-            maxWidth = Math.max(maxWidth, renderer.getWidth(tracker.pilgrimTitle()));
-            for (Text line : tracker.pilgrimLines()) {
-                maxWidth = Math.max(maxWidth, renderer.getWidth(line));
-            }
+            addSection(renderLines, renderer, tracker.pilgrimTitle(), tracker.pilgrimLines(), 0xFFE7D1A4);
         }
         if (tracker.specialActive()) {
-            maxWidth = Math.max(maxWidth, renderer.getWidth(tracker.specialTitle()));
-            for (Text line : tracker.specialLines()) {
-                maxWidth = Math.max(maxWidth, renderer.getWidth(line));
-            }
+            addSection(renderLines, renderer, tracker.specialTitle(), tracker.specialLines(), 0xFFE2D0FF);
         }
 
-        int lineHeight = 10;
-        int contentLines = 1;
-        if (tracker.dailyActive()) {
-            contentLines += 1 + tracker.dailyLines().size();
-        }
-        if (tracker.weeklyActive()) {
-            contentLines += 1 + tracker.weeklyLines().size();
-        }
-        if (tracker.storyActive()) {
-            contentLines += 1 + tracker.storyLines().size();
-        }
-        if (tracker.pilgrimActive()) {
-            contentLines += 1 + tracker.pilgrimLines().size();
-        }
-        if (tracker.specialActive()) {
-            contentLines += 1 + tracker.specialLines().size();
+        int maxWidth = 1;
+        int contentLines = 0;
+        for (RenderEntry line : renderLines) {
+            for (String wrappedLine : line.lines()) {
+                maxWidth = Math.max(maxWidth, renderer.getWidth(wrappedLine));
+                contentLines++;
+            }
         }
         int boxWidth = maxWidth + 12;
-        int boxHeight = contentLines * lineHeight + 8;
+        int boxHeight = contentLines * LINE_HEIGHT + 10;
         int x = drawContext.getScaledWindowWidth() - boxWidth - 8;
         int y = 8;
 
@@ -93,54 +78,103 @@ public final class QuestTrackerHud {
 
         int textX = x + 6;
         int textY = y + 4;
-        drawContext.drawTextWithShadow(renderer, Text.translatable("text.village-quest.tracker.header"), textX, textY, 0xFFF0D7A7);
-        textY += lineHeight + 2;
-
-        if (tracker.dailyActive()) {
-            drawContext.drawTextWithShadow(renderer, tracker.dailyTitle(), textX, textY, 0xFFFFFFFF);
-            textY += lineHeight;
-            for (Text line : tracker.dailyLines()) {
-                drawContext.drawTextWithShadow(renderer, line, textX, textY, 0xFFD8D8D8);
-                textY += lineHeight;
+        for (int index = 0; index < renderLines.size(); index++) {
+            RenderEntry line = renderLines.get(index);
+            for (String wrappedLine : line.lines()) {
+                drawContext.drawText(renderer, wrappedLine, textX, textY, line.color(), false);
+                textY += LINE_HEIGHT;
             }
-        }
-
-        if (tracker.weeklyActive()) {
-            drawContext.drawTextWithShadow(renderer, tracker.weeklyTitle(), textX, textY, 0xFFFFFFFF);
-            textY += lineHeight;
-            for (Text line : tracker.weeklyLines()) {
-                drawContext.drawTextWithShadow(renderer, line, textX, textY, 0xFFF0E2B0);
-                textY += lineHeight;
-            }
-        }
-
-        if (tracker.storyActive()) {
-            drawContext.drawTextWithShadow(renderer, tracker.storyTitle(), textX, textY, 0xFFFFFFFF);
-            textY += lineHeight;
-            for (Text line : tracker.storyLines()) {
-                drawContext.drawTextWithShadow(renderer, line, textX, textY, 0xFFD7E9A9);
-                textY += lineHeight;
-            }
-        }
-
-        if (tracker.pilgrimActive()) {
-            drawContext.drawTextWithShadow(renderer, tracker.pilgrimTitle(), textX, textY, 0xFFFFFFFF);
-            textY += lineHeight;
-            for (Text line : tracker.pilgrimLines()) {
-                drawContext.drawTextWithShadow(renderer, line, textX, textY, 0xFFE7D1A4);
-                textY += lineHeight;
-            }
-        }
-
-        if (tracker.specialActive()) {
-            drawContext.drawTextWithShadow(renderer, tracker.specialTitle(), textX, textY, 0xFFFFFFFF);
-            textY += lineHeight;
-            for (Text line : tracker.specialLines()) {
-                drawContext.drawTextWithShadow(renderer, line, textX, textY, 0xFFE2D0FF);
-                textY += lineHeight;
+            if (index + 1 == headerLineCount) {
+                textY += 2;
             }
         }
     }
+
+    private static void addSection(List<RenderEntry> output,
+                                   TextRenderer renderer,
+                                   Text title,
+                                   List<Text> lines,
+                                   int lineColor) {
+        addEntry(output, renderer, title, 0xFFFFFFFF);
+        for (Text line : lines) {
+            boolean completedObjective = isCompletedObjective(line);
+            addEntry(output, renderer, line,
+                    completedObjective ? COMPLETED_OBJECTIVE_COLOR : lineColor,
+                    completedObjective);
+        }
+    }
+
+    private static void addEntry(List<RenderEntry> output, TextRenderer renderer, Text text, int color) {
+        addEntry(output, renderer, text, color, false);
+    }
+
+    private static void addEntry(List<RenderEntry> output,
+                                 TextRenderer renderer,
+                                 Text text,
+                                 int color,
+                                 boolean forceColor) {
+        int resolvedColor = forceColor || text.getStyle().getColor() == null
+                ? color
+                : 0xFF000000 | text.getStyle().getColor().getRgb();
+        output.add(new RenderEntry(wrapText(renderer, text.getString()), resolvedColor));
+    }
+
+    private static boolean isCompletedObjective(Text text) {
+        if (text == null) {
+            return false;
+        }
+        Matcher matcher = PROGRESS_FRACTION_PATTERN.matcher(text.getString());
+        boolean foundProgress = false;
+        while (matcher.find()) {
+            foundProgress = true;
+            try {
+                long current = Long.parseLong(matcher.group(1));
+                long target = Long.parseLong(matcher.group(2));
+                if (target <= 0L || current < target) {
+                    return false;
+                }
+            } catch (NumberFormatException ignored) {
+                return false;
+            }
+        }
+        return foundProgress;
+    }
+
+    private static List<String> wrapText(TextRenderer renderer, String text) {
+        List<String> lines = new ArrayList<>();
+        if (text == null || text.isBlank()) {
+            lines.add("");
+            return lines;
+        }
+
+        for (String paragraph : text.split("\\R", -1)) {
+            StringBuilder current = new StringBuilder();
+            for (String word : paragraph.trim().split("\\s+")) {
+                if (word.isEmpty()) {
+                    continue;
+                }
+                String candidate = current.isEmpty() ? word : current + " " + word;
+                if (!current.isEmpty() && renderer.getWidth(candidate) > MAX_CONTENT_WIDTH) {
+                    lines.add(current.toString());
+                    current.setLength(0);
+                    current.append(word);
+                } else {
+                    current.setLength(0);
+                    current.append(candidate);
+                }
+            }
+            if (!current.isEmpty()) {
+                lines.add(current.toString());
+            }
+        }
+
+        if (lines.isEmpty()) {
+            lines.add("");
+        }
+        return lines;
+    }
+
+    private record RenderEntry(List<String> lines, int color) {}
 
     public record TrackerState(
             boolean enabled,

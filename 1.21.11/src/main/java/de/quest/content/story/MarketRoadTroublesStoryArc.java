@@ -28,6 +28,7 @@ import net.minecraft.util.math.Box;
 import net.minecraft.village.VillagerProfession;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
@@ -239,23 +240,47 @@ public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
 
         @Override
         public void onServerTick(ServerWorld world, ServerPlayerEntity player) {
+            UUID playerId = player.getUuid();
+            boolean paperWasComplete = progress(world, playerId, StoryQuestKeys.MARKET_ROAD_PAPER_CRAFTED) >= LEDGER_PAPER_TARGET;
             updateCraftProgress(world, player, StoryQuestKeys.MARKET_ROAD_PAPER_BASELINE, StoryQuestKeys.MARKET_ROAD_PAPER_CRAFTED, Items.PAPER, LEDGER_PAPER_TARGET);
-            updateCraftProgress(world, player, StoryQuestKeys.MARKET_ROAD_BOOK_BASELINE, StoryQuestKeys.MARKET_ROAD_BOOK_CRAFTED, Items.BOOK, LEDGER_BOOK_TARGET);
+            if (paperWasComplete) {
+                updateCraftProgress(world, player, StoryQuestKeys.MARKET_ROAD_BOOK_BASELINE, StoryQuestKeys.MARKET_ROAD_BOOK_CRAFTED, Items.BOOK, LEDGER_BOOK_TARGET);
+            } else {
+                StoryQuestService.setQuestInt(
+                        world,
+                        playerId,
+                        StoryQuestKeys.MARKET_ROAD_BOOK_BASELINE,
+                        DailyQuestService.getCraftedStat(player, Items.BOOK) + 1
+                );
+            }
             StoryQuestService.completeIfEligible(world, player);
         }
 
         @Override
         public List<Text> progressLines(ServerWorld world, UUID playerId) {
-            Text craftedLine = Text.translatable(
-                    "quest.village-quest.story.market_road_troubles.chapter_2.progress.1",
-                    progress(world, playerId, StoryQuestKeys.MARKET_ROAD_PAPER_CRAFTED),
-                    LEDGER_PAPER_TARGET,
-                    progress(world, playerId, StoryQuestKeys.MARKET_ROAD_BOOK_CRAFTED),
-                    LEDGER_BOOK_TARGET
-            ).formatted(Formatting.GRAY);
+            int paperProgress = progress(world, playerId, StoryQuestKeys.MARKET_ROAD_PAPER_CRAFTED);
+            if (paperProgress < LEDGER_PAPER_TARGET) {
+                return List.of(Text.translatable(
+                        "quest.village-quest.story.market_road_troubles.chapter_2.stage.1",
+                        paperProgress,
+                        LEDGER_PAPER_TARGET
+                ).formatted(Formatting.GRAY));
+            }
+
+            int bookProgress = progress(world, playerId, StoryQuestKeys.MARKET_ROAD_BOOK_CRAFTED);
+            if (bookProgress < LEDGER_BOOK_TARGET) {
+                return List.of(Text.translatable(
+                        "quest.village-quest.story.market_road_troubles.chapter_2.stage.2",
+                        bookProgress,
+                        LEDGER_BOOK_TARGET
+                ).formatted(Formatting.GRAY));
+            }
+
             ServerPlayerEntity player = world == null ? null : world.getServer().getPlayerManager().getPlayer(playerId);
             Text blocked = player == null ? null : claimBlockedMessage(world, player);
-            return blocked == null ? List.of(craftedLine) : List.of(craftedLine, blocked);
+            return List.of(blocked == null
+                    ? Text.translatable("quest.village-quest.story.market_road_troubles.chapter_2.stage.3").formatted(Formatting.GRAY)
+                    : blocked);
         }
 
         @Override
@@ -272,8 +297,10 @@ public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
             if (!isComplete(world, player)) {
                 return false;
             }
-            return consumeItem(world, player, Items.PAPER, LEDGER_PAPER_TARGET)
-                    && consumeItem(world, player, Items.BOOK, LEDGER_BOOK_TARGET);
+            return StoryQuestService.consumeCompletionItems(world, player.getUuid(), Map.of(
+                    Items.PAPER, LEDGER_PAPER_TARGET,
+                    Items.BOOK, LEDGER_BOOK_TARGET
+            ));
         }
 
         @Override

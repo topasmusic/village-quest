@@ -1,5 +1,57 @@
 # Changelog
 
+## 2.1.0 - Prosperity & Prestige
+
+Release date: 2026-07-29
+
+### New features
+
+- Added `Prosperity & Prestige`, a new long-term Crown sink that begins after the matching village projects are complete. The Apiary, Forge, Market, Pasture, and Road Watch each have three permanent ranks: `Foundation`, `Established`, and `Legacy`, priced at `6`, `12`, and `24 Crowns`.
+- Each branch now changes the economy instead of only filling a progress bar. Apiary, Market, Pasture, and road-related Pilgrim goods receive up to a `15%` discount; the Forge also discounts permanent route upgrades; and the Road Watch lowers recurring route-incident chance by up to `9` percentage points.
+- Added prepaid Pilgrim commissions. An invested Market can order any currently unlocked Pilgrim good for its normal discounted price plus a rank-dependent `3/2/1 Crown` fee. The order is delivered on the first Pilgrim visit after the next dawn, so rare rotations can be planned without making the traveling merchant irrelevant.
+- Added five paid village services: a three-journey Road Patrol, a `+15` Survey Report for road quality, an Emergency Recall for stranded caravans, a Village Festival that boosts the next three repeatable quest payouts by `25%`, and a rank-gated Guild Ceremony that boosts the next three freight payouts by `25%`.
+- Added a ten-piece prestige collection. Five permanent caravan liveries can be applied to any installed route and keep NPC outfits, full-map lines, and minimap colors synchronized. The Guild Banner, Mapmaker Crest, Market Pavilion, Watchtower Pennant, and final Guild Hall Trophy provide visible long-term milestones up to all `15` prosperity ranks.
+- Added a persistent economy ledger for total currency earned and spent, Pilgrim purchases, commissions, services, investments, collection pieces, total prosperity ranks, and remaining Festival or Ceremony bonuses.
+- Added a dedicated five-tab Prosperity board with `24` new pixel-art icons, visible investment prices, shared Crown/Silvermark wallets, and an admin test setup for quickly previewing the complete economy.
+- Added clearer quest guidance: locked entries explain their exact requirements, multi-stage work reveals one meaningful step at a time, and restrained sounds distinguish acceptance, progress, stage completion, and final rewards.
+- The Questmaster now announces genuinely new Daily, Weekly, and Story work once in chat. Complete English, German, and Spanish text and matching wiki guidance are included.
+
+### Bug fixes and improvements
+
+- Fixed inventory-backed quest turn-ins across story, Daily, and Weekly content. Every fixed multi-item bundle is now fully validated before anything is removed, and a claim cannot complete unless all required items are still available for consumption.
+- Standardized completion behavior: pure action Daily and Weekly quests auto-complete, while item-consuming Daily and Weekly quests, all Story chapters, and Special commissions wait for an explicit Questmaster claim. Progress events no longer remove delivery items.
+- Audited every visible Daily, Weekly, Story, and Special objective against its live tracker and turn-in code. Quest text now distinguishes fresh actions from supply deliveries and hybrid hand-ins, all three languages use the actual authored targets, pure deliveries explicitly allow stored or traded goods, and the wiki matches the same lore and mechanics.
+- Rebuilt `The Silent Forge: The Master's Edge` as a sequential six-stage commission: five distinct villager books, four freshly crafted Iron Armor pieces, four flexibly assigned protection enchantments of any level, a freshly crafted Diamond Sword, Sharpness of any level, and the final five-piece hand-in. Enchanted-book trades now read stored enchantments correctly, including Sharpness V, and an upgrade recovery pass recognizes qualifying books still carried by players whose active chapter was affected by the old tracker.
+- Extended clear stage progression to every other genuine production chain. `Bakehouse Help`, `Meal from the River`, `Smelting for the Smithy`, `Harvest for the Village`, `Smith's Week`, and `Ledger And Notices` now reveal one dependency stage at a time, advance automatically, ignore processing performed before its prerequisite, and reserve the final item removal for the Questmaster hand-in. Independent bundles such as mixed bakehouse stock remain parallel instead of receiving an artificial order.
+- Normalized the German localization to standard German orthography. Remaining Swiss-style `ss` forms such as `Strasse` and `weiss`, plus malformed earlier substitutions such as `Baün`, `Neü`, and `qüstmaster`, now use the correct `ß`, umlauts, or original vowel sequence.
+- Fixed `The Failing Harvest`: chapter 1 now counts the actual Wheat and Potato item yields from mature crops instead of one point per block, then requires and consumes `16 Wheat` and `8 Potatoes`; chapter 2 likewise requires and consumes its `3 Honey Bottles` and `1 Honeycomb`.
+- Audited every active crop-yield quest and moved `Kitchen Supplies`, `Bakehouse Help`, `Harvest for the Village`, and `The Failing Harvest` onto one mature-crop item-yield path. Multi-item Potato and Carrot harvests now credit the full collected stack, Fortune-compatible drops remain accurate, immature crops grant no progress, and verified right-click-and-replant harvests avoid double counting.
+- Fixed normal mature Wheat, Potato, and Carrot harvests at the source. Village Quest now captures Minecraft's exact, already-randomized crop stack when `Block.popResource` spawns it, before item-entity event order or pickup delay can lose the association. This credits the real yield without restoring one-point-per-plant progress; the short-lived entity matcher remains as a compatibility fallback.
+- Compacted the tracked-quest turn-in warning. Completed inventory requirements are omitted, only genuinely missing item names and counts remain red, and all tracker content wraps within a fixed readable width instead of stretching the background across the screen. The same behavior covers Daily, Weekly, Story, and Special turn-ins, including the five-item Silent Forge bundle.
+- Preserved the red missing-item warning color after the compact tracker wraps the message into plain display lines.
+- Colored completed numeric objectives dark green in the tracked-quests HUD. A line turns dark green only when every visible `current/target` pair on that line has reached its target.
+- Fixed Fortune-sensitive mining progress, including `The Silent Forge: Cold Hearth`. Tracked Coal, Raw Iron, Redstone, Raw Gold, Diamond, Lapis, and Amethyst progress now uses Minecraft's exact generated block-resource stack instead of a separately randomized loot prediction; the item-entity path remains as a compatibility fallback.
+- Cleared completed or locked quests from the Quest Board category badges, so a finished Weekly no longer leaves a misleading `1`, and moved the Weekly reset timer clear of the lower frame.
+- Kept zero-badge Quest Board categories selectable whenever they still contain an entry. Completed Weeklies can therefore be reopened to review their completion state and see the next reset timer without restoring the misleading badge.
+- Limited reset timers to their relevant Quest Board tabs. Daily and Weekly countdowns no longer leak into the unrelated Special/Relic view.
+- Fixed the Story cooldown presentation. `The Questmaster Listens` no longer contributes a misleading `1` badge, its zero-badge Story tab remains selectable, and the footer now shows the live countdown until the next story.
+- Made every primary Village Quest board responsive to Minecraft's automatic GUI scale. Journal, Quest Board, Pilgrim Trader, Caravan Ledger/Route Office, and Prosperity now keep a consistent centered footprint between a maximized window and fullscreen instead of expanding to nearly the entire display; hover, scrolling, buttons, and map dragging use the same transformed coordinates.
+- Moved terrain-map texture cleanup onto the client render thread when leaving a world, preventing the wrong-thread texture-release warning that could appear during disconnect or shutdown.
+- Polished the board after a native fullscreen client review: long commission prices now wrap cleanly in the detail card, all ten economy-ledger rows remain visible, and route selectors sit clear of the lower wood divider in Services and Collection.
+- Standardized currency presentation across the Journal, Pilgrim Trader, and Prosperity board. Crown and Silvermark item icons with compact amounts now live in the upper-right wood header, replacing long parchment text such as `500 Crowns 5 Silvermarks` that could clip at the edge.
+- Re-centered the Journal and Pilgrim Trader coin displays inside their wooden headers, with separate offsets so both wallets sit naturally clear of the brass corner at the responsive board scale.
+- Aligned the Prosperity wallet with the accepted Journal header position, moving both currency icons and amounts into the center of the wooden header and clear of the brass corner.
+- Made Prosperity and the full Caravan Ledger map behave as Journal subpages: Prosperity's `Done` button and the map's regular close action now return to the Journal, while starting a route survey still closes directly into gameplay.
+- Centered the five Prosperity navigation icons and Collection row art, moved the Pilgrim `Rumor` control into the upper-left wood header, and shifted Journal/Prosperity `Done` buttons clear of the brass corner. Every scrollable primary board now uses one generated brass, oak, and teal double-arrow handle instead of the former narrow bar.
+- Improved the unreleased new-player Weekly guard. `Market Week` now appears only when the player can afford the three cheapest currently unlocked Pilgrim goods, rather than using the earlier one-Crown approximation. Invalid unaccepted offers migrate automatically; accepted Weeklies and their progress remain untouched.
+- Existing worlds upgrade without a destructive migration. Completed projects and routes immediately expose the appropriate economy branches, while every new rank, commission, service, collection unlock, and livery persists normally.
+
+## 2.0.2 - New Player Weekly Eligibility (superseded by 2.1.0)
+
+Release date: not published
+
+- This initial candidate kept `Market Week` out of the Weekly rotation below one Crown. Its save-safe offer replacement is retained in `2.1.0`, while the eligibility check now measures the cost of three actual unlocked purchases.
+
 ## 2.0.1 - Quest Board Frame Hotfix
 
 Release date: 2026-07-21
@@ -10,6 +62,9 @@ Release date: 2026-07-21
 ## 2.0.0 - Roads Between Villages
 
 Release date: 2026-07-19
+
+- Restored the one-time inventory tutorial pointer for the Journal. Fresh players and existing installations upgrading to this build receive one clear animated pointer, and the same guidance follows the normal bookmark, the status-effect-safe top-right placement, or the compact `J` compatibility fallback.
+- Fixed the rare case where the Journal needed two clicks after navigating from it to another Village Quest board. Inventory controls now request an idempotent open, normal closing explicitly clears the server state, and Journal navigation also clears stale state before opening the destination; the existing `/vq journal` toggle remains backward compatible.
 
 ### Licensing and packaging
 

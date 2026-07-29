@@ -1,23 +1,26 @@
 package de.quest.content.daily;
 
+import de.quest.quest.QuestCompletionMode;
 import de.quest.quest.daily.DailyQuestCompletion;
 import de.quest.quest.daily.DailyQuestDefinition;
 import de.quest.quest.daily.DailyQuestKeys;
 import de.quest.quest.daily.DailyQuestService;
 import de.quest.util.Texts;
+import java.util.Map;
 import java.util.UUID;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.CropBlock;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.network.chat.Component;
 import net.minecraft.ChatFormatting;
-import net.minecraft.core.BlockPos;
 
 public final class WheatHarvestDailyQuest implements DailyQuestDefinition {
+    @Override
+    public QuestCompletionMode completionMode() {
+        return QuestCompletionMode.QUESTMASTER_TURN_IN;
+    }
+
     @Override
     public DailyQuestService.DailyQuestType type() {
         return DailyQuestService.DailyQuestType.WHEAT_HARVEST;
@@ -40,6 +43,24 @@ public final class WheatHarvestDailyQuest implements DailyQuestDefinition {
 
     @Override
     public Component progressLine(ServerLevel world, UUID playerId) {
+        int wheatProgress = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.WHEAT_PROGRESS);
+        if (wheatProgress < DailyQuestService.wheatTarget()) {
+            return Component.translatable(
+                    "quest.village-quest.daily.wheat.stage.1",
+                    wheatProgress,
+                    DailyQuestService.wheatTarget()
+            ).withStyle(ChatFormatting.GRAY);
+        }
+
+        int breadProgress = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.BREAD_PROGRESS);
+        if (breadProgress < DailyQuestService.breadTarget()) {
+            return Component.translatable(
+                    "quest.village-quest.daily.wheat.stage.2",
+                    breadProgress,
+                    DailyQuestService.breadTarget()
+            ).withStyle(ChatFormatting.GRAY);
+        }
+
         ServerPlayer player = world == null ? null : world.getServer().getPlayerList().getPlayer(playerId);
         if (player != null) {
             Component blocked = claimBlockedMessage(world, player);
@@ -48,13 +69,7 @@ public final class WheatHarvestDailyQuest implements DailyQuestDefinition {
             }
         }
 
-        return Component.translatable(
-                "quest.village-quest.daily.wheat.progress",
-                DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.WHEAT_PROGRESS),
-                DailyQuestService.wheatTarget(),
-                DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.BREAD_PROGRESS),
-                DailyQuestService.breadTarget()
-        ).withStyle(ChatFormatting.GRAY);
+        return Component.translatable("quest.village-quest.daily.wheat.stage.3").withStyle(ChatFormatting.GRAY);
     }
 
     @Override
@@ -83,8 +98,14 @@ public final class WheatHarvestDailyQuest implements DailyQuestDefinition {
         if (!hasTurnInItems(player)) {
             return false;
         }
-        return DailyQuestService.consumeCompletionItem(world, player, Items.WHEAT, DailyQuestService.wheatTarget())
-                && DailyQuestService.consumeCompletionItem(world, player, Items.BREAD, DailyQuestService.breadTarget());
+        return DailyQuestService.consumeCompletionItemRequirements(
+                world,
+                player,
+                Map.of(
+                        Items.WHEAT, DailyQuestService.wheatTarget(),
+                        Items.BREAD, DailyQuestService.breadTarget()
+                )
+        );
     }
 
     @Override
@@ -122,6 +143,11 @@ public final class WheatHarvestDailyQuest implements DailyQuestDefinition {
 
         UUID playerId = player.getUUID();
         int craftedBread = DailyQuestService.getCraftedStat(player, Items.BREAD);
+        if (DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.WHEAT_PROGRESS) < DailyQuestService.wheatTarget()) {
+            DailyQuestService.setQuestInt(world, playerId, DailyQuestKeys.LAST_BREAD_CRAFTED, craftedBread + 1);
+            return;
+        }
+
         int storedLastCraftedBread = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.LAST_BREAD_CRAFTED);
         if (storedLastCraftedBread == 0) {
             DailyQuestService.setQuestInt(world, playerId, DailyQuestKeys.LAST_BREAD_CRAFTED, craftedBread + 1);
@@ -142,22 +168,19 @@ public final class WheatHarvestDailyQuest implements DailyQuestDefinition {
     }
 
     @Override
-    public void onBlockBreak(ServerLevel world, ServerPlayer player, BlockPos pos, BlockState state) {
+    public void onTrackedItemPickup(ServerLevel world, ServerPlayer player, ItemStack stack, int count) {
         if (!DailyQuestService.isTrackingQuest(world, player.getUUID(), type())) return;
-        if (!state.is(Blocks.WHEAT)) return;
-        if (!(state.getBlock() instanceof CropBlock crop)) return;
-        if (!state.hasProperty(CropBlock.AGE) || state.getValue(CropBlock.AGE) < crop.getMaxAge()) return;
-
-        incrementProgress(world, player);
+        if (!stack.is(Items.WHEAT) || count <= 0) return;
+        incrementProgress(world, player, count);
     }
 
-    private void incrementProgress(ServerLevel world, ServerPlayer player) {
+    private void incrementProgress(ServerLevel world, ServerPlayer player, int amount) {
         UUID playerId = player.getUUID();
         int current = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.WHEAT_PROGRESS);
         if (current >= DailyQuestService.wheatTarget()) {
             return;
         }
-        DailyQuestService.setQuestInt(world, playerId, DailyQuestKeys.WHEAT_PROGRESS, Math.min(DailyQuestService.wheatTarget(), current + 1));
+        DailyQuestService.setQuestInt(world, playerId, DailyQuestKeys.WHEAT_PROGRESS, Math.min(DailyQuestService.wheatTarget(), current + amount));
         DailyQuestService.completeIfEligible(world, player);
         DailyQuestService.sendCurrentProgressActionbar(world, player);
     }

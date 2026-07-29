@@ -25,11 +25,13 @@ public final class Payloads {
         PayloadTypeRegistry.clientboundPlay().register(AdminJournalPayload.ID, AdminJournalPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(QuestTrackerPayload.ID, QuestTrackerPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(PilgrimTradePayload.ID, PilgrimTradePayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(EconomyPayload.ID, EconomyPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(QuestMasterPayload.ID, QuestMasterPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(TradeRouteMapPayload.ID, TradeRouteMapPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(JournalActionPayload.ID, JournalActionPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(PilgrimTradeActionPayload.ID, PilgrimTradeActionPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(PilgrimTradeSessionPayload.ID, PilgrimTradeSessionPayload.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(EconomyActionPayload.ID, EconomyActionPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(QuestMasterActionPayload.ID, QuestMasterActionPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(QuestMasterPartyActionPayload.ID, QuestMasterPartyActionPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(QuestMasterSessionPayload.ID, QuestMasterSessionPayload.CODEC);
@@ -517,6 +519,127 @@ public final class Payloads {
         }
     }
 
+    public record EconomyEntryData(
+            String entryId,
+            String iconName,
+            Component title,
+            Component subtitle,
+            List<Component> descriptionLines,
+            long price,
+            Component actionLabel,
+            boolean actionEnabled,
+            boolean owned
+    ) {
+        private static EconomyEntryData read(RegistryFriendlyByteBuf buf) {
+            return new EconomyEntryData(
+                    buf.readUtf(),
+                    buf.readUtf(),
+                    ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf),
+                    ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf),
+                    QuestTrackerPayload.readTextList(buf),
+                    buf.readLong(),
+                    ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf),
+                    buf.readBoolean(),
+                    buf.readBoolean()
+            );
+        }
+
+        private static void write(RegistryFriendlyByteBuf buf, EconomyEntryData entry) {
+            buf.writeUtf(entry.entryId());
+            buf.writeUtf(entry.iconName());
+            ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, entry.title());
+            ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, entry.subtitle());
+            QuestTrackerPayload.writeTextList(buf, entry.descriptionLines());
+            buf.writeLong(entry.price());
+            ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, entry.actionLabel());
+            buf.writeBoolean(entry.actionEnabled());
+            buf.writeBoolean(entry.owned());
+        }
+    }
+
+    public record EconomySectionData(
+            String sectionId,
+            Component label,
+            String iconName,
+            List<EconomyEntryData> entries
+    ) {
+        private static EconomySectionData read(RegistryFriendlyByteBuf buf) {
+            String sectionId = buf.readUtf();
+            Component label = ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf);
+            String iconName = buf.readUtf();
+            int count = buf.readVarInt();
+            List<EconomyEntryData> entries = new ArrayList<>(count);
+            for (int i = 0; i < count; i++) entries.add(EconomyEntryData.read(buf));
+            return new EconomySectionData(sectionId, label, iconName, List.copyOf(entries));
+        }
+
+        private static void write(RegistryFriendlyByteBuf buf, EconomySectionData section) {
+            buf.writeUtf(section.sectionId());
+            ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, section.label());
+            buf.writeUtf(section.iconName());
+            buf.writeVarInt(section.entries().size());
+            for (EconomyEntryData entry : section.entries()) EconomyEntryData.write(buf, entry);
+        }
+    }
+
+    public record EconomyPayload(
+            int action,
+            long balance,
+            List<Component> routeNames,
+            List<EconomySectionData> sections
+    ) implements CustomPacketPayload {
+        public static final int ACTION_OPEN = 0;
+        public static final int ACTION_UPDATE = 1;
+
+        public static final CustomPacketPayload.Type<EconomyPayload> ID =
+                new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "economy"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, EconomyPayload> CODEC =
+                StreamCodec.of(EconomyPayload::write, EconomyPayload::read);
+
+        private static EconomyPayload read(RegistryFriendlyByteBuf buf) {
+            int action = buf.readVarInt();
+            long balance = buf.readLong();
+            List<Component> routeNames = QuestTrackerPayload.readTextList(buf);
+            int count = buf.readVarInt();
+            List<EconomySectionData> sections = new ArrayList<>(count);
+            for (int i = 0; i < count; i++) sections.add(EconomySectionData.read(buf));
+            return new EconomyPayload(action, balance, List.copyOf(routeNames), List.copyOf(sections));
+        }
+
+        private static void write(RegistryFriendlyByteBuf buf, EconomyPayload payload) {
+            buf.writeVarInt(payload.action());
+            buf.writeLong(payload.balance());
+            QuestTrackerPayload.writeTextList(buf, payload.routeNames());
+            buf.writeVarInt(payload.sections().size());
+            for (EconomySectionData section : payload.sections()) EconomySectionData.write(buf, section);
+        }
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return ID;
+        }
+    }
+
+    public record EconomyActionPayload(String actionId) implements CustomPacketPayload {
+        public static final CustomPacketPayload.Type<EconomyActionPayload> ID =
+                new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "economy_action"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, EconomyActionPayload> CODEC =
+                StreamCodec.of(EconomyActionPayload::write, EconomyActionPayload::read);
+
+        private static EconomyActionPayload read(RegistryFriendlyByteBuf buf) {
+            return new EconomyActionPayload(buf.readUtf());
+        }
+
+        private static void write(RegistryFriendlyByteBuf buf, EconomyActionPayload payload) {
+            buf.writeUtf(payload.actionId());
+        }
+
+        @Override
+        public Type<? extends CustomPacketPayload> type() {
+            return ID;
+        }
+    }
+
     public record QuestMasterCategoryData(
             String categoryId,
             Component label,
@@ -866,6 +989,7 @@ public final class Payloads {
 
     public record TradeRouteLineData(
             int routeIndex,
+            int liveryIndex,
             Component name,
             int status,
             Component statusLabel,
@@ -883,6 +1007,7 @@ public final class Payloads {
     ) {
         private static TradeRouteLineData read(RegistryFriendlyByteBuf buf) {
             int routeIndex = buf.readVarInt();
+            int liveryIndex = buf.readVarInt();
             Component name = ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf);
             int status = buf.readVarInt();
             Component statusLabel = ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf);
@@ -901,13 +1026,14 @@ public final class Payloads {
             for (int i = 0; i < waypointCount; i++) {
                 waypoints.add(TradeRoutePointData.read(buf));
             }
-            return new TradeRouteLineData(routeIndex, name, status, statusLabel, roadQuality, progress,
+            return new TradeRouteLineData(routeIndex, liveryIndex, name, status, statusLabel, roadQuality, progress,
                     returning, paused, surveying, eventLabel, eventHelp, lifetimeEarnings,
                     specializationLabel, upgradeSummary, List.copyOf(waypoints));
         }
 
         private static void write(RegistryFriendlyByteBuf buf, TradeRouteLineData route) {
             buf.writeVarInt(route.routeIndex());
+            buf.writeVarInt(route.liveryIndex());
             ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, route.name());
             buf.writeVarInt(route.status());
             ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, route.statusLabel());

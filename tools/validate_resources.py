@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from collections import Counter
+import argparse
 import json
 from pathlib import Path
 import re
@@ -96,6 +97,24 @@ def validate_line(version: str) -> tuple[dict[str, object], list[str]]:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--line",
+        choices=VERSION_LINES,
+        help="validate one intentionally divergent development line without requiring cross-line key parity",
+    )
+    args = parser.parse_args()
+
+    if args.line:
+        english, errors = validate_line(args.line)
+        if errors:
+            print("Resource validation failed:", file=sys.stderr)
+            for error in errors:
+                print(f"- {error}", file=sys.stderr)
+            return 1
+        print(f"Validated JSON resources and {len(english)} localization keys for {args.line}.")
+        return 0
+
     errors: list[str] = []
     english_by_line: dict[str, dict[str, object]] = {}
     for version in VERSION_LINES:
