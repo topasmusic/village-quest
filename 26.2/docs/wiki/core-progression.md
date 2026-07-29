@@ -31,6 +31,13 @@ He handles:
 - special commissions
 - village trust and long-term progress
 
+### Completion Flow
+
+- Pure action-only Daily and Weekly quests finish immediately when the final objective is reached.
+- Daily and Weekly quests with a consumed item delivery stop in a ready state and must be claimed from the `Questmaster`.
+- Story chapters and Special commissions always use the same explicit `Questmaster` hand-in.
+- A delivery claim rechecks the complete required bundle, consumes it atomically, and only then grants completion and rewards.
+
 ### Pilgrim
 
 The `Pilgrim` is an outsider.
@@ -75,6 +82,8 @@ Weekly quests are:
 - village-themed
 - drawn from the non-combat weekly pool
 - fixed for the current week once rolled
+
+After a Weekly is completed, its category badge clears but the tab remains selectable. The completed entry and the countdown to the next Monday reset stay visible until the new Weekly is available.
 
 Visible normal weekly pool:
 - `Harvest for the Village`
@@ -149,6 +158,8 @@ Current project roster:
 - `Market Charter`
 - `Pasture Charter`
 - `Watch Bell`
+
+In `2.1.0`, completed projects are also the entry points for permanent Crown investments. See [Prosperity and the Village Economy](./prosperity-and-economy.md) for the five three-rank branches, Pilgrim commissions, paid services, collection milestones, and the economy ledger.
 
 ## Cancel Rules
 

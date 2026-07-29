@@ -2,7 +2,9 @@
 
 `Village Quest` is a Fabric mod built around village progression. Take on daily and weekly work, build reputation, unlock story arcs and village projects, and later deal with the `Pilgrim` and the road beyond the village.
 
-Current release: `2.0.1`, a visual hotfix for the Quest Board and Pilgrim Trader frames.
+Current release: `2.1.0 - Prosperity & Prestige`, the major village-economy, progression, quest-polish, and interface update.
+
+Minecraft `26.2` is the active line for future Village Quest content after this final three-version parity release.
 
 ## Requirements
 
@@ -22,11 +24,18 @@ Current release: `2.0.1`, a visual hotfix for the Quest Board and Pilgrim Trader
 
 - Daily and weekly quests through the `Questmaster`
 - Level-scaled experience rewards that advance the same number of bars at vanilla level `10` or `200+`
-- A unified dark-oak, parchment, brass, and teal interface across the `Questmaster`, `Pilgrim`, Journal, Caravan Ledger, and minimap, including one shared soft ambient/lower-right panel shadow
+- A unified dark-oak, parchment, brass, and teal interface across the `Questmaster`, `Pilgrim`, Journal, Caravan Ledger, and minimap, including shared icon wallets, an ornate double-arrow scroll handle, one soft ambient/lower-right panel shadow, and a consistent responsive footprint in windowed and fullscreen play
 - The compact modular `Questmaster` dashboard separates Daily, Weekly, Story, and Special work into icon tabs, with a dedicated quest list and a scrollable detail card for descriptions, objectives, rewards, and actions
+- One-time Questmaster chat notices announce fresh Daily, Weekly, and Story work; Story cooldowns show a live timer without turning the empty waiting state into a false badge
+- A restrained quest sound ladder distinguishes acceptance, normal progress, completed objectives, stage transitions, and final rewards without turning routine gathering into constant noise
 - A compact five-tab Journal with collapsible progress cards, a quest tracker, and a wallet with `Silvermark` and `Crown`
+- A one-time animated inventory pointer introduces the Journal bookmark and follows its compatibility fallback when another mod changes the inventory layout
 - Reputation across farming, crafting, animals, trade, and later roadside work
 - Story arcs and permanent village projects
+- Five three-rank Prosperity branches that turn completed village projects into permanent Crown investments, discounts, safer roads, and a `15`-rank endgame
+- Pilgrim commissions for ordering unlocked goods, five paid village services, a ten-piece prestige collection, and a persistent lifetime economy ledger
+- Five collectible caravan liveries that keep route NPC outfits, full-map lines, and minimap colors synchronized
+- New-player-aware `Market Week` selection that waits until three unlocked Pilgrim purchases are genuinely affordable
 - Existing saves keep their progression and receive missing `Caravan Ledger` or `Roadwarden Horn` unlock items once on login when their old progress already qualifies
 - `The Empty Caravan`, a six-chapter late story with investigation, a moral choice, and a bait-caravan defense
 - A permanent `Caravan Yard` project with up to five persistent village-to-village trade routes
@@ -40,7 +49,8 @@ Current release: `2.0.1`, a visual hotfix for the Quest Board and Pilgrim Trader
 - A real-time terrain minimap for villages, routes, the player, caravans, and incidents, toggled by the configurable `,` key or `/vq routes minimap`
 - Route registration accepts vanilla and CTOV generated villages only while at least one living normal villager remains, rejecting abandoned and zombie villages
 - Eight recurring route events ranging from broken wheels and washed-out bridges to missing couriers and false distress calls
-- Farming quest progress supports normal crop breaking and compatible right-click-and-replant harvest flows
+- Farming quest progress supports normal crop breaking and compatible right-click-and-replant harvest flows; crop delivery objectives count the full mature Wheat, Potato, or Carrot item yield instead of one point per plant
+- Quest wording now consistently separates fresh actions from deliveries: actions must happen after acceptance, pure supplies may come from storage or trade, and hybrid quests require both fresh progress and the complete carried bundle. Pure action quests complete immediately; item deliveries, Story chapters, and Special commissions wait for the Questmaster
 - The traveling `Pilgrim` trader with rotating wares
 - `Shadows on the Trade Road`, a late `Questmaster` follow-up arc after `Watch Bell` plus `3` completed `Pilgrim` combat rumors
 - Nighttime caravan defense encounters with `Caravan Merchant` survivors and elite `Traitor` bandits in the final convoy wave
@@ -58,6 +68,7 @@ Project docs are available in the local wiki:
 - [Wiki Home](docs/wiki/README.md)
 - [Getting Started](docs/wiki/getting-started.md)
 - [Core Progression](docs/wiki/core-progression.md)
+- [Prosperity and the Village Economy](docs/wiki/prosperity-and-economy.md)
 - [Stories and Village Projects](docs/wiki/stories-and-projects.md)
 - [Trade Routes and Caravans](docs/wiki/trade-routes-and-caravans.md)
 - [Relics, Wayfinder, and Magic Shards](docs/wiki/relics-and-shards.md)
@@ -69,6 +80,7 @@ Project docs are available in the local wiki:
 
 - `/vq questmaster`
 - `/vq journal`
+- `/vq prosperity`
 - `/vq wallet`
 - `/vq reputation`
 - `/vq daily accept`
@@ -91,7 +103,7 @@ Project docs are available in the local wiki:
 Wallet rate:
 - `10 Silvermarks = 1 Crown`
 
-The `Pilgrim` is a timed trader with wallet-based purchases, rotating wares, and a natural respawn cooldown after leaving.
+The `Pilgrim` is a timed trader with wallet-based purchases, rotating wares, and a natural respawn cooldown after leaving. After the Market reaches its first Prosperity rank, unlocked goods can also be commissioned for delivery on a later Pilgrim visit.
 
 ## Admin Commands
 
@@ -110,6 +122,7 @@ These are intended for server admins, pack makers, and testing only:
 - `/vq admin routes testsetup [player]`
 - `/vq admin routes testevent <1-5> <clear|broken_wheel|injured_pack_animal|washed_out_bridge|false_distress|hungry_travelers|road_toll|missing_courier|storm_camp>`
 - `/vq admin routes reset [player]`
+- `/vq admin economy testsetup [player]`
 - `/vq admin pilgrim spawn [player]`
 - `/vq admin pilgrim despawn`
 - `/vq admin wallet show [player]`

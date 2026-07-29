@@ -40,6 +40,9 @@ public final class PlayerQuestData {
     private long weeklyProgressCycle = UNSET_DAY;
     private long weeklyAcceptedCycle = UNSET_DAY;
     private long weeklyRewardCycle = UNSET_DAY;
+    private long dailyOfferNoticeDay = UNSET_DAY;
+    private long weeklyOfferNoticeCycle = UNSET_DAY;
+    private String storyOfferNoticeKey;
     private DailyQuestService.DailyQuestType dailyChoice;
     private long dailyChoiceDay = UNSET_DAY;
     private int dailyTargetProfile = RepeatableTargetProfile.NORMAL.id();
@@ -532,6 +535,32 @@ public final class PlayerQuestData {
 
     public void setWeeklyRewardCycle(long weeklyRewardCycle) {
         this.weeklyRewardCycle = weeklyRewardCycle;
+    }
+
+    public long getDailyOfferNoticeDay() {
+        return dailyOfferNoticeDay;
+    }
+
+    public void setDailyOfferNoticeDay(long dailyOfferNoticeDay) {
+        this.dailyOfferNoticeDay = dailyOfferNoticeDay;
+    }
+
+    public long getWeeklyOfferNoticeCycle() {
+        return weeklyOfferNoticeCycle;
+    }
+
+    public void setWeeklyOfferNoticeCycle(long weeklyOfferNoticeCycle) {
+        this.weeklyOfferNoticeCycle = weeklyOfferNoticeCycle;
+    }
+
+    public String getStoryOfferNoticeKey() {
+        return storyOfferNoticeKey;
+    }
+
+    public void setStoryOfferNoticeKey(String storyOfferNoticeKey) {
+        this.storyOfferNoticeKey = storyOfferNoticeKey == null || storyOfferNoticeKey.isBlank()
+                ? null
+                : storyOfferNoticeKey;
     }
 
     public DailyQuestService.DailyQuestType getDailyChoice() {
@@ -1188,6 +1217,7 @@ public final class PlayerQuestData {
         storyChapterProgressState.clear();
         activeStoryArc = null;
         storyCooldownUntil = 0L;
+        storyOfferNoticeKey = null;
     }
 
     public void resetPilgrimContractState() {

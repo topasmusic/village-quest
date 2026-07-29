@@ -3,7 +3,21 @@ plugins {
     id 'maven-publish'
 }
 
-version = project.mod_version
+def buildChannel = providers.gradleProperty("build_channel").getOrElse("unreleased")
+        .trim()
+        .toLowerCase(Locale.ROOT)
+if (!["unreleased", "stable"].contains(buildChannel)) {
+    throw new GradleException("build_channel must be either 'unreleased' or 'stable'")
+}
+def unreleasedRevision = providers.gradleProperty("unreleased_revision").getOrElse("").trim()
+if (buildChannel == "unreleased" && !(unreleasedRevision ==~ /[1-9]\d*/)) {
+    throw new GradleException("unreleased_revision must be a positive integer for unreleased builds")
+}
+def resolvedModVersion = buildChannel == "stable"
+        ? project.mod_version.toString()
+        : "${project.mod_version}-unreleased.${unreleasedRevision}"
+
+version = resolvedModVersion
 group = project.maven_group
 
 base {

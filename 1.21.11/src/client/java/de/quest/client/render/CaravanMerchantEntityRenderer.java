@@ -69,7 +69,7 @@ public final class CaravanMerchantEntityRenderer extends MobEntityRenderer<Carav
         if (!entity.getMainHandStack().isEmpty()) {
             state.rightArmPose = BipedEntityModel.ArmPose.BLOCK;
         }
-        state.skinTextures = SKINS[Math.floorMod(entity.getRouteIndex(), SKINS.length)];
+        state.skinTextures = SKINS[Math.floorMod(entity.getLiveryIndex(), SKINS.length)];
     }
 
     @Override

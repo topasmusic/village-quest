@@ -1,26 +1,29 @@
 package de.quest.content.weekly;
 
+import de.quest.quest.QuestCompletionMode;
 import de.quest.quest.weekly.WeeklyQuestCompletion;
 import de.quest.quest.weekly.WeeklyQuestDefinition;
 import de.quest.quest.weekly.WeeklyQuestKeys;
 import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.reputation.ReputationService;
 import de.quest.util.Texts;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
-import net.minecraft.block.CropBlock;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
-import net.minecraft.util.math.BlockPos;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public final class HarvestForVillageWeeklyQuest implements WeeklyQuestDefinition {
+    @Override
+    public QuestCompletionMode completionMode() {
+        return QuestCompletionMode.QUESTMASTER_TURN_IN;
+    }
+
     @Override
     public WeeklyQuestService.WeeklyQuestType type() {
         return WeeklyQuestService.WeeklyQuestType.HARVEST_FOR_VILLAGE;
@@ -43,23 +46,37 @@ public final class HarvestForVillageWeeklyQuest implements WeeklyQuestDefinition
 
     @Override
     public List<Text> progressLines(ServerWorld world, UUID playerId) {
-        Text line1 = Text.translatable(
-                "quest.village-quest.weekly.harvest.progress.1",
-                WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.HARVEST_WHEAT),
-                WeeklyQuestService.harvestWheatTarget(),
-                WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.HARVEST_CARROT),
-                WeeklyQuestService.harvestCarrotTarget()
-        ).formatted(Formatting.GRAY);
-        Text line2 = Text.translatable(
-                "quest.village-quest.weekly.harvest.progress.2",
-                WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.HARVEST_POTATO),
-                WeeklyQuestService.harvestPotatoTarget(),
-                WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.HARVEST_BREAD),
-                WeeklyQuestService.harvestBreadTarget()
-        ).formatted(Formatting.GRAY);
+        if (!harvestStageComplete(world, playerId)) {
+            return List.of(
+                    Text.translatable(
+                            "quest.village-quest.weekly.harvest.stage.1a",
+                            WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.HARVEST_WHEAT),
+                            WeeklyQuestService.harvestWheatTarget(),
+                            WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.HARVEST_CARROT),
+                            WeeklyQuestService.harvestCarrotTarget()
+                    ).formatted(Formatting.GRAY),
+                    Text.translatable(
+                            "quest.village-quest.weekly.harvest.stage.1b",
+                            WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.HARVEST_POTATO),
+                            WeeklyQuestService.harvestPotatoTarget()
+                    ).formatted(Formatting.GRAY)
+            );
+        }
+
+        int breadProgress = WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.HARVEST_BREAD);
+        if (breadProgress < WeeklyQuestService.harvestBreadTarget()) {
+            return List.of(Text.translatable(
+                    "quest.village-quest.weekly.harvest.stage.2",
+                    breadProgress,
+                    WeeklyQuestService.harvestBreadTarget()
+            ).formatted(Formatting.GRAY));
+        }
+
         ServerPlayerEntity player = world == null ? null : world.getServer().getPlayerManager().getPlayer(playerId);
         Text blocked = player == null ? null : claimBlockedMessage(world, player);
-        return blocked == null ? List.of(line1, line2) : List.of(line1, line2, blocked);
+        return List.of(blocked == null
+                ? Text.translatable("quest.village-quest.weekly.harvest.stage.3").formatted(Formatting.GRAY)
+                : blocked);
     }
 
     @Override
@@ -93,10 +110,12 @@ public final class HarvestForVillageWeeklyQuest implements WeeklyQuestDefinition
         if (!hasTurnInItems(player)) {
             return false;
         }
-        return WeeklyQuestService.consumeCompletionItem(world, player, Items.WHEAT, WeeklyQuestService.harvestWheatTarget())
-                && WeeklyQuestService.consumeCompletionItem(world, player, Items.CARROT, WeeklyQuestService.harvestCarrotTarget())
-                && WeeklyQuestService.consumeCompletionItem(world, player, Items.POTATO, WeeklyQuestService.harvestPotatoTarget())
-                && WeeklyQuestService.consumeCompletionItem(world, player, Items.BREAD, WeeklyQuestService.harvestBreadTarget());
+        return WeeklyQuestService.consumeCompletionItemRequirements(world, player, Map.of(
+                Items.WHEAT, WeeklyQuestService.harvestWheatTarget(),
+                Items.CARROT, WeeklyQuestService.harvestCarrotTarget(),
+                Items.POTATO, WeeklyQuestService.harvestPotatoTarget(),
+                Items.BREAD, WeeklyQuestService.harvestBreadTarget()
+        ));
     }
 
     @Override
@@ -145,6 +164,11 @@ public final class HarvestForVillageWeeklyQuest implements WeeklyQuestDefinition
 
         UUID playerId = player.getUuid();
         int craftedBread = WeeklyQuestService.getCraftedStat(player, Items.BREAD);
+        if (!harvestStageComplete(world, playerId)) {
+            WeeklyQuestService.setQuestInt(world, playerId, WeeklyQuestKeys.HARVEST_LAST_BREAD, craftedBread + 1);
+            return;
+        }
+
         int stored = WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.HARVEST_LAST_BREAD);
         if (stored == 0) {
             WeeklyQuestService.setQuestInt(world, playerId, WeeklyQuestKeys.HARVEST_LAST_BREAD, craftedBread + 1);
@@ -160,21 +184,21 @@ public final class HarvestForVillageWeeklyQuest implements WeeklyQuestDefinition
     }
 
     @Override
-    public void onBlockBreak(ServerWorld world, ServerPlayerEntity player, BlockPos pos, BlockState state) {
+    public void onTrackedItemPickup(ServerWorld world, ServerPlayerEntity player, ItemStack stack, int count) {
         if (!WeeklyQuestService.isAcceptedThisWeek(world, player.getUuid()) || WeeklyQuestService.hasCompletedThisWeek(world, player.getUuid())) {
             return;
         }
-        if (!(state.getBlock() instanceof CropBlock crop) || !state.contains(CropBlock.AGE) || state.get(CropBlock.AGE) < crop.getMaxAge()) {
+        if (count <= 0) {
             return;
         }
 
         UUID playerId = player.getUuid();
-        if (state.isOf(Blocks.WHEAT)) {
-            WeeklyQuestService.addQuestIntClamped(world, playerId, WeeklyQuestKeys.HARVEST_WHEAT, 1, WeeklyQuestService.harvestWheatTarget());
-        } else if (state.isOf(Blocks.CARROTS)) {
-            WeeklyQuestService.addQuestIntClamped(world, playerId, WeeklyQuestKeys.HARVEST_CARROT, 1, WeeklyQuestService.harvestCarrotTarget());
-        } else if (state.isOf(Blocks.POTATOES)) {
-            WeeklyQuestService.addQuestIntClamped(world, playerId, WeeklyQuestKeys.HARVEST_POTATO, 1, WeeklyQuestService.harvestPotatoTarget());
+        if (stack.isOf(Items.WHEAT)) {
+            WeeklyQuestService.addQuestIntClamped(world, playerId, WeeklyQuestKeys.HARVEST_WHEAT, count, WeeklyQuestService.harvestWheatTarget());
+        } else if (stack.isOf(Items.CARROT)) {
+            WeeklyQuestService.addQuestIntClamped(world, playerId, WeeklyQuestKeys.HARVEST_CARROT, count, WeeklyQuestService.harvestCarrotTarget());
+        } else if (stack.isOf(Items.POTATO)) {
+            WeeklyQuestService.addQuestIntClamped(world, playerId, WeeklyQuestKeys.HARVEST_POTATO, count, WeeklyQuestService.harvestPotatoTarget());
         } else {
             return;
         }
@@ -187,5 +211,11 @@ public final class HarvestForVillageWeeklyQuest implements WeeklyQuestDefinition
                 && WeeklyQuestService.countCompletionItem(world, player, Items.CARROT) >= WeeklyQuestService.harvestCarrotTarget()
                 && WeeklyQuestService.countCompletionItem(world, player, Items.POTATO) >= WeeklyQuestService.harvestPotatoTarget()
                 && WeeklyQuestService.countCompletionItem(world, player, Items.BREAD) >= WeeklyQuestService.harvestBreadTarget();
+    }
+
+    private boolean harvestStageComplete(ServerWorld world, UUID playerId) {
+        return WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.HARVEST_WHEAT) >= WeeklyQuestService.harvestWheatTarget()
+                && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.HARVEST_CARROT) >= WeeklyQuestService.harvestCarrotTarget()
+                && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.HARVEST_POTATO) >= WeeklyQuestService.harvestPotatoTarget();
     }
 }

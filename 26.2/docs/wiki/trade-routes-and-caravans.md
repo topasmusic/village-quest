@@ -210,6 +210,12 @@ Permanent upgrades are purchased with `/vq routes upgrade <route> <upgrade>`:
 
 Reaching `200` Monster Hunting reputation awards the functional `Roadwarden Horn`. Its first use per real day posts one road-watch charge, which prevents the next non-tutorial route incident. Further uses point the Wayfinder toward a current incident or report that the roads are quiet.
 
+## Prosperity Services and Liveries
+
+The `2.1.0` economy adds route-targeted Road Patrol, Survey Report, and Emergency Recall services. Forge Prosperity discounts permanent route-upgrade prices, while Road Watch Prosperity reduces recurring incident chance.
+
+Five collectible liveries can be assigned independently to installed routes. Every merchant in that caravan, the full-map route, and the minimap route use the selected color. See [Prosperity and the Village Economy](./prosperity-and-economy.md) for prices and unlock rules.
+
 ## In-game Core Test
 
 Run:

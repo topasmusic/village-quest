@@ -1,5 +1,6 @@
 package de.quest.quest.daily;
 
+import de.quest.quest.QuestCompletionMode;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.passive.AnimalEntity;
@@ -26,6 +27,8 @@ public interface DailyQuestDefinition {
     boolean isComplete(ServerWorld world, ServerPlayerEntity player);
 
     DailyQuestCompletion buildCompletion(ServerWorld world);
+
+    default QuestCompletionMode completionMode() { return QuestCompletionMode.AUTOMATIC; }
 
     default boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) { return true; }
 

@@ -4,7 +4,6 @@ import de.quest.VillageQuest;
 import de.quest.client.ui.InventoryJournalTutorialState;
 import de.quest.client.ui.TutorialHintRenderer;
 import de.quest.client.ui.VillageUiTheme;
-import de.quest.economy.CurrencyService;
 import de.quest.network.Payloads.JournalActionPayload;
 import de.quest.quest.special.RelicQuestProgressionService;
 import de.quest.reputation.ReputationService;
@@ -48,6 +47,10 @@ public class JournalScreen extends CompatScreen {
     private static final int CARD_DETAIL_STEP = 8;
     private static final int BUTTON_HEIGHT = 18;
     private static final int BUTTON_Y = 203;
+    private static final int DONE_BUTTON_WIDTH = 78;
+    private static final int FOOTER_RIGHT_INSET = 24;
+    private static final int HEADER_WALLET_RIGHT_INSET = 40;
+    private static final int HEADER_WALLET_TOP = 10;
     private static final int INK = 0xFF2D1B12;
     private static final int BODY = 0xFF5B4635;
     private static final int MUTED = 0xFF8A7661;
@@ -243,34 +246,41 @@ public class JournalScreen extends CompatScreen {
     public void onClose() {
         if (!this.closeNotified && !this.navigating) {
             this.closeNotified = true;
-            sendJournalToggle();
+            sendJournalClose();
         }
         super.onClose();
     }
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
-        int left = (width - WINDOW_WIDTH) / 2;
-        int top = (height - WINDOW_HEIGHT) / 2;
         VillageUiTheme.drawScreenShade(graphics, width, height);
-        VillageUiTheme.drawPanelShadow(graphics, left, top, WINDOW_WIDTH, WINDOW_HEIGHT);
-        graphics.blit(RenderPipelines.GUI_TEXTURED, BOARD_TEXTURE, left, top, 0.0f, 0.0f,
-                WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH, WINDOW_HEIGHT);
-        drawHeader(graphics, left, top);
-        drawTabs(graphics, left, top, mouseX, mouseY);
-        drawCards(graphics, left, top, mouseX, mouseY);
-        drawFooterButtons(graphics, left, top, mouseX, mouseY);
-        super.render(graphics, mouseX, mouseY, delta);
+        int uiMouseX = responsiveMouseX(mouseX, WINDOW_WIDTH, WINDOW_HEIGHT);
+        int uiMouseY = responsiveMouseY(mouseY, WINDOW_WIDTH, WINDOW_HEIGHT);
+        float panelScale = beginResponsivePanel(graphics, WINDOW_WIDTH, WINDOW_HEIGHT);
+        try {
+            int left = (width - WINDOW_WIDTH) / 2;
+            int top = (height - WINDOW_HEIGHT) / 2;
+            VillageUiTheme.drawPanelShadow(graphics, left, top, WINDOW_WIDTH, WINDOW_HEIGHT);
+            graphics.blit(RenderPipelines.GUI_TEXTURED, BOARD_TEXTURE, left, top, 0.0f, 0.0f,
+                    WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH, WINDOW_HEIGHT);
+            drawHeader(graphics, left, top);
+            drawTabs(graphics, left, top, uiMouseX, uiMouseY);
+            drawCards(graphics, left, top, uiMouseX, uiMouseY);
+            drawFooterButtons(graphics, left, top, uiMouseX, uiMouseY);
+            super.render(graphics, uiMouseX, uiMouseY, delta);
 
-        if (shouldShowQuestMasterTutorial()) {
-            int buttonX = left + WINDOW_WIDTH - 176;
-            TutorialHintRenderer.drawHint(
-                    graphics, font,
-                    Component.translatable("screen.village-quest.journal.active.questmaster_button_tutorial"),
-                    width, height, buttonX, top + BUTTON_Y, 78, BUTTON_HEIGHT,
-                    TutorialHintRenderer.Placement.ABOVE, true,
-                    (int) Math.round(Math.sin(System.currentTimeMillis() / 180.0d) * 2.0d)
-            );
+            if (shouldShowQuestMasterTutorial()) {
+                int buttonX = left + WINDOW_WIDTH - FOOTER_RIGHT_INSET - DONE_BUTTON_WIDTH - 84;
+                TutorialHintRenderer.drawHint(
+                        graphics, font,
+                        Component.translatable("screen.village-quest.journal.active.questmaster_button_tutorial"),
+                        width, height, buttonX, top + BUTTON_Y, 78, BUTTON_HEIGHT,
+                        TutorialHintRenderer.Placement.ABOVE, true,
+                        (int) Math.round(Math.sin(System.currentTimeMillis() / 180.0d) * 2.0d)
+                );
+            }
+        } finally {
+            endResponsivePanel(graphics, panelScale);
         }
     }
 
@@ -280,6 +290,8 @@ public class JournalScreen extends CompatScreen {
                 top + 14, INK, false);
         String sectionText = Component.translatable(section.key).getString();
         graphics.drawString(font, sectionText, left + CONTENT_X + 7, top + CONTENT_Y + 3, GOLD, false);
+        VillageUiTheme.drawWalletStrip(graphics, font, left, top, WINDOW_WIDTH, data.currencyBalance,
+                HEADER_WALLET_RIGHT_INSET, HEADER_WALLET_TOP);
     }
 
     private void drawTabs(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
@@ -356,20 +368,26 @@ public class JournalScreen extends CompatScreen {
     }
 
     private void drawFooterButtons(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
-        int doneX = left + WINDOW_WIDTH - 92;
+        int doneX = left + WINDOW_WIDTH - FOOTER_RIGHT_INSET - DONE_BUTTON_WIDTH;
         int questMasterX = doneX - 84;
-        int mapX = questMasterX - 58;
+        int prosperityX = questMasterX - 74;
+        int mapX = prosperityX - 58;
         if (data.hasCaravanLedger) {
             drawButton(graphics, mapX, top + BUTTON_Y, 52,
                     Component.translatable("screen.village-quest.journal.v2.button.map").getString(),
                     within(mouseX, mouseY, mapX, top + BUTTON_Y, 52, BUTTON_HEIGHT));
         }
+        if (canOpenProsperity()) {
+            drawButton(graphics, prosperityX, top + BUTTON_Y, 68,
+                    Component.translatable("screen.village-quest.journal.v2.button.prosperity").getString(),
+                    within(mouseX, mouseY, prosperityX, top + BUTTON_Y, 68, BUTTON_HEIGHT));
+        }
         drawButton(graphics, questMasterX, top + BUTTON_Y, 78,
                 Component.translatable("screen.village-quest.journal.active.questmaster_button").getString(),
                 within(mouseX, mouseY, questMasterX, top + BUTTON_Y, 78, BUTTON_HEIGHT));
-        drawButton(graphics, doneX, top + BUTTON_Y, 78,
+        drawButton(graphics, doneX, top + BUTTON_Y, DONE_BUTTON_WIDTH,
                 Component.translatable("screen.village-quest.journal.done").getString(),
-                within(mouseX, mouseY, doneX, top + BUTTON_Y, 78, BUTTON_HEIGHT));
+                within(mouseX, mouseY, doneX, top + BUTTON_Y, DONE_BUTTON_WIDTH, BUTTON_HEIGHT));
     }
 
     private void drawButton(GuiGraphics graphics, int x, int y, int buttonWidth, String label, boolean hovered) {
@@ -384,8 +402,8 @@ public class JournalScreen extends CompatScreen {
         }
         int left = (width - WINDOW_WIDTH) / 2;
         int top = (height - WINDOW_HEIGHT) / 2;
-        int mouseX = (int) click.x();
-        int mouseY = (int) click.y();
+        int mouseX = responsiveMouseX(click.x(), WINDOW_WIDTH, WINDOW_HEIGHT);
+        int mouseY = responsiveMouseY(click.y(), WINDOW_WIDTH, WINDOW_HEIGHT);
         Section[] sections = Section.values();
         for (int i = 0; i < sections.length; i++) {
             int y = top + TAB_Y + i * (TAB_HEIGHT + TAB_GAP);
@@ -399,18 +417,24 @@ public class JournalScreen extends CompatScreen {
             }
         }
 
-        int doneX = left + WINDOW_WIDTH - 92;
+        int doneX = left + WINDOW_WIDTH - FOOTER_RIGHT_INSET - DONE_BUTTON_WIDTH;
         int questMasterX = doneX - 84;
-        int mapX = questMasterX - 58;
+        int prosperityX = questMasterX - 74;
+        int mapX = prosperityX - 58;
         if (data.hasCaravanLedger && within(mouseX, mouseY, mapX, top + BUTTON_Y, 52, BUTTON_HEIGHT)) {
             openRouteMap();
+            return true;
+        }
+        if (canOpenProsperity()
+                && within(mouseX, mouseY, prosperityX, top + BUTTON_Y, 68, BUTTON_HEIGHT)) {
+            openProsperity();
             return true;
         }
         if (within(mouseX, mouseY, questMasterX, top + BUTTON_Y, 78, BUTTON_HEIGHT)) {
             summonQuestMasterFromJournal();
             return true;
         }
-        if (within(mouseX, mouseY, doneX, top + BUTTON_Y, 78, BUTTON_HEIGHT)) {
+        if (within(mouseX, mouseY, doneX, top + BUTTON_Y, DONE_BUTTON_WIDTH, BUTTON_HEIGHT)) {
             onClose();
             return true;
         }
@@ -442,7 +466,9 @@ public class JournalScreen extends CompatScreen {
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
         int left = (width - WINDOW_WIDTH) / 2;
         int top = (height - WINDOW_HEIGHT) / 2;
-        if (scrollMax > 0 && within((int) mouseX, (int) mouseY,
+        int uiMouseX = responsiveMouseX(mouseX, WINDOW_WIDTH, WINDOW_HEIGHT);
+        int uiMouseY = responsiveMouseY(mouseY, WINDOW_WIDTH, WINDOW_HEIGHT);
+        if (scrollMax > 0 && within(uiMouseX, uiMouseY,
                 left + CONTENT_X, top + CONTENT_TOP, CONTENT_WIDTH, CONTENT_BOTTOM - CONTENT_TOP)) {
             scrollOffset -= (int) Math.signum(verticalAmount) * 22;
             clampScroll();
@@ -472,12 +498,10 @@ public class JournalScreen extends CompatScreen {
                                 Component.translatable("screen.village-quest.journal.summary.discovered", data.discovered),
                                 Component.translatable("screen.village-quest.journal.summary.active", data.active),
                                 Component.translatable("screen.village-quest.journal.summary.completed", data.completed)
-                        ), TEAL),
+                ), TEAL),
                 card("overview_village", "screen.village-quest.journal.v2.overview.village",
-                        Component.translatable("screen.village-quest.journal.summary.balance",
-                                CurrencyService.formatBalance(data.currencyBalance)),
+                        Component.translatable("screen.village-quest.journal.summary.reputation", reputationTotal),
                         List.of(
-                                Component.translatable("screen.village-quest.journal.summary.reputation", reputationTotal),
                                 Component.translatable("screen.village-quest.journal.summary.projects", completedProjectCount())
                         ), GOLD),
                 card("overview_next", "screen.village-quest.journal.v2.overview.next",
@@ -672,6 +696,23 @@ public class JournalScreen extends CompatScreen {
         super.onClose();
     }
 
+    private boolean canOpenProsperity() {
+        return data.hasVillageLedgerProject
+                || data.hasApiaryCharterProject
+                || data.hasForgeCharterProject
+                || data.hasMarketCharterProject
+                || data.hasPastureCharterProject
+                || data.hasWatchBellProject
+                || data.hasCaravanYardProject;
+    }
+
+    private void openProsperity() {
+        if (minecraft == null || minecraft.player == null) return;
+        navigating = true;
+        minecraft.player.connection.sendCommand("vq prosperity");
+        super.onClose();
+    }
+
     private void summonQuestMasterFromJournal() {
         if (minecraft == null || minecraft.player == null) return;
         InventoryJournalTutorialState.markQuestMasterButtonHintSeen();
@@ -680,9 +721,9 @@ public class JournalScreen extends CompatScreen {
         super.onClose();
     }
 
-    private void sendJournalToggle() {
+    private void sendJournalClose() {
         if (minecraft != null && minecraft.player != null) {
-            minecraft.player.connection.sendCommand("vq journal");
+            minecraft.player.connection.sendCommand("vq journal close");
         }
     }
 

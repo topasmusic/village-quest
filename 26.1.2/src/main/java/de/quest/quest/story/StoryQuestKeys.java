@@ -29,6 +29,17 @@ public final class StoryQuestKeys {
     public static final String SILENT_FORGE_PROTECTION_BOOK = "silent_forge_protection_book";
     public static final String SILENT_FORGE_BLAST_PROTECTION_BOOK = "silent_forge_blast_protection_book";
     public static final String SILENT_FORGE_PROJECTILE_PROTECTION_BOOK = "silent_forge_projectile_protection_book";
+    public static final String SILENT_FORGE_BOOK_MIGRATION = "silent_forge_book_migration";
+    public static final String SILENT_FORGE_MASTER_EDGE_CRAFTED = "silent_forge_master_edge_crafted";
+    public static final String SILENT_FORGE_MASTER_HELM_CRAFTED = "silent_forge_master_helm_crafted";
+    public static final String SILENT_FORGE_MASTER_CHEST_CRAFTED = "silent_forge_master_chest_crafted";
+    public static final String SILENT_FORGE_MASTER_LEGS_CRAFTED = "silent_forge_master_legs_crafted";
+    public static final String SILENT_FORGE_MASTER_BOOTS_CRAFTED = "silent_forge_master_boots_crafted";
+    public static final String SILENT_FORGE_MASTER_EDGE_BASELINE = "silent_forge_master_edge_baseline";
+    public static final String SILENT_FORGE_MASTER_HELM_BASELINE = "silent_forge_master_helm_baseline";
+    public static final String SILENT_FORGE_MASTER_CHEST_BASELINE = "silent_forge_master_chest_baseline";
+    public static final String SILENT_FORGE_MASTER_LEGS_BASELINE = "silent_forge_master_legs_baseline";
+    public static final String SILENT_FORGE_MASTER_BOOTS_BASELINE = "silent_forge_master_boots_baseline";
     public static final String SILENT_FORGE_MASTER_EDGE = "silent_forge_master_edge";
     public static final String SILENT_FORGE_MASTER_HELM = "silent_forge_master_helm";
     public static final String SILENT_FORGE_MASTER_CHEST = "silent_forge_master_chest";

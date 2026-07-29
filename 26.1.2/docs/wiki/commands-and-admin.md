@@ -12,6 +12,9 @@ All commands are available as `/villagequest ...` and the short alias `/vq ...`.
 - `/vq journal`
   Open or close the journal.
 
+- `/vq prosperity`
+  Open the Prosperity, commissions, services, collection, and economy-ledger board after matching progression unlocks access.
+
 - `/vq wallet`
   Show your wallet balance.
 
@@ -213,6 +216,12 @@ Current unlockable project ids:
 `testevent` replaces the selected route's current incident with one exact event, or clears it. This is the focused QA path for material delivery, courier, ambush, and timed proximity behavior without waiting for a random midpoint roll.
 
 `reset` clears the selected player's registered villages, route progress, route events, earnings, and materialized route NPCs. It does not remove world blocks or revoke unrelated progression.
+
+### Prosperity and Economy
+
+- `/vq admin economy testsetup [player]`
+
+This focused `2.1.0` fixture unlocks the five matching project branches, prepares the five-route test network, sets the wallet to `500 Crowns`, and opens `Prosperity & Prestige`.
 
 ### UI Layout Tests
 

@@ -233,7 +233,7 @@ public final class QuestMasterUiService {
             return true;
         }
         if (action == Payloads.QuestMasterActionPayload.ACTION_CLAIM) {
-            return DailyQuestService.completeIfEligible(world, player);
+            return DailyQuestService.claimFromQuestMaster(world, player);
         }
         if (action == Payloads.QuestMasterActionPayload.ACTION_CANCEL) {
             return DailyQuestService.cancelToday(world, playerId);
@@ -256,7 +256,7 @@ public final class QuestMasterUiService {
             return DailyQuestService.activateShardBonusQuestOffer(world, player);
         }
         if (action == Payloads.QuestMasterActionPayload.ACTION_CLAIM) {
-            return DailyQuestService.completeIfEligible(world, player);
+            return DailyQuestService.claimFromQuestMaster(world, player);
         }
         if (action == Payloads.QuestMasterActionPayload.ACTION_CANCEL) {
             return DailyQuestService.cancelToday(world, playerId);
@@ -269,7 +269,7 @@ public final class QuestMasterUiService {
             return WeeklyQuestService.acceptQuest(world, player);
         }
         if (action == Payloads.QuestMasterActionPayload.ACTION_CLAIM) {
-            return WeeklyQuestService.completeIfEligible(world, player);
+            return WeeklyQuestService.claimFromQuestMaster(world, player);
         }
         if (action == Payloads.QuestMasterActionPayload.ACTION_CANCEL) {
             return WeeklyQuestService.cancelThisWeek(world, player.getUuid());
@@ -694,6 +694,7 @@ public final class QuestMasterUiService {
         List<Text> objectives = new ArrayList<>(chapter.progressLines(world, playerId));
         ActionSpec primary = ActionSpec.NONE;
         Text status;
+        boolean locked = false;
         boolean partyShareable = partyUiEnabled(world) && QuestShareProfiles.isStoryShareable(arcType);
         Text partyStatus = partyShareable ? storyPartyStatus(world, playerId, arcType, chapterIndex) : Text.empty();
 
@@ -712,6 +713,7 @@ public final class QuestMasterUiService {
                 primary = new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_ACCEPT, Text.translatable("screen.village-quest.questmaster.action.accept"), true);
             } else {
                 status = Text.translatable("screen.village-quest.questmaster.status.locked").formatted(Formatting.DARK_GRAY);
+                locked = true;
                 Text blocked = chapter.acceptBlockedMessage(world, player);
                 appendNonEmpty(objectives, blocked == null ? Text.translatable("screen.village-quest.questmaster.story.unavailable").formatted(Formatting.GRAY) : blocked.copy().formatted(Formatting.GRAY));
             }
@@ -730,7 +732,7 @@ public final class QuestMasterUiService {
                 appendRewardEcho(world, playerId, StoryQuestService.previewRewardLines(world, playerId, completion), completion.reputationTrack()),
                 primary,
                 ActionSpec.NONE,
-                false
+                locked
         );
     }
 
@@ -858,7 +860,19 @@ public final class QuestMasterUiService {
     }
 
     private static int displayCount(String categoryId, List<Payloads.QuestMasterEntryData> entries) {
-        return entries == null ? 0 : entries.size();
+        if (entries == null || entries.isEmpty()) {
+            return 0;
+        }
+        String completed = Text.translatable("screen.village-quest.questmaster.status.completed").getString();
+        String locked = Text.translatable("screen.village-quest.questmaster.status.locked").getString();
+        return (int) entries.stream()
+                .filter(entry -> entry != null
+                        && !entry.locked()
+                        && !(CATEGORY_STORY.equals(categoryId)
+                        && (ENTRY_STORY_PREFIX + "cooldown").equals(entry.entryId()))
+                        && !entry.status().getString().equals(completed)
+                        && !entry.status().getString().equals(locked))
+                .count();
     }
 
     private static Payloads.QuestMasterEntryData buildSmokerEntry(ServerWorld world, ServerPlayerEntity player) {
@@ -1409,8 +1423,8 @@ public final class QuestMasterUiService {
                 title,
                 Text.translatable("screen.village-quest.questmaster.subtitle.special"),
                 Text.translatable("screen.village-quest.questmaster.status.locked").formatted(Formatting.DARK_GRAY),
-                List.of(bodyLine),
                 List.of(),
+                List.of(bodyLine.copy().formatted(Formatting.RED)),
                 rewards,
                 ActionSpec.NONE,
                 ActionSpec.NONE,
@@ -1428,12 +1442,26 @@ public final class QuestMasterUiService {
         RelicQuestProgressionService.RelicUnlockPath path = RelicQuestProgressionService.pathFor(kind);
         int current = path == null ? 0 : ReputationService.get(world, playerId, path.track());
         int required = path == null ? 0 : path.requiredReputation();
-        Text progressLine = Text.translatable(
-                "screen.village-quest.questmaster.special.reputation_progress",
-                current,
-                required,
-                path == null ? Text.empty() : ReputationService.displayName(path.track())
-        ).formatted(Formatting.GRAY);
+        List<Text> requirements = new ArrayList<>();
+        if (path != null && path.requiredStoryArc() != null) {
+            StoryArcDefinition requiredStory = StoryQuestService.definition(path.requiredStoryArc());
+            Text storyTitle = requiredStory == null ? Text.literal(path.requiredStoryArc().id()) : requiredStory.title();
+            requirements.add(unlockRequirement(
+                    RelicQuestProgressionService.hasStoryRequirement(world, playerId, kind),
+                    Text.translatable("screen.village-quest.questmaster.unlock.story", storyTitle)
+            ));
+        }
+        if (path != null && path.track() != null) {
+            requirements.add(unlockRequirement(
+                    current >= required,
+                    Text.translatable(
+                            "screen.village-quest.questmaster.unlock.reputation",
+                            ReputationService.displayName(path.track()),
+                            current,
+                            required
+                    )
+            ));
+        }
         return entry(
                 entryId,
                 CATEGORY_SPECIAL,
@@ -1441,7 +1469,7 @@ public final class QuestMasterUiService {
                 Text.translatable("screen.village-quest.questmaster.subtitle.special"),
                 Text.translatable("screen.village-quest.questmaster.status.locked").formatted(Formatting.DARK_GRAY),
                 descriptionLines,
-                List.of(progressLine),
+                List.copyOf(requirements),
                 rewards,
                 ActionSpec.NONE,
                 ActionSpec.NONE,
@@ -1475,13 +1503,20 @@ public final class QuestMasterUiService {
                 title,
                 Text.translatable("screen.village-quest.questmaster.subtitle.story"),
                 Text.translatable("screen.village-quest.questmaster.status.locked").formatted(Formatting.DARK_GRAY),
-                List.of(bodyLine),
                 List.of(),
+                List.of(bodyLine.copy().formatted(Formatting.RED)),
                 List.of(),
                 ActionSpec.NONE,
                 ActionSpec.NONE,
                 true
         );
+    }
+
+    private static Text unlockRequirement(boolean complete, Text requirement) {
+        Formatting color = complete ? Formatting.DARK_GREEN : Formatting.RED;
+        return Text.literal(complete ? "\u2713 " : "\u2717 ")
+                .formatted(color)
+                .append(requirement.copy().formatted(color));
     }
 
     private static String storyEntryId(StoryArcType type) {

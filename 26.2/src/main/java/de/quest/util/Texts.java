@@ -1,5 +1,7 @@
 package de.quest.util;
 
+import java.util.ArrayList;
+import java.util.List;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 
@@ -39,58 +41,76 @@ public final class Texts {
     }
 
     public static Component turnInMissing(Component label, int current, int target) {
-        return Component.translatable("text.village-quest.turnin_missing.1", label, current, target)
-                .withStyle(ChatFormatting.RED);
+        return turnInMissing(new TurnInRequirement(label, current, target));
     }
 
     public static Component turnInMissing(Component labelA, int currentA, int targetA,
                                           Component labelB, int currentB, int targetB) {
-        return Component.translatable(
-                        "text.village-quest.turnin_missing.2",
-                        labelA,
-                        currentA,
-                        targetA,
-                        labelB,
-                        currentB,
-                        targetB)
-                .withStyle(ChatFormatting.RED);
+        return turnInMissing(
+                new TurnInRequirement(labelA, currentA, targetA),
+                new TurnInRequirement(labelB, currentB, targetB)
+        );
     }
 
     public static Component turnInMissing(Component labelA, int currentA, int targetA,
                                           Component labelB, int currentB, int targetB,
                                           Component labelC, int currentC, int targetC) {
-        return Component.translatable(
-                        "text.village-quest.turnin_missing.3",
-                        labelA,
-                        currentA,
-                        targetA,
-                        labelB,
-                        currentB,
-                        targetB,
-                        labelC,
-                        currentC,
-                        targetC)
-                .withStyle(ChatFormatting.RED);
+        return turnInMissing(
+                new TurnInRequirement(labelA, currentA, targetA),
+                new TurnInRequirement(labelB, currentB, targetB),
+                new TurnInRequirement(labelC, currentC, targetC)
+        );
     }
 
     public static Component turnInMissing(Component labelA, int currentA, int targetA,
                                           Component labelB, int currentB, int targetB,
                                           Component labelC, int currentC, int targetC,
                                           Component labelD, int currentD, int targetD) {
-        return Component.translatable(
-                        "text.village-quest.turnin_missing.4",
-                        labelA,
-                        currentA,
-                        targetA,
-                        labelB,
-                        currentB,
-                        targetB,
-                        labelC,
-                        currentC,
-                        targetC,
-                        labelD,
-                        currentD,
-                        targetD)
-                .withStyle(ChatFormatting.RED);
+        return turnInMissing(
+                new TurnInRequirement(labelA, currentA, targetA),
+                new TurnInRequirement(labelB, currentB, targetB),
+                new TurnInRequirement(labelC, currentC, targetC),
+                new TurnInRequirement(labelD, currentD, targetD)
+        );
     }
+
+    public static Component turnInMissing(Component labelA, int currentA, int targetA,
+                                          Component labelB, int currentB, int targetB,
+                                          Component labelC, int currentC, int targetC,
+                                          Component labelD, int currentD, int targetD,
+                                          Component labelE, int currentE, int targetE) {
+        return turnInMissing(
+                new TurnInRequirement(labelA, currentA, targetA),
+                new TurnInRequirement(labelB, currentB, targetB),
+                new TurnInRequirement(labelC, currentC, targetC),
+                new TurnInRequirement(labelD, currentD, targetD),
+                new TurnInRequirement(labelE, currentE, targetE)
+        );
+    }
+
+    private static Component turnInMissing(TurnInRequirement... requirements) {
+        List<TurnInRequirement> missing = new ArrayList<>();
+        for (TurnInRequirement requirement : requirements) {
+            if (requirement != null && requirement.current() < requirement.target()) {
+                missing.add(requirement);
+            }
+        }
+        if (missing.isEmpty()) {
+            return Component.empty();
+        }
+
+        Object[] arguments = new Object[missing.size() * 3];
+        for (int index = 0; index < missing.size(); index++) {
+            TurnInRequirement requirement = missing.get(index);
+            arguments[index * 3] = requirement.label().copy().withStyle(ChatFormatting.RED);
+            arguments[index * 3 + 1] = requirement.current();
+            arguments[index * 3 + 2] = requirement.target();
+        }
+        return Component.translatable(
+                "text.village-quest.turnin_missing." + missing.size(),
+                arguments
+        ).withStyle(ChatFormatting.RED);
+    }
+
+    private record TurnInRequirement(Component label, int current, int target) {}
 }

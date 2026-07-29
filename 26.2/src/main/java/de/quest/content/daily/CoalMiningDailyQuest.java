@@ -1,10 +1,12 @@
 package de.quest.content.daily;
 
+import de.quest.quest.QuestCompletionMode;
 import de.quest.quest.daily.DailyQuestCompletion;
 import de.quest.quest.daily.DailyQuestDefinition;
 import de.quest.quest.daily.DailyQuestKeys;
 import de.quest.quest.daily.DailyQuestService;
 import de.quest.util.Texts;
+import java.util.Map;
 import java.util.UUID;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -14,6 +16,11 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.ChatFormatting;
 
 public final class CoalMiningDailyQuest implements DailyQuestDefinition {
+    @Override
+    public QuestCompletionMode completionMode() {
+        return QuestCompletionMode.QUESTMASTER_TURN_IN;
+    }
+
     @Override
     public DailyQuestService.DailyQuestType type() {
         return DailyQuestService.DailyQuestType.COAL_MINING;
@@ -70,8 +77,14 @@ public final class CoalMiningDailyQuest implements DailyQuestDefinition {
         if (!hasTurnInItems(player)) {
             return false;
         }
-        return DailyQuestService.consumeCompletionItem(world, player, Items.RAW_IRON, DailyQuestService.ironTarget())
-                && DailyQuestService.consumeCompletionItem(world, player, Items.COAL, DailyQuestService.smithCoalTarget());
+        return DailyQuestService.consumeCompletionItemRequirements(
+                world,
+                player,
+                Map.of(
+                        Items.RAW_IRON, DailyQuestService.ironTarget(),
+                        Items.COAL, DailyQuestService.smithCoalTarget()
+                )
+        );
     }
 
     @Override

@@ -64,7 +64,8 @@ public final class TradeRouteMinimapHud {
                 }
             }
         });
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> disable());
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) ->
+                client.execute(TradeRouteMinimapHud::disable));
         HudRenderCallback.EVENT.register((context, tickCounter) -> render(context));
     }
 
@@ -146,7 +147,7 @@ public final class TradeRouteMinimapHud {
                 Point from = pointFor(path.get(i - 1).x(), path.get(i - 1).z(), bounds, left, top, true);
                 Point to = pointFor(path.get(i).x(), path.get(i).z(), bounds, left, top, true);
                 drawLine(graphics, from.x(), from.y(), to.x(), to.y(),
-                        routeColorByIndex(route.routeIndex()));
+                        routeColorByIndex(route.liveryIndex()));
             }
             Payloads.TradeRouteCaravanData caravan = current.caravans().stream()
                     .filter(value -> value.routeIndex() == route.routeIndex()).findFirst().orElse(null);
@@ -161,7 +162,7 @@ public final class TradeRouteMinimapHud {
                 graphics.fill(point.x() - 2, point.y() - 2, point.x() + 3, point.y() + 3,
                         event ? DANGEROUS : FRAME);
                 graphics.fill(point.x() - 1, point.y() - 1, point.x() + 2, point.y() + 2,
-                        caravan.materialized() ? routeColorByIndex(route.routeIndex()) : PAPER);
+                        caravan.materialized() ? routeColorByIndex(route.liveryIndex()) : PAPER);
             }
         }
 

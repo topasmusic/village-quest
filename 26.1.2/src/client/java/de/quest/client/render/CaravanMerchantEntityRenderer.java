@@ -69,7 +69,7 @@ public final class CaravanMerchantEntityRenderer extends MobRenderer<CaravanMerc
         }
         // Every member of one route shares an outfit. This makes a caravan readable
         // at a glance and matches the route color used by the ledger and minimap.
-        state.skin = SKINS[Math.floorMod(entity.getRouteIndex(), SKINS.length)];
+        state.skin = SKINS[Math.floorMod(entity.getLiveryIndex(), SKINS.length)];
     }
 
     @Override

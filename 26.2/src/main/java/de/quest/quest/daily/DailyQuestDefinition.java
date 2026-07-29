@@ -1,5 +1,6 @@
 package de.quest.quest.daily;
 
+import de.quest.quest.QuestCompletionMode;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -25,6 +26,8 @@ public interface DailyQuestDefinition {
     boolean isComplete(ServerLevel world, ServerPlayer player);
 
     DailyQuestCompletion buildCompletion(ServerLevel world);
+
+    default QuestCompletionMode completionMode() { return QuestCompletionMode.AUTOMATIC; }
 
     default boolean consumeCompletionRequirements(ServerLevel world, ServerPlayer player) { return true; }
 

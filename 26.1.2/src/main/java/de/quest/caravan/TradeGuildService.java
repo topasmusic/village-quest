@@ -3,6 +3,7 @@ package de.quest.caravan;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.economy.CurrencyService;
+import de.quest.economy.ProsperityService;
 import de.quest.reputation.ReputationService;
 import de.quest.util.TimeUtil;
 import java.util.ArrayList;
@@ -167,7 +168,8 @@ public final class TradeGuildService {
         double multiplier = 1.0 + Math.min(0.35, TradeRouteService.routeDistanceBlocks(world, ownerId, routeIndex) / 2000.0);
         if (TradeRouteService.specialization(world, ownerId, routeIndex) == type.specialization()) multiplier += 0.25;
         if (TradeRouteService.hasUpgrade(world, ownerId, routeIndex, TradeRouteUpgrade.TRADE_OFFICE)) multiplier += 0.25;
-        int reward = Math.max(type.reward(), (int) Math.round(type.reward() * multiplier));
+        long reward = ProsperityService.applyCeremonyBonus(world, ownerId,
+                Math.max(type.reward(), (int) Math.round(type.reward() * multiplier)));
         CurrencyService.addBalance(world, ownerId, reward);
         ReputationService.add(world, ownerId, ReputationService.ReputationTrack.TRADE, 8 + guildRank(world, ownerId) * 2);
         data.setTradeRouteInt(CONTRACTS_COMPLETED, data.getTradeRouteInt(CONTRACTS_COMPLETED) + 1);

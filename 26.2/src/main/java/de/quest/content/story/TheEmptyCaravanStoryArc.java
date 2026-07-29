@@ -11,6 +11,7 @@ import de.quest.quest.story.StoryQuestService;
 import de.quest.quest.story.VillageProjectType;
 import de.quest.reputation.ReputationService;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.Holder;
@@ -207,10 +208,15 @@ public final class TheEmptyCaravanStoryArc implements StoryArcDefinition {
 
         @Override
         public boolean consumeCompletionRequirements(ServerLevel world, ServerPlayer player) {
-            return isComplete(world, player)
-                    && StoryQuestService.consumeCompletionItem(world, player.getUUID(), Items.PAPER, PAPER)
-                    && StoryQuestService.consumeCompletionItem(world, player.getUUID(), Items.INK_SAC, INK)
-                    && StoryQuestService.consumeCompletionItem(world, player.getUUID(), Items.HONEYCOMB, HONEYCOMB);
+            return isComplete(world, player) && StoryQuestService.consumeCompletionItems(
+                    world,
+                    player.getUUID(),
+                    Map.of(
+                            Items.PAPER, PAPER,
+                            Items.INK_SAC, INK,
+                            Items.HONEYCOMB, HONEYCOMB
+                    )
+            );
         }
 
         @Override
@@ -360,11 +366,16 @@ public final class TheEmptyCaravanStoryArc implements StoryArcDefinition {
         @Override
         public boolean consumeCompletionRequirements(ServerLevel world, ServerPlayer player) {
             UUID id = player.getUUID();
-            return isComplete(world, player)
-                    && StoryQuestService.consumeCompletionItem(world, id, Items.GRAVEL, GRAVEL)
-                    && StoryQuestService.consumeCompletionItem(world, id, Items.STONE_BRICKS, STONE_BRICKS)
-                    && StoryQuestService.consumeCompletionItem(world, id, Items.LANTERN, LANTERNS)
-                    && StoryQuestService.consumeCompletionItem(world, id, Items.LEAD, LEADS);
+            return isComplete(world, player) && StoryQuestService.consumeCompletionItems(
+                    world,
+                    id,
+                    Map.of(
+                            Items.GRAVEL, GRAVEL,
+                            Items.STONE_BRICKS, STONE_BRICKS,
+                            Items.LANTERN, LANTERNS,
+                            Items.LEAD, LEADS
+                    )
+            );
         }
 
         @Override

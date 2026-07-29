@@ -32,6 +32,7 @@
 
 # local release QA output and scratch exports
 /26.2/runclient-*.log
+/26.2/design/2.1.0-prosperity-art/
 /tools/__pycache__/
 /es_es.json
 /es_es. original.json

@@ -104,7 +104,7 @@ public abstract class InventoryScreenMixin extends Screen {
             return;
         }
         InventoryJournalTutorialState.markInventoryHintSeen();
-        client.player.connection.sendCommand("vq journal");
+        client.player.connection.sendCommand("vq journal open");
     }
 
     @Unique
@@ -259,29 +259,58 @@ public abstract class InventoryScreenMixin extends Screen {
                     VILLAGE_QUEST$JOURNAL_TEXTURE_SIZE
             );
 
-            if (tutorialVisible) {
-                TutorialHintRenderer.drawHint(
-                        new GuiGraphics(context),
-                        Minecraft.getInstance().font,
-                        Component.translatable("screen.village-quest.inventory.journal_button_tutorial"),
-                        this.width,
-                        this.height,
-                        x,
-                        y,
-                        width,
-                        height,
-                        TutorialHintRenderer.Placement.RIGHT,
-                        false,
-                        (int) Math.round(Math.sin(System.currentTimeMillis() / 180.0d) * 2.0d)
-                );
-            }
         } catch (Throwable throwable) {
             InventoryJournalCompat.disableInventoryJournalOverlayForSession("inventory journal button render", throwable);
         }
     }
 
+    @Unique
+    private void villageQuest$renderJournalTutorial(GuiGraphicsExtractor context) {
+        if (!villageQuest$shouldShowJournalTutorial()) {
+            return;
+        }
+
+        int targetX;
+        int targetY;
+        int targetWidth;
+        int targetHeight;
+        if (villageQuest$shouldUseWidgetFallbackButton()
+                && this.villageQuest$journalFallbackButton != null
+                && this.villageQuest$journalFallbackButton.visible) {
+            targetX = this.villageQuest$journalFallbackButton.getX();
+            targetY = this.villageQuest$journalFallbackButton.getY();
+            targetWidth = VILLAGE_QUEST$FALLBACK_BUTTON_WIDTH;
+            targetHeight = VILLAGE_QUEST$FALLBACK_BUTTON_HEIGHT;
+        } else if (villageQuest$shouldRenderJournalOverlay()) {
+            InventoryJournalButtonLayout.Layout layout = villageQuest$journalLayout();
+            targetX = layout.renderX(villageQuest$journalRevealProgress);
+            targetY = layout.renderY(villageQuest$journalRevealProgress);
+            targetWidth = layout.width();
+            targetHeight = layout.height();
+        } else {
+            return;
+        }
+
+        TutorialHintRenderer.drawHint(
+                new GuiGraphics(context),
+                Minecraft.getInstance().font,
+                Component.translatable("screen.village-quest.inventory.journal_button_tutorial"),
+                this.width,
+                this.height,
+                targetX,
+                targetY,
+                targetWidth,
+                targetHeight,
+                TutorialHintRenderer.Placement.RIGHT,
+                true,
+                (int) Math.round(Math.sin(System.currentTimeMillis() / 180.0d) * 2.0d)
+        );
+    }
+
     @Inject(method = "extractRenderState", at = @At("TAIL"))
     private void villageQuest$renderJournalTooltip(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+        villageQuest$updateFallbackButton();
+        villageQuest$renderJournalTutorial(context);
         if (!villageQuest$shouldRenderJournalOverlay()) {
             return;
         }

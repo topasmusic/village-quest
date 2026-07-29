@@ -36,6 +36,8 @@ Current shop rules:
 - plaque and reliquary wares appear only after their matching village-project progress is complete
 - `Skeleton Plushie`, `Zombie Plushie`, and `Creeper Plushie` appear only after their matching pilgrim combat contract has been completed once
 
+The upper wood header keeps the interface controls predictable: `Rumor` sits on the left, the centered plaque names the trader, and Crown/Silvermark item icons with compact amounts show the wallet on the right. Scrollable goods and rumor details use the same medieval double-arrow handle as the Journal, Quest Board, and Prosperity board.
+
 ## Rumor Lane Rules
 
 ### Roadmarks override
@@ -152,6 +154,12 @@ Rewards are intentionally tiered by danger:
 
 - end rumor:
   - highest reward tier in the roadside pool
+
+## Pilgrim Commissions
+
+In `2.1.0`, Market `Foundation` unlocks prepaid commissions for currently unlocked Pilgrim goods. The item uses its active Prosperity discount plus a `3/2/1 Crown` fee based on Market rank, and arrives on the first Pilgrim visit after the next dawn. Only one order can wait at a time.
+
+This does not turn the board into a remote shop: the traveling Pilgrim still has to be found and visited for delivery. See [Prosperity and the Village Economy](./prosperity-and-economy.md) for the full economy.
 
 ## Roadside Watch
 

@@ -15,6 +15,7 @@ import de.quest.caravan.TradeRouteUpgrade;
 import de.quest.content.story.EmptyCaravanStoryService;
 import de.quest.content.story.ShadowsTradeRoadEncounterService;
 import de.quest.economy.CurrencyService;
+import de.quest.economy.ProsperityService;
 import de.quest.party.QuestPartyService;
 import de.quest.pilgrim.PilgrimContractService;
 import de.quest.pilgrim.PilgrimService;
@@ -278,6 +279,14 @@ public final class QuestCommands {
                                                     ctx.getSource(),
                                                     EntityArgumentType.getPlayer(ctx, "player")
                                             )))))
+                    .then(literal("economy")
+                            .then(literal("testsetup")
+                                    .executes(ctx -> setupEconomyTest(ctx.getSource(), ctx.getSource().getPlayer()))
+                                    .then(argument("player", EntityArgumentType.player())
+                                            .executes(ctx -> setupEconomyTest(
+                                                    ctx.getSource(),
+                                                    EntityArgumentType.getPlayer(ctx, "player")
+                                            )))))
                     .then(literal("uitest")
                             .then(literal("questmaster")
                                     .executes(ctx -> openQuestMasterUiTest(ctx.getSource())))
@@ -349,17 +358,42 @@ public final class QuestCommands {
                     .then(buildAdminWalletCommand())
                     .then(buildAdminReputationCommand());
 
-            LiteralArgumentBuilder<ServerCommandSource> journalCommand = literal("journal").executes(ctx -> {
-                var player = ctx.getSource().getPlayer();
-                if (player instanceof ServerPlayerEntity sp) {
-                    var world = ctx.getSource().getServer().getOverworld();
-                    QuestBookHelper.toggleJournal(world, sp);
-                }
-                return 1;
-            });
+            LiteralArgumentBuilder<ServerCommandSource> journalCommand = literal("journal")
+                    .executes(ctx -> {
+                        var player = ctx.getSource().getPlayer();
+                        if (player instanceof ServerPlayerEntity sp) {
+                            var world = ctx.getSource().getServer().getOverworld();
+                            QuestBookHelper.toggleJournal(world, sp);
+                        }
+                        return 1;
+                    })
+                    .then(literal("open").executes(ctx -> {
+                        var player = ctx.getSource().getPlayer();
+                        if (player instanceof ServerPlayerEntity sp) {
+                            QuestBookHelper.openJournal(ctx.getSource().getServer().getOverworld(), sp);
+                        }
+                        return 1;
+                    }))
+                    .then(literal("close").executes(ctx -> {
+                        var player = ctx.getSource().getPlayer();
+                        if (player instanceof ServerPlayerEntity sp) {
+                            QuestBookHelper.closeJournal(sp);
+                        }
+                        return 1;
+                    }));
 
             LiteralArgumentBuilder<ServerCommandSource> questMasterCommand = literal("questmaster")
                     .executes(ctx -> summonQuestMaster(ctx.getSource()));
+
+            LiteralArgumentBuilder<ServerCommandSource> prosperityCommand = literal("prosperity")
+                    .executes(ctx -> {
+                        var player = ctx.getSource().getPlayer();
+                        if (player instanceof ServerPlayerEntity sp) {
+                            QuestBookHelper.closeJournal(sp);
+                            ProsperityService.open(ctx.getSource().getServer().getOverworld(), sp);
+                        }
+                        return 1;
+                    });
 
             LiteralArgumentBuilder<ServerCommandSource> questTrackerCommand = literal("questtracker")
                     .executes(ctx -> toggleQuestTracker(ctx.getSource()))
@@ -453,6 +487,7 @@ public final class QuestCommands {
             CommandNode<ServerCommandSource> villageQuestCommand = dispatcher.register(literal("villagequest")
                     .then(questAdminCommand)
                     .then(journalCommand)
+                    .then(prosperityCommand)
                     .then(questMasterCommand)
                     .then(questTrackerCommand)
                     .then(dailyQuestCommand)
@@ -882,6 +917,7 @@ public final class QuestCommands {
         if (player == null) {
             return 0;
         }
+        QuestBookHelper.closeJournal(player);
         if (!TradeRouteService.hasRouteAccess(source.getServer().getOverworld(), player.getUuid())) {
             player.sendMessage(Text.translatable("message.village-quest.trade_route.locked").formatted(Formatting.RED), false);
             return 0;
@@ -1007,6 +1043,32 @@ public final class QuestCommands {
         return 1;
     }
 
+    private static int setupEconomyTest(ServerCommandSource source, ServerPlayerEntity target) {
+        if (target == null) {
+            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required")
+                    .formatted(Formatting.RED), false);
+            return 0;
+        }
+        var world = source.getServer().getOverworld();
+        ProsperityService.resetForTesting(world, target.getUuid());
+        VillageProjectService.unlock(world, target.getUuid(), VillageProjectType.APIARY_CHARTER);
+        VillageProjectService.unlock(world, target.getUuid(), VillageProjectType.FORGE_CHARTER);
+        VillageProjectService.unlock(world, target.getUuid(), VillageProjectType.MARKET_CHARTER);
+        VillageProjectService.unlock(world, target.getUuid(), VillageProjectType.PASTURE_CHARTER);
+        VillageProjectService.unlock(world, target.getUuid(), VillageProjectType.WATCH_BELL);
+        StoryQuestService.adminUnlockEmptyCaravanForTesting(world, target.getUuid());
+        TradeRouteService.adminCreateTestNetwork(world, target);
+        CurrencyService.setBalance(world, target.getUuid(), CurrencyService.CROWN * 500L);
+        ProsperityService.open(world, target);
+        source.sendFeedback(() -> Text.translatable(
+                "command.village-quest.questadmin.economy.testsetup", target.getDisplayName()
+        ).formatted(Formatting.GREEN), false);
+        target.sendMessage(Text.translatable(
+                "command.village-quest.questadmin.economy.testsetup.hint"
+        ).formatted(Formatting.GOLD), false);
+        return 1;
+    }
+
     private static int setRouteTestEvent(ServerCommandSource source, int routeNumber, String eventKey) {
         ServerPlayerEntity player = source.getPlayer();
         if (player == null) {
@@ -1034,6 +1096,7 @@ public final class QuestCommands {
             source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
             return 0;
         }
+        QuestBookHelper.closeJournal(player);
 
         var world = source.getServer().getOverworld();
         source.sendFeedback(() -> Text.translatable("command.village-quest.reputation.header").formatted(Formatting.GOLD), false);

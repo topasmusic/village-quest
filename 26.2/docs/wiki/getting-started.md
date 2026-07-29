@@ -70,6 +70,8 @@
 
 ## Journal
 
+The first time you open the inventory, an animated pointer introduces the Journal bookmark. The hint remains until you click it, is shown once again after this onboarding update for existing installations, and follows the compact `J` fallback when an inventory-screen mod needs the compatibility layout.
+
 The journal is your in-game record of:
 
 - active quests
@@ -85,8 +87,39 @@ On the first page:
 - if you have no active quest, the journal now points you to the built-in `Questmaster` button below the book
 - if you do have an active `Daily` or `Weekly`, the red `X` lets you cancel it
 
+The primary Village Quest boards automatically keep a similar centered footprint when switching between a maximized window and fullscreen. Their buttons, scrolling areas, tooltips, and draggable route map stay aligned with the responsive presentation.
+
 ## Reset Times
 
 - daily reset: `06:00 Europe/Berlin`
 - weekly reset: Monday `06:00 Europe/Berlin`
 - story follow-up cooldown after a completed arc: real `1 hour`
+- while the Questmaster is gathering the next Story lead, the Story tab stays selectable with a `0` badge and shows the remaining cooldown in its footer
+
+## Questmaster Notices And Sounds
+
+- The Questmaster sends one chat notice when a new Daily, Weekly, or Story assignment becomes available.
+- A concrete offer is announced only once. Rejoining, reopening the board, or leaving the server running does not repeat it.
+- Quest acceptance has a soft cue, routine progress stays quiet, completed objectives and stage transitions are clearer, and the level-up sound remains reserved for the final reward.
+
+## Quest Completion And Item Turn-ins
+
+- Pure action-only Daily and Weekly quests complete automatically when their final objective is met.
+- Daily and Weekly quests that consume delivery items remain ready until `Claim` is pressed at the `Questmaster`; progress events never remove those items.
+- Story chapters and Special commissions always return to the `Questmaster` for their final hand-in.
+- Required delivery items must still be available when `Claim` is pressed and are consumed by the quest.
+- A multi-item delivery is checked as one complete bundle before any item is removed.
+- Farming deliveries use the actual Wheat or Potato item yield from a mature crop rather than awarding one point per broken crop block.
+
+Quest wording tells you which rule applies:
+
+| Wording | What counts |
+|---|---|
+| `Mine`, `harvest`, `craft`, `smelt`, `breed`, or another action | Perform that action after accepting the quest. Pre-existing stock does not advance the action objective. |
+| `Bring`, `deliver`, `provide`, or `turn in` | Carry the requested items when claiming. Unless the quest also names a fresh action, stored, traded, or otherwise obtained goods are valid. |
+| An action followed by a delivery | First complete the tracked action after accepting, then carry the complete delivery bundle to the Questmaster. |
+
+- Minecraft merges identical item stacks, so Village Quest records fresh work as separate quest progress instead of trying to mark individual items forever.
+- In a hybrid objective, pre-existing stock cannot replace the required fresh action, but matching items currently carried may form part of the final delivery bundle.
+- Only items in participating player inventories count. Items still inside chests or shulker boxes must be taken out before claiming.
+- Supported party hand-ins may pool the participating inventories, but the whole bundle must still be present before anything is consumed.

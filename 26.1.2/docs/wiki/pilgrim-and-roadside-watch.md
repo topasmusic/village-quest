@@ -153,6 +153,10 @@ Rewards are intentionally tiered by danger:
 - end rumor:
   - highest reward tier in the roadside pool
 
+## Pilgrim Commissions
+
+Market `Foundation` unlocks prepaid commissions for currently unlocked Pilgrim goods. The item uses its active Prosperity discount plus a `3/2/1 Crown` fee based on Market rank and arrives on the first Pilgrim visit after the next dawn. Only one order can wait at a time, so the traveling Pilgrim still has to be found and visited. See [Prosperity and the Village Economy](./prosperity-and-economy.md).
+
 ## Roadside Watch
 
 `Roadside Watch` is now framed as a late side lane, not a fifth main village-career lane.

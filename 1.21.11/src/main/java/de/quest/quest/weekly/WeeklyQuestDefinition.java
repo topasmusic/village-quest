@@ -1,5 +1,6 @@
 package de.quest.quest.weekly;
 
+import de.quest.quest.QuestCompletionMode;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.passive.AnimalEntity;
@@ -27,6 +28,8 @@ public interface WeeklyQuestDefinition {
     boolean isComplete(ServerWorld world, ServerPlayerEntity player);
 
     WeeklyQuestCompletion buildCompletion();
+
+    default QuestCompletionMode completionMode() { return QuestCompletionMode.AUTOMATIC; }
 
     default boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) { return true; }
 

@@ -1,5 +1,6 @@
 package de.quest.content.weekly;
 
+import de.quest.quest.QuestCompletionMode;
 import de.quest.quest.weekly.WeeklyQuestCompletion;
 import de.quest.quest.weekly.WeeklyQuestDefinition;
 import de.quest.quest.weekly.WeeklyQuestKeys;
@@ -14,9 +15,15 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 public final class BakehouseStockWeeklyQuest implements WeeklyQuestDefinition {
+    @Override
+    public QuestCompletionMode completionMode() {
+        return QuestCompletionMode.QUESTMASTER_TURN_IN;
+    }
+
     @Override
     public WeeklyQuestService.WeeklyQuestType type() {
         return WeeklyQuestService.WeeklyQuestType.BAKEHOUSE_STOCK;
@@ -90,9 +97,11 @@ public final class BakehouseStockWeeklyQuest implements WeeklyQuestDefinition {
                 || WeeklyQuestService.countCompletionItem(world, player, Items.BAKED_POTATO) < WeeklyQuestService.bakehousePotatoTarget()) {
             return false;
         }
-        return WeeklyQuestService.consumeCompletionItem(world, player, Items.BREAD, WeeklyQuestService.bakehouseBreadTarget())
-                && WeeklyQuestService.consumeCompletionItem(world, player, Items.PUMPKIN_PIE, WeeklyQuestService.bakehousePieTarget())
-                && WeeklyQuestService.consumeCompletionItem(world, player, Items.BAKED_POTATO, WeeklyQuestService.bakehousePotatoTarget());
+        return WeeklyQuestService.consumeCompletionItemRequirements(world, player, Map.of(
+                Items.BREAD, WeeklyQuestService.bakehouseBreadTarget(),
+                Items.PUMPKIN_PIE, WeeklyQuestService.bakehousePieTarget(),
+                Items.BAKED_POTATO, WeeklyQuestService.bakehousePotatoTarget()
+        ));
     }
 
     @Override

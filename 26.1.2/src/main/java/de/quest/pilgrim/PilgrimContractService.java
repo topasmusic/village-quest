@@ -3,6 +3,7 @@ package de.quest.pilgrim;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.economy.CurrencyService;
+import de.quest.economy.ProsperityService;
 import de.quest.economy.QuestExperienceService;
 import de.quest.party.QuestPartyService;
 import de.quest.quest.QuestBookHelper;
@@ -900,7 +901,8 @@ public final class PilgrimContractService {
                                                      ServerPlayer player,
                                                      PilgrimContractType type,
                                                      PilgrimContractCompletion completion) {
-        long actualCurrencyReward = completion.currencyReward() + VillageProjectService.bonusCurrency(world, player.getUUID(), completion.reputationTrack());
+        long actualCurrencyReward = ProsperityService.applyFestivalBonus(world, player.getUUID(),
+                completion.currencyReward() + VillageProjectService.bonusCurrency(world, player.getUUID(), completion.reputationTrack()));
         if (actualCurrencyReward > 0L) {
             CurrencyService.addBalance(world, player.getUUID(), actualCurrencyReward);
         }

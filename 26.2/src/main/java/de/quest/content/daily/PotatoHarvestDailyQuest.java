@@ -6,14 +6,11 @@ import de.quest.quest.daily.DailyQuestKeys;
 import de.quest.quest.daily.DailyQuestService;
 import java.util.UUID;
 import net.minecraft.ChatFormatting;
-import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.CropBlock;
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.item.Items;
 
 public final class PotatoHarvestDailyQuest implements DailyQuestDefinition {
     @Override
@@ -68,25 +65,24 @@ public final class PotatoHarvestDailyQuest implements DailyQuestDefinition {
     }
 
     @Override
-    public void onBlockBreak(ServerLevel world, ServerPlayer player, BlockPos pos, BlockState state) {
+    public void onTrackedItemPickup(ServerLevel world, ServerPlayer player, ItemStack stack, int count) {
         if (!DailyQuestService.isTrackingQuest(world, player.getUUID(), type())) return;
-        if (!(state.getBlock() instanceof CropBlock crop)) return;
-        if (!state.hasProperty(CropBlock.AGE) || state.getValue(CropBlock.AGE) < crop.getMaxAge()) return;
+        if (count <= 0) return;
 
-        if (state.is(Blocks.POTATOES)) {
-            incrementProgress(world, player, DailyQuestKeys.POTATO_PROGRESS, DailyQuestService.potatoTarget());
-        } else if (state.is(Blocks.CARROTS)) {
-            incrementProgress(world, player, DailyQuestKeys.CARROT_PROGRESS, DailyQuestService.carrotTarget());
+        if (stack.is(Items.POTATO)) {
+            incrementProgress(world, player, DailyQuestKeys.POTATO_PROGRESS, DailyQuestService.potatoTarget(), count);
+        } else if (stack.is(Items.CARROT)) {
+            incrementProgress(world, player, DailyQuestKeys.CARROT_PROGRESS, DailyQuestService.carrotTarget(), count);
         }
     }
 
-    private void incrementProgress(ServerLevel world, ServerPlayer player, String key, int target) {
+    private void incrementProgress(ServerLevel world, ServerPlayer player, String key, int target, int amount) {
         UUID playerId = player.getUUID();
         int current = DailyQuestService.getQuestInt(world, playerId, key);
         if (current >= target) {
             return;
         }
-        DailyQuestService.setQuestInt(world, playerId, key, Math.min(target, current + 1));
+        DailyQuestService.setQuestInt(world, playerId, key, Math.min(target, current + amount));
         DailyQuestService.completeIfEligible(world, player);
         DailyQuestService.sendCurrentProgressActionbar(world, player);
     }

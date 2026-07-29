@@ -1,5 +1,6 @@
 package de.quest.quest.story;
 
+import de.quest.quest.QuestCompletionMode;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.passive.AnimalEntity;
@@ -25,6 +26,8 @@ public interface StoryChapterDefinition {
     boolean isComplete(ServerWorld world, ServerPlayerEntity player);
 
     StoryChapterCompletion buildCompletion();
+
+    default QuestCompletionMode completionMode() { return QuestCompletionMode.QUESTMASTER_TURN_IN; }
 
     default boolean canAccept(ServerWorld world, ServerPlayerEntity player) { return true; }
 

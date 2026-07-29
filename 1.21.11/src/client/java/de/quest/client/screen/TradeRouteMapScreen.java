@@ -18,7 +18,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
 /** Full-screen guild map with a separate route-management view. */
-public final class TradeRouteMapScreen extends Screen {
+public final class TradeRouteMapScreen extends ResponsiveScreen {
     private enum ViewMode { MAP, ROUTES, GUIDE }
 
     private static final Identifier BOARD_TEXTURE = Identifier.of(
@@ -105,26 +105,46 @@ public final class TradeRouteMapScreen extends Screen {
 
     @Override
     public void close() {
+        returnToJournal();
+    }
+
+    private void returnToJournal() {
+        notifyClosed();
+        if (client != null && client.player != null && client.player.networkHandler != null) {
+            client.player.networkHandler.sendChatCommand("vq journal open");
+            return;
+        }
+        super.close();
+    }
+
+    private void closeToGame() {
         notifyClosed();
         super.close();
     }
 
     @Override
     public void render(DrawContext graphics, int mouseX, int mouseY, float delta) {
-        int left = (width - WINDOW_WIDTH) / 2;
-        int top = (height - WINDOW_HEIGHT) / 2;
         VillageUiTheme.drawScreenShade(graphics, width, height);
-        VillageUiTheme.drawPanelShadow(graphics, left, top, WINDOW_WIDTH, WINDOW_HEIGHT);
-        graphics.drawTexture(RenderPipelines.GUI_TEXTURED, BOARD_TEXTURE, left, top, 0.0f, 0.0f,
-                WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH, WINDOW_HEIGHT);
-        drawTabs(graphics, left, top, mouseX, mouseY);
-        drawHeader(graphics, left, top);
-        switch (viewMode) {
-            case MAP -> drawMapView(graphics, left, top, mouseX, mouseY);
-            case ROUTES -> drawRoutesView(graphics, left, top, mouseX, mouseY);
-            case GUIDE -> drawGuideView(graphics, left, top);
+        int uiMouseX = responsiveMouseX(mouseX, WINDOW_WIDTH, WINDOW_HEIGHT);
+        int uiMouseY = responsiveMouseY(mouseY, WINDOW_WIDTH, WINDOW_HEIGHT);
+        float panelScale = beginResponsivePanel(graphics, WINDOW_WIDTH, WINDOW_HEIGHT);
+        try {
+            int left = (width - WINDOW_WIDTH) / 2;
+            int top = (height - WINDOW_HEIGHT) / 2;
+            VillageUiTheme.drawPanelShadow(graphics, left, top, WINDOW_WIDTH, WINDOW_HEIGHT);
+            graphics.drawTexture(RenderPipelines.GUI_TEXTURED, BOARD_TEXTURE, left, top, 0.0f, 0.0f,
+                    WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH, WINDOW_HEIGHT);
+            drawTabs(graphics, left, top, uiMouseX, uiMouseY);
+            drawHeader(graphics, left, top);
+            switch (viewMode) {
+                case MAP -> drawMapView(graphics, left, top, uiMouseX, uiMouseY);
+                case ROUTES -> drawRoutesView(graphics, left, top, uiMouseX, uiMouseY);
+                case GUIDE -> drawGuideView(graphics, left, top);
+            }
+            super.render(graphics, uiMouseX, uiMouseY, delta);
+        } finally {
+            endResponsivePanel(graphics, panelScale);
         }
-        super.render(graphics, mouseX, mouseY, delta);
     }
 
     @Override
@@ -134,8 +154,8 @@ public final class TradeRouteMapScreen extends Screen {
         }
         int left = (width - WINDOW_WIDTH) / 2;
         int top = (height - WINDOW_HEIGHT) / 2;
-        int mouseX = (int) click.x();
-        int mouseY = (int) click.y();
+        int mouseX = responsiveMouseX(click.x(), WINDOW_WIDTH, WINDOW_HEIGHT);
+        int mouseY = responsiveMouseY(click.y(), WINDOW_WIDTH, WINDOW_HEIGHT);
         for (int i = 0; i < ViewMode.values().length; i++) {
             int x = left + TAB_X + i * (TAB_SIZE + TAB_GAP);
             if (within(mouseX, mouseY, x, top + TAB_Y, TAB_SIZE, TAB_SIZE)) {
@@ -165,8 +185,10 @@ public final class TradeRouteMapScreen extends Screen {
     public boolean mouseDragged(Click click, double dragX, double dragY) {
         if (mapDragging && click.button() == 0 && viewMode == ViewMode.MAP) {
             Bounds bounds = displayBounds();
-            centerX -= dragX * (bounds.maxX - bounds.minX) / VIEW_WIDTH;
-            centerZ -= dragY * (bounds.maxZ - bounds.minZ) / VIEW_HEIGHT;
+            centerX -= responsiveDrag(dragX, WINDOW_WIDTH, WINDOW_HEIGHT)
+                    * (bounds.maxX - bounds.minX) / VIEW_WIDTH;
+            centerZ -= responsiveDrag(dragY, WINDOW_WIDTH, WINDOW_HEIGHT)
+                    * (bounds.maxZ - bounds.minZ) / VIEW_HEIGHT;
             return true;
         }
         return super.mouseDragged(click, dragX, dragY);
@@ -186,7 +208,9 @@ public final class TradeRouteMapScreen extends Screen {
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
         int left = (width - WINDOW_WIDTH) / 2;
         int top = (height - WINDOW_HEIGHT) / 2;
-        if (viewMode == ViewMode.MAP && within((int) mouseX, (int) mouseY,
+        int uiMouseX = responsiveMouseX(mouseX, WINDOW_WIDTH, WINDOW_HEIGHT);
+        int uiMouseY = responsiveMouseY(mouseY, WINDOW_WIDTH, WINDOW_HEIGHT);
+        if (viewMode == ViewMode.MAP && within(uiMouseX, uiMouseY,
                 left + VIEW_X, top + VIEW_Y, VIEW_WIDTH, VIEW_HEIGHT)) {
             setZoom(zoomLevel + (verticalAmount > 0.0 ? 1 : -1));
             return true;
@@ -259,7 +283,7 @@ public final class TradeRouteMapScreen extends Screen {
                 drawLine(graphics, from.x, from.y, to.x, to.y, ROAD,
                         route.routeIndex() == selectedRoute ? 3 : 2);
                 drawLine(graphics, from.x, from.y, to.x, to.y,
-                        routeColorByIndex(route.routeIndex()), route.routeIndex() == selectedRoute ? 2 : 1);
+                        routeColorByIndex(route.liveryIndex()), route.routeIndex() == selectedRoute ? 2 : 1);
             }
             if (route.routeIndex() == selectedRoute) {
                 for (Payloads.TradeRoutePointData waypoint : route.waypoints()) {
@@ -397,7 +421,7 @@ public final class TradeRouteMapScreen extends Screen {
             boolean hovered = within(mouseX, mouseY, listX, y, rowWidth, rowHeight);
             VillageUiTheme.drawCard(graphics, listX, y, rowWidth, rowHeight, hovered, selected);
             graphics.fill(listX + 6, y + 5, listX + 9, y + rowHeight - 5,
-                    routeColorByIndex(route.routeIndex()));
+                    routeColorByIndex(route.liveryIndex()));
             VillageUiTheme.drawStringScaled(graphics, textRenderer,
                     compact(route.name().getString(), 105, 0.80f),
                     listX + 14, y + 7, INK, 0.80f);
@@ -413,7 +437,7 @@ public final class TradeRouteMapScreen extends Screen {
             String operation = route.paused() ? "Ⅱ" : "▶";
             int operationX = listX + rowWidth - 17;
             VillageUiTheme.drawStringScaled(graphics, textRenderer, operation,
-                    operationX, y + 18, route.paused() ? MUTED : routeColorByIndex(route.routeIndex()), 0.70f);
+                    operationX, y + 18, route.paused() ? MUTED : routeColorByIndex(route.liveryIndex()), 0.70f);
             boolean operationHovered = within(mouseX, mouseY, operationX - 2, y + 15, 12, 12);
             if (operationHovered) {
                 graphics.drawTooltip(textRenderer, Text.translatable(route.paused()
@@ -437,7 +461,7 @@ public final class TradeRouteMapScreen extends Screen {
         Payloads.TradeRouteLineData selected = selectedRoute();
         if (selected != null) {
             graphics.fill(detailX + 6, detailY + 6, detailX + 9, detailY + detailHeight - 6,
-                    routeColorByIndex(selected.routeIndex()));
+                    routeColorByIndex(selected.liveryIndex()));
             VillageUiTheme.drawStringScaled(graphics, textRenderer,
                     compact(selected.name().getString(), detailWidth - 24, 0.86f),
                     detailX + 12, detailY + 8, INK, 0.86f);
@@ -591,7 +615,7 @@ public final class TradeRouteMapScreen extends Screen {
                     ? Payloads.TradeRouteActionPayload.ACTION_SURVEY_FINISH
                     : Payloads.TradeRouteActionPayload.ACTION_SURVEY_START, route.routeIndex());
             if (!route.surveying()) {
-                close();
+                closeToGame();
             }
             return true;
         }

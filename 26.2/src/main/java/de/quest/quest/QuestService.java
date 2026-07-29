@@ -57,6 +57,7 @@ public final class QuestService {
         ServerTickEvents.END_SERVER_TICK.register(DailyQuestService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(WeeklyQuestService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(StoryQuestService::onServerTick);
+        ServerTickEvents.END_SERVER_TICK.register(QuestAvailabilityNotifier::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(TradeRouteService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(SpecialQuestService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(PilgrimContractService::onServerTick);

@@ -1,9 +1,12 @@
 package de.quest.quest.daily;
 
+import de.quest.quest.QuestCompletionMode;
+import de.quest.quest.QuestSoundFeedback;
 import de.quest.content.daily.PetCollarDailyQuest;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.economy.CurrencyService;
+import de.quest.economy.ProsperityService;
 import de.quest.economy.QuestExperienceService;
 import de.quest.party.QuestPartyService;
 import de.quest.painting.PaintingStackFactory;
@@ -502,6 +505,7 @@ public final class DailyQuestService {
 
         Component title = definition == null ? fallbackQuestTitle(choice) : definition.title();
         player.sendSystemMessage(Texts.acceptedTitle(title, ChatFormatting.GREEN), false);
+        QuestSoundFeedback.playAccepted(world, player);
         QuestTrackerService.enableForAcceptedQuest(world, player);
         sendCurrentProgressActionbar(world, player);
         refreshQuestUi(world, playerId);
@@ -528,6 +532,7 @@ public final class DailyQuestService {
 
         Component title = definition == null ? fallbackQuestTitle(data.getBonusChoice()) : definition.title();
         player.sendSystemMessage(Texts.acceptedTitle(title, ChatFormatting.LIGHT_PURPLE), false);
+        QuestSoundFeedback.playAccepted(world, player);
         QuestTrackerService.enableForAcceptedQuest(world, player);
         sendCurrentProgressActionbar(world, player);
         refreshQuestUi(world, playerId);
@@ -704,7 +709,12 @@ public final class DailyQuestService {
                 continue;
             }
             player.sendSystemMessage(after.progressLine(), true);
-            world.playSound(null, player.blockPosition(), SoundEvents.EXPERIENCE_ORB_PICKUP, SoundSource.PLAYERS, 0.18f, 1.55f);
+            QuestSoundFeedback.playProgressChange(
+                    world,
+                    player,
+                    before == null ? List.of() : List.of(before.progressLine()),
+                    List.of(after.progressLine())
+            );
         }
     }
 
@@ -1239,7 +1249,7 @@ public final class DailyQuestService {
 
         UUID playerId = player.getUUID();
         if (isBonusAcceptedToday(world, playerId) && !hasCompletedBonusToday(world, playerId)) {
-            boolean done = completeIfEligible(world, player);
+            boolean done = claimFromQuestMaster(world, player);
             if (done) {
                 return;
             }
@@ -1275,7 +1285,7 @@ public final class DailyQuestService {
             return;
         }
 
-        boolean done = completeIfEligible(world, player);
+        boolean done = claimFromQuestMaster(world, player);
         if (done) {
             return;
         }
@@ -1521,6 +1531,14 @@ public final class DailyQuestService {
     }
 
     public static boolean completeIfEligible(ServerLevel world, ServerPlayer player) {
+        return completeIfEligible(world, player, false);
+    }
+
+    public static boolean claimFromQuestMaster(ServerLevel world, ServerPlayer player) {
+        return completeIfEligible(world, player, true);
+    }
+
+    private static boolean completeIfEligible(ServerLevel world, ServerPlayer player, boolean questMasterClaim) {
         UUID playerId = player.getUUID();
         ActiveQuestSlot slot = activeQuestSlot(world, playerId);
         if (slot == null) {
@@ -1529,6 +1547,9 @@ public final class DailyQuestService {
 
         DailyQuestDefinition definition = activeDefinition(world, playerId);
         if (definition == null) {
+            return false;
+        }
+        if (!questMasterClaim && definition.completionMode() == QuestCompletionMode.QUESTMASTER_TURN_IN) {
             return false;
         }
         PlayerQuestData data = data(world, playerId);
@@ -1649,7 +1670,8 @@ public final class DailyQuestService {
         int shardCountBefore = ModItems.MAGIC_SHARD == null ? 0 : countInventoryItem(player, ModItems.MAGIC_SHARD);
         ItemStack bonusReward = allowMagicShardDrop ? maybeRollMagicShardReward(world, player.getUUID()) : ItemStack.EMPTY;
         ReputationService.ReputationTrack track = completion.reputationTrack();
-        long actualCurrencyReward = completion.currencyReward() + VillageProjectService.bonusCurrency(world, player.getUUID(), track);
+        long actualCurrencyReward = ProsperityService.applyFestivalBonus(world, player.getUUID(),
+                completion.currencyReward() + VillageProjectService.bonusCurrency(world, player.getUUID(), track));
         if (actualCurrencyReward > 0L) {
             CurrencyService.addBalance(world, player.getUUID(), actualCurrencyReward);
         }
@@ -1882,6 +1904,27 @@ public final class DailyQuestService {
             return QuestPartyService.consumeDailyTurnInItem(world, player.getUUID(), type, item, amount);
         }
         return consumeInventoryItem(player, item, amount);
+    }
+
+    public static boolean consumeCompletionItemRequirements(ServerLevel world,
+                                                            ServerPlayer player,
+                                                            Map<Item, Integer> requirements) {
+        if (player == null || requirements == null || requirements.isEmpty()) {
+            return false;
+        }
+        for (Map.Entry<Item, Integer> requirement : requirements.entrySet()) {
+            Item item = requirement.getKey();
+            int amount = requirement.getValue() == null ? 0 : requirement.getValue();
+            if (item == null || amount <= 0 || countCompletionItem(world, player, item) < amount) {
+                return false;
+            }
+        }
+        for (Map.Entry<Item, Integer> requirement : requirements.entrySet()) {
+            if (!consumeCompletionItem(world, player, requirement.getKey(), requirement.getValue())) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public static boolean consumeCompletionItems(ServerLevel world, ServerPlayer player, int amount, Item... items) {

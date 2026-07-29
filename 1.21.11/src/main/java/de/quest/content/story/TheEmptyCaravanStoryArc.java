@@ -11,6 +11,7 @@ import de.quest.quest.story.StoryQuestService;
 import de.quest.quest.story.VillageProjectType;
 import de.quest.reputation.ReputationService;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import net.minecraft.util.Formatting;
 import net.minecraft.registry.entry.RegistryEntry;
@@ -208,9 +209,11 @@ public final class TheEmptyCaravanStoryArc implements StoryArcDefinition {
         @Override
         public boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) {
             return isComplete(world, player)
-                    && StoryQuestService.consumeCompletionItem(world, player.getUuid(), Items.PAPER, PAPER)
-                    && StoryQuestService.consumeCompletionItem(world, player.getUuid(), Items.INK_SAC, INK)
-                    && StoryQuestService.consumeCompletionItem(world, player.getUuid(), Items.HONEYCOMB, HONEYCOMB);
+                    && StoryQuestService.consumeCompletionItems(world, player.getUuid(), Map.of(
+                    Items.PAPER, PAPER,
+                    Items.INK_SAC, INK,
+                    Items.HONEYCOMB, HONEYCOMB
+            ));
         }
 
         @Override
@@ -359,12 +362,13 @@ public final class TheEmptyCaravanStoryArc implements StoryArcDefinition {
 
         @Override
         public boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) {
-            UUID id = player.getUuid();
             return isComplete(world, player)
-                    && StoryQuestService.consumeCompletionItem(world, id, Items.GRAVEL, GRAVEL)
-                    && StoryQuestService.consumeCompletionItem(world, id, Items.STONE_BRICKS, STONE_BRICKS)
-                    && StoryQuestService.consumeCompletionItem(world, id, Items.LANTERN, LANTERNS)
-                    && StoryQuestService.consumeCompletionItem(world, id, Items.LEAD, LEADS);
+                    && StoryQuestService.consumeCompletionItems(world, player.getUuid(), Map.of(
+                    Items.GRAVEL, GRAVEL,
+                    Items.STONE_BRICKS, STONE_BRICKS,
+                    Items.LANTERN, LANTERNS,
+                    Items.LEAD, LEADS
+            ));
         }
 
         @Override

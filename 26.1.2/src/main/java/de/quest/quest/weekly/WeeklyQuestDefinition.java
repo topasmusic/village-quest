@@ -1,5 +1,6 @@
 package de.quest.quest.weekly;
 
+import de.quest.quest.QuestCompletionMode;
 import java.util.List;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
@@ -26,6 +27,8 @@ public interface WeeklyQuestDefinition {
     boolean isComplete(ServerLevel world, ServerPlayer player);
 
     WeeklyQuestCompletion buildCompletion();
+
+    default QuestCompletionMode completionMode() { return QuestCompletionMode.AUTOMATIC; }
 
     default boolean consumeCompletionRequirements(ServerLevel world, ServerPlayer player) { return true; }
 

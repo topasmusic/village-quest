@@ -24,6 +24,8 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.CropBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
@@ -46,7 +48,7 @@ public final class QuestDropTracker {
     }
 
     public static void onServerTick(MinecraftServer server) {
-        matchNearbyEntityDrops();
+        matchNearbyDrops();
         cleanupExpiredSources();
         cleanupExpiredShears();
     }
@@ -70,6 +72,29 @@ public final class QuestDropTracker {
 
     public static void onBlockBreakFinished(ServerLevel world, ServerPlayer player, BlockPos pos) {
         dispatchBlockBreakSource(world, player, pos);
+    }
+
+    public static void onBlockResourceDrop(ServerLevel world, BlockPos pos, ItemStack stack) {
+        if (world == null || pos == null || stack == null || stack.isEmpty() || !isTrackedBlockDrop(stack.getItem())) {
+            return;
+        }
+
+        cleanupExpiredSources();
+        for (PendingDropSource source : PENDING_SOURCES) {
+            if (!source.matchesBlockResource(world, pos, stack.getItem())) {
+                continue;
+            }
+
+            ServerPlayer player = world.getServer().getPlayerList().getPlayer(source.playerId);
+            if (player == null) {
+                return;
+            }
+
+            int count = stack.getCount();
+            DailyQuestService.onTrackedItemPickup(world, player, stack.copy(), count);
+            source.captureBlockResource(stack.getItem());
+            return;
+        }
     }
 
     public static void onEntityUse(ServerLevel world, ServerPlayer player, Entity entity, ItemStack stack) {
@@ -116,9 +141,6 @@ public final class QuestDropTracker {
         double bestDistance = Double.MAX_VALUE;
 
         for (PendingDropSource source : PENDING_SOURCES) {
-            if (source.kind != PendingDropKind.ENTITY_DROP) {
-                continue;
-            }
             if (!source.matches(world, itemEntity)) {
                 continue;
             }
@@ -206,11 +228,11 @@ public final class QuestDropTracker {
         }
     }
 
-    private static void matchNearbyEntityDrops() {
+    private static void matchNearbyDrops() {
         Iterator<PendingDropSource> iterator = PENDING_SOURCES.iterator();
         while (iterator.hasNext()) {
             PendingDropSource source = iterator.next();
-            if (source.kind != PendingDropKind.ENTITY_DROP || source.world == null || source.isExpired()) {
+            if (source.world == null || source.isExpired()) {
                 continue;
             }
 
@@ -250,8 +272,7 @@ public final class QuestDropTracker {
         double bestDistance = Double.MAX_VALUE;
 
         for (PendingDropSource source : PENDING_SOURCES) {
-            if (source.kind != PendingDropKind.ENTITY_DROP
-                    || source.world != world
+            if (source.world != world
                     || !Objects.equals(source.playerId, playerId)
                     || !source.matches(world, itemEntity)) {
                 continue;
@@ -321,14 +342,9 @@ public final class QuestDropTracker {
                 continue;
             }
 
-            for (Map.Entry<Item, Integer> entry : source.remainingCounts.entrySet()) {
-                int count = entry.getValue();
-                if (count <= 0) {
-                    continue;
-                }
-                DailyQuestService.onTrackedItemPickup(world, player, new ItemStack(entry.getKey(), count), count);
+            if (source.capturedBlockResource) {
+                iterator.remove();
             }
-            iterator.remove();
             return;
         }
     }
@@ -340,6 +356,11 @@ public final class QuestDropTracker {
                                                            BlockEntity blockEntity) {
         if (world == null || player == null || pos == null || state == null) {
             return Map.of();
+        }
+
+        Item matureCropItem = matureCropItem(state);
+        if (matureCropItem != null) {
+            return Map.of(matureCropItem, 1);
         }
 
         List<ItemStack> drops = Block.getDrops(state, world, pos, blockEntity, player, player.getMainHandItem());
@@ -354,7 +375,7 @@ public final class QuestDropTracker {
             }
 
             Item item = drop.getItem();
-            if (isTrackedBlockDrop(item)) {
+            if (isTrackedBlockDrop(item) && (!isActualHarvestDrop(item) || isMatureCrop(state))) {
                 trackedDrops.merge(item, drop.getCount(), Integer::sum);
             }
         }
@@ -368,7 +389,37 @@ public final class QuestDropTracker {
                 || item == Items.DIAMOND
                 || item == Items.REDSTONE
                 || item == Items.LAPIS_LAZULI
-                || item == Items.AMETHYST_SHARD;
+                || item == Items.AMETHYST_SHARD
+                || item == Items.WHEAT
+                || item == Items.POTATO
+                || item == Items.CARROT;
+    }
+
+    private static boolean isActualHarvestDrop(Item item) {
+        return item == Items.WHEAT || item == Items.POTATO || item == Items.CARROT;
+    }
+
+    private static boolean isMatureCrop(BlockState state) {
+        return state != null
+                && state.getBlock() instanceof CropBlock crop
+                && state.hasProperty(CropBlock.AGE)
+                && state.getValue(CropBlock.AGE) >= crop.getMaxAge();
+    }
+
+    private static Item matureCropItem(BlockState state) {
+        if (!isMatureCrop(state)) {
+            return null;
+        }
+        if (state.is(Blocks.WHEAT)) {
+            return Items.WHEAT;
+        }
+        if (state.is(Blocks.POTATOES)) {
+            return Items.POTATO;
+        }
+        if (state.is(Blocks.CARROTS)) {
+            return Items.CARROT;
+        }
+        return null;
     }
 
     private static boolean isWool(Item item) {
@@ -417,6 +468,7 @@ public final class QuestDropTracker {
         private final long expiresAtTick;
         private final BlockPos originBlockPos;
         private final Map<Item, Integer> remainingCounts;
+        private boolean capturedBlockResource;
 
         private PendingDropSource(PendingDropKind kind,
                                   ServerLevel world,
@@ -484,6 +536,20 @@ public final class QuestDropTracker {
             Item item = itemEntity.getItem().getItem();
             int remaining = remainingCounts.getOrDefault(item, 0);
             return remaining > 0 && itemEntity.distanceToSqr(originX, originY, originZ) <= radiusSqr;
+        }
+
+        private boolean matchesBlockResource(ServerLevel world, BlockPos pos, Item item) {
+            return kind == PendingDropKind.BLOCK_BREAK
+                    && this.world == world
+                    && !isExpired()
+                    && originBlockPos != null
+                    && originBlockPos.equals(pos)
+                    && remainingCounts.containsKey(item);
+        }
+
+        private void captureBlockResource(Item item) {
+            capturedBlockResource = true;
+            remainingCounts.put(item, 0);
         }
 
         private void consume(Item item, int count) {

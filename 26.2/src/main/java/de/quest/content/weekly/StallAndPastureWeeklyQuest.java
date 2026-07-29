@@ -1,5 +1,6 @@
 package de.quest.content.weekly;
 
+import de.quest.quest.QuestCompletionMode;
 import de.quest.quest.weekly.WeeklyQuestCompletion;
 import de.quest.quest.weekly.WeeklyQuestDefinition;
 import de.quest.quest.weekly.WeeklyQuestKeys;
@@ -20,6 +21,11 @@ import java.util.List;
 import java.util.UUID;
 
 public final class StallAndPastureWeeklyQuest implements WeeklyQuestDefinition {
+    @Override
+    public QuestCompletionMode completionMode() {
+        return QuestCompletionMode.QUESTMASTER_TURN_IN;
+    }
+
     @Override
     public WeeklyQuestService.WeeklyQuestType type() {
         return WeeklyQuestService.WeeklyQuestType.STALL_AND_PASTURE;

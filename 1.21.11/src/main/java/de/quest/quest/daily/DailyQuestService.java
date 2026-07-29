@@ -4,10 +4,13 @@ import de.quest.content.daily.PetCollarDailyQuest;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.economy.CurrencyService;
+import de.quest.economy.ProsperityService;
 import de.quest.economy.QuestExperienceService;
 import de.quest.party.QuestPartyService;
 import de.quest.painting.PaintingStackFactory;
 import de.quest.pilgrim.PilgrimContractService;
+import de.quest.quest.QuestCompletionMode;
+import de.quest.quest.QuestSoundFeedback;
 import de.quest.quest.QuestBookHelper;
 import de.quest.quest.QuestTrackerService;
 import de.quest.questmaster.QuestMasterUiService;
@@ -502,6 +505,7 @@ public final class DailyQuestService {
 
         Text title = definition == null ? fallbackQuestTitle(choice) : definition.title();
         player.sendMessage(Texts.acceptedTitle(title, Formatting.GREEN), false);
+        QuestSoundFeedback.playAccepted(world, player);
         QuestTrackerService.enableForAcceptedQuest(world, player);
         sendCurrentProgressActionbar(world, player);
         refreshQuestUi(world, playerId);
@@ -528,6 +532,7 @@ public final class DailyQuestService {
 
         Text title = definition == null ? fallbackQuestTitle(data.getBonusChoice()) : definition.title();
         player.sendMessage(Texts.acceptedTitle(title, Formatting.LIGHT_PURPLE), false);
+        QuestSoundFeedback.playAccepted(world, player);
         QuestTrackerService.enableForAcceptedQuest(world, player);
         sendCurrentProgressActionbar(world, player);
         refreshQuestUi(world, playerId);
@@ -697,7 +702,12 @@ public final class DailyQuestService {
                 continue;
             }
             player.sendMessage(after.progressLine(), true);
-            world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, SoundCategory.PLAYERS, 0.18f, 1.55f);
+            QuestSoundFeedback.playProgressChange(
+                    world,
+                    player,
+                    before == null ? List.of() : List.of(before.progressLine()),
+                    List.of(after.progressLine())
+            );
         }
     }
 
@@ -1232,7 +1242,7 @@ public final class DailyQuestService {
 
         UUID playerId = player.getUuid();
         if (isBonusAcceptedToday(world, playerId) && !hasCompletedBonusToday(world, playerId)) {
-            boolean done = completeIfEligible(world, player);
+            boolean done = claimFromQuestMaster(world, player);
             if (done) {
                 return;
             }
@@ -1268,7 +1278,7 @@ public final class DailyQuestService {
             return;
         }
 
-        boolean done = completeIfEligible(world, player);
+        boolean done = claimFromQuestMaster(world, player);
         if (done) {
             return;
         }
@@ -1514,6 +1524,14 @@ public final class DailyQuestService {
     }
 
     public static boolean completeIfEligible(ServerWorld world, ServerPlayerEntity player) {
+        return completeIfEligible(world, player, false);
+    }
+
+    public static boolean claimFromQuestMaster(ServerWorld world, ServerPlayerEntity player) {
+        return completeIfEligible(world, player, true);
+    }
+
+    private static boolean completeIfEligible(ServerWorld world, ServerPlayerEntity player, boolean questMasterClaim) {
         UUID playerId = player.getUuid();
         ActiveQuestSlot slot = activeQuestSlot(world, playerId);
         if (slot == null) {
@@ -1522,6 +1540,9 @@ public final class DailyQuestService {
 
         DailyQuestDefinition definition = activeDefinition(world, playerId);
         if (definition == null) {
+            return false;
+        }
+        if (!questMasterClaim && definition.completionMode() == QuestCompletionMode.QUESTMASTER_TURN_IN) {
             return false;
         }
         PlayerQuestData data = data(world, playerId);
@@ -1642,7 +1663,8 @@ public final class DailyQuestService {
         int shardCountBefore = ModItems.MAGIC_SHARD == null ? 0 : countInventoryItem(player, ModItems.MAGIC_SHARD);
         ItemStack bonusReward = allowMagicShardDrop ? maybeRollMagicShardReward(world, player.getUuid()) : ItemStack.EMPTY;
         ReputationService.ReputationTrack track = completion.reputationTrack();
-        long actualCurrencyReward = completion.currencyReward() + VillageProjectService.bonusCurrency(world, player.getUuid(), track);
+        long actualCurrencyReward = ProsperityService.applyFestivalBonus(world, player.getUuid(),
+                completion.currencyReward() + VillageProjectService.bonusCurrency(world, player.getUuid(), track));
         if (actualCurrencyReward > 0L) {
             CurrencyService.addBalance(world, player.getUuid(), actualCurrencyReward);
         }
@@ -1868,6 +1890,28 @@ public final class DailyQuestService {
             return QuestPartyService.consumeDailyTurnInItem(world, player.getUuid(), type, item, amount);
         }
         return consumeInventoryItem(player, item, amount);
+    }
+
+    public static boolean consumeCompletionItemRequirements(ServerWorld world,
+                                                            ServerPlayerEntity player,
+                                                            Map<Item, Integer> requirements) {
+        if (player == null || requirements == null || requirements.isEmpty()) {
+            return false;
+        }
+        for (Map.Entry<Item, Integer> requirement : requirements.entrySet()) {
+            if (requirement.getKey() == null
+                    || requirement.getValue() == null
+                    || requirement.getValue() <= 0
+                    || countCompletionItem(world, player, requirement.getKey()) < requirement.getValue()) {
+                return false;
+            }
+        }
+        for (Map.Entry<Item, Integer> requirement : requirements.entrySet()) {
+            if (!consumeCompletionItem(world, player, requirement.getKey(), requirement.getValue())) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public static boolean consumeCompletionItems(ServerWorld world, ServerPlayerEntity player, int amount, Item... items) {

@@ -4,16 +4,22 @@ import de.quest.quest.daily.DailyQuestService;
 import de.quest.quest.special.SpecialQuestService;
 import de.quest.quest.story.StoryQuestService;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import net.minecraft.block.Block;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.block.CropBlock;
 import net.minecraft.block.BlockState;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 
 /**
  * Verifies crop harvests which reset or replace a mature crop without firing the
@@ -46,6 +52,7 @@ public final class QuestHarvestTracker {
             ServerPlayerEntity player = server.getPlayerManager().getPlayer(pending.playerId);
             if (player != null && player.getEntityWorld() == pending.world) {
                 dispatchHarvest(pending.world, player, pending.pos, pending.originalState);
+                dispatchTrackedCropDrops(pending.world, player, pending.trackedDrops);
             }
             iterator.remove();
         }
@@ -91,6 +98,7 @@ public final class QuestHarvestTracker {
                 state,
                 state.get(CropBlock.AGE),
                 allowReplacement,
+                trackedCropDrops(world, player, pos, state),
                 world.getTime() + HARVEST_VERIFY_TICKS
         ));
     }
@@ -125,12 +133,48 @@ public final class QuestHarvestTracker {
         SpecialQuestService.onBlockBreak(world, player, pos, state);
     }
 
+    private static Map<Item, Integer> trackedCropDrops(ServerWorld world,
+                                                       ServerPlayerEntity player,
+                                                       BlockPos pos,
+                                                       BlockState state) {
+        Map<Item, Integer> tracked = new HashMap<>();
+        for (ItemStack drop : Block.getDroppedStacks(
+                state,
+                world,
+                pos,
+                world.getBlockEntity(pos),
+                player,
+                player.getMainHandStack()
+        )) {
+            if (drop.isOf(Items.WHEAT) || drop.isOf(Items.POTATO) || drop.isOf(Items.CARROT)) {
+                tracked.merge(drop.getItem(), drop.getCount(), Integer::sum);
+            }
+        }
+        return Map.copyOf(tracked);
+    }
+
+    private static void dispatchTrackedCropDrops(ServerWorld world,
+                                                 ServerPlayerEntity player,
+                                                 Map<Item, Integer> trackedDrops) {
+        for (Map.Entry<Item, Integer> entry : trackedDrops.entrySet()) {
+            if (entry.getValue() > 0) {
+                DailyQuestService.onTrackedItemPickup(
+                        world,
+                        player,
+                        new ItemStack(entry.getKey(), entry.getValue()),
+                        entry.getValue()
+                );
+            }
+        }
+    }
+
     private static final class PendingHarvest {
         private final ServerWorld world;
         private final UUID playerId;
         private final BlockPos pos;
         private final BlockState originalState;
         private final int originalAge;
+        private final Map<Item, Integer> trackedDrops;
         private boolean allowReplacement;
         private long expiresAtTick;
 
@@ -140,6 +184,7 @@ public final class QuestHarvestTracker {
                                BlockState originalState,
                                int originalAge,
                                boolean allowReplacement,
+                               Map<Item, Integer> trackedDrops,
                                long expiresAtTick) {
             this.world = world;
             this.playerId = playerId;
@@ -147,6 +192,7 @@ public final class QuestHarvestTracker {
             this.originalState = originalState;
             this.originalAge = originalAge;
             this.allowReplacement = allowReplacement;
+            this.trackedDrops = trackedDrops == null ? Map.of() : trackedDrops;
             this.expiresAtTick = expiresAtTick;
         }
 

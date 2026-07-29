@@ -17,6 +17,7 @@ import de.quest.economy.QuestExperienceService;
 import de.quest.party.QuestPartyService;
 import de.quest.party.QuestShareProfiles;
 import de.quest.quest.QuestBookHelper;
+import de.quest.quest.QuestSoundFeedback;
 import de.quest.quest.QuestTrackerService;
 import de.quest.quest.daily.DailyQuestService;
 import de.quest.quest.special.SurveyorCompassQuestService;
@@ -39,6 +40,7 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -102,17 +104,20 @@ public final class StoryQuestService {
             if (QuestPartyService.getSharedStoryInt(world, playerId, activeArc, chapterIndex, key) == value) {
                 return;
             }
+            List<UUID> recipients = QuestPartyService.activeStoryMembers(world, playerId, activeArc, chapterIndex);
+            Map<UUID, List<Text>> before = captureProgressSnapshots(world, recipients);
             QuestPartyService.setSharedStoryInt(world, playerId, activeArc, chapterIndex, key, value);
-            refreshRecipients(world, QuestPartyService.activeStoryMembers(world, playerId, activeArc, chapterIndex));
+            notifyProgressChange(world, recipients, before);
             return;
         }
         PlayerQuestData data = data(world, playerId);
         if (data.getStoryInt(key) == value) {
             return;
         }
+        List<Text> before = currentProgressLines(world, playerId);
         data.setStoryInt(key, value);
         QuestState.get(world.getServer()).markDirty();
-        refreshQuestUi(world, playerId);
+        notifyProgressChange(world, playerId, before);
     }
 
     public static void addQuestIntClamped(ServerWorld world, UUID playerId, String key, int amount, int target) {
@@ -148,17 +153,20 @@ public final class StoryQuestService {
             if (QuestPartyService.getSharedStoryFlag(world, playerId, activeArc, chapterIndex, key) == enabled) {
                 return;
             }
+            List<UUID> recipients = QuestPartyService.activeStoryMembers(world, playerId, activeArc, chapterIndex);
+            Map<UUID, List<Text>> before = captureProgressSnapshots(world, recipients);
             QuestPartyService.setSharedStoryFlag(world, playerId, activeArc, chapterIndex, key, enabled);
-            refreshRecipients(world, QuestPartyService.activeStoryMembers(world, playerId, activeArc, chapterIndex));
+            notifyProgressChange(world, recipients, before);
             return;
         }
         PlayerQuestData data = data(world, playerId);
         if (data.hasStoryFlag(key) == enabled) {
             return;
         }
+        List<Text> before = currentProgressLines(world, playerId);
         data.setStoryFlag(key, enabled);
         QuestState.get(world.getServer()).markDirty();
-        refreshQuestUi(world, playerId);
+        notifyProgressChange(world, playerId, before);
     }
 
     public static boolean acceptQuest(ServerWorld world, ServerPlayerEntity player, StoryArcType arcType) {
@@ -198,6 +206,7 @@ public final class StoryQuestService {
         chapter.onAccepted(world, player);
         QuestPartyService.onStoryQuestAccepted(world, player, arcType, chapterIndex, chapter);
         player.sendMessage(Texts.acceptedTitle(chapter.title(), Formatting.GOLD), false);
+        QuestSoundFeedback.playAccepted(world, player);
         QuestTrackerService.enableForAcceptedQuest(world, player);
         refreshQuestUi(world, player.getUuid());
         return true;
@@ -264,7 +273,7 @@ public final class StoryQuestService {
             data.setStoryFlag(readyFlag, true);
             QuestState.get(world.getServer()).markDirty();
             player.sendMessage(Text.translatable("message.village-quest.story.ready", chapter.title()).formatted(Formatting.GOLD), false);
-            world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, SoundCategory.PLAYERS, 0.28f, 1.7f);
+            QuestSoundFeedback.playReady(world, player);
         }
         refreshQuestUi(world, player.getUuid());
         return true;
@@ -763,6 +772,30 @@ public final class StoryQuestService {
         return player != null && DailyQuestService.consumeInventoryItem(player, item, amount);
     }
 
+    /**
+     * Validates a complete multi-item turn-in before removing its first stack.
+     * Quest claims run on the server thread, so the second pass is atomic with
+     * respect to other quest actions and cannot leave a partial delivery behind.
+     */
+    public static boolean consumeCompletionItems(ServerWorld world, UUID playerId, Map<Item, Integer> requirements) {
+        if (world == null || playerId == null || requirements == null || requirements.isEmpty()) {
+            return false;
+        }
+        for (Map.Entry<Item, Integer> requirement : requirements.entrySet()) {
+            Item item = requirement.getKey();
+            int amount = requirement.getValue() == null ? 0 : requirement.getValue();
+            if (item == null || amount <= 0 || countCompletionItem(world, playerId, item) < amount) {
+                return false;
+            }
+        }
+        for (Map.Entry<Item, Integer> requirement : requirements.entrySet()) {
+            if (!consumeCompletionItem(world, playerId, requirement.getKey(), requirement.getValue())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public static int countMatchingCompletionItems(ServerWorld world, UUID playerId, java.util.function.Predicate<ItemStack> matcher) {
         if (world == null || playerId == null || matcher == null) {
             return 0;
@@ -851,6 +884,47 @@ public final class StoryQuestService {
         }
         for (UUID recipientId : recipients) {
             refreshQuestUi(world, recipientId);
+        }
+    }
+
+    private static List<Text> currentProgressLines(ServerWorld world, UUID playerId) {
+        StoryQuestStatus status = openStatus(world, playerId);
+        return status == null ? List.of() : status.lines();
+    }
+
+    private static Map<UUID, List<Text>> captureProgressSnapshots(ServerWorld world, List<UUID> recipients) {
+        Map<UUID, List<Text>> snapshots = new LinkedHashMap<>();
+        if (recipients == null) {
+            return snapshots;
+        }
+        for (UUID recipientId : recipients) {
+            snapshots.put(recipientId, currentProgressLines(world, recipientId));
+        }
+        return snapshots;
+    }
+
+    private static void notifyProgressChange(ServerWorld world, UUID playerId, List<Text> before) {
+        notifyProgressChange(world, List.of(playerId), Map.of(playerId, before == null ? List.of() : before));
+    }
+
+    private static void notifyProgressChange(ServerWorld world,
+                                             List<UUID> recipients,
+                                             Map<UUID, List<Text>> beforeSnapshots) {
+        if (world == null || recipients == null) {
+            return;
+        }
+        for (UUID recipientId : recipients) {
+            List<Text> after = currentProgressLines(world, recipientId);
+            refreshQuestUi(world, recipientId);
+            ServerPlayerEntity player = world.getServer().getPlayerManager().getPlayer(recipientId);
+            if (player != null) {
+                QuestSoundFeedback.playProgressChange(
+                        world,
+                        player,
+                        beforeSnapshots.getOrDefault(recipientId, List.of()),
+                        after
+                );
+            }
         }
     }
 
