@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "minecraft:item/goat_horn"
+    "layer0": "village-quest:item/roadwarden_horn"
   }
 }

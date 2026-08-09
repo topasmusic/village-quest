@@ -1,6 +1,7 @@
 package de.quest.client.ui;
 
 import de.quest.VillageQuest;
+import de.quest.client.config.VillageQuestClientConfig;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.IOException;
@@ -29,7 +30,8 @@ public final class InventoryJournalTutorialState {
 
     public static boolean shouldShowInventoryHint() {
         loadIfNeeded();
-        return !journalHintSeen || journalHintVersion < CURRENT_JOURNAL_HINT_VERSION;
+        return VillageQuestClientConfig.get().tutorialHints()
+                && (!journalHintSeen || journalHintVersion < CURRENT_JOURNAL_HINT_VERSION);
     }
 
     public static void markInventoryHintSeen() {
@@ -44,7 +46,7 @@ public final class InventoryJournalTutorialState {
 
     public static boolean shouldShowQuestMasterButtonHint() {
         loadIfNeeded();
-        return !questMasterButtonHintSeen;
+        return VillageQuestClientConfig.get().tutorialHints() && !questMasterButtonHintSeen;
     }
 
     public static void markQuestMasterButtonHintSeen() {

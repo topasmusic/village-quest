@@ -95,6 +95,18 @@ public final class StoryQuestService {
     }
 
     public static void setQuestInt(ServerLevel world, UUID playerId, String key, int value) {
+        setQuestInt(world, playerId, key, value, true);
+    }
+
+    /**
+     * Updates visible story progress without playing the ordinary progress cue.
+     * Stage-ready feedback remains handled by {@link #completeIfEligible}.
+     */
+    public static void setQuestIntQuietly(ServerLevel world, UUID playerId, String key, int value) {
+        setQuestInt(world, playerId, key, value, false);
+    }
+
+    private static void setQuestInt(ServerLevel world, UUID playerId, String key, int value, boolean playFeedback) {
         if (world == null || playerId == null || key == null || key.isEmpty()) {
             return;
         }
@@ -107,7 +119,7 @@ public final class StoryQuestService {
             List<UUID> recipients = QuestPartyService.activeStoryMembers(world, playerId, activeArc, chapterIndex);
             Map<UUID, List<Component>> before = captureProgressSnapshots(world, recipients);
             QuestPartyService.setSharedStoryInt(world, playerId, activeArc, chapterIndex, key, value);
-            notifyProgressChange(world, recipients, before);
+            notifyProgressChange(world, recipients, before, playFeedback);
             return;
         }
         PlayerQuestData data = data(world, playerId);
@@ -117,7 +129,7 @@ public final class StoryQuestService {
         List<Component> before = currentProgressLines(world, playerId);
         data.setStoryInt(key, value);
         QuestState.get(world.getServer()).setDirty();
-        notifyProgressChange(world, playerId, before);
+        notifyProgressChange(world, playerId, before, playFeedback);
     }
 
     public static void addQuestIntClamped(ServerLevel world, UUID playerId, String key, int amount, int target) {
@@ -129,6 +141,17 @@ public final class StoryQuestService {
             return;
         }
         setQuestInt(world, playerId, key, Math.min(target, current + amount));
+    }
+
+    public static void addQuestIntClampedQuietly(ServerLevel world, UUID playerId, String key, int amount, int target) {
+        if (amount <= 0) {
+            return;
+        }
+        int current = getQuestInt(world, playerId, key);
+        if (current >= target) {
+            return;
+        }
+        setQuestIntQuietly(world, playerId, key, Math.min(target, current + amount));
     }
 
     public static boolean hasStoryFlag(ServerLevel world, UUID playerId, String key) {
@@ -923,12 +946,25 @@ public final class StoryQuestService {
     }
 
     private static void notifyProgressChange(ServerLevel world, UUID playerId, List<Component> before) {
-        notifyProgressChange(world, List.of(playerId), Map.of(playerId, before == null ? List.of() : before));
+        notifyProgressChange(world, playerId, before, true);
+    }
+
+    private static void notifyProgressChange(ServerLevel world, UUID playerId, List<Component> before,
+                                             boolean playFeedback) {
+        notifyProgressChange(world, List.of(playerId),
+                Map.of(playerId, before == null ? List.of() : before), playFeedback);
     }
 
     private static void notifyProgressChange(ServerLevel world,
                                              List<UUID> recipients,
                                              Map<UUID, List<Component>> beforeSnapshots) {
+        notifyProgressChange(world, recipients, beforeSnapshots, true);
+    }
+
+    private static void notifyProgressChange(ServerLevel world,
+                                             List<UUID> recipients,
+                                             Map<UUID, List<Component>> beforeSnapshots,
+                                             boolean playFeedback) {
         if (world == null || recipients == null) {
             return;
         }
@@ -936,7 +972,7 @@ public final class StoryQuestService {
             List<Component> after = currentProgressLines(world, recipientId);
             refreshQuestUi(world, recipientId);
             ServerPlayer player = world.getServer().getPlayerList().getPlayer(recipientId);
-            if (player != null) {
+            if (player != null && playFeedback) {
                 QuestSoundFeedback.playProgressChange(
                         world,
                         player,

@@ -52,6 +52,10 @@
   Chapter `2` also requires that you already own the `Wayfinder's Compass`.
 - `Special`
   Unlocks after the first real reputation gain.
+- `Prosperity`
+  Unlocks after the first matching permanent charter project: Apiary, Forge, Market, Pasture, or Road Watch. A trade route is not required for the non-market branches.
+- `Trade routes`
+  `Market Road Troubles` awards the `Market Charter`, Caravan Ledger, map access, and one provisional route. `The Empty Caravan` later expands the network to five routes through the Caravan Yard.
 - `Pilgrim` road combat
   Unlocks late through `Watch Bell`.
 
@@ -82,6 +86,8 @@ The journal is your in-game record of:
 - carried relics
 - overall summary
 
+Expanded Trust cards show a colored milestone bar and the exact reputation needed for the next unlock or Mastery rank.
+
 On the first page:
 
 - if you have no active quest, the journal now points you to the built-in `Questmaster` button below the book
@@ -90,6 +96,8 @@ On the first page:
 The primary Village Quest boards automatically keep a similar centered footprint when switching between a maximized window and fullscreen. Their buttons, scrolling areas, tooltips, and draggable route map stay aligned with the responsive presentation.
 
 ## Reset Times
+
+As of 2.1.1, Daily and Weekly reset boundaries use the integrated or dedicated server timezone rather than a hard-coded European zone. World owners can keep `AUTO` or choose a Java timezone, weekday, and hour in `config/village-quest/server.properties`. Daylight-saving changes are handled by Java's timezone rules. See [Configuration and Map Cache](./configuration.md).
 
 - daily reset: `06:00 Europe/Berlin`
 - weekly reset: Monday `06:00 Europe/Berlin`

@@ -12,6 +12,7 @@ When an existing save already has the `Market Charter` or `Caravan Yard`, the fi
 - use smaller two-merchant physical caravans
 - can earn up to `8 Silvermarks` per Minecraft day
 - do not roll recurring route incidents
+- may already use a deliberately confirmed player base as their home node
 
 Complete the six chapters of `The Empty Caravan` to upgrade that preview into the full network. Its finale unlocks:
 
@@ -37,9 +38,15 @@ Registration checks both sides of the destination: the player must be inside a r
 
 Normal use of the ledger, or `/vq routes`, opens the route map.
 
+### Using a Player Base as the Home Node
+
+The `Market Charter` no longer forces the provisional first node to be inside a generated village. As soon as it grants the Caravan Ledger, stand on solid, dry Overworld ground at your base and run `/vq routes yard`, or sneak-use the ledger while no generated village can be registered. Repeat the action within `30 seconds` to confirm the exact place. The map marks it as a distinct `Homestead Trade Post` rather than pretending that the base is a village. No second unlock quest is required; the later `Caravan Yard` still matters because it expands the network from one route to five and enables incidents.
+
+This deliberately changes only the home node. Every route destination must still be a real generated, inhabited vanilla or CTOV village. Zombie villages, abandoned villages, arbitrary coordinates, and test markers cannot become trade partners. A network with installed routes must remove them before relocating its home, preventing existing paths and caravans from silently pointing at a different origin.
+
 ## The Route Map
 
-The Caravan Ledger now combines its management overview with a real top-down view of the world. It samples only chunks the client already has loaded, never requests or force-loads terrain, and remembers surveyed map colors for the current play session so explored portions do not immediately disappear when the player moves away. It displays:
+The Caravan Ledger now combines its management overview with a real top-down view of the world. It samples only chunks the client already has loaded and never requests or force-loads terrain. Terrain samples are aligned to stable world coordinates, so panning the viewport no longer subtly rerolls colors or decorations. Explored tiles persist per world/server, dimension, and quality level under `.minecraft/village-quest/map-cache`; fresh loaded terrain safely updates old samples. It displays:
 
 - registered village nodes and connecting route lines
 - a moving caravan marker for each active route
@@ -50,6 +57,7 @@ The Caravan Ledger now combines its management overview with a real top-down vie
 - current route emergency and its objective
 - pause/resume, survey, cancel, and remove controls for each route
 - every installed bend in a surveyed route
+- ocean ferry legs as dashed blue lanes, with a dedicated boat marker and remaining crossing time
 - current trade-guild rank and today's network income in the header
 - each route's specialization and installed upgrades in its tooltip
 
@@ -67,7 +75,7 @@ Hold the left mouse button over the terrain and drag to move the map. The mouse 
 
 ## Live Corner Minimap
 
-Press `,` to toggle a compact real-time view in the upper-left corner. The key lives under `Options -> Controls -> Key Binds -> Village Quest — Trade Routes` and can be rebound like any vanilla control. `/vq routes minimap` provides the same toggle for players who prefer commands.
+Press `,` to toggle a compact real-time view. The key lives under `Options -> Controls -> Key Binds -> Village Quest` and can be rebound like any vanilla control. `/vq routes minimap` provides the same toggle for players who prefer commands. The tracker uses `.` in that same category.
 
 The minimap uses the same terrain renderer and installed route geometry in a navigation-focused form:
 
@@ -77,6 +85,8 @@ The minimap uses the same terrain renderer and installed route geometry in a nav
 - moving caravan markers, including whether a physical group is currently close enough to see
 - incident emphasis for a route that needs help
 - a compact route/nearby-caravan count
+
+The cyan compass-star is always your live position, including before the network has a registered home node. On narrow HUD layouts the footer prioritizes the current X/Z coordinates over route statistics, so the navigation reference remains readable.
 
 It updates once per second without pausing the game and automatically stays out of the way while the full ledger map is open. It is a surface-navigation aid, not a cave or entity radar: its job is to make the world, player, villages, and caravans readable in relation to one another while respecting normal client chunk loading.
 
@@ -93,6 +103,16 @@ Recommended workflow:
 
 Points must be at least `4` blocks apart. Marking every block is unnecessary: use enough anchors to describe the actual shape of the road. While a draft is open, its caravan is paused and the previous installed path remains safe. `Cancel` or `/vq routes survey cancel` discards the draft and restores the previous pause state.
 
+### Surveying an Ocean Ferry
+
+Ferries are deliberately limited to biomes in Minecraft's `#minecraft:is_ocean` tag, including ocean variants such as deep and frozen oceans. A normal lake or river never becomes a ferry route. Walk around inland water or build a usable bridge and survey over that solid surface.
+
+For an island route, mark a normal land waypoint on broad, safe ground at the departure shore, travel onto the ocean in a boat, mark one or more ocean waypoints, and mark another normal waypoint after reaching the destination shore. Installing the survey turns the last safe land point before each sea leg into its ferry dock and the connected ocean legs into a dashed blue sea lane. The map and minimap display the ferry boat at the caravan's virtual position and the full map shows the remaining crossing time.
+
+Physical traders do not attempt Minecraft pathfinding across open water. If their group is already materialized and a player is observing the approach, persistent route progress pauses at the dry dock while the leader reaches it and every follower regroups nearby. Only then does the group transfer into the virtual crossing. If nobody is observing or the dock chunk is not loaded, the background simulation crosses immediately and never force-loads the shore. A blocked observed group keeps using the normal recovery rules; moving away allows an off-screen recovery or clean fallback instead of permanently freezing the route.
+
+After boarding, the traders continue to advance in the existing unloaded-chunk simulation and can materialize again only after the route reaches an ordinary land segment. The boat is a navigational representation rather than a permanently spawned entity, avoiding abandoned boats, duplicate traders, and chunk-loading pressure. Route incidents are not rolled during a crossing. Hovering the boat at its dock reports that boarding is in progress.
+
 Installing a survey persists the polyline across restarts and resets its learned road quality to the neutral starting value so the new corridor is measured honestly. The same stored geometry drives:
 
 - travel distance and arrival timing
@@ -104,6 +124,8 @@ Installing a survey persists the polyline across restarts and resets its learned
 A long but well-built detour therefore works as a real route. Travel time and payout both use the full surveyed length, so a sensible detour is recognized and compensated without turning an artificially enormous route into unlimited income.
 
 ## Visible Caravans
+
+World owners can choose `FULL`, `REDUCED`, or `MAP_ONLY` in `config/village-quest/server.properties`. Full mode preserves the ordinary group, Reduced materializes one route trader, and Map Only keeps route movement, income, escrow, guild progress, and map markers without spawning traders. Map Only also suppresses new physical incidents so it never creates an objective the configured world cannot resolve.
 
 Each active route represents a named group of three caravan merchants. The route continues to progress while its chunks are unloaded, without permanently loading them.
 

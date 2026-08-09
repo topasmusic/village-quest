@@ -25,7 +25,13 @@ All commands are available as `/villagequest ...` and the short alias `/vq ...`.
   Open the `Caravan Ledger` route map after the `Market Charter` is unlocked.
 
 - `/vq routes minimap`
-  Toggle the compact live trade-network minimap. The configurable default key is `,` under the `Village Quest — Trade Routes` controls category.
+  Toggle the compact live trade-network minimap. The configurable default key is `,` under the `Village Quest` controls category.
+
+- `/vq routes yard`
+  Confirm the current safe Overworld position as a player-built Homestead Trade Post after the Market Charter has granted route access. Requires no installed routes and a second confirmation within `30 seconds`; the later Caravan Yard is not required.
+
+- `/vq diagnose`
+  Print a read-only reset, route, caravan, stuck-group, and orphan-entity report. Operators can use `/vq diagnose <player>` for another player.
 
 - `/vq routes guild`
   Show trade-guild rank, score, daily income, escrow, route specialization, road length, quality, and solved incidents.
@@ -131,6 +137,8 @@ Quest-party notes:
   Force the tracker on.
 
 - `/vq questtracker off`
+
+The default `.` key toggles the same saved tracker state and can be rebound under `Options -> Controls -> Key Binds -> Village Quest`.
   Force the tracker off.
 
 ## Admin Commands

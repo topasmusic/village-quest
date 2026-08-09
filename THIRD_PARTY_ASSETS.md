@@ -54,6 +54,10 @@ other third-party subject matter:
 
 This provenance note does not grant permission to reuse those files separately.
 
+## Original project-generated item art
+
+The `26.2` line's `2.1.1` item-art pass was generated specifically for Village Quest under the maintainer's direction without an external character, logo, photograph, or third-party artwork as a visual reference. Source masters and the deterministic sprite builder are retained under `26.2/design/2.1.1-item-art/`; shipped derivatives are the active special-item textures under `assets/village-quest/textures/item/`. These files fall under the repository's original-assets terms rather than the unresolved legacy-skin entries above.
+
 ## Items not shipped by Village Quest
 
 The `mini_blocks` resource pack and datapack found in local test environments are

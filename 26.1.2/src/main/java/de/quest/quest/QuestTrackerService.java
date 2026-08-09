@@ -25,6 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class QuestTrackerService {
     private static final String AUTO_HINT_SHOWN = "quest_tracker_auto_hint_shown";
+    private static final String CLIENT_DEFAULT_APPLIED = "config.quest_tracker_default_applied.2_1_1";
     private static final Map<UUID, Long> LAST_TRACKER_REFRESH = new ConcurrentHashMap<>();
 
     private QuestTrackerService() {}
@@ -57,6 +58,16 @@ public final class QuestTrackerService {
 
     public static boolean toggle(ServerLevel world, ServerPlayer player) {
         return setEnabled(world, player, !isEnabled(world, player.getUUID()));
+    }
+
+    public static void applyClientDefault(ServerLevel world, ServerPlayer player, boolean enabledByDefault) {
+        if (world == null || player == null) return;
+        PlayerQuestData data = data(world, player.getUUID());
+        if (data.hasMilestoneFlag(CLIENT_DEFAULT_APPLIED)) return;
+        data.setMilestoneFlag(CLIENT_DEFAULT_APPLIED, true);
+        data.setQuestTrackerEnabled(enabledByDefault);
+        QuestState.get(world.getServer()).setDirty();
+        refresh(world, player);
     }
 
     public static void closeTracker(ServerPlayer player) {

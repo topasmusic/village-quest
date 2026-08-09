@@ -11,6 +11,10 @@
 | `Roadwarden Horn` | `200 Monster Hunting` | posts one daily road watch and guides the Wayfinder toward route trouble |
 | `Starreach Ring` | hidden shard trial | `+2` block reach in the offhand while building |
 
+## Visual identity
+
+The active relics and route tools share one Village Quest sprite language: aged brass, dark wood, teal enamel, restrained burgundy cloth, and deep-blue magical accents. The Caravan Ledger and Roadwarden Horn use dedicated project art instead of vanilla stand-ins. On the Wayfinder's Compass, the outer housing never rotates; the inner cardinal dial turns in 32 steps, and `N` continues to indicate the selected target.
+
 ## Reputation Mastery
 
 Reputation continues to have purpose beyond the `200` relic threshold. Each track gains one capped Mastery level per additional `50` reputation, up to Mastery `5`. Mastery is deliberately a completion/choice track rather than an uncapped damage or income multiplier. Reaching three combined Mastery levels grants a second `/vq daily reroll` each reset day.

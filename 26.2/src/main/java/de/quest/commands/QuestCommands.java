@@ -41,6 +41,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
 
 import static net.minecraft.commands.Commands.argument;
 import static net.minecraft.commands.Commands.literal;
@@ -400,6 +401,12 @@ public final class QuestCommands {
                     .then(literal("on").executes(ctx -> setQuestTracker(ctx.getSource(), true)))
                     .then(literal("off").executes(ctx -> setQuestTracker(ctx.getSource(), false)));
 
+            LiteralArgumentBuilder<CommandSourceStack> diagnoseCommand = literal("diagnose")
+                    .executes(ctx -> diagnose(ctx.getSource(), ctx.getSource().getPlayer()))
+                    .then(argument("player", EntityArgument.player())
+                            .requires(AdminCommands::canManageRespawn)
+                            .executes(ctx -> diagnose(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"))));
+
             LiteralArgumentBuilder<CommandSourceStack> dailyQuestCommand = literal("daily")
                     .then(literal("accept").executes(ctx -> acceptQuest(ctx.getSource())))
                     .then(literal("reroll").executes(ctx -> rerollDailyQuest(ctx.getSource())));
@@ -465,6 +472,7 @@ public final class QuestCommands {
                                                             IntegerArgumentType.getInteger(ctx, "route"))))))
                             .then(literal("supply").executes(ctx -> supplyTradeContract(ctx.getSource()))))
                     .then(literal("register").executes(ctx -> registerRoute(ctx.getSource())))
+                    .then(literal("yard").executes(ctx -> registerYard(ctx.getSource())))
                     .then(literal("rename")
                             .then(argument("route", IntegerArgumentType.integer(1, TradeRouteService.MAX_ROUTES))
                                     .then(argument("name", StringArgumentType.greedyString())
@@ -490,6 +498,7 @@ public final class QuestCommands {
                     .then(prosperityCommand)
                     .then(questMasterCommand)
                     .then(questTrackerCommand)
+                    .then(diagnoseCommand)
                     .then(dailyQuestCommand)
                     .then(partyCommand)
                     .then(walletCommand)
@@ -912,6 +921,18 @@ public final class QuestCommands {
         return 1;
     }
 
+    private static int diagnose(CommandSourceStack source, ServerPlayer player) {
+        if (player == null) {
+            source.sendFailure(Component.translatable("command.village-quest.diagnose.player_required"));
+            return 0;
+        }
+        ServerLevel world = source.getServer().overworld();
+        for (Component line : TradeRouteService.diagnostics(world, player)) {
+            source.sendSuccess(() -> line, false);
+        }
+        return 1;
+    }
+
     private static int openRoutes(CommandSourceStack source) {
         ServerPlayer player = source.getPlayer();
         if (player == null) {
@@ -929,6 +950,11 @@ public final class QuestCommands {
     private static int registerRoute(CommandSourceStack source) {
         ServerPlayer player = source.getPlayer();
         return player != null && TradeRouteService.registerCurrentVillage(source.getServer().overworld(), player) ? 1 : 0;
+    }
+
+    private static int registerYard(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        return player != null && TradeRouteService.registerPlayerYard(source.getServer().overworld(), player) ? 1 : 0;
     }
 
     private static int rerollDailyQuest(CommandSourceStack source) {

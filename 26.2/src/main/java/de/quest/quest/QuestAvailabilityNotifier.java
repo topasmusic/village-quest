@@ -1,5 +1,6 @@
 package de.quest.quest;
 
+import de.quest.config.ClientPreferenceService;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.quest.daily.DailyQuestService;
@@ -100,7 +101,9 @@ public final class QuestAvailabilityNotifier {
     }
 
     private static void announce(ServerLevel world, ServerPlayer player, String translationKey) {
-        player.sendSystemMessage(Component.translatable(translationKey).withStyle(ChatFormatting.GOLD), false);
+        if (ClientPreferenceService.questAvailableChatNotifications(player)) {
+            player.sendSystemMessage(Component.translatable(translationKey).withStyle(ChatFormatting.GOLD), false);
+        }
         QuestSoundFeedback.playNewOffer(world, player);
     }
 }

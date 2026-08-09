@@ -1,6 +1,7 @@
 package de.quest.client;
 
 import de.quest.client.compat.ClientModCompat;
+import de.quest.client.config.VillageQuestClientConfig;
 import de.quest.client.network.ClientQuestNetworking;
 import de.quest.client.hud.QuestTrackerHud;
 import de.quest.client.hud.TradeRouteMinimapHud;
@@ -17,6 +18,7 @@ import net.minecraft.client.render.entity.EntityRendererFactories;
 public class VillageQuestClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
+        VillageQuestClientConfig.bootstrap();
         ClientModCompat.bootstrap();
         EntityModelLayerRegistry.registerModelLayer(
                 PilgrimEntityRenderer.PILGRIM_LAYER,

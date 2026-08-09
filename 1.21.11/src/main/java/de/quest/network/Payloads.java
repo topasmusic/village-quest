@@ -29,6 +29,7 @@ public final class Payloads {
         PayloadTypeRegistry.playS2C().register(EconomyPayload.ID, EconomyPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(QuestMasterPayload.ID, QuestMasterPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(TradeRouteMapPayload.ID, TradeRouteMapPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(QuestFeedbackPayload.ID, QuestFeedbackPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(JournalActionPayload.ID, JournalActionPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(PilgrimTradeActionPayload.ID, PilgrimTradeActionPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(PilgrimTradeSessionPayload.ID, PilgrimTradeSessionPayload.CODEC);
@@ -37,7 +38,73 @@ public final class Payloads {
         PayloadTypeRegistry.playC2S().register(QuestMasterPartyActionPayload.ID, QuestMasterPartyActionPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(QuestMasterSessionPayload.ID, QuestMasterSessionPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(TradeRouteActionPayload.ID, TradeRouteActionPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(ClientPreferencesPayload.ID, ClientPreferencesPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(QuestTrackerActionPayload.ID, QuestTrackerActionPayload.CODEC);
         registered = true;
+    }
+
+    public record ClientPreferencesPayload(
+            boolean questTrackerEnabledByDefault,
+            boolean questAvailableChatNotifications,
+            boolean caravanEventNotifications,
+            boolean questProgressSounds,
+            float questProgressSoundVolume
+    ) implements CustomPayload {
+        public static final CustomPayload.Id<ClientPreferencesPayload> ID =
+                new CustomPayload.Id<>(Identifier.of(VillageQuest.MOD_ID, "client_preferences"));
+        public static final PacketCodec<RegistryByteBuf, ClientPreferencesPayload> CODEC =
+                PacketCodec.ofStatic(ClientPreferencesPayload::write, ClientPreferencesPayload::read);
+
+        private static ClientPreferencesPayload read(RegistryByteBuf buf) {
+            return new ClientPreferencesPayload(
+                    buf.readBoolean(), buf.readBoolean(), buf.readBoolean(), buf.readBoolean(), buf.readFloat());
+        }
+
+        private static void write(RegistryByteBuf buf, ClientPreferencesPayload payload) {
+            buf.writeBoolean(payload.questTrackerEnabledByDefault());
+            buf.writeBoolean(payload.questAvailableChatNotifications());
+            buf.writeBoolean(payload.caravanEventNotifications());
+            buf.writeBoolean(payload.questProgressSounds());
+            buf.writeFloat(payload.questProgressSoundVolume());
+        }
+
+        @Override
+        public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    public record QuestFeedbackPayload(int tier) implements CustomPayload {
+        public static final int PROGRESS = 0;
+        public static final int OBJECTIVE = 1;
+        public static final int ACCEPTED = 2;
+        public static final int STAGE = 3;
+        public static final int AVAILABILITY = 4;
+
+        public static final CustomPayload.Id<QuestFeedbackPayload> ID =
+                new CustomPayload.Id<>(Identifier.of(VillageQuest.MOD_ID, "quest_feedback"));
+        public static final PacketCodec<RegistryByteBuf, QuestFeedbackPayload> CODEC =
+                PacketCodec.ofStatic(QuestFeedbackPayload::write, QuestFeedbackPayload::read);
+
+        private static QuestFeedbackPayload read(RegistryByteBuf buf) {
+            return new QuestFeedbackPayload(buf.readVarInt());
+        }
+
+        private static void write(RegistryByteBuf buf, QuestFeedbackPayload payload) {
+            buf.writeVarInt(payload.tier());
+        }
+
+        @Override
+        public Id<? extends CustomPayload> getId() { return ID; }
+    }
+
+    /** A keybind-friendly request to toggle the player's authoritative tracker state. */
+    public record QuestTrackerActionPayload() implements CustomPayload {
+        public static final CustomPayload.Id<QuestTrackerActionPayload> ID =
+                new CustomPayload.Id<>(Identifier.of(VillageQuest.MOD_ID, "quest_tracker_action"));
+        public static final PacketCodec<RegistryByteBuf, QuestTrackerActionPayload> CODEC =
+                PacketCodec.ofStatic((buf, payload) -> { }, buf -> new QuestTrackerActionPayload());
+
+        @Override
+        public Id<? extends CustomPayload> getId() { return ID; }
     }
 
     public record JournalPayload(
@@ -964,7 +1031,8 @@ public final class Payloads {
             Text name,
             int worldX,
             int worldZ,
-            boolean home
+            boolean home,
+            boolean playerYard
     ) {
         private static TradeRouteNodeData read(RegistryByteBuf buf) {
             return new TradeRouteNodeData(
@@ -972,6 +1040,7 @@ public final class Payloads {
                     TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf),
                     buf.readInt(),
                     buf.readInt(),
+                    buf.readBoolean(),
                     buf.readBoolean()
             );
         }
@@ -982,17 +1051,19 @@ public final class Payloads {
             buf.writeInt(node.worldX());
             buf.writeInt(node.worldZ());
             buf.writeBoolean(node.home());
+            buf.writeBoolean(node.playerYard());
         }
     }
 
-    public record TradeRoutePointData(int worldX, int worldZ) {
+    public record TradeRoutePointData(int worldX, int worldZ, boolean ocean) {
         private static TradeRoutePointData read(RegistryByteBuf buf) {
-            return new TradeRoutePointData(buf.readInt(), buf.readInt());
+            return new TradeRoutePointData(buf.readInt(), buf.readInt(), buf.readBoolean());
         }
 
         private static void write(RegistryByteBuf buf, TradeRoutePointData point) {
             buf.writeInt(point.worldX());
             buf.writeInt(point.worldZ());
+            buf.writeBoolean(point.ocean());
         }
     }
 
@@ -1067,10 +1138,14 @@ public final class Payloads {
             int routeIndex,
             int progress,
             boolean returning,
-            boolean materialized
+            boolean materialized,
+            boolean boarding,
+            boolean ferry,
+            int ferrySecondsRemaining
     ) {
         private static TradeRouteCaravanData read(RegistryByteBuf buf) {
-            return new TradeRouteCaravanData(buf.readVarInt(), buf.readVarInt(), buf.readBoolean(), buf.readBoolean());
+            return new TradeRouteCaravanData(buf.readVarInt(), buf.readVarInt(), buf.readBoolean(),
+                    buf.readBoolean(), buf.readBoolean(), buf.readBoolean(), buf.readVarInt());
         }
 
         private static void write(RegistryByteBuf buf, TradeRouteCaravanData caravan) {
@@ -1078,6 +1153,9 @@ public final class Payloads {
             buf.writeVarInt(caravan.progress());
             buf.writeBoolean(caravan.returning());
             buf.writeBoolean(caravan.materialized());
+            buf.writeBoolean(caravan.boarding());
+            buf.writeBoolean(caravan.ferry());
+            buf.writeVarInt(caravan.ferrySecondsRemaining());
         }
     }
 

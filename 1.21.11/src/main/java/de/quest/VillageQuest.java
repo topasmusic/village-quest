@@ -6,12 +6,12 @@ import com.mojang.authlib.properties.Property;
 import com.mojang.authlib.properties.PropertyMap;
 import de.quest.commands.AdminCommands;
 import de.quest.commands.QuestCommands;
+import de.quest.config.VillageQuestServerConfig;
 import de.quest.network.QuestNetworking;
 import de.quest.quest.QuestService;
 import de.quest.registry.ModBlocks;
 import de.quest.registry.ModEntities;
 import de.quest.registry.ModItems;
-import de.quest.registry.ModSounds;
 import net.fabricmc.api.ModInitializer;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.LoreComponent;
@@ -36,7 +36,7 @@ public class VillageQuest implements ModInitializer {
     @Override
     public void onInitialize() {
         LOGGER.info("Initializing {}", MOD_ID);
-        ModSounds.register();
+        VillageQuestServerConfig.bootstrap();
         ModBlocks.register();
         ModItems.register();
         ModEntities.register();

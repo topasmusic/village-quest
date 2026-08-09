@@ -1,5 +1,20 @@
 # Next Session Notes
 
+## 2026-08-09 Village Quest 2.1.1 Release
+
+- By explicit maintainer exception, `2.1.1 - Homesteads & Wayfinding` was ported and released with feature parity on `26.2`, `26.1.2`, and Yarn `1.21.11`. Future feature development returns to `26.2` only.
+- Player-built bases can be confirmed as a `Homestead Trade Post` immediately after Market Charter route access, on safe Overworld ground, with no installed routes. Destinations remain real inhabited vanilla/CTOV villages; the later Caravan Yard still expands capacity from one route to five and enables incidents.
+- Surveyed ocean waypoints create virtual ferry legs only in biomes belonging to `#minecraft:is_ocean`. Lakes/rivers are not ferry-compatible. Revision `.9` turns the final safe land node into a boarding anchor: an observed group holds persistent progress at the dock, reaches it, gathers nearby followers, and then transfers into the crossing; unobserved/unloaded travel remains immediate and never loads chunks. Both maps show the dock/sea boat state, dashed blue lanes, and remaining crossing time.
+- Terrain sampling is aligned to world coordinates and persisted in recoverable world/server, dimension, and quality-separated `.minecraft/village-quest/map-cache` tiles with retention and size limits.
+- The full-map viewport now keeps an exact width/height while panning, and its sampled cells, slope shading, shorelines, palette texture, and glyph placement are all world-anchored. A drag must translate the existing illustrated terrain rather than subtly rebuilding its pixel pattern.
+- `.minecraft/config/village-quest/server.properties` owns reset timezone/day/hour, Homestead permission, and `FULL`/`REDUCED`/`MAP_ONLY` caravans. `client.properties` owns HUD/minimap layout, layers, notifications, sounds, cache quality/limits, and tutorial hints.
+- `.` toggles the saved Quest Tracker, `,` toggles the minimap, and both appear under `Village Quest` in Controls.
+- All eight active special items now share bespoke project art. The 32-frame compass keeps a fixed brass bezel and rotates only its inset cardinal dial; source masters, extracted layers, builder, and previews are retained under `26.2/design/2.1.1-item-art/`.
+- The accompanying cleanup removes only verified duplicate/unreachable resources. Do not remove compatibility item registrations, save-facing IDs, plaque rewards, Peace Armor recipes, or unresolved entity skins as part of this pass.
+- `/vq diagnose [player]` is a read-only support report. It must remain non-repairing and non-mutating.
+- Four isolated tests cover Daily, Weekly, non-European timezone, and DST boundaries. Existing quest turn-in and timer state machines were deliberately not rewritten for this patch.
+- Stable target identity is `2.1.1`. Revision `.7` contains the riding/Bakehouse/Trust/Prosperity polish; `.8` adds early Homestead Trade Posts and ocean-only ferry travel with map presentation; `.9` adds safe observed dock boarding, unsafe-shore validation, and two ferry-boundary regression tests. Full Gradle tests and builds pass on all three targets, with target-appropriate Mojang or Yarn APIs.
+
 ## 2026-07-29 Village Quest 2.1.0 Release
 
 - `Village Quest 2.1.0 - Prosperity & Prestige` is the public stable release for Minecraft `26.2`, `26.1.2`, and `1.21.11`.

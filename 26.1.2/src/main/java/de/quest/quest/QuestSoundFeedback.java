@@ -1,5 +1,7 @@
 package de.quest.quest;
 
+import de.quest.config.ClientPreferenceService;
+import de.quest.network.Payloads;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -10,8 +12,7 @@ import java.util.regex.Pattern;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 
 /**
  * Keeps quest feedback on one restrained audio ladder:
@@ -77,58 +78,8 @@ public final class QuestSoundFeedback {
             return;
         }
         LAST_FEEDBACK.put(player.getUUID(), new LastFeedback(now, tier));
-
-        switch (tier) {
-            case PROGRESS -> world.playSound(
-                    null,
-                    player.blockPosition(),
-                    SoundEvents.EXPERIENCE_ORB_PICKUP,
-                    SoundSource.PLAYERS,
-                    0.12f,
-                    1.45f
-            );
-            case OBJECTIVE -> world.playSound(
-                    null,
-                    player.blockPosition(),
-                    SoundEvents.AMETHYST_BLOCK_CHIME,
-                    SoundSource.PLAYERS,
-                    0.24f,
-                    1.35f
-            );
-            case ACCEPTED -> world.playSound(
-                    null,
-                    player.blockPosition(),
-                    SoundEvents.EXPERIENCE_ORB_PICKUP,
-                    SoundSource.PLAYERS,
-                    0.24f,
-                    1.0f
-            );
-            case STAGE -> {
-                world.playSound(
-                        null,
-                        player.blockPosition(),
-                        SoundEvents.AMETHYST_BLOCK_CHIME,
-                        SoundSource.PLAYERS,
-                        0.30f,
-                        1.15f
-                );
-                world.playSound(
-                        null,
-                        player.blockPosition(),
-                        SoundEvents.EXPERIENCE_ORB_PICKUP,
-                        SoundSource.PLAYERS,
-                        0.16f,
-                        1.80f
-                );
-            }
-            case AVAILABILITY -> world.playSound(
-                    null,
-                    player.blockPosition(),
-                    SoundEvents.VILLAGER_YES,
-                    SoundSource.PLAYERS,
-                    0.28f,
-                    1.08f
-            );
+        if (ClientPreferenceService.questProgressSounds(player)) {
+            ServerPlayNetworking.send(player, new Payloads.QuestFeedbackPayload(tier.ordinal()));
         }
     }
 

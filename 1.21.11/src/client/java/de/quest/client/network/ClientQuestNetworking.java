@@ -1,5 +1,6 @@
 package de.quest.client.network;
 
+import de.quest.client.config.VillageQuestClientConfig;
 import de.quest.client.hud.QuestTrackerHud;
 import de.quest.client.hud.TradeRouteMinimapHud;
 import de.quest.client.screen.AdminJournalScreen;
@@ -10,6 +11,10 @@ import de.quest.client.screen.QuestMasterScreen;
 import de.quest.client.screen.TradeRouteMapScreen;
 import de.quest.network.Payloads;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.sound.PositionedSoundInstance;
+import net.minecraft.sound.SoundEvents;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,6 +24,28 @@ public final class ClientQuestNetworking {
 
     public static void register() {
         Payloads.register();
+
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> client.execute(() -> {
+            VillageQuestClientConfig config = VillageQuestClientConfig.get();
+            if (ClientPlayNetworking.canSend(Payloads.ClientPreferencesPayload.ID)) {
+                ClientPlayNetworking.send(new Payloads.ClientPreferencesPayload(
+                        config.questTrackerEnabledByDefault(),
+                        config.questAvailableChatNotifications(),
+                        config.caravanEventNotifications(),
+                        config.questProgressSounds(),
+                        config.questProgressSoundVolume()));
+            }
+            if (config.minimapEnabledByDefault()
+                    && ClientPlayNetworking.canSend(Payloads.TradeRouteActionPayload.ID)) {
+                ClientPlayNetworking.send(new Payloads.TradeRouteActionPayload(
+                        Payloads.TradeRouteActionPayload.ACTION_MINIMAP_TOGGLE, -1));
+            }
+        }));
+
+        ClientPlayNetworking.registerGlobalReceiver(Payloads.QuestFeedbackPayload.ID, (payload, context) -> {
+            var client = context.client();
+            client.execute(() -> playQuestFeedback(client, payload.tier()));
+        });
 
         ClientPlayNetworking.registerGlobalReceiver(Payloads.JournalPayload.ID, (payload, context) -> {
             var client = context.client();
@@ -304,5 +331,31 @@ public final class ClientQuestNetworking {
                 }
             });
         });
+    }
+
+    private static void playQuestFeedback(MinecraftClient client, int tier) {
+        VillageQuestClientConfig config = VillageQuestClientConfig.get();
+        if (client == null || !config.questProgressSounds() || config.questProgressSoundVolume() <= 0.0f) {
+            return;
+        }
+        float volume = config.questProgressSoundVolume();
+        switch (tier) {
+            case Payloads.QuestFeedbackPayload.PROGRESS -> client.getSoundManager().play(
+                    PositionedSoundInstance.ui(SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, 1.45f, 0.12f * volume));
+            case Payloads.QuestFeedbackPayload.OBJECTIVE -> client.getSoundManager().play(
+                    PositionedSoundInstance.ui(SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, 1.35f, 0.24f * volume));
+            case Payloads.QuestFeedbackPayload.ACCEPTED -> client.getSoundManager().play(
+                    PositionedSoundInstance.ui(SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 0.24f * volume));
+            case Payloads.QuestFeedbackPayload.STAGE -> {
+                client.getSoundManager().play(
+                        PositionedSoundInstance.ui(SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, 1.15f, 0.30f * volume));
+                client.getSoundManager().play(
+                        PositionedSoundInstance.ui(SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, 1.80f, 0.16f * volume));
+            }
+            case Payloads.QuestFeedbackPayload.AVAILABILITY -> client.getSoundManager().play(
+                    PositionedSoundInstance.ui(SoundEvents.ENTITY_VILLAGER_YES, 1.08f, 0.28f * volume));
+            default -> {
+            }
+        }
     }
 }

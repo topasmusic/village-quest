@@ -1,12 +1,14 @@
 # Codex Start Here
 
-> Current release note (2026-07-29): `Village Quest 2.1.0 - Prosperity & Prestige` is the public stable release for Minecraft `26.2`, `26.1.2`, and `1.21.11`. It adds the complete economy/endgame layer and the accumulated quest, tracker, localization, responsive-UI, Journal-navigation, and progression corrections. All three builds and the shared `1841`-key resource gate pass.
+> Current release note (2026-08-09): `Village Quest 2.1.1 - Homesteads & Wayfinding` is the public stable release for Minecraft `26.2`, `26.1.2`, and `1.21.11`. It adds Homestead Trade Posts, ocean ferry legs, deterministic persistent maps, configuration, diagnostics, density modes, unified keybinds, and the special-item art pass. Full tests/builds and the shared resource gate pass on all three target-specific APIs.
 
-> Current development note (2026-07-29): after the three-line `2.1.0` release, Minecraft `26.2` is the sole active content-development line. `26.1.2` and Yarn `1.21.11` remain released maintenance targets and receive no routine content, UI, balance, compatibility, or ordinary bug backports.
+> Current development note (2026-08-09): after the one-time three-line `2.1.1` parity exception, Minecraft `26.2` remains the sole active content-development line. `26.1.2` and Yarn `1.21.11` return to released maintenance status and receive no routine content, UI, balance, compatibility, or ordinary bug backports.
+
+> Current 2.1.1 note (2026-08-09): the maintainer approved a one-time parity exception and `2.1.1 - Homesteads & Wayfinding` is released on `26.2`, `26.1.2`, and Yarn `1.21.11`. It adds confirmed player-base home nodes with real inhabited-village destinations, ocean-only ferry legs with safe shore boarding, deterministic persistent per-world terrain tiles, server/client config files, timezone-safe resets, configurable physical caravan density, a read-only `/vq diagnose` report, and `.` / `,` tracker-map keybinds under one `Village Quest` category. All eight active tools/relics share bespoke sprites and the compass uses a fixed housing with 32 rotating dial frames. Future feature work returns to `26.2` only unless another explicit exception is granted.
 
 > Crop-yield note (2026-07-28): all active Wheat/Potato/Carrot quantity quests use one mature-crop tracked-item path on all three lines. Normal harvests credit the collected stack count, verified right-click-and-replant harvests include Carrots, immature crops grant nothing, and the former per-block callbacks are removed to prevent duplicate credit. `Autumn Harvest` remains an intentional fruit-block objective.
 
-> Build-identity note (2026-07-29): all three release projects use the stable embedded version `2.1.0`. Future unreleased work must return to `build_channel=unreleased` with a new numbered revision and follows the Stable/Unreleased artifact-preservation rules below.
+> Build-identity note (2026-08-09): all three release projects use the stable embedded version `2.1.1`. Future unreleased work must return to `build_channel=unreleased` with a new numbered revision and follows the Stable/Unreleased artifact-preservation rules below.
 
 Wenn in einer neuen Session auf diese Datei verwiesen wird, arbeite nach diesem Ablauf, bevor du Annahmen triffst oder Aenderungen machst.
 
@@ -37,7 +39,7 @@ Baue zuerst belastbaren Kontext aus Maintainer-Daten, Changelog und Wiki auf, da
 
 ## Aktuell wichtige Versionsfakten
 
-Stand dieser Datei: `2026-07-19`
+Stand dieser Datei: `2026-08-09`
 
 - `26.2`
   - Minecraft `26.2`
@@ -60,9 +62,9 @@ Stand dieser Datei: `2026-07-19`
 
 ## Aktuell wichtige inhaltliche Fakten
 
-- `26.2` ist die aktive Referenz- und Arbeitslinie; der unveroeffentlichte `2.1.0`-Stand ist auf alle drei gepflegten Linien portiert.
-- Die Versionsrichtlinie steht in `VERSION_SUPPORT.md`: `2.1.0` bleibt bis zur Veroeffentlichung auf `26.2`, `26.1.2` und `1.21.11` feature-paritaetisch. Nach der Drei-Linien-Veroeffentlichung ist nur noch die jeweils ausgewaehlte neueste stabile Minecraft-Version eine aktive Content-Linie, zunaechst `26.2`.
-- Nach `2.1.0` duerfen neue Quests, Systeme, Items, UIs, Balance- oder normale Kompatibilitaetsaenderungen nicht automatisch auf `26.1.2` oder `1.21.11` portiert werden. Alte Releases bleiben verfuegbar; ein Backport ist nur nach ausdruecklicher Maintainer-Entscheidung fuer Startabstuerze, Save-/Persistenzkorruption oder schwere Exploits vorgesehen.
+- `26.2` ist die aktive Referenz- und Arbeitslinie; der stabile `2.1.1`-Stand wurde per ausdruecklicher Ausnahme auf alle drei Linien portiert und veroeffentlicht.
+- Die Versionsrichtlinie steht in `VERSION_SUPPORT.md`: Nach diesem Drei-Linien-Release ist nur noch die jeweils ausgewaehlte neueste stabile Minecraft-Version eine aktive Content-Linie, zunaechst `26.2`.
+- Nach `2.1.1` duerfen neue Quests, Systeme, Items, UIs, Balance- oder normale Kompatibilitaetsaenderungen nicht automatisch auf `26.1.2` oder `1.21.11` portiert werden. Alte Releases bleiben verfuegbar; weitere Ausnahmen brauchen wieder eine ausdrueckliche Maintainer-Entscheidung.
 - Wird spaeter eine neue stabile Minecraft-Version als Ziel gewaehlt, ersetzt sie `26.2` als einzige aktive Linie. Es wird nicht fuer jede neue Minecraft-Version eine weitere dauerhaft aktive Linie angehaeuft.
 - In allen drei Versionsordnern liegt der veroeffentlichte Stable-Stand `2.0.1` mit dem kompletten `Roads Between Villages`-Umfang und dem Interface-Frame-Hotfix.
 - Der lokale Karawanenstand unterstuetzt bis zu fuenf Routen, persistente Vermessungsentwuerfe mit bis zu `48` Wegpunkten, echte Umwege auf Karte und Simulation sowie das Entfernen einzelner Routen. Der komplette Fuenf-Routen-/Vermessungs-/Entfernungsablauf wurde am `2026-07-18` auf der Referenzlinie `26.2` im echten Client geprueft; dabei wurden die kompakte Zeilenaufteilung und das `30`-Sekunden-Bestaetigungsfenster finalisiert.

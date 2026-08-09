@@ -1,5 +1,38 @@
 # Changelog
 
+## 2.1.1 - Homesteads & Wayfinding
+
+Release date: 2026-08-09
+
+### New features
+
+- A player-built base can now become the home of the trade network as soon as the `Market Charter` grants the Caravan Ledger. Use the ledger twice on safe Overworld ground to confirm a personal `Homestead Trade Post`; existing routes must be removed before moving the home, while every destination must still be a real inhabited vanilla or CTOV village. The later Caravan Yard remains the expansion from one route to five rather than an extra lock on using your own base.
+- Added a distinct Homestead map marker, keeping personal bases visually separate from generated village nodes on the ledger and live minimap.
+- Added ocean ferry segments to surveyed routes. Mark waypoints while actually traveling through an `#minecraft:is_ocean` biome and the installed route receives a dashed blue sea lane, a bespoke boat marker, and a live arrival timer on both maps. The last safe land point before each sea leg becomes a real boarding anchor: an observed physical group waits there, gathers its formation, and only then transfers into the virtual crossing. Unobserved routes retain immediate background travel without loading chunks. Lakes and rivers never become ferries and must be bypassed or crossed by a constructed bridge.
+- Added persistent per-world terrain-map tiles under `.minecraft/village-quest/map-cache`. Singleplayer saves, multiplayer servers, dimensions, and map-quality levels remain separated; live loaded terrain refreshes stale tiles, while retention and a size limit prevent unbounded growth.
+- Added safe server and client configuration files under `.minecraft/config/village-quest/`. Reset timezone/day/hour, player-built yards, physical-caravan density, HUD/minimap position and scale, notifications, sounds, marker visibility, map quality/cache limits, and tutorial hints can now be configured without changing saves.
+- Added `Reduced` and `Map only` physical-caravan modes. The virtual economy and moving map markers continue normally; reduced mode uses one nearby trader, while map-only mode avoids physical incidents that could not be resolved without NPCs.
+- Added the read-only `/vq diagnose` support report. It shows the active reset zone, route/home state, physical-caravan mode, route progress, road quality, waypoints, incidents, loaded traders, possible stuck groups, and orphaned tagged entities. Admins may inspect another player with `/vq diagnose <player>`.
+- Added a configurable `.` keybind for toggling the Quest Tracker. It shares the clean `Village Quest` controls category with the existing `,` minimap key.
+- Gave all eight active Village Quest tools and relics one coherent Minecraft-style visual family. The Caravan Ledger and Roadwarden Horn now have proper project-specific sprites, while the Magic Shard, Starreach Ring, Merchant's Seal, Shepherd's Flute, Apiarist's Smoker, and Surveyor's Compass received matching hand-finished replacements.
+
+### Bug fixes and improvements
+
+- Extended `Restless Pens: New Pastures` from `930` to `4,800` blocks of horseback travel. Routine distance ticks are now silent, while reaching the full exploration goal keeps its rewarding completion cue.
+- Rebalanced `Bakehouse Help` so its fresh-wheat target includes the grain consumed by the required bread. Following the staged instructions now naturally leaves the complete wheat-and-bread delivery bundle for the Questmaster.
+- Added a visual milestone bar to every expanded Trust card. It shows current progress toward the next unlock or Mastery rank, including the exact reputation target, instead of leaving long-term advancement as plain prose.
+- Corrected the Journal's Prosperity shortcut to follow the same access rule as the server. It now appears after a matching Apiary, Forge, Market, Pasture, or Road Watch project—or existing route access—instead of being exposed by the always-present Village Ledger; the Guide now explains that the Market Charter introduces the provisional first route.
+- Anchored terrain-map cells, height shading, shorelines, and decorative marks to a fixed world grid. Panning now keeps a constant viewport footprint and reveals another part of those same cells instead of choosing a new screen-relative sample set, so returning to the same area preserves its exact illustrated terrain pattern.
+- The full map and minimap now honor client options for player, village, caravan, and route-line visibility. Tracker and minimap position, scale, and background opacity are also applied at render time.
+- Daily and Weekly reset calculations now follow the configured server timezone with daylight-saving-safe boundaries. `AUTO` uses the Java timezone of the integrated or dedicated server, so a US-hosted server no longer inherits a hard-coded Central European reset.
+- Quest feedback sounds and availability/caravan notices now respect each connected player's local preferences. These settings do not alter authoritative quest or route progress.
+- Added isolated regression tests for daily, weekly, non-European timezone, and daylight-saving transitions without changing existing quest turn-in behavior.
+- Rebuilt the Surveyor's Compass as a deterministic 32-frame instrument: only the inset direction dial rotates, the aged-brass housing stays perfectly fixed, and readable cardinal marks preserve the established `N points to the target` behavior.
+- Removed verified duplicate or unreachable runtime resources, including superseded board art, duplicate loot-table paths, orphaned item models, and an unused sound registration. Compatibility registrations and save-facing legacy IDs remain untouched.
+- Restored the Journal Collection icon after the cleanup audit exposed its dynamically constructed resource path; the Collection tab no longer renders as Minecraft's missing-texture tile.
+- Split every special-item description into short translated tooltip lines, keeping Merchant's Seal, the Roadwarden Horn, and the other redesigned items readable across smaller windows and higher GUI scales.
+- Made the current player position unmistakable on both route maps. The full map keeps its larger cyan player marker even before a home node is registered, while the minimap uses the matching icon and preserves live X/Z coordinates when its compact footer cannot fit every network statistic.
+
 ## 2.1.0 - Prosperity & Prestige
 
 Release date: 2026-07-29

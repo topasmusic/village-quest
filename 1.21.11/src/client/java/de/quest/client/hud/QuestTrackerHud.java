@@ -1,11 +1,17 @@
 package de.quest.client.hud;
 
+import de.quest.client.config.VillageQuestClientConfig;
+import de.quest.network.Payloads;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.option.KeyBinding;
 import net.minecraft.text.Text;
-
+import org.lwjgl.glfw.GLFW;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -17,10 +23,21 @@ public final class QuestTrackerHud {
     private static final int COMPLETED_OBJECTIVE_COLOR = 0xFF00AA00;
     private static final Pattern PROGRESS_FRACTION_PATTERN = Pattern.compile("(\\d+)\\s*/\\s*(\\d+)");
     private static TrackerState state = TrackerState.disabled();
+    private static KeyBinding toggleKey;
 
     private QuestTrackerHud() {}
 
     public static void register() {
+        toggleKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.village-quest.quest_tracker", GLFW.GLFW_KEY_PERIOD,
+                TradeRouteMinimapHud.keyCategory()));
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            while (toggleKey.wasPressed()) {
+                if (client.player != null && ClientPlayNetworking.canSend(Payloads.QuestTrackerActionPayload.ID)) {
+                    ClientPlayNetworking.send(new Payloads.QuestTrackerActionPayload());
+                }
+            }
+        });
         HudRenderCallback.EVENT.register(QuestTrackerHud::render);
     }
 
@@ -67,12 +84,28 @@ public final class QuestTrackerHud {
                 contentLines++;
             }
         }
+        VillageQuestClientConfig config = VillageQuestClientConfig.get();
+        float scale = config.questTrackerScale();
+        int logicalWidth = Math.max(1, (int) Math.floor(drawContext.getScaledWindowWidth() / scale));
+        int logicalHeight = Math.max(1, (int) Math.floor(drawContext.getScaledWindowHeight() / scale));
         int boxWidth = maxWidth + 12;
         int boxHeight = contentLines * LINE_HEIGHT + 10;
-        int x = drawContext.getScaledWindowWidth() - boxWidth - 8;
-        int y = 8;
+        int margin = Math.max(4, Math.round(8.0f / scale));
+        int x = switch (config.questTrackerPosition()) {
+            case TOP_LEFT, BOTTOM_LEFT -> margin;
+            case TOP_RIGHT, BOTTOM_RIGHT -> logicalWidth - boxWidth - margin;
+        };
+        int y = switch (config.questTrackerPosition()) {
+            case TOP_LEFT, TOP_RIGHT -> margin;
+            case BOTTOM_LEFT, BOTTOM_RIGHT -> logicalHeight - boxHeight - margin;
+        };
 
-        drawContext.fill(x, y, x + boxWidth, y + boxHeight, 0xA0101010);
+        var matrices = drawContext.getMatrices();
+        matrices.pushMatrix();
+        matrices.scale(scale, scale);
+
+        int backgroundAlpha = Math.round(config.questTrackerBackgroundOpacity() * 255.0f);
+        drawContext.fill(x, y, x + boxWidth, y + boxHeight, backgroundAlpha << 24 | 0x00101010);
         drawContext.fill(x, y, x + boxWidth, y + 1, 0x90D1B277);
         drawContext.fill(x, y + boxHeight - 1, x + boxWidth, y + boxHeight, 0x90302010);
 
@@ -88,6 +121,7 @@ public final class QuestTrackerHud {
                 textY += 2;
             }
         }
+        matrices.popMatrix();
     }
 
     private static void addSection(List<RenderEntry> output,

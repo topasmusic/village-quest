@@ -9,9 +9,7 @@ GUI = ROOT / "src/main/resources/assets/village-quest/textures/gui"
 TARGETS = (
     "journal_board.png",
     "trade_route_board.png",
-    "questmaster_board_v2.png",
     "pilgrim_board_v2.png",
-    "pilgrim_board_rumor_v2.png",
 )
 MAX_SHADOW_CHANNEL = 48
 
