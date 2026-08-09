@@ -1,5 +1,6 @@
 package de.quest.client.screen;
 
+import de.quest.client.config.VillageQuestClientConfig;
 import de.quest.VillageQuest;
 import de.quest.client.ui.SurfaceMapRenderer;
 import de.quest.client.ui.VillageUiTheme;
@@ -52,6 +53,8 @@ public final class TradeRouteMapScreen extends CompatScreen {
     };
     private static final int ROAD_SHADOW = 0xFF604A31;
     private static final int ROAD = 0xFFD2B275;
+    private static final int FERRY_SHADOW = 0xFF31515A;
+    private static final int FERRY_ROUTE = 0xFF6EB7C4;
     private static final double[] ZOOM_FACTORS = {1.0, 0.70, 0.48, 0.32};
 
     private Payloads.TradeRouteMapPayload data;
@@ -263,9 +266,11 @@ public final class TradeRouteMapScreen extends CompatScreen {
 
     private void drawRoutesOnMap(GuiGraphics graphics, Bounds bounds, int left, int top,
                                  int mouseX, int mouseY) {
+        VillageQuestClientConfig config = VillageQuestClientConfig.get();
         Payloads.TradeRouteNodeData home = data.nodes().stream()
                 .filter(Payloads.TradeRouteNodeData::home).findFirst().orElse(null);
         if (home == null) {
+            drawPlayerMarker(graphics, bounds, left, top, mouseX, mouseY, config);
             return;
         }
         for (Payloads.TradeRouteLineData route : sortedRoutes()) {
@@ -274,41 +279,62 @@ public final class TradeRouteMapScreen extends CompatScreen {
                 continue;
             }
             List<WorldPoint> path = routePath(home, destination, route);
-            for (int i = 1; i < path.size(); i++) {
-                Point from = pointFor(path.get(i - 1).x, path.get(i - 1).z, bounds, left, top, false);
-                Point to = pointFor(path.get(i).x, path.get(i).z, bounds, left, top, false);
-                drawLine(graphics, from.x, from.y, to.x, to.y, ROAD_SHADOW,
-                        route.routeIndex() == selectedRoute ? 4 : 3);
-                drawLine(graphics, from.x, from.y, to.x, to.y, ROAD,
-                        route.routeIndex() == selectedRoute ? 3 : 2);
-                drawLine(graphics, from.x, from.y, to.x, to.y,
-                        routeColorByIndex(route.liveryIndex()), route.routeIndex() == selectedRoute ? 2 : 1);
+            if (config.showRouteLines()) {
+                for (int i = 1; i < path.size(); i++) {
+                    Point from = pointFor(path.get(i - 1).x, path.get(i - 1).z, bounds, left, top, false);
+                    Point to = pointFor(path.get(i).x, path.get(i).z, bounds, left, top, false);
+                    boolean ferry = path.get(i - 1).ocean || path.get(i).ocean;
+                    if (ferry) {
+                        drawDashedLine(graphics, from.x, from.y, to.x, to.y, FERRY_SHADOW,
+                                route.routeIndex() == selectedRoute ? 4 : 3, 6, 3);
+                        drawDashedLine(graphics, from.x, from.y, to.x, to.y, FERRY_ROUTE,
+                                route.routeIndex() == selectedRoute ? 2 : 1, 6, 3);
+                    } else {
+                        drawLine(graphics, from.x, from.y, to.x, to.y, ROAD_SHADOW,
+                                route.routeIndex() == selectedRoute ? 4 : 3);
+                        drawLine(graphics, from.x, from.y, to.x, to.y, ROAD,
+                                route.routeIndex() == selectedRoute ? 3 : 2);
+                        drawLine(graphics, from.x, from.y, to.x, to.y,
+                                routeColorByIndex(route.liveryIndex()), route.routeIndex() == selectedRoute ? 2 : 1);
+                    }
+                }
             }
             if (route.routeIndex() == selectedRoute) {
                 for (Payloads.TradeRoutePointData waypoint : route.waypoints()) {
                     Point point = pointFor(waypoint.worldX(), waypoint.worldZ(), bounds, left, top, false);
-                    VillageUiTheme.drawMarker(graphics, "waypoint", point.x, point.y, 11);
+                    VillageUiTheme.drawMarker(graphics, waypoint.ocean() ? "ferry" : "waypoint",
+                            point.x, point.y, waypoint.ocean() ? 13 : 11);
                     if (Math.abs(mouseX - point.x) <= 7 && Math.abs(mouseY - point.y) <= 7) {
-                        graphics.setTooltipForNextFrame(font,
-                                Component.literal("[" + waypoint.worldX() + ", " + waypoint.worldZ() + "]"),
-                                mouseX, mouseY);
+                        List<Component> tooltip = new ArrayList<>();
+                        if (waypoint.ocean()) {
+                            tooltip.add(Component.translatable(
+                                    "screen.village-quest.trade_route.ferry_waypoint"));
+                        }
+                        tooltip.add(Component.literal("[" + waypoint.worldX() + ", " + waypoint.worldZ() + "]"));
+                        graphics.setTooltipForNextFrame(font, tooltip, mouseX, mouseY);
                     }
                 }
             }
             Payloads.TradeRouteCaravanData caravan = data.caravans().stream()
                     .filter(value -> value.routeIndex() == route.routeIndex()).findFirst().orElse(null);
-            if (caravan != null) {
+            if (caravan != null && config.showCaravanMarkers()) {
                 WorldPoint world = pointAlong(path, caravan.progress());
                 Point point = pointFor(world.x, world.z, bounds, left, top, false);
                 VillageUiTheme.drawMarker(graphics,
-                        route.eventLabel().getString().isEmpty() ? "caravan" : "danger",
+                        caravan.ferry() || caravan.boarding() ? "ferry"
+                                : route.eventLabel().getString().isEmpty() ? "caravan" : "danger",
                         point.x, point.y, route.routeIndex() == selectedRoute ? 22 : 18);
                 if (Math.abs(mouseX - point.x) <= 11 && Math.abs(mouseY - point.y) <= 11) {
                     List<Component> tooltip = new ArrayList<>();
                     tooltip.add(route.name());
                     tooltip.add(Component.translatable("screen.village-quest.trade_route.caravan_coordinates",
                             (int) Math.round(world.x), (int) Math.round(world.z)));
-                    tooltip.add(Component.translatable(caravan.materialized()
+                    tooltip.add(caravan.boarding()
+                            ? Component.translatable("screen.village-quest.trade_route.ferry_boarding")
+                            : caravan.ferry()
+                            ? Component.translatable("screen.village-quest.trade_route.ferry_crossing",
+                            formatEta(caravan.ferrySecondsRemaining()))
+                            : Component.translatable(caravan.materialized()
                             ? "screen.village-quest.trade_route.caravan_nearby"
                             : "screen.village-quest.trade_route.caravan_simulated"));
                     if (!route.eventLabel().getString().isEmpty()) {
@@ -319,31 +345,40 @@ public final class TradeRouteMapScreen extends CompatScreen {
                 }
             }
         }
-        for (Payloads.TradeRouteNodeData node : data.nodes()) {
-            Point point = pointFor(node.worldX(), node.worldZ(), bounds, left, top, false);
-            VillageUiTheme.drawMarker(graphics, node.home() ? "home" : "village",
-                    point.x, point.y, node.home() ? 27 : 22);
-            boolean hovered = Math.abs(mouseX - point.x) <= 13 && Math.abs(mouseY - point.y) <= 13;
-            if (hovered) {
-                List<Component> tooltip = new ArrayList<>();
-                tooltip.add(node.name());
-                tooltip.add(Component.literal("X " + node.worldX() + "  Z " + node.worldZ()));
-                graphics.setTooltipForNextFrame(font, tooltip, mouseX, mouseY);
-            } else if (zoomLevel >= 2) {
-                String label = VillageUiTheme.ellipsize(font, node.name().getString(), 80);
-                graphics.drawString(font, label, point.x - font.width(label) / 2,
-                        point.y + (node.home() ? 14 : 12), INK, false);
+        if (config.showVillageMarkers()) {
+            for (Payloads.TradeRouteNodeData node : data.nodes()) {
+                Point point = pointFor(node.worldX(), node.worldZ(), bounds, left, top, false);
+                String marker = node.playerYard() ? "homestead" : node.home() ? "home" : "village";
+                VillageUiTheme.drawMarker(graphics, marker,
+                        point.x, point.y, node.playerYard() ? 27 : node.home() ? 27 : 22);
+                boolean hovered = Math.abs(mouseX - point.x) <= 13 && Math.abs(mouseY - point.y) <= 13;
+                if (hovered) {
+                    List<Component> tooltip = new ArrayList<>();
+                    tooltip.add(node.name());
+                    tooltip.add(Component.literal("X " + node.worldX() + "  Z " + node.worldZ()));
+                    graphics.setTooltipForNextFrame(font, tooltip, mouseX, mouseY);
+                } else if (zoomLevel >= 2) {
+                    String label = VillageUiTheme.ellipsize(font, node.name().getString(), 80);
+                    graphics.drawString(font, label, point.x - font.width(label) / 2,
+                            point.y + (node.home() ? 14 : 12), INK, false);
+                }
             }
         }
+        drawPlayerMarker(graphics, bounds, left, top, mouseX, mouseY, config);
+    }
+
+    private void drawPlayerMarker(GuiGraphics graphics, Bounds bounds, int left, int top,
+                                  int mouseX, int mouseY, VillageQuestClientConfig config) {
         Minecraft client = Minecraft.getInstance();
-        if (client.player != null) {
-            Point player = pointFor(client.player.getX(), client.player.getZ(), bounds, left, top, true);
-            VillageUiTheme.drawMarker(graphics, "player", player.x, player.y, 17);
-            if (Math.abs(mouseX - player.x) <= 9 && Math.abs(mouseY - player.y) <= 9) {
-                graphics.setTooltipForNextFrame(font,
-                        Component.translatable("screen.village-quest.trade_route.player_coordinates",
-                                client.player.getBlockX(), client.player.getBlockZ()), mouseX, mouseY);
-            }
+        if (client.player == null || !config.showPlayerMarker()) {
+            return;
+        }
+        Point player = pointFor(client.player.getX(), client.player.getZ(), bounds, left, top, true);
+        VillageUiTheme.drawMarker(graphics, "player", player.x, player.y, 21);
+        if (Math.abs(mouseX - player.x) <= 11 && Math.abs(mouseY - player.y) <= 11) {
+            graphics.setTooltipForNextFrame(font,
+                    Component.translatable("screen.village-quest.trade_route.player_coordinates",
+                            client.player.getBlockX(), client.player.getBlockZ()), mouseX, mouseY);
         }
     }
 
@@ -669,8 +704,9 @@ public final class TradeRouteMapScreen extends CompatScreen {
         double factor = ZOOM_FACTORS[zoomLevel];
         int halfWidth = Math.max(64, (int) Math.round((base.maxX - base.minX) * factor / 2.0));
         int halfHeight = Math.max(48, (int) Math.round((base.maxZ - base.minZ) * factor / 2.0));
-        return new Bounds((int) Math.floor(centerX - halfWidth), (int) Math.ceil(centerX + halfWidth),
-                (int) Math.floor(centerZ - halfHeight), (int) Math.ceil(centerZ + halfHeight));
+        int minX = (int) Math.floor(centerX - halfWidth);
+        int minZ = (int) Math.floor(centerZ - halfHeight);
+        return new Bounds(minX, minX + halfWidth * 2, minZ, minZ + halfHeight * 2);
     }
 
     private Bounds networkBounds() {
@@ -728,6 +764,11 @@ public final class TradeRouteMapScreen extends CompatScreen {
                 "screen.village-quest.trade_route.quality_short", route.roadQuality()));
         addWrappedTooltip(tooltip, Component.translatable(
                 "screen.village-quest.trade_route.waypoints", route.waypoints().size()));
+        long ferryPoints = route.waypoints().stream().filter(Payloads.TradeRoutePointData::ocean).count();
+        if (ferryPoints > 0) {
+            addWrappedTooltip(tooltip, Component.translatable(
+                    "screen.village-quest.trade_route.ferry_points", ferryPoints));
+        }
         addWrappedTooltip(tooltip, Component.translatable("screen.village-quest.trade_route.specialization",
                 route.specializationLabel()));
         addWrappedTooltip(tooltip, Component.translatable("screen.village-quest.trade_route.upgrades",
@@ -772,11 +813,11 @@ public final class TradeRouteMapScreen extends CompatScreen {
                                        Payloads.TradeRouteNodeData destination,
                                        Payloads.TradeRouteLineData route) {
         List<WorldPoint> path = new ArrayList<>(route.waypoints().size() + 2);
-        path.add(new WorldPoint(home.worldX(), home.worldZ()));
+        path.add(new WorldPoint(home.worldX(), home.worldZ(), false));
         for (Payloads.TradeRoutePointData waypoint : route.waypoints()) {
-            path.add(new WorldPoint(waypoint.worldX(), waypoint.worldZ()));
+            path.add(new WorldPoint(waypoint.worldX(), waypoint.worldZ(), waypoint.ocean()));
         }
-        path.add(new WorldPoint(destination.worldX(), destination.worldZ()));
+        path.add(new WorldPoint(destination.worldX(), destination.worldZ(), false));
         return path;
     }
 
@@ -796,7 +837,7 @@ public final class TradeRouteMapScreen extends CompatScreen {
             if (remaining <= length) {
                 double factor = remaining / Math.max(0.001, length);
                 return new WorldPoint(from.x + (to.x - from.x) * factor,
-                        from.z + (to.z - from.z) * factor);
+                        from.z + (to.z - from.z) * factor, from.ocean || to.ocean);
             }
             remaining -= length;
         }
@@ -837,6 +878,28 @@ public final class TradeRouteMapScreen extends CompatScreen {
                 y0 += sy;
             }
         }
+    }
+
+    private void drawDashedLine(GuiGraphics graphics, int x0, int y0, int x1, int y1,
+                                int color, int thickness, int dashLength, int gapLength) {
+        double length = Math.hypot(x1 - x0, y1 - y0);
+        if (length <= 0.0) {
+            return;
+        }
+        double cycle = Math.max(1, dashLength + gapLength);
+        for (double start = 0.0; start < length; start += cycle) {
+            double end = Math.min(length, start + dashLength);
+            int sx = (int) Math.round(x0 + (x1 - x0) * (start / length));
+            int sy = (int) Math.round(y0 + (y1 - y0) * (start / length));
+            int ex = (int) Math.round(x0 + (x1 - x0) * (end / length));
+            int ey = (int) Math.round(y0 + (y1 - y0) * (end / length));
+            drawLine(graphics, sx, sy, ex, ey, color, thickness);
+        }
+    }
+
+    private String formatEta(int totalSeconds) {
+        int seconds = Math.max(0, totalSeconds);
+        return String.format("%d:%02d", seconds / 60, seconds % 60);
     }
 
     private int routeColor(int status) {
@@ -898,7 +961,7 @@ public final class TradeRouteMapScreen extends CompatScreen {
 
     private record Bounds(int minX, int maxX, int minZ, int maxZ) {}
     private record Point(int x, int y) {}
-    private record WorldPoint(double x, double z) {
+    private record WorldPoint(double x, double z, boolean ocean) {
         private double distance(WorldPoint other) {
             double dx = other.x - x;
             double dz = other.z - z;

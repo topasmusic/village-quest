@@ -2007,6 +2007,14 @@ public final class DailyQuestService {
         return tunedTarget(WHEAT_TARGET, "daily.wheat.crop");
     }
 
+    /**
+     * Fresh harvest work includes the wheat consumed by the required bread so a
+     * player who follows the stages naturally still retains the delivery bundle.
+     */
+    public static int wheatHarvestTarget() {
+        return wheatTarget() + breadTarget() * 3;
+    }
+
     public static int breadTarget() {
         return tunedTarget(BREAD_TARGET, "daily.wheat.bread");
     }

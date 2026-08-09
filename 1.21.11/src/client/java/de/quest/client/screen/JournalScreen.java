@@ -46,6 +46,7 @@ public class JournalScreen extends ResponsiveScreen {
     private static final float CARD_TITLE_SCALE = 0.84f;
     private static final float CARD_BODY_SCALE = 0.72f;
     private static final int CARD_DETAIL_STEP = 8;
+    private static final int REPUTATION_PROGRESS_HEIGHT = 19;
     private static final int BUTTON_HEIGHT = 18;
     private static final int BUTTON_Y = 203;
     private static final int DONE_BUTTON_WIDTH = 78;
@@ -96,6 +97,8 @@ public class JournalScreen extends ResponsiveScreen {
     private record SpecialItemEntry(String nameKey, String loreKey) {}
 
     private record ProjectEntry(String keyPrefix, boolean unlocked) {}
+
+    private record ReputationProgress(int current, int floor, int target, boolean complete) {}
 
     public static class JournalData {
         public final int total;
@@ -361,6 +364,32 @@ public class JournalScreen extends ResponsiveScreen {
             return;
         }
         int lineY = y + CARD_COLLAPSED_HEIGHT;
+        ReputationService.ReputationTrack reputationTrack = reputationTrack(card);
+        if (reputationTrack != null) {
+            ReputationProgress progress = reputationProgress(reputationTrack);
+            String progressLabel = progress.complete()
+                    ? Text.translatable("screen.village-quest.journal.v2.reputation.progress.complete").getString()
+                    : Text.translatable("screen.village-quest.journal.v2.reputation.progress",
+                            progress.current(), progress.target()).getString();
+            VillageUiTheme.drawStringScaled(graphics, textRenderer,
+                    compact(progressLabel, cardWidth - CARD_TEXT_INSET - 18, 0.64f),
+                    x + CARD_TEXT_INSET, lineY, BODY, 0.64f);
+
+            int barX = x + CARD_TEXT_INSET;
+            int barY = lineY + 9;
+            int barWidth = cardWidth - CARD_TEXT_INSET - 18;
+            graphics.fill(barX, barY, barX + barWidth, barY + 6, FRAME_DARK);
+            graphics.fill(barX + 1, barY + 1, barX + barWidth - 1, barY + 5, 0xFF6A4A2B);
+            int range = Math.max(1, progress.target() - progress.floor());
+            int earned = progress.complete()
+                    ? range
+                    : Math.max(0, Math.min(range, progress.current() - progress.floor()));
+            int filled = Math.round((barWidth - 2) * (earned / (float) range));
+            if (filled > 0) {
+                graphics.fill(barX + 1, barY + 1, barX + 1 + filled, barY + 5, card.accent());
+            }
+            lineY += REPUTATION_PROGRESS_HEIGHT;
+        }
         for (String line : compactDetails(card, cardWidth)) {
             VillageUiTheme.drawStringScaled(graphics, textRenderer, line,
                     x + CARD_TEXT_INSET, lineY, BODY, CARD_BODY_SCALE);
@@ -621,6 +650,7 @@ public class JournalScreen extends ResponsiveScreen {
         return List.of(
                 guide("guide_start", "start", GREEN),
                 guide("guide_quests", "quests", GOLD),
+                guide("guide_prosperity", "prosperity", PURPLE),
                 guide("guide_routes", "routes", TEAL),
                 guide("guide_controls", "controls", BLUE)
         );
@@ -650,7 +680,8 @@ public class JournalScreen extends ResponsiveScreen {
         if (!card.id().equals(expandedCardId)) {
             return CARD_COLLAPSED_HEIGHT;
         }
-        return CARD_COLLAPSED_HEIGHT + 6 + compactDetails(card, width).size() * CARD_DETAIL_STEP;
+        int extra = reputationTrack(card) == null ? 6 : REPUTATION_PROGRESS_HEIGHT + 4;
+        return CARD_COLLAPSED_HEIGHT + extra + compactDetails(card, width).size() * CARD_DETAIL_STEP;
     }
 
     private List<String> compactDetails(JournalCard card, int cardWidth) {
@@ -698,13 +729,13 @@ public class JournalScreen extends ResponsiveScreen {
     }
 
     private boolean canOpenProsperity() {
-        return data.hasVillageLedgerProject
-                || data.hasApiaryCharterProject
+        return data.hasApiaryCharterProject
                 || data.hasForgeCharterProject
                 || data.hasMarketCharterProject
                 || data.hasPastureCharterProject
                 || data.hasWatchBellProject
-                || data.hasCaravanYardProject;
+                || data.hasCaravanYardProject
+                || data.hasCaravanLedger;
     }
 
     private void openProsperity() {
@@ -783,11 +814,64 @@ public class JournalScreen extends ResponsiveScreen {
             }
         }
         if (nextUnlock == null) {
+            int mastery = ReputationService.masteryLevel(value);
+            if (mastery < ReputationService.MAX_MASTERY) {
+                int nextMastery = ReputationService.MASTERY_START
+                        + (mastery + 1) * ReputationService.MASTERY_STEP;
+                return Text.translatable("text.village-quest.reputation.next_mastery",
+                        mastery + 1, nextMastery).getString();
+            }
             return Text.translatable("screen.village-quest.journal.reputation.all_unlocked").getString();
         }
         return Text.translatable("screen.village-quest.journal.reputation.next_unlock",
                 Text.translatable(nextUnlock.titleKey()).getString(),
                 nextUnlock.requiredReputation()).getString();
+    }
+
+    private ReputationService.ReputationTrack reputationTrack(JournalCard card) {
+        if (card == null || !card.id().startsWith("rep_")) {
+            return null;
+        }
+        try {
+            return ReputationService.ReputationTrack.valueOf(card.id().substring(4));
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
+    }
+
+    private ReputationProgress reputationProgress(ReputationService.ReputationTrack track) {
+        int current = reputationValue(track);
+        ReputationService.ReputationUnlock next = ReputationService.nextReputationUnlock(track, current);
+        if (next != null) {
+            int floor = 0;
+            for (ReputationService.ReputationUnlock unlock : ReputationService.reputationUnlocksFor(track)) {
+                if (unlock.requiredReputation() >= next.requiredReputation()) {
+                    break;
+                }
+                floor = unlock.requiredReputation();
+            }
+            return new ReputationProgress(current, floor, next.requiredReputation(), false);
+        }
+
+        int mastery = ReputationService.masteryLevel(current);
+        if (mastery < ReputationService.MAX_MASTERY) {
+            int floor = ReputationService.MASTERY_START + mastery * ReputationService.MASTERY_STEP;
+            int target = floor + ReputationService.MASTERY_STEP;
+            return new ReputationProgress(current, floor, target, false);
+        }
+        int cap = ReputationService.MASTERY_START
+                + ReputationService.MAX_MASTERY * ReputationService.MASTERY_STEP;
+        return new ReputationProgress(Math.max(current, cap), cap - ReputationService.MASTERY_STEP, cap, true);
+    }
+
+    private int reputationValue(ReputationService.ReputationTrack track) {
+        return switch (track) {
+            case FARMING -> data.farmingReputation;
+            case CRAFTING -> data.craftingReputation;
+            case ANIMALS -> data.animalReputation;
+            case TRADE -> data.tradeReputation;
+            case MONSTER_HUNTING -> data.monsterReputation;
+        };
     }
 
     private boolean hasStoryProjectForTrack(ReputationService.ReputationTrack track) {

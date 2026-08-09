@@ -2,15 +2,15 @@
 
 Village Quest uses a single-active-line development policy.
 
-## 2.1.0 parity release
+## 2.1.1 parity release
 
-`Village Quest 2.1.0 - Prosperity & Prestige` was published as the final feature-parity release for:
+By explicit maintainer decision, `Village Quest 2.1.1 - Homesteads & Wayfinding` was published as an additional feature-parity release for:
 
 - Minecraft `26.2`
 - Minecraft `26.1.2`
 - Minecraft `1.21.11`
 
-The release contains the same intended features, fixes, documentation, and resources on all three targets with target-appropriate APIs.
+The release contains the same intended features, fixes, documentation, and resources on all three targets with target-appropriate Mojang or Yarn APIs.
 
 ## Current support policy
 

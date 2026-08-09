@@ -42,8 +42,8 @@ public final class RestlessPensStoryArc implements StoryArcDefinition {
     private static final int EMPTY_TROUGHS_HAY_TARGET = 53;
     private static final int WOOL_BEFORE_WEATHER_SHEAR_TARGET = 29;
     private static final int WOOL_BEFORE_WEATHER_WOOL_TARGET = 57;
-    private static final int NEW_PASTURES_RIDE_TARGET_CM = 93_000;
-    private static final int NEW_PASTURES_RIDE_TARGET_BLOCKS = 930;
+    private static final int NEW_PASTURES_RIDE_TARGET_CM = 480_000;
+    private static final int NEW_PASTURES_RIDE_TARGET_BLOCKS = 4_800;
     private static final int SHEPHERDS_CALL_TARGET = 1;
     private static final int SHEPHERDS_CALL_ANIMAL_TARGET = 9;
 
@@ -318,7 +318,8 @@ public final class RestlessPensStoryArc implements StoryArcDefinition {
 
             int delta = ridden - (baseline - 1);
             if (delta > 0) {
-                StoryQuestService.addQuestIntClamped(world, player.getUUID(), StoryQuestKeys.RESTLESS_PENS_RIDE, delta, NEW_PASTURES_RIDE_TARGET_CM);
+                StoryQuestService.addQuestIntClampedQuietly(world, player.getUUID(), StoryQuestKeys.RESTLESS_PENS_RIDE,
+                        delta, NEW_PASTURES_RIDE_TARGET_CM);
                 StoryQuestService.completeIfEligible(world, player);
             }
             StoryQuestService.setQuestInt(world, player.getUUID(), StoryQuestKeys.RESTLESS_PENS_RIDE_BASELINE, ridden + 1);

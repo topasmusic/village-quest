@@ -73,64 +73,64 @@ public final class ModItems {
         Identifier shardId = id("magic_shard");
         RegistryKey<Item> shardKey = RegistryKey.of(RegistryKeys.ITEM, shardId);
         MAGIC_SHARD = new MagicShardItem(new Item.Settings()
-                .registryKey(shardKey)
-                .component(DataComponentTypes.LORE, lore("item." + VillageQuest.MOD_ID + ".magic_shard.lore")));
+                 .registryKey(shardKey)
+                .component(DataComponentTypes.LORE, loreLines("item." + VillageQuest.MOD_ID + ".magic_shard.lore", 3)));
         Registry.register(Registries.ITEM, shardId, MAGIC_SHARD);
 
         Identifier ringId = id("starreach_ring");
         RegistryKey<Item> ringKey = RegistryKey.of(RegistryKeys.ITEM, ringId);
         STARREACH_RING = new StarreachRingItem(new Item.Settings()
-                .registryKey(ringKey)
-                .maxCount(1)
-                .component(DataComponentTypes.LORE, lore("item." + VillageQuest.MOD_ID + ".starreach_ring.lore")));
+                 .registryKey(ringKey)
+                 .maxCount(1)
+                .component(DataComponentTypes.LORE, loreLines("item." + VillageQuest.MOD_ID + ".starreach_ring.lore", 2)));
         Registry.register(Registries.ITEM, ringId, STARREACH_RING);
 
         Identifier sealId = id("merchant_seal");
         RegistryKey<Item> sealKey = RegistryKey.of(RegistryKeys.ITEM, sealId);
         MERCHANT_SEAL = new MerchantSealItem(new Item.Settings()
-                .registryKey(sealKey)
-                .maxCount(1)
-                .component(DataComponentTypes.LORE, lore("item." + VillageQuest.MOD_ID + ".merchant_seal.lore")));
+                 .registryKey(sealKey)
+                 .maxCount(1)
+                .component(DataComponentTypes.LORE, loreLines("item." + VillageQuest.MOD_ID + ".merchant_seal.lore", 3)));
         Registry.register(Registries.ITEM, sealId, MERCHANT_SEAL);
 
         Identifier fluteId = id("shepherd_flute");
         RegistryKey<Item> fluteKey = RegistryKey.of(RegistryKeys.ITEM, fluteId);
         SHEPHERD_FLUTE = new ShepherdFluteItem(new Item.Settings()
-                .registryKey(fluteKey)
-                .maxCount(1)
-                .component(DataComponentTypes.LORE, lore("item." + VillageQuest.MOD_ID + ".shepherd_flute.lore")));
+                 .registryKey(fluteKey)
+                 .maxCount(1)
+                .component(DataComponentTypes.LORE, loreLines("item." + VillageQuest.MOD_ID + ".shepherd_flute.lore", 2)));
         Registry.register(Registries.ITEM, fluteId, SHEPHERD_FLUTE);
 
         Identifier smokerId = id("apiarists_smoker");
         RegistryKey<Item> smokerKey = RegistryKey.of(RegistryKeys.ITEM, smokerId);
         APIARISTS_SMOKER = new ApiaristSmokerItem(new Item.Settings()
-                .registryKey(smokerKey)
-                .maxCount(1)
-                .component(DataComponentTypes.LORE, lore("item." + VillageQuest.MOD_ID + ".apiarists_smoker.lore")));
+                 .registryKey(smokerKey)
+                 .maxCount(1)
+                .component(DataComponentTypes.LORE, loreLines("item." + VillageQuest.MOD_ID + ".apiarists_smoker.lore", 3)));
         Registry.register(Registries.ITEM, smokerId, APIARISTS_SMOKER);
 
         Identifier compassId = id("surveyors_compass");
         RegistryKey<Item> compassKey = RegistryKey.of(RegistryKeys.ITEM, compassId);
         SURVEYORS_COMPASS = new SurveyorCompassItem(new Item.Settings()
-                .registryKey(compassKey)
-                .maxCount(1)
-                .component(DataComponentTypes.LORE, lore("item." + VillageQuest.MOD_ID + ".surveyors_compass.lore")));
+                 .registryKey(compassKey)
+                 .maxCount(1)
+                .component(DataComponentTypes.LORE, loreLines("item." + VillageQuest.MOD_ID + ".surveyors_compass.lore", 3)));
         Registry.register(Registries.ITEM, compassId, SURVEYORS_COMPASS);
 
         Identifier ledgerId = id("caravan_ledger");
         RegistryKey<Item> ledgerKey = RegistryKey.of(RegistryKeys.ITEM, ledgerId);
         CARAVAN_LEDGER = new CaravanLedgerItem(new Item.Settings()
-                .registryKey(ledgerKey)
-                .maxCount(1)
-                .component(DataComponentTypes.LORE, lore("item." + VillageQuest.MOD_ID + ".caravan_ledger.lore")));
+                 .registryKey(ledgerKey)
+                 .maxCount(1)
+                .component(DataComponentTypes.LORE, loreLines("item." + VillageQuest.MOD_ID + ".caravan_ledger.lore", 4)));
         Registry.register(Registries.ITEM, ledgerId, CARAVAN_LEDGER);
 
         Identifier hornId = id("roadwarden_horn");
         RegistryKey<Item> hornKey = RegistryKey.of(RegistryKeys.ITEM, hornId);
         ROADWARDEN_HORN = new RoadwardenHornItem(new Item.Settings()
-                .registryKey(hornKey)
-                .maxCount(1)
-                .component(DataComponentTypes.LORE, lore("item." + VillageQuest.MOD_ID + ".roadwarden_horn.lore")));
+                 .registryKey(hornKey)
+                 .maxCount(1)
+                .component(DataComponentTypes.LORE, loreLines("item." + VillageQuest.MOD_ID + ".roadwarden_horn.lore", 3)));
         Registry.register(Registries.ITEM, hornId, ROADWARDEN_HORN);
 
         APIARY_CHARTER_PLAQUE = registerBlockItem("apiary_charter_plaque", ModBlocks.APIARY_CHARTER_PLAQUE);
@@ -145,6 +145,14 @@ public final class ModItems {
 
     private static LoreComponent lore(String translationKey) {
         return new LoreComponent(List.of(Text.translatable(translationKey).formatted(Formatting.DARK_GRAY)));
+    }
+
+    private static LoreComponent loreLines(String translationKey, int lineCount) {
+        List<Text> lines = new java.util.ArrayList<>(lineCount);
+        for (int line = 1; line <= lineCount; line++) {
+            lines.add(Text.translatable(translationKey + "." + line) .formatted(Formatting.DARK_GRAY));
+        }
+        return new LoreComponent(List.copyOf(lines));
     }
 
     private static Item registerBlockItem(String path, net.minecraft.block.Block block) {

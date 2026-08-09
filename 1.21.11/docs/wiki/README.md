@@ -43,6 +43,7 @@ The core loop is:
 - [Pilgrim and Roadside Watch](./pilgrim-and-roadside-watch.md)
 - [Quest Reference](./quest-reference.md)
 - [Commands and Admin Tools](./commands-and-admin.md)
+- [Configuration and Map Cache](./configuration.md)
 
 ## At a Glance
 

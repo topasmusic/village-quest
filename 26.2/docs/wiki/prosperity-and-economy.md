@@ -10,6 +10,8 @@ Open the board from the Journal after relevant village progression exists, or us
 
 Existing saves do not restart. Completed charter projects and installed routes are read directly, while all new ranks, commissions, bonuses, collection unlocks, and liveries use persistent player state.
 
+Prosperity is project-gated, not globally trade-route-gated. Completing any matching `Apiary Charter`, `Forge Charter`, `Market Charter`, `Pasture Charter`, or `Watch Bell` project opens the board and its relevant branch. Apiary, Forge, and Pasture investment can therefore begin before a trade route exists. The Market path is the route tutorial: `Market Road Troubles` awards the `Market Charter`, ledger map, and one provisional route; `The Empty Caravan` later expands that preview to the full five-route Caravan Yard.
+
 The board uses the same visual rules as the Journal and Pilgrim Trader. The five section symbols and Collection artwork are centered in their controls, the current Crown/Silvermark balance is always shown with item icons in the upper-right wood header, and every long list uses the same brass-and-oak double-arrow scroll handle.
 
 ## Prosperity Branches

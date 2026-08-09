@@ -1,6 +1,7 @@
 package de.quest.client.hud;
 
 import de.quest.VillageQuest;
+import de.quest.client.config.VillageQuestClientConfig;
 import de.quest.client.screen.TradeRouteMapScreen;
 import de.quest.client.ui.SurfaceMapRenderer;
 import de.quest.client.ui.VillageUiTheme;
@@ -41,6 +42,7 @@ public final class TradeRouteMinimapHud {
     private static final int FLOURISHING = 0xFF2E8C72;
     private static final int CARAVAN = 0xFFFFD45A;
     private static final int PLAYER = 0xFF5FE7FF;
+    private static final int FERRY_ROUTE = 0xFF6EB7C4;
     private static final int[] ROUTE_COLORS = {
             0xFFB9574E, 0xFF3E927B, 0xFF4E78A8, 0xFFB78936, 0xFF7B609D
     };
@@ -48,14 +50,13 @@ public final class TradeRouteMinimapHud {
     private static Payloads.TradeRouteMapPayload data;
     private static boolean enabled;
     private static KeyBinding toggleKey;
+    private static KeyBinding.Category keyCategory;
 
     private TradeRouteMinimapHud() {}
 
     public static void register() {
-        KeyBinding.Category category = KeyBinding.Category.create(
-                Identifier.of(VillageQuest.MOD_ID, "trade_routes"));
         toggleKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.village-quest.trade_route_minimap", GLFW.GLFW_KEY_COMMA, category));
+                "key.village-quest.trade_route_minimap", GLFW.GLFW_KEY_COMMA, keyCategory()));
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (toggleKey.wasPressed()) {
                 if (client.player != null && ClientPlayNetworking.canSend(Payloads.TradeRouteActionPayload.ID)) {
@@ -67,6 +68,14 @@ public final class TradeRouteMinimapHud {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) ->
                 client.execute(TradeRouteMinimapHud::disable));
         HudRenderCallback.EVENT.register((context, tickCounter) -> render(context));
+    }
+
+    public static KeyBinding.Category keyCategory() {
+        if (keyCategory == null) {
+            keyCategory = KeyBinding.Category.create(
+                    Identifier.of(VillageQuest.MOD_ID, "trade_routes"));
+        }
+        return keyCategory;
     }
 
     public static void enable(Payloads.TradeRouteMapPayload payload) {
@@ -96,13 +105,37 @@ public final class TradeRouteMinimapHud {
             return;
         }
 
+        VillageQuestClientConfig config = VillageQuestClientConfig.get();
+        float scale = config.minimapScale();
+        int logicalWidth = Math.max(1, (int) Math.floor(graphics.getScaledWindowWidth() / scale));
+        int logicalHeight = Math.max(1, (int) Math.floor(graphics.getScaledWindowHeight() / scale));
+        int margin = Math.max(4, Math.round(8.0f / scale));
+        int left = switch (config.minimapPosition()) {
+            case TOP_LEFT, BOTTOM_LEFT -> margin;
+            case TOP_RIGHT, BOTTOM_RIGHT -> logicalWidth - WIDTH - margin;
+        };
+        int top = switch (config.minimapPosition()) {
+            case TOP_LEFT, TOP_RIGHT -> margin;
+            case BOTTOM_LEFT, BOTTOM_RIGHT -> logicalHeight - HEIGHT - margin;
+        };
+        var matrices = graphics.getMatrices();
+        matrices.pushMatrix();
+        matrices.scale(scale, scale);
+        renderPanel(graphics, client, current, config, left, top);
+        matrices.popMatrix();
+    }
+
+    private static void renderPanel(DrawContext graphics,
+                                    MinecraftClient client,
+                                    Payloads.TradeRouteMapPayload current,
+                                    VillageQuestClientConfig config,
+                                    int left,
+                                    int top) {
         TextRenderer font = client.textRenderer;
-        int left = 8;
-        int top = 8;
-        graphics.fill(left + 2, top + 2, left + WIDTH + 4, top + HEIGHT + 4, 0x70000000);
-        graphics.fill(left - 2, top - 2, left + WIDTH + 2, top + HEIGHT + 2, 0xEE21140D);
-        graphics.fill(left - 1, top - 1, left + WIDTH + 1, top + HEIGHT + 1, 0xFFB5792E);
-        graphics.fill(left, top, left + WIDTH, top + HEIGHT, 0xFFF0D99F);
+        graphics.fill(left + 2, top + 2, left + WIDTH + 4, top + HEIGHT + 4, alpha(0x70000000, config.minimapOpacity()));
+        graphics.fill(left - 2, top - 2, left + WIDTH + 2, top + HEIGHT + 2, alpha(0xEE21140D, config.minimapOpacity()));
+        graphics.fill(left - 1, top - 1, left + WIDTH + 1, top + HEIGHT + 1, alpha(0xFFB5792E, config.minimapOpacity()));
+        graphics.fill(left, top, left + WIDTH, top + HEIGHT, alpha(0xFFF0D99F, config.minimapOpacity()));
         VillageUiTheme.blitScaled(graphics, VillageUiTheme.control("button_normal"),
                 left + 3, top + 2, WIDTH - 6, 15, 120, 32);
         String title = Text.translatable("hud.village-quest.trade_route_minimap").getString();
@@ -115,13 +148,6 @@ public final class TradeRouteMinimapHud {
         graphics.fill(left + MAP_X, top + MAP_Y,
                 left + MAP_X + MAP_WIDTH, top + MAP_Y + MAP_HEIGHT, PAPER);
 
-        if (current.nodes().isEmpty()) {
-            String empty = Text.translatable("screen.village-quest.trade_route.empty").getString();
-            graphics.drawText(font, empty, left + (WIDTH - font.getWidth(empty)) / 2,
-                    top + MAP_Y + MAP_HEIGHT / 2, 0xFF80694F, false);
-            return;
-        }
-
         Bounds bounds = localBounds(client);
         SurfaceMapRenderer.drawHud(graphics, left + MAP_X, top + MAP_Y, MAP_WIDTH, MAP_HEIGHT,
                 bounds.minX(), bounds.maxX(), bounds.minZ(), bounds.maxZ());
@@ -130,7 +156,9 @@ public final class TradeRouteMinimapHud {
         Payloads.TradeRouteNodeData home = current.nodes().stream()
                 .filter(Payloads.TradeRouteNodeData::home).findFirst().orElse(null);
         if (home == null) {
+            drawPlayerMarker(graphics, client, config, bounds, left, top);
             graphics.disableScissor();
+            drawPositionFooter(graphics, font, client, left, top);
             return;
         }
         List<Payloads.TradeRouteLineData> routes = current.routes().stream()
@@ -143,11 +171,17 @@ public final class TradeRouteMinimapHud {
                 continue;
             }
             List<WorldPoint> path = routePath(home, destination, route);
-            for (int i = 1; i < path.size(); i++) {
-                Point from = pointFor(path.get(i - 1).x(), path.get(i - 1).z(), bounds, left, top, true);
-                Point to = pointFor(path.get(i).x(), path.get(i).z(), bounds, left, top, true);
-                drawLine(graphics, from.x(), from.y(), to.x(), to.y(),
-                        routeColorByIndex(route.liveryIndex()));
+            if (config.showRouteLines()) {
+                for (int i = 1; i < path.size(); i++) {
+                    Point from = pointFor(path.get(i - 1).x(), path.get(i - 1).z(), bounds, left, top, true);
+                    Point to = pointFor(path.get(i).x(), path.get(i).z(), bounds, left, top, true);
+                    if (path.get(i - 1).ocean() || path.get(i).ocean()) {
+                        drawDashedLine(graphics, from.x(), from.y(), to.x(), to.y(), FERRY_ROUTE, 4, 2);
+                    } else {
+                        drawLine(graphics, from.x(), from.y(), to.x(), to.y(),
+                                routeColorByIndex(route.liveryIndex()));
+                    }
+                }
             }
             Payloads.TradeRouteCaravanData caravan = current.caravans().stream()
                     .filter(value -> value.routeIndex() == route.routeIndex()).findFirst().orElse(null);
@@ -159,32 +193,35 @@ public final class TradeRouteMinimapHud {
                 if (caravan.materialized()) {
                     nearby++;
                 }
-                graphics.fill(point.x() - 2, point.y() - 2, point.x() + 3, point.y() + 3,
-                        event ? DANGEROUS : FRAME);
-                graphics.fill(point.x() - 1, point.y() - 1, point.x() + 2, point.y() + 2,
-                        caravan.materialized() ? routeColorByIndex(route.liveryIndex()) : PAPER);
+                if (config.showCaravanMarkers()) {
+                    if (caravan.ferry() || caravan.boarding()) {
+                        VillageUiTheme.drawMarker(graphics, "ferry", point.x(), point.y(), 11);
+                    } else {
+                        graphics.fill(point.x() - 2, point.y() - 2, point.x() + 3, point.y() + 3,
+                                event ? DANGEROUS : FRAME);
+                        graphics.fill(point.x() - 1, point.y() - 1, point.x() + 2, point.y() + 2,
+                                caravan.materialized() ? routeColorByIndex(route.liveryIndex()) : PAPER);
+                    }
+                }
             }
         }
 
-        for (Payloads.TradeRouteNodeData node : current.nodes()) {
-            Point point = pointFor(node.worldX(), node.worldZ(), bounds, left, top, true);
-            graphics.fill(point.x() - 2, point.y() - 2, point.x() + 3, point.y() + 3, FRAME);
-            graphics.fill(point.x() - 1, point.y() - 1, point.x() + 2, point.y() + 2,
-                    node.home() ? HOME : VILLAGE);
+        if (config.showVillageMarkers()) {
+            for (Payloads.TradeRouteNodeData node : current.nodes()) {
+                Point point = pointFor(node.worldX(), node.worldZ(), bounds, left, top, true);
+                graphics.fill(point.x() - 2, point.y() - 2, point.x() + 3, point.y() + 3, FRAME);
+                graphics.fill(point.x() - 1, point.y() - 1, point.x() + 2, point.y() + 2,
+                        node.playerYard() ? 0xFF9A6620 : node.home() ? HOME : VILLAGE);
+            }
         }
 
-        Point player = pointFor(client.player.getX(), client.player.getZ(), bounds, left, top, true);
-        graphics.fill(player.x() - 3, player.y(), player.x() + 4, player.y() + 1, FRAME);
-        graphics.fill(player.x(), player.y() - 3, player.x() + 1, player.y() + 4, FRAME);
-        graphics.fill(player.x() - 2, player.y(), player.x() + 3, player.y() + 1, PLAYER);
-        graphics.fill(player.x(), player.y() - 2, player.x() + 1, player.y() + 3, PLAYER);
+        drawPlayerMarker(graphics, client, config, bounds, left, top);
         graphics.disableScissor();
 
         String footer = Text.translatable("hud.village-quest.trade_route_minimap.footer",
                 routes.size(), nearby, client.player.getBlockX(), client.player.getBlockZ()).getString();
         if (font.getWidth(footer) > WIDTH - 10) {
-            footer = Text.translatable("hud.village-quest.trade_route_minimap.footer_short",
-                    routes.size(), nearby).getString();
+            footer = positionText(client);
         }
         int footerX = left + 5;
         if (hasEvent) {
@@ -192,6 +229,34 @@ public final class TradeRouteMinimapHud {
             footerX += font.getWidth("!") + 3;
         }
         graphics.drawText(font, footer, footerX, top + HEIGHT - 11, INK, false);
+    }
+
+    private static void drawPlayerMarker(DrawContext graphics,
+                                         MinecraftClient client,
+                                         VillageQuestClientConfig config,
+                                         Bounds bounds,
+                                         int left,
+                                         int top) {
+        if (!config.showPlayerMarker()) {
+            return;
+        }
+        Point player = pointFor(client.player.getX(), client.player.getZ(), bounds, left, top, true);
+        VillageUiTheme.drawMarker(graphics, "player", player.x(), player.y(), 11);
+    }
+
+    private static void drawPositionFooter(DrawContext graphics, TextRenderer font, MinecraftClient client,
+                                           int left, int top) {
+        graphics.drawText(font, positionText(client), left + 5, top + HEIGHT - 11, INK, false);
+    }
+
+    private static String positionText(MinecraftClient client) {
+        return "X " + client.player.getBlockX() + "  Z " + client.player.getBlockZ();
+    }
+
+    private static int alpha(int color, float opacity) {
+        int original = color >>> 24;
+        int adjusted = Math.max(0, Math.min(255, Math.round(original * opacity)));
+        return adjusted << 24 | color & 0x00FFFFFF;
     }
 
     private static Bounds localBounds(MinecraftClient client) {
@@ -209,11 +274,11 @@ public final class TradeRouteMinimapHud {
                                               Payloads.TradeRouteNodeData destination,
                                               Payloads.TradeRouteLineData route) {
         List<WorldPoint> path = new ArrayList<>(route.waypoints().size() + 2);
-        path.add(new WorldPoint(home.worldX(), home.worldZ()));
+        path.add(new WorldPoint(home.worldX(), home.worldZ(), false));
         for (Payloads.TradeRoutePointData waypoint : route.waypoints()) {
-            path.add(new WorldPoint(waypoint.worldX(), waypoint.worldZ()));
+            path.add(new WorldPoint(waypoint.worldX(), waypoint.worldZ(), waypoint.ocean()));
         }
-        path.add(new WorldPoint(destination.worldX(), destination.worldZ()));
+        path.add(new WorldPoint(destination.worldX(), destination.worldZ(), false));
         return path;
     }
 
@@ -233,7 +298,7 @@ public final class TradeRouteMinimapHud {
             if (remaining <= distance) {
                 double factor = remaining / distance;
                 return new WorldPoint(from.x() + (to.x() - from.x()) * factor,
-                        from.z() + (to.z() - from.z()) * factor);
+                        from.z() + (to.z() - from.z()) * factor, from.ocean() || to.ocean());
             }
             remaining -= distance;
         }
@@ -277,6 +342,23 @@ public final class TradeRouteMinimapHud {
         }
     }
 
+    private static void drawDashedLine(DrawContext graphics, int x0, int y0, int x1, int y1,
+                                       int color, int dashLength, int gapLength) {
+        double length = Math.hypot(x1 - x0, y1 - y0);
+        if (length <= 0.0) {
+            return;
+        }
+        double cycle = Math.max(1, dashLength + gapLength);
+        for (double start = 0.0; start < length; start += cycle) {
+            double end = Math.min(length, start + dashLength);
+            int sx = (int) Math.round(x0 + (x1 - x0) * (start / length));
+            int sy = (int) Math.round(y0 + (y1 - y0) * (start / length));
+            int ex = (int) Math.round(x0 + (x1 - x0) * (end / length));
+            int ey = (int) Math.round(y0 + (y1 - y0) * (end / length));
+            drawLine(graphics, sx, sy, ex, ey, color);
+        }
+    }
+
     private static int routeColor(int status) {
         return switch (status) {
             case 3 -> FLOURISHING;
@@ -293,7 +375,7 @@ public final class TradeRouteMinimapHud {
 
     private record Point(int x, int y) {}
 
-    private record WorldPoint(double x, double z) {
+    private record WorldPoint(double x, double z, boolean ocean) {
         private double distance(WorldPoint other) {
             double dx = other.x - x;
             double dz = other.z - z;

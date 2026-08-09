@@ -37,9 +37,10 @@ import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.reputation.ReputationService;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.command.argument.EntityArgumentType;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.util.Formatting;
 
 import static net.minecraft.server.command.CommandManager.argument;
@@ -400,6 +401,12 @@ public final class QuestCommands {
                     .then(literal("on").executes(ctx -> setQuestTracker(ctx.getSource(), true)))
                     .then(literal("off").executes(ctx -> setQuestTracker(ctx.getSource(), false)));
 
+            LiteralArgumentBuilder<ServerCommandSource> diagnoseCommand = literal("diagnose")
+                    .executes(ctx -> diagnose(ctx.getSource(), ctx.getSource().getPlayer()))
+                    .then(argument("player", EntityArgumentType.player())
+                            .requires(AdminCommands::canManageRespawn)
+                            .executes(ctx -> diagnose(ctx.getSource(), EntityArgumentType.getPlayer(ctx, "player"))));
+
             LiteralArgumentBuilder<ServerCommandSource> dailyQuestCommand = literal("daily")
                     .then(literal("accept").executes(ctx -> acceptQuest(ctx.getSource())))
                     .then(literal("reroll").executes(ctx -> rerollDailyQuest(ctx.getSource())));
@@ -465,6 +472,7 @@ public final class QuestCommands {
                                                             IntegerArgumentType.getInteger(ctx, "route"))))))
                             .then(literal("supply").executes(ctx -> supplyTradeContract(ctx.getSource()))))
                     .then(literal("register").executes(ctx -> registerRoute(ctx.getSource())))
+                    .then(literal("yard").executes(ctx -> registerYard(ctx.getSource())))
                     .then(literal("rename")
                             .then(argument("route", IntegerArgumentType.integer(1, TradeRouteService.MAX_ROUTES))
                                     .then(argument("name", StringArgumentType.greedyString())
@@ -490,6 +498,7 @@ public final class QuestCommands {
                     .then(prosperityCommand)
                     .then(questMasterCommand)
                     .then(questTrackerCommand)
+                    .then(diagnoseCommand)
                     .then(dailyQuestCommand)
                     .then(partyCommand)
                     .then(walletCommand)
@@ -912,6 +921,18 @@ public final class QuestCommands {
         return 1;
     }
 
+    private static int diagnose(ServerCommandSource source, ServerPlayerEntity player) {
+        if (player == null) {
+            source.sendError(Text.translatable("command.village-quest.diagnose.player_required"));
+            return 0;
+        }
+        ServerWorld world = source.getServer().getOverworld();
+        for (Text line : TradeRouteService.diagnostics(world, player)) {
+            source.sendFeedback(() -> line, false);
+        }
+        return 1;
+    }
+
     private static int openRoutes(ServerCommandSource source) {
         ServerPlayerEntity player = source.getPlayer();
         if (player == null) {
@@ -929,6 +950,11 @@ public final class QuestCommands {
     private static int registerRoute(ServerCommandSource source) {
         ServerPlayerEntity player = source.getPlayer();
         return player != null && TradeRouteService.registerCurrentVillage(source.getServer().getOverworld(), player) ? 1 : 0;
+    }
+
+    private static int registerYard(ServerCommandSource source) {
+        ServerPlayerEntity player = source.getPlayer();
+        return player != null && TradeRouteService.registerPlayerYard(source.getServer().getOverworld(), player) ? 1 : 0;
     }
 
     private static int rerollDailyQuest(ServerCommandSource source) {

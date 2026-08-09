@@ -262,7 +262,8 @@ Each completed stage unlocks the next automatically. Books crafted before the pa
 
 ### Chapter 3: `New Pastures`
 
-- ride `930` blocks on horseback after accepting the chapter
+- ride `4,800` blocks on horseback after accepting the chapter
+- routine distance ticks are deliberately silent; reaching the full route-survey distance still plays the chapter-ready cue
 
 ### Chapter 4: `The Shepherd's Call`
 

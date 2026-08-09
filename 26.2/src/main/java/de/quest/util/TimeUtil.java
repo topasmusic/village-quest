@@ -3,6 +3,7 @@ package de.quest.util;
 import de.quest.config.QuestConfig;
 
 import java.time.Duration;
+import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -14,54 +15,55 @@ public final class TimeUtil {
     private TimeUtil() {}
 
     public static long currentDay() {
-        return currentResetDateTime(QuestConfig.DAILY_RESET_HOUR).toLocalDate().toEpochDay();
+        return currentResetDateTime(now(), QuestConfig.dailyResetHour()).toLocalDate().toEpochDay();
     }
 
     public static long millisUntilNextDailyReset() {
         ZonedDateTime now = now();
-        ZonedDateTime nextReset = nextDailyReset(now);
+        ZonedDateTime nextReset = nextDailyReset(now, QuestConfig.dailyResetHour());
         return Math.max(0L, Duration.between(now, nextReset).toMillis());
     }
 
     public static long currentWeekCycle() {
-        return currentWeeklyResetStart(now()).toLocalDate().toEpochDay();
+        return currentWeeklyResetStart(now(), QuestConfig.weeklyResetDay(), QuestConfig.weeklyResetHour())
+                .toLocalDate().toEpochDay();
     }
 
     public static long millisUntilNextWeeklyReset() {
         ZonedDateTime now = now();
-        ZonedDateTime nextReset = nextWeeklyReset(now);
+        ZonedDateTime nextReset = nextWeeklyReset(
+                now, QuestConfig.weeklyResetDay(), QuestConfig.weeklyResetHour());
         return Math.max(0L, Duration.between(now, nextReset).toMillis());
     }
 
     private static ZonedDateTime now() {
-        return ZonedDateTime.ofInstant(Instant.ofEpochMilli(System.currentTimeMillis()), QuestConfig.DAILY_RESET_ZONE);
+        return ZonedDateTime.ofInstant(Instant.ofEpochMilli(System.currentTimeMillis()), QuestConfig.resetZone());
     }
 
-    private static ZonedDateTime currentResetDateTime(int hour) {
-        ZonedDateTime now = now();
-        ZonedDateTime todayReset = resetAt(now.toLocalDate(), hour);
+    static ZonedDateTime currentResetDateTime(ZonedDateTime now, int hour) {
+        ZonedDateTime todayReset = resetAt(now.toLocalDate(), hour, now.getZone());
         return now.isBefore(todayReset) ? todayReset.minusDays(1) : todayReset;
     }
 
-    private static ZonedDateTime nextDailyReset(ZonedDateTime now) {
-        ZonedDateTime todayReset = resetAt(now.toLocalDate(), QuestConfig.DAILY_RESET_HOUR);
+    static ZonedDateTime nextDailyReset(ZonedDateTime now, int hour) {
+        ZonedDateTime todayReset = resetAt(now.toLocalDate(), hour, now.getZone());
         return now.isBefore(todayReset) ? todayReset : todayReset.plusDays(1);
     }
 
-    private static ZonedDateTime currentWeeklyResetStart(ZonedDateTime now) {
-        LocalDate monday = now.toLocalDate().with(TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY));
-        ZonedDateTime mondayReset = resetAt(monday, QuestConfig.WEEKLY_RESET_HOUR);
-        if (now.isBefore(mondayReset)) {
-            return mondayReset.minusWeeks(1);
+    static ZonedDateTime currentWeeklyResetStart(ZonedDateTime now, DayOfWeek resetWeekday, int hour) {
+        LocalDate resetDay = now.toLocalDate().with(TemporalAdjusters.previousOrSame(resetWeekday));
+        ZonedDateTime weeklyReset = resetAt(resetDay, hour, now.getZone());
+        if (now.isBefore(weeklyReset)) {
+            return weeklyReset.minusWeeks(1);
         }
-        return mondayReset;
+        return weeklyReset;
     }
 
-    private static ZonedDateTime nextWeeklyReset(ZonedDateTime now) {
-        return currentWeeklyResetStart(now).plusWeeks(1);
+    static ZonedDateTime nextWeeklyReset(ZonedDateTime now, DayOfWeek resetWeekday, int hour) {
+        return currentWeeklyResetStart(now, resetWeekday, hour).plusWeeks(1);
     }
 
-    private static ZonedDateTime resetAt(LocalDate date, int hour) {
-        return ZonedDateTime.of(LocalDateTime.of(date, LocalTime.of(hour, 0)), QuestConfig.DAILY_RESET_ZONE);
+    private static ZonedDateTime resetAt(LocalDate date, int hour, java.time.ZoneId zone) {
+        return ZonedDateTime.of(LocalDateTime.of(date, LocalTime.of(hour, 0)), zone);
     }
 }

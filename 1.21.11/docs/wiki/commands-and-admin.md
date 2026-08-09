@@ -13,7 +13,7 @@ All commands are available as `/villagequest ...` and the short alias `/vq ...`.
   Open or close the journal.
 
 - `/vq prosperity`
-  Open the Prosperity, commissions, services, collection, and economy-ledger board after matching progression unlocks access.
+  Open the Prosperity, commissions, services, collection, and economy-ledger board after a matching project or trade route has unlocked access.
 
 - `/vq wallet`
   Show your wallet balance.
@@ -23,6 +23,15 @@ All commands are available as `/villagequest ...` and the short alias `/vq ...`.
 
 - `/vq routes`
   Open the `Caravan Ledger` route map after the `Market Charter` is unlocked.
+
+- `/vq routes minimap`
+  Toggle the compact live trade-network minimap. The configurable default key is `,` under the `Village Quest` controls category.
+
+- `/vq routes yard`
+  Confirm the current safe Overworld position as a player-built Homestead Trade Post after the Market Charter has granted route access. Requires no installed routes and a second confirmation within `30 seconds`; the later Caravan Yard is not required.
+
+- `/vq diagnose`
+  Print a read-only reset, route, caravan, stuck-group, and orphan-entity report. Operators can use `/vq diagnose <player>` for another player.
 
 - `/vq routes guild`
   Show trade-guild rank, score, daily income, escrow, route specialization, road length, quality, and solved incidents.
@@ -43,7 +52,7 @@ All commands are available as `/villagequest ...` and the short alias `/vq ...`.
   Buy a permanent route investment, subject to guild rank and wallet cost.
 
 - `/vq routes register`
-  Register the generated village around the player as a route node.
+  Register the generated, inhabited village around the player as a route node. A generated village with no living normal villagers is rejected.
 
 - `/vq routes remove <1-5>`
   Remove one registered route. Later routes are shifted down into the open slot.
@@ -128,6 +137,8 @@ Quest-party notes:
   Force the tracker on.
 
 - `/vq questtracker off`
+
+The default `.` key toggles the same saved tracker state and can be rebound under `Options -> Controls -> Key Binds -> Village Quest`.
   Force the tracker off.
 
 ## Admin Commands
@@ -205,9 +216,12 @@ Current unlockable project ids:
 ### Trade Routes
 
 - `/vq admin routes testsetup [player]`
+- `/vq admin routes testevent <1-5> <clear|broken_wheel|injured_pack_animal|washed_out_bridge|false_distress|hungry_travelers|road_toll|missing_courier|storm_camp>`
 - `/vq admin routes reset [player]`
 
 `testsetup` is the one-command core test for the Village Quest 2.0 caravan systems. It unlocks the `Caravan Yard`, gives the ledger and a Wayfinder if needed, completes the older story prerequisites, creates five surveyed routes with different security and quality values, adds all route specializations, multiple upgrade states, rank-five guild progress and `300 Silvermarks`, starts two event scenarios, prepares `The Empty Caravan` to be offered by the Questmaster, and opens the route map.
+
+`testevent` replaces the selected route's current incident with one exact event, or clears it. This is the focused QA path for material delivery, courier, ambush, and timed proximity behavior without waiting for a random midpoint roll.
 
 `reset` clears the selected player's registered villages, route progress, route events, earnings, and materialized route NPCs. It does not remove world blocks or revoke unrelated progression.
 
@@ -215,7 +229,14 @@ Current unlockable project ids:
 
 - `/vq admin economy testsetup [player]`
 
-This focused `2.1.0` fixture unlocks the five matching project branches, prepares the five-route test network, sets the wallet to `500 Crowns`, and opens `Prosperity & Prestige`.
+This focused `2.1.0` fixture unlocks the five matching project branches, prepares the five-route test network, sets the wallet to `500 Crowns`, and opens `Prosperity & Prestige`. It is intended for rank-price, discount, commission, service, livery, collection, localization, and persistence QA.
+
+### UI Layout Tests
+
+- `/vq admin uitest questmaster`
+- `/vq admin uitest pilgrim`
+
+These admin-only commands open the real Questmaster dashboard or Pilgrim trader payload without requiring precise NPC interaction. They use current player progression and currency, making them suitable for checking translations, long descriptions, large wallet values, GUI scaling, and reusable component alignment in a real client. For the Questmaster, inspect all four icon tabs, list scrolling, the selected quest detail card, locked/active/claimable states, simultaneous action buttons, reset timers, and the party overlay on a multiplayer client.
 
 ### Pilgrim
 

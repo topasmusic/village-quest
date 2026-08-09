@@ -24,7 +24,7 @@ public class PilgrimTradeScreen extends CompatScreen {
     private record ContractDetailLine(String text, int color, float scale, boolean spacer) {}
 
     private static final Identifier BOARD_TEXTURE = Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "textures/gui/pilgrim_board_v2.png");
-    private static final Identifier RUMOR_BOARD_TEXTURE = Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "textures/gui/pilgrim_board_rumor_v2.png");
+    private static final Identifier RUMOR_BOARD_TEXTURE = BOARD_TEXTURE;
     private static final int BOARD_TEXTURE_WIDTH = 310;
     private static final int BOARD_TEXTURE_HEIGHT = 205;
 

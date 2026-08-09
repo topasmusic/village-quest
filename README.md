@@ -1,8 +1,10 @@
 # Village Quest
 
+Development after the public `2.1.1` release continues only on Minecraft `26.2`. `2.1.1 - Homesteads & Wayfinding` is available with matching features on all three supported Minecraft targets; the two older lines now return to maintenance status.
+
 This repository currently contains three version folders of `Village Quest`.
 
-Current stable release: `2.1.0 - Prosperity & Prestige` for Minecraft `26.2`, `26.1.2`, and `1.21.11`.
+Current stable release: `2.1.1 - Homesteads & Wayfinding` for Minecraft `26.2`, `26.1.2`, and `1.21.11`.
 
 Release highlights:
 

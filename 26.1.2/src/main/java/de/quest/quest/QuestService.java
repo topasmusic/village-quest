@@ -1,6 +1,7 @@
 package de.quest.quest;
 
 import de.quest.content.item.PeaceArmorHandler;
+import de.quest.config.ClientPreferenceService;
 import de.quest.caravan.TradeRouteService;
 import de.quest.content.story.ShadowsTradeRoadEncounterService;
 import de.quest.content.story.EmptyCaravanStoryService;
@@ -172,6 +173,7 @@ public final class QuestService {
         MerchantSealQuestService.handleDisconnect(playerId);
         SurveyorCompassQuestService.handleDisconnect(playerId);
         TradeRouteService.handleDisconnect(playerId);
+        ClientPreferenceService.handleDisconnect(playerId);
         QuestPartyService.handleDisconnect(player);
     }
 
@@ -186,5 +188,6 @@ public final class QuestService {
         ShadowsTradeRoadEncounterService.resetRuntimeState();
         EmptyCaravanStoryService.resetRuntimeState();
         TradeRouteService.resetRuntimeState();
+        ClientPreferenceService.reset();
     }
 }

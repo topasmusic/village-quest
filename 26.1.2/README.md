@@ -2,7 +2,7 @@
 
 `Village Quest` is a Fabric mod built around village progression. Take on daily and weekly work, build reputation, unlock story arcs and village projects, and later deal with the `Pilgrim` and the road beyond the village.
 
-Current release: `2.1.0 - Prosperity & Prestige`, the major village-economy, progression, quest-polish, and interface update.
+Current release: `2.1.1 - Homesteads & Wayfinding`, the base-network, ferry, deterministic-map, configuration, diagnostics, and item-art update.
 
 This is the final planned feature-parity release for the `26.1.2` line. Future content development continues on Minecraft `26.2`.
 
@@ -25,28 +25,33 @@ This is the final planned feature-parity release for the `26.1.2` line. Future c
 - Daily and weekly quests through the `Questmaster`
 - Level-scaled experience rewards that advance the same number of bars at vanilla level `10` or `200+`
 - A unified dark-oak, parchment, brass, and teal interface across the `Questmaster`, `Pilgrim`, Journal, Caravan Ledger, and minimap, including shared icon wallets, an ornate double-arrow scroll handle, one soft ambient/lower-right panel shadow, and a consistent responsive footprint in windowed and fullscreen play
+- A matching project-specific sprite family for the Caravan Ledger, Roadwarden Horn, Wayfinder's Compass, Magic Shard, and all four relic tools; the compass keeps its outer housing fixed while its readable direction dial turns toward the target
 - The compact modular `Questmaster` dashboard separates Daily, Weekly, Story, and Special work into icon tabs, with a dedicated quest list and a scrollable detail card for descriptions, objectives, rewards, and actions
 - One-time Questmaster chat notices announce fresh Daily, Weekly, and Story work; Story cooldowns show a live timer without turning the empty waiting state into a false badge
 - A restrained quest sound ladder distinguishes acceptance, normal progress, completed objectives, stage transitions, and final rewards without turning routine gathering into constant noise
-- A compact five-tab Journal with collapsible progress cards, a quest tracker, and a wallet with `Silvermark` and `Crown`
+- A compact five-tab Journal with collapsible progress cards, visual Trust milestone bars, a quest tracker, and a wallet with `Silvermark` and `Crown`
 - A one-time animated inventory pointer introduces the Journal bookmark and follows its compatibility fallback when another mod changes the inventory layout
 - Reputation across farming, crafting, animals, trade, and later roadside work
 - Story arcs and permanent village projects
 - Five three-rank Prosperity branches that turn completed village projects into permanent Crown investments, discounts, safer roads, and a `15`-rank endgame
+- Prosperity unlocks from the first matching permanent charter; the Market Charter separately introduces the ledger and its provisional first trade route
 - Pilgrim commissions for ordering unlocked goods, five paid village services, a ten-piece prestige collection, and a persistent lifetime economy ledger
 - Five collectible caravan liveries that keep route NPC outfits, full-map lines, and minimap colors synchronized
 - New-player-aware `Market Week` selection that waits until three unlocked Pilgrim purchases are genuinely affordable
 - Existing saves keep their progression and receive missing `Caravan Ledger` or `Roadwarden Horn` unlock items once on login when their old progress already qualifies
 - `The Empty Caravan`, a six-chapter late story with investigation, a moral choice, and a bait-caravan defense
 - A permanent `Caravan Yard` project with up to five persistent village-to-village trade routes
+- An optional player-built `Homestead Trade Post` as the route network's home immediately after the Market Charter, while every connected destination remains a real inhabited vanilla or CTOV village
 - An earlier one-route preview through the `Market Charter`, followed by the five-rank `Village Trade Guild`
 - Daily freight contracts, six route specializations, and six permanent route investments
 - Length-aware route income, daily network limits, and an offline trade-office escrow
 - Persistent route surveys with up to 48 waypoints, so real player-built detours guide the simulation, map, and visible caravans
+- Ocean-only ferry legs with explicit safe-land boarding anchors, a dedicated boat marker, dashed sea lanes, arrival timers, and virtual shore-to-shore travel; observed merchants gather at the dock before departure, while inland lakes and rivers remain land-route obstacles
 - Visible traveling merchant caravans with varied medieval outfits that favor player-built roads without permanently loading chunks
 - Caravan recovery that avoids hazardous ledges, regroups scattered merchants, and safely returns persistently blocked groups to background simulation
-- A smooth, cached terrain-backed `Caravan Ledger` map with left-mouse dragging, village nodes, surveyed route lines, moving caravans, player position, hover details, security, road quality, earnings, emergencies, and route removal
-- A real-time terrain minimap for villages, routes, the player, caravans, and incidents, toggled by the configurable `,` key or `/vq routes minimap`
+- A smooth, world-anchored terrain-backed `Caravan Ledger` map with left-mouse dragging, persistent per-world disk tiles, stable illustrated pixels while panning, village/home nodes, surveyed route lines, moving caravans, player position, hover details, security, road quality, earnings, emergencies, and route removal
+- A real-time terrain minimap for villages, routes, the player, caravans, and incidents, toggled by the configurable `,` key or `/vq routes minimap`; `.` toggles the Quest Tracker under the same clean `Village Quest` controls category
+- Client/server settings under `.minecraft/config/village-quest/` plus `/vq diagnose` for read-only route, timer, and entity health reporting
 - Route registration accepts vanilla and CTOV generated villages only while at least one living normal villager remains, rejecting abandoned and zombie villages
 - Eight recurring route events ranging from broken wheels and washed-out bridges to missing couriers and false distress calls
 - Farming quest progress supports normal crop breaking and compatible right-click-and-replant harvest flows; crop delivery objectives count the full mature Wheat, Potato, or Carrot item yield instead of one point per plant
@@ -75,6 +80,7 @@ Project docs are available in the local wiki:
 - [Pilgrim and Roadside Watch](docs/wiki/pilgrim-and-roadside-watch.md)
 - [Quest Reference](docs/wiki/quest-reference.md)
 - [Commands and Admin Tools](docs/wiki/commands-and-admin.md)
+- [Configuration and Map Cache](docs/wiki/configuration.md)
 
 ## Player Commands
 
@@ -99,6 +105,7 @@ Project docs are available in the local wiki:
 - `/vq routes survey mark`
 - `/vq routes survey finish`
 - `/vq routes survey cancel`
+- `/vq diagnose`
 
 Wallet rate:
 - `10 Silvermarks = 1 Crown`

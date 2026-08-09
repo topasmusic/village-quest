@@ -1,11 +1,24 @@
 package de.quest.config;
 
+import java.time.DayOfWeek;
 import java.time.ZoneId;
 
 public final class QuestConfig {
-    public static final ZoneId DAILY_RESET_ZONE = ZoneId.of("Europe/Berlin");
-    public static final int DAILY_RESET_HOUR = 6;
-    public static final int WEEKLY_RESET_HOUR = 6;
-
     private QuestConfig() {}
+
+    public static ZoneId resetZone() {
+        return VillageQuestServerConfig.get().resetZone();
+    }
+
+    public static int dailyResetHour() {
+        return VillageQuestServerConfig.get().dailyResetHour();
+    }
+
+    public static DayOfWeek weeklyResetDay() {
+        return VillageQuestServerConfig.get().weeklyResetDay();
+    }
+
+    public static int weeklyResetHour() {
+        return VillageQuestServerConfig.get().weeklyResetHour();
+    }
 }

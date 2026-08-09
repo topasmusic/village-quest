@@ -1,9 +1,11 @@
 package de.quest.network;
 
 import de.quest.caravan.TradeRouteService;
+import de.quest.config.ClientPreferenceService;
 import de.quest.economy.ProsperityService;
 import de.quest.pilgrim.PilgrimService;
 import de.quest.quest.QuestBookHelper;
+import de.quest.quest.QuestTrackerService;
 import de.quest.quest.daily.DailyQuestService;
 import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.questmaster.QuestMasterUiService;
@@ -67,6 +69,20 @@ public final class QuestNetworking {
         ServerPlayNetworking.registerGlobalReceiver(Payloads.TradeRouteActionPayload.ID, (payload, context) -> {
             ServerPlayerEntity player = context.player();
             context.server().execute(() -> TradeRouteService.handleMapAction(player, payload));
+        });
+
+        ServerPlayNetworking.registerGlobalReceiver(Payloads.ClientPreferencesPayload.ID, (payload, context) -> {
+            ServerPlayerEntity player = context.player();
+            context.server().execute(() -> {
+                ClientPreferenceService.update(player, payload);
+                QuestTrackerService.applyClientDefault(
+                        context.server().getOverworld(), player, payload.questTrackerEnabledByDefault());
+            });
+        });
+
+        ServerPlayNetworking.registerGlobalReceiver(Payloads.QuestTrackerActionPayload.ID, (payload, context) -> {
+            ServerPlayerEntity player = context.player();
+            context.server().execute(() -> QuestTrackerService.toggle(context.server().getOverworld(), player));
         });
     }
 }
