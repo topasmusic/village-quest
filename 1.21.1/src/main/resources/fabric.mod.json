@@ -1,0 +1,33 @@
+{
+	"schemaVersion": 1,
+	"id": "village-quest",
+	"version": "${version}",
+	"name": "Village Quest",
+	"description": "Village progression through quests, stories, trade routes, visible caravans, guild contracts, reputation, projects, relics, and quest parties.",
+	"authors": [
+		"TopasMusic"
+	],
+	"license": [
+		"LGPL-3.0-only",
+		"LicenseRef-Village-Quest-Assets-ARR"
+	],
+	"icon": "assets/village-quest/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"de.quest.VillageQuest"
+		],
+		"client": [
+			"de.quest.client.VillageQuestClient"
+		]
+	},
+	"mixins": [
+		"village-quest.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.19.3",
+		"minecraft": "~1.21.1",
+		"java": ">=21",
+		"fabric-api": ">=0.116.15+1.21.1"
+	}
+}

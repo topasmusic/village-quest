@@ -1,0 +1,101 @@
+plugins {
+    id 'fabric-loom' version "${loom_version}"
+    id 'maven-publish'
+}
+
+def buildChannel = providers.gradleProperty("build_channel").getOrElse("unreleased")
+        .trim()
+        .toLowerCase(Locale.ROOT)
+if (!["unreleased", "stable"].contains(buildChannel)) {
+    throw new GradleException("build_channel must be either 'unreleased' or 'stable'")
+}
+def unreleasedRevision = providers.gradleProperty("unreleased_revision").getOrElse("").trim()
+if (buildChannel == "unreleased" && !(unreleasedRevision ==~ /[1-9]\d*/)) {
+    throw new GradleException("unreleased_revision must be a positive integer for unreleased builds")
+}
+def resolvedModVersion = buildChannel == "stable"
+        ? project.mod_version.toString()
+        : "${project.mod_version}-unreleased.${unreleasedRevision}"
+
+version = resolvedModVersion
+group = project.maven_group
+
+base {
+    archivesName = project.archives_base_name
+}
+
+repositories {
+    mavenCentral()
+    maven { url = "https://maven.fabricmc.net/" }
+}
+
+loom {
+    splitEnvironmentSourceSets()
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    testImplementation "org.junit.jupiter:junit-jupiter:5.11.4"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher:1.11.4"
+}
+
+tasks.named("test").configure {
+    useJUnitPlatform()
+}
+
+processResources {
+    inputs.property "version", project.version
+    filesMatching("fabric.mod.json") { expand "version": inputs.properties.version }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = 21
+}
+
+java {
+    withSourcesJar()
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+def releaseArchivesBaseName = project.archives_base_name
+def releaseVersion = project.version.toString()
+def releaseMinecraftVersion = project.minecraft_version.toString()
+def releaseFileStem = "${releaseArchivesBaseName}-${releaseVersion}-mc${releaseMinecraftVersion}"
+
+tasks.named("remapJar").configure {
+    archiveFileName = "${releaseFileStem}.jar"
+}
+
+tasks.named("remapSourcesJar").configure {
+    archiveFileName = "${releaseFileStem}-sources.jar"
+}
+
+def bundledLicenseFiles = files(
+        "LICENSE",
+        "COPYING",
+        "COPYING.LESSER",
+        "LICENSE-MIT",
+        "THIRD_PARTY_ASSETS.md",
+        "THIRD_PARTY_NOTICES.md"
+)
+
+tasks.withType(Jar).configureEach {
+    inputs.files(bundledLicenseFiles)
+    from(bundledLicenseFiles) {
+        into("META-INF/village-quest")
+    }
+}
+
+publishing {
+    publications {
+        create("mavenJava", MavenPublication) {
+            artifactId = project.archives_base_name
+            from components.java
+        }
+    }
+}

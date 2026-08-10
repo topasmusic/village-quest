@@ -22,6 +22,7 @@ Local development artifacts use `build_channel=unreleased` plus a positive `unre
 - `26.2/` is the active Minecraft `26.2` Mojang-mapped reference work line.
 - `26.1.2/` is the released Minecraft `26.1.2` Mojang-mapped maintenance port.
 - `1.21.11/` is the released Minecraft `1.21.11` Yarn maintenance port.
+- `1.21.1/` is a local Yarn downport of `2.1.1` onto Minecraft `1.21.1` (build/docs in that folder; not yet part of the published support policy in [VERSION_SUPPORT.md](VERSION_SUPPORT.md)).
 
 Each folder is a self-contained Gradle project. Build and run the folder you actually want to work on.
 Port behavior deliberately between lines; do not copy code blindly because mappings, APIs, Java targets, and client hooks differ.
