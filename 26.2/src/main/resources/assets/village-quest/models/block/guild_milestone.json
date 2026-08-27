@@ -1,0 +1,27 @@
+{
+  "textures": {
+    "stone": "minecraft:block/deepslate_tiles",
+    "stone_bricks": "minecraft:block/deepslate_bricks",
+    "inset": "minecraft:block/polished_deepslate",
+    "brass": "village-quest:block/shrine_brass",
+    "broken_crystal": "village-quest:block/milestone_broken_crystal",
+    "rune": "village-quest:block/shrine_rune_active",
+    "rune_glow": "village-quest:block/shrine_rune_active_e",
+    "particle": "minecraft:block/deepslate_tiles"
+  },
+  "elements": [
+    {"from":[1,0,2],"to":[15,2,14],"faces":{"north":{"texture":"#stone"},"south":{"texture":"#stone"},"east":{"texture":"#stone"},"west":{"texture":"#stone"},"up":{"texture":"#stone"},"down":{"texture":"#stone"}}},
+    {"from":[2,2,3],"to":[14,4,13],"faces":{"north":{"texture":"#stone_bricks"},"south":{"texture":"#stone_bricks"},"east":{"texture":"#stone_bricks"},"west":{"texture":"#stone_bricks"},"up":{"texture":"#stone_bricks"},"down":{"texture":"#stone_bricks"}}},
+    {"from":[4,4,4],"to":[12,14,12],"faces":{"north":{"uv":[0,0,16,16],"texture":"#rune"},"south":{"uv":[0,0,16,16],"texture":"#rune"},"east":{"uv":[0,0,16,16],"texture":"#rune"},"west":{"uv":[0,0,16,16],"texture":"#rune"},"up":{"texture":"#stone_bricks"},"down":{"texture":"#stone_bricks"}}},
+    {"from":[5,14,5],"to":[6,16,11],"faces":{"north":{"texture":"#brass"},"south":{"texture":"#brass"},"east":{"texture":"#brass"},"west":{"texture":"#brass"},"up":{"texture":"#brass"},"down":{"texture":"#brass"}}},
+    {"from":[10,14,5],"to":[11,16,11],"faces":{"north":{"texture":"#brass"},"south":{"texture":"#brass"},"east":{"texture":"#brass"},"west":{"texture":"#brass"},"up":{"texture":"#brass"},"down":{"texture":"#brass"}}},
+    {"from":[6,14,5],"to":[10,16,6],"faces":{"north":{"texture":"#brass"},"south":{"texture":"#brass"},"east":{"texture":"#brass"},"west":{"texture":"#brass"},"up":{"texture":"#brass"},"down":{"texture":"#brass"}}},
+    {"from":[6,14,10],"to":[10,16,11],"faces":{"north":{"texture":"#brass"},"south":{"texture":"#brass"},"east":{"texture":"#brass"},"west":{"texture":"#brass"},"up":{"texture":"#brass"},"down":{"texture":"#brass"}}},
+    {"from":[6,14,6],"to":[10,15.5,10],"faces":{"north":{"texture":"#inset"},"south":{"texture":"#inset"},"east":{"texture":"#inset"},"west":{"texture":"#inset"},"up":{"texture":"#inset"},"down":{"texture":"#inset"}}},
+    {"from":[6,15.51,6],"to":[10,15.53,10],"shade":false,"faces":{"up":{"uv":[0,0,16,16],"texture":"#broken_crystal"}}},
+    {"from":[4,4,3.94],"to":[12,14,3.99],"light_emission":15,"shade":false,"faces":{"north":{"uv":[0,0,16,16],"texture":"#rune_glow"}}},
+    {"from":[4,4,12.01],"to":[12,14,12.06],"light_emission":15,"shade":false,"faces":{"south":{"uv":[0,0,16,16],"texture":"#rune_glow"}}},
+    {"from":[3.94,4,4],"to":[3.99,14,12],"light_emission":15,"shade":false,"faces":{"west":{"uv":[0,0,16,16],"texture":"#rune_glow"}}},
+    {"from":[12.01,4,4],"to":[12.06,14,12],"light_emission":15,"shade":false,"faces":{"east":{"uv":[0,0,16,16],"texture":"#rune_glow"}}}
+  ]
+}

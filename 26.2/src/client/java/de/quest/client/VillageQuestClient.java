@@ -9,9 +9,12 @@ import de.quest.client.render.CaravanMerchantEntityRenderer;
 import de.quest.client.render.PilgrimEntityRenderer;
 import de.quest.client.render.QuestMasterEntityRenderer;
 import de.quest.client.render.TraitorEntityRenderer;
+import de.quest.client.render.WayshrineCrystalRenderer;
 import de.quest.client.ui.InventoryJournalTutorialState;
 import de.quest.registry.ModEntities;
+import de.quest.registry.ModBlockEntities;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.rendering.v1.BlockEntityRendererRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.ModelLayerRegistry;
 import net.minecraft.client.renderer.entity.EntityRenderers;
 
@@ -40,6 +43,7 @@ public class VillageQuestClient implements ClientModInitializer {
         EntityRenderers.register(ModEntities.QUEST_MASTER, QuestMasterEntityRenderer::new);
         EntityRenderers.register(ModEntities.CARAVAN_MERCHANT, CaravanMerchantEntityRenderer::new);
         EntityRenderers.register(ModEntities.TRAITOR, TraitorEntityRenderer::new);
+        BlockEntityRendererRegistry.register(ModBlockEntities.GUILD_WAYSHRINE, WayshrineCrystalRenderer::new);
         ClientQuestNetworking.register();
         QuestTrackerHud.register();
         TradeRouteMinimapHud.register();

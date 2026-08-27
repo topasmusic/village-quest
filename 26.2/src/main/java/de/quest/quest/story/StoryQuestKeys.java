@@ -99,6 +99,21 @@ public final class StoryQuestKeys {
     public static final String EMPTY_CARAVAN_CHOICE_AMNESTY = "empty_caravan_choice_amnesty";
     public static final String EMPTY_CARAVAN_CHOICE_JUSTICE = "empty_caravan_choice_justice";
     public static final String EMPTY_CARAVAN_BAIT_STATE = "empty_caravan_bait_state";
+    public static final String SHRINES_VILLAGES_INSPECTED = "shrines_villages_inspected";
+    public static final String SHRINES_INSPECTED_PREFIX = "shrines_inspected_";
+    public static final String SHRINES_CORE_RECOVERED = "shrines_core_recovered";
+    public static final String SHRINES_TARGET_X = "shrines_target_x";
+    public static final String SHRINES_TARGET_Z = "shrines_target_z";
+    public static final String SHRINES_TARGET_Y = "shrines_target_y";
+    public static final String SHRINES_RUIN_PLACED = "shrines_ruin_placed";
+    public static final String SHRINES_RUIN_SEARCH_ACTIVE = "shrines_ruin_search_active";
+    public static final String SHRINES_CRAFTSPEOPLE = "shrines_craftspeople";
+    public static final String SHRINES_CRAFTSPERSON_PREFIX = "shrines_craftsperson_";
+    public static final String SHRINES_ACTIVATED = "shrines_activated";
+    public static final String SHRINES_TRUSTED_VILLAGES = "shrines_trusted_villages";
+    public static final String SHRINES_RELAY_READY = "shrines_relay_ready";
+    public static final String SHRINES_RELAY_CONTRACT_BASELINE = "shrines_relay_contract_baseline";
+    public static final String SHRINES_RELAY_SUCCESS_BASELINE = "shrines_relay_success_baseline";
 
     private StoryQuestKeys() {}
 }

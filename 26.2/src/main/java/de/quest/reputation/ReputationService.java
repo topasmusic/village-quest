@@ -1,5 +1,7 @@
 package de.quest.reputation;
 
+import de.quest.archive.GuildArchiveService;
+import de.quest.archive.GuildArchiveService.ArchiveItem;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.quest.daily.DailyQuestService;
@@ -166,7 +168,8 @@ public final class ReputationService {
         }
         boolean alreadyPresent = hasRoadwardenHorn(player);
         if (!alreadyPresent) {
-            ItemStack horn = new ItemStack(ModItems.ROADWARDEN_HORN);
+            ItemStack horn = GuildArchiveService.issueInitial(world, player, ArchiveItem.ROADWARDEN_HORN,
+                    new ItemStack(ModItems.ROADWARDEN_HORN));
             if (!player.getInventory().add(horn)) {
                 player.drop(horn, false);
             }

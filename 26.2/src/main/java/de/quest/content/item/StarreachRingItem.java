@@ -1,5 +1,6 @@
 package de.quest.content.item;
 
+import de.quest.archive.GuildArchiveService;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
@@ -17,6 +18,6 @@ public final class StarreachRingItem extends Item {
 
     @Override
     public boolean isFoil(ItemStack stack) {
-        return true;
+        return !GuildArchiveService.isSuperseded(stack);
     }
 }

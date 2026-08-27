@@ -10,6 +10,10 @@ import de.quest.content.item.RoadwardenHornItem;
 import de.quest.content.item.ShepherdFluteItem;
 import de.quest.content.item.StarreachRingItem;
 import de.quest.content.item.SurveyorCompassItem;
+import de.quest.content.item.CartographersLensItem;
+import de.quest.content.item.ShrineRelicItem;
+import de.quest.content.item.GuildCourierSatchelItem;
+import de.quest.content.item.WayfarersSigilItem;
 import java.util.List;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.Registry;
@@ -41,6 +45,19 @@ public final class ModItems {
     public static Item MARKET_CHARTER_PLAQUE;
     public static Item PASTURE_CHARTER_PLAQUE;
     public static Item WATCH_BELL_RELIQUARY;
+    public static Item GUILD_WAYSHRINE;
+    public static Item GUILD_NOTICE_POST;
+    public static Item EMBERGLASS_LANTERN;
+    public static Item GUILD_MILESTONE;
+    public static Item WAYFARERS_SIGIL;
+    public static Item CARTOGRAPHERS_LENS;
+    public static Item GUILD_COURIERS_SATCHEL;
+    public static Item CRACKED_SHRINE_CORE;
+    public static Item RESTORED_SHRINE_CORE;
+    /** Save-facing compatibility only; never exposed through recipes or creative tabs. */
+    public static Item LEGACY_ROADMENDERS_MALLET;
+    public static Item LEGACY_DORMANT_WAYSTONE;
+    public static Item LEGACY_ATTUNED_WAYSTONE;
 
     private static Identifier id(String path) {
         return Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, path);
@@ -73,7 +90,7 @@ public final class ModItems {
         ResourceKey<Item> shardKey = ResourceKey.create(Registries.ITEM, shardId);
         MAGIC_SHARD = new MagicShardItem(new Item.Properties()
                 .setId(shardKey)
-                .component(DataComponents.LORE, loreLines("item." + VillageQuest.MOD_ID + ".magic_shard.lore", 3)));
+                .component(DataComponents.LORE, loreLines("item." + VillageQuest.MOD_ID + ".magic_shard.lore", 4)));
         Registry.register(BuiltInRegistries.ITEM, shardId, MAGIC_SHARD);
 
         Identifier ringId = id("starreach_ring");
@@ -138,6 +155,20 @@ public final class ModItems {
         MARKET_CHARTER_PLAQUE = registerBlockItem("market_charter_plaque", ModBlocks.MARKET_CHARTER_PLAQUE);
         PASTURE_CHARTER_PLAQUE = registerBlockItem("pasture_charter_plaque", ModBlocks.PASTURE_CHARTER_PLAQUE);
         WATCH_BELL_RELIQUARY = registerBlockItem("watch_bell_reliquary", ModBlocks.WATCH_BELL_RELIQUARY);
+        GUILD_WAYSHRINE = registerBlockItem("guild_wayshrine", ModBlocks.GUILD_WAYSHRINE);
+        GUILD_NOTICE_POST = registerBlockItem("guild_notice_post", ModBlocks.GUILD_NOTICE_POST, 16);
+        EMBERGLASS_LANTERN = registerBlockItem("emberglass_lantern", ModBlocks.EMBERGLASS_LANTERN, 64);
+        GUILD_MILESTONE = registerBlockItem("guild_milestone", ModBlocks.GUILD_MILESTONE, 64);
+
+        WAYFARERS_SIGIL = registerSpecial("wayfarers_sigil", WayfarersSigilItem::new, 3);
+        CARTOGRAPHERS_LENS = registerSpecial("cartographers_lens", CartographersLensItem::new, 3);
+        GUILD_COURIERS_SATCHEL = registerSpecial("guild_couriers_satchel", GuildCourierSatchelItem::new, 3);
+        CRACKED_SHRINE_CORE = registerSpecial("cracked_shrine_core", properties -> new ShrineRelicItem(properties, false), 2);
+        RESTORED_SHRINE_CORE = registerSpecial("restored_shrine_core", properties -> new ShrineRelicItem(properties, true), 2);
+
+        LEGACY_ROADMENDERS_MALLET = registerCompatibilityItem("roadmenders_mallet");
+        LEGACY_DORMANT_WAYSTONE = registerCompatibilityItem("dormant_waystone");
+        LEGACY_ATTUNED_WAYSTONE = registerCompatibilityItem("attuned_waystone");
 
         VillageQuest.LOGGER.info("Registered items");
     }
@@ -155,12 +186,35 @@ public final class ModItems {
     }
 
     private static Item registerBlockItem(String path, net.minecraft.world.level.block.Block block) {
+        return registerBlockItem(path, block, 1);
+    }
+
+    private static Item registerBlockItem(String path, net.minecraft.world.level.block.Block block, int stackSize) {
         Identifier itemId = id(path);
         ResourceKey<Item> itemKey = ResourceKey.create(Registries.ITEM, itemId);
         Item item = new BlockItem(block, new Item.Properties()
                 .setId(itemKey)
-                .stacksTo(1)
+                .stacksTo(stackSize)
                 .component(DataComponents.LORE, lore("item." + VillageQuest.MOD_ID + "." + path + ".lore")));
+        Registry.register(BuiltInRegistries.ITEM, itemId, item);
+        return item;
+    }
+
+    private static Item registerSpecial(String path,
+                                        java.util.function.Function<Item.Properties, Item> factory,
+                                        int loreLineCount) {
+        Identifier itemId = id(path);
+        ResourceKey<Item> itemKey = ResourceKey.create(Registries.ITEM, itemId);
+        Item item = factory.apply(new Item.Properties().setId(itemKey).stacksTo(1)
+                .component(DataComponents.LORE, loreLines("item." + VillageQuest.MOD_ID + "." + path + ".lore", loreLineCount)));
+        Registry.register(BuiltInRegistries.ITEM, itemId, item);
+        return item;
+    }
+
+    private static Item registerCompatibilityItem(String path) {
+        Identifier itemId = id(path);
+        ResourceKey<Item> itemKey = ResourceKey.create(Registries.ITEM, itemId);
+        Item item = new Item(new Item.Properties().setId(itemKey).stacksTo(1));
         Registry.register(BuiltInRegistries.ITEM, itemId, item);
         return item;
     }

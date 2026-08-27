@@ -1,0 +1,4 @@
+{
+  "parent":"village-quest:block/guild_wayshrine_inactive",
+  "textures":{"rune":"village-quest:block/shrine_rune_active","rune_glow":"village-quest:block/shrine_rune_active_e","crystal":"village-quest:block/shrine_crystal_active","crystal_glow":"village-quest:block/shrine_crystal_active_e"}
+}

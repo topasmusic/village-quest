@@ -9,6 +9,7 @@ public enum StoryArcType {
     RESTLESS_PENS("restless_pens"),
     SHADOWS_ON_THE_TRADE_ROAD("shadows_on_the_trade_road"),
     THE_EMPTY_CARAVAN("the_empty_caravan"),
+    SHRINES_BETWEEN_ROADS("shrines_between_roads"),
     NIGHT_BELLS("night_bells");
 
     private final String id;
@@ -38,7 +39,8 @@ public enum StoryArcType {
                 RESTLESS_PENS,
                 NIGHT_BELLS,
                 SHADOWS_ON_THE_TRADE_ROAD,
-                THE_EMPTY_CARAVAN
+                THE_EMPTY_CARAVAN,
+                SHRINES_BETWEEN_ROADS
         );
     }
 

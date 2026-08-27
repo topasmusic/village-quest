@@ -1,5 +1,7 @@
 package de.quest.quest.special;
 
+import de.quest.archive.GuildArchiveService;
+import de.quest.archive.GuildArchiveService.ArchiveItem;
 import de.quest.VillageQuest;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
@@ -9,6 +11,9 @@ import de.quest.quest.daily.DailyQuestService;
 import de.quest.questmaster.QuestMasterUiService;
 import de.quest.registry.ModItems;
 import de.quest.util.Texts;
+import de.quest.util.QuestSiteLocator;
+import de.quest.util.QuestMapHelper;
+import de.quest.util.WildernessSiteValidator;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
@@ -22,7 +27,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.stats.Stats;
-import net.minecraft.util.Mth;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -59,6 +63,9 @@ public final class ShardRelicQuestService {
     private static final int MAX_CACHE_ATTEMPTS = 64;
     private static final int CACHE_RESOLVE_DISTANCE = 96;
     private static final int CACHE_SEARCH_RADIUS = 10;
+    private static final int CACHE_SEARCH_INTERVAL = 100;
+    private static final int CACHE_Y_UNRESOLVED = Integer.MIN_VALUE;
+    private static final int CACHE_Y_SEEKING_LAND = Integer.MIN_VALUE + 1;
     private static final Identifier STARREACH_REACH_ID = Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "starreach_ring_reach");
     private static final AttributeModifier STARREACH_REACH_MODIFIER =
             new AttributeModifier(STARREACH_REACH_ID, 2.0, AttributeModifier.Operation.ADD_VALUE);
@@ -457,7 +464,7 @@ public final class ShardRelicQuestService {
         data.setShardRelicEnderPearlProgress(ENDER_PEARL_TARGET);
         data.setShardRelicBlazeRodProgress(BLAZE_ROD_TARGET);
         data.setShardRelicChestX(0);
-        data.setShardRelicChestY(Integer.MIN_VALUE);
+        data.setShardRelicChestY(CACHE_Y_UNRESOLVED);
         data.setShardRelicChestZ(0);
         markDirty(world);
         refreshQuestUi(world, player);
@@ -476,8 +483,14 @@ public final class ShardRelicQuestService {
 
         BlockPos chestPos = chestPos(data);
         if (chestPos == null) {
-            BlockPos targetPos = new BlockPos(data.getShardRelicChestX(), world.getSeaLevel(), data.getShardRelicChestZ());
+            boolean seekingLand = data.getShardRelicChestY() == CACHE_Y_SEEKING_LAND;
+            BlockPos targetPos = seekingLand
+                    ? player.blockPosition()
+                    : new BlockPos(data.getShardRelicChestX(), world.getSeaLevel(), data.getShardRelicChestZ());
             chestPos = resolveCacheChestPos(world, targetPos, true);
+            if (chestPos == null && !seekingLand) {
+                chestPos = resolveCacheChestPos(world, player.blockPosition(), false);
+            }
             if (chestPos == null) {
                 return false;
             }
@@ -520,6 +533,21 @@ public final class ShardRelicQuestService {
             }
             default -> false;
         };
+    }
+
+    public static boolean abandonCacheHunt(ServerLevel world, ServerPlayer player) {
+        if (world == null || player == null) return false;
+        PlayerQuestData data = data(world, player.getUUID());
+        if (data.getShardRelicQuestStage() != ShardRelicQuestStage.CACHE_HUNT || hasStarreachRing(player)) {
+            return false;
+        }
+        QuestMapHelper.removeTaggedMaps(player, "starreach_cache");
+        data.setShardRelicQuestStage(ShardRelicQuestStage.TRIAL_READY);
+        markDirty(world);
+        player.sendSystemMessage(Component.translatable(
+                "message.village-quest.questmaster.special.cache_abandoned").withStyle(ChatFormatting.YELLOW), false);
+        refreshQuestUi(world, player);
+        return true;
     }
 
     private static boolean shouldOfferSpecialQuest(ServerLevel world, ServerPlayer player, PlayerQuestData data) {
@@ -565,7 +593,7 @@ public final class ShardRelicQuestService {
         data.setShardRelicEnderPearlBaseline(0);
         data.setShardRelicBlazeRodBaseline(0);
         data.setShardRelicChestX(0);
-        data.setShardRelicChestY(Integer.MIN_VALUE);
+        data.setShardRelicChestY(CACHE_Y_UNRESOLVED);
         data.setShardRelicChestZ(0);
         markDirty(world);
     }
@@ -658,13 +686,14 @@ public final class ShardRelicQuestService {
 
     private static boolean giveTreasureMap(ServerLevel world, ServerPlayer player, PlayerQuestData data, boolean firstTime) {
         if (!hasCacheTarget(data)) {
-            BlockPos targetPos = findCacheTarget(world, player.blockPosition());
+            BlockPos targetPos = QuestSiteLocator.findDistantLandTarget(world, player.blockPosition(),
+                    MIN_CACHE_DISTANCE, MAX_CACHE_DISTANCE, MAX_CACHE_ATTEMPTS);
             if (targetPos == null) {
                 player.sendSystemMessage(Component.translatable("message.village-quest.questmaster.special.cache_failed").withStyle(ChatFormatting.RED), false);
                 return false;
             }
             data.setShardRelicChestX(targetPos.getX());
-            data.setShardRelicChestY(Integer.MIN_VALUE);
+            data.setShardRelicChestY(CACHE_Y_UNRESOLVED);
             data.setShardRelicChestZ(targetPos.getZ());
         }
 
@@ -694,7 +723,7 @@ public final class ShardRelicQuestService {
     }
 
     private static ItemStack createTreasureMap(ServerLevel world, PlayerQuestData data) {
-        int mapY = data.getShardRelicChestY() == Integer.MIN_VALUE ? world.getSeaLevel() : data.getShardRelicChestY();
+        int mapY = isCachePositionUnresolved(data) ? world.getSeaLevel() : data.getShardRelicChestY();
         ItemStack stack = MapItem.create(world, data.getShardRelicChestX(), data.getShardRelicChestZ(), (byte) 2, true, true);
         MapItem.renderBiomePreviewMap(world, stack);
         MapItemSavedData.addTargetDecoration(
@@ -707,22 +736,8 @@ public final class ShardRelicQuestService {
         stack.set(DataComponents.LORE, new ItemLore(List.of(
                 Component.translatable("item.village-quest.starreach_map.lore").withStyle(ChatFormatting.GRAY)
         )));
+        QuestMapHelper.tag(stack, "starreach_cache");
         return stack;
-    }
-
-    private static BlockPos findCacheTarget(ServerLevel world, BlockPos origin) {
-        for (int attempt = 0; attempt < MAX_CACHE_ATTEMPTS; attempt++) {
-            double angle = world.getRandom().nextDouble() * Math.PI * 2.0;
-            int distance = Mth.nextInt(world.getRandom(), MIN_CACHE_DISTANCE, MAX_CACHE_DISTANCE);
-            int x = origin.getX() + Mth.floor(Math.cos(angle) * distance);
-            int z = origin.getZ() + Mth.floor(Math.sin(angle) * distance);
-
-            if (!world.getWorldBorder().isWithinBounds(new BlockPos(x, world.getSeaLevel(), z))) {
-                continue;
-            }
-            return new BlockPos(x, world.getSeaLevel(), z);
-        }
-        return null;
     }
 
     private static boolean isValidSurface(ServerLevel world, BlockPos pos) {
@@ -772,16 +787,21 @@ public final class ShardRelicQuestService {
     }
 
     private static BlockPos chestPos(PlayerQuestData data) {
-        if (data.getShardRelicChestY() == Integer.MIN_VALUE) {
+        if (isCachePositionUnresolved(data)) {
             return null;
         }
         return new BlockPos(data.getShardRelicChestX(), data.getShardRelicChestY(), data.getShardRelicChestZ());
     }
 
     private static boolean hasCacheTarget(PlayerQuestData data) {
-        return data.getShardRelicChestY() != Integer.MIN_VALUE
+        return !isCachePositionUnresolved(data)
                 || data.getShardRelicChestX() != 0
                 || data.getShardRelicChestZ() != 0;
+    }
+
+    private static boolean isCachePositionUnresolved(PlayerQuestData data) {
+        int y = data.getShardRelicChestY();
+        return y == CACHE_Y_UNRESOLVED || y == CACHE_Y_SEEKING_LAND;
     }
 
     private static void prepareCacheChestIfNearby(ServerLevel world, ServerPlayer player, PlayerQuestData data) {
@@ -791,21 +811,34 @@ public final class ShardRelicQuestService {
         if (data.getShardRelicQuestStage() != ShardRelicQuestStage.CACHE_HUNT || !hasCacheTarget(data)) {
             return;
         }
-        if (data.getShardRelicChestY() != Integer.MIN_VALUE) {
+        if (!isCachePositionUnresolved(data)) {
             ensureCacheChest(world, data);
             return;
         }
-        if ((world.getGameTime() + player.getId()) % 20L != 0L) {
+        if ((world.getGameTime() + player.getId()) % CACHE_SEARCH_INTERVAL != 0L) {
             return;
         }
 
         BlockPos targetPos = new BlockPos(data.getShardRelicChestX(), world.getSeaLevel(), data.getShardRelicChestZ());
-        if (player.blockPosition().distSqr(targetPos) > (double) (CACHE_RESOLVE_DISTANCE * CACHE_RESOLVE_DISTANCE)) {
+        boolean seekingLand = data.getShardRelicChestY() == CACHE_Y_SEEKING_LAND;
+        if (!seekingLand
+                && player.blockPosition().distSqr(targetPos) > (double) (CACHE_RESOLVE_DISTANCE * CACHE_RESOLVE_DISTANCE)) {
             return;
         }
 
-        BlockPos resolved = resolveCacheChestPos(world, targetPos, false);
+        BlockPos searchCenter = seekingLand ? player.blockPosition() : targetPos;
+        BlockPos resolved = resolveCacheChestPos(world, searchCenter, false);
+        if (resolved == null && !seekingLand) {
+            resolved = resolveCacheChestPos(world, player.blockPosition(), false);
+        }
         if (resolved == null) {
+            if (!seekingLand) {
+                data.setShardRelicChestY(CACHE_Y_SEEKING_LAND);
+                markDirty(world);
+                player.sendSystemMessage(Component.translatable(
+                        "message.village-quest.questmaster.special.cache_seek_dry_ground")
+                        .withStyle(ChatFormatting.YELLOW), false);
+            }
             return;
         }
 
@@ -832,15 +865,10 @@ public final class ShardRelicQuestService {
                         continue;
                     }
 
-                    int topY = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
-                    if (topY <= world.getMinY() + 8) {
-                        continue;
-                    }
-
-                    BlockPos surfacePos = new BlockPos(x, topY - 1, z);
-                    if (!isValidSurface(world, surfacePos)) {
-                        continue;
-                    }
+                    BlockPos naturalCenter = WildernessSiteValidator.findNaturalFlatSite(
+                            world, x, z, 2, 4, 1, 2, 64, false);
+                    if (naturalCenter == null) continue;
+                    BlockPos surfacePos = naturalCenter.below();
 
                     BlockPos chestPos = surfacePos.below(2);
                     if (chestPos.getY() <= world.getMinY() + 2) {
@@ -877,16 +905,20 @@ public final class ShardRelicQuestService {
         if (player == null || ModItems.STARREACH_RING == null) {
             return false;
         }
+        ServerLevel world = (ServerLevel) player.level();
         Inventory inventory = player.getInventory();
         for (int i = 0; i < inventory.getContainerSize(); i++) {
-            if (inventory.getItem(i).is(ModItems.STARREACH_RING)) {
+            if (GuildArchiveService.isValidOwnedStack(world, player, inventory.getItem(i),
+                    ArchiveItem.STARREACH_RING)) {
                 return true;
             }
         }
-        return player.getOffhandItem().is(ModItems.STARREACH_RING);
+        return GuildArchiveService.isValidOwnedStack(world, player, player.getOffhandItem(),
+                ArchiveItem.STARREACH_RING);
     }
 
     private static void completeQuest(ServerLevel world, ServerPlayer player, PlayerQuestData data) {
+        QuestMapHelper.removeTaggedMaps(player, "starreach_cache");
         data.setPendingSpecialOfferKind(null);
         data.setShardRelicQuestStage(ShardRelicQuestStage.COMPLETED);
         markDirty(world);
@@ -912,7 +944,8 @@ public final class ShardRelicQuestService {
         if (instance == null) {
             return;
         }
-        boolean shouldHaveBonus = player.getOffhandItem().is(ModItems.STARREACH_RING);
+        boolean shouldHaveBonus = GuildArchiveService.isValidOwnedStack((ServerLevel) player.level(), player,
+                player.getOffhandItem(), ArchiveItem.STARREACH_RING);
         if (shouldHaveBonus) {
             if (!instance.hasModifier(STARREACH_REACH_ID)) {
                 instance.addPermanentModifier(STARREACH_REACH_MODIFIER);

@@ -17,9 +17,9 @@ import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 
-/** Full-screen guild map with a separate route-management view. */
+/** Full-screen guild map with route, village-bond, and guide views. */
 public final class TradeRouteMapScreen extends CompatScreen {
-    private enum ViewMode { MAP, ROUTES, GUIDE }
+    private enum ViewMode { MAP, ROUTES, BONDS, GUIDE }
 
     private static final Identifier BOARD_TEXTURE = Identifier.fromNamespaceAndPath(
             VillageQuest.MOD_ID, "textures/gui/trade_route_board.png");
@@ -29,9 +29,9 @@ public final class TradeRouteMapScreen extends CompatScreen {
     private static final int VIEW_Y = 43;
     private static final int VIEW_WIDTH = 370;
     private static final int VIEW_HEIGHT = 159;
-    private static final int TAB_X = 32;
-    private static final int TAB_Y = 8;
-    private static final int TAB_SIZE = 27;
+    private static final int TAB_X = 25;
+    private static final int TAB_Y = 10;
+    private static final int TAB_SIZE = 22;
     private static final int TAB_GAP = 3;
     private static final int ZOOM_X = VIEW_X + VIEW_WIDTH - 25;
     private static final int ZOOM_Y = VIEW_Y + 34;
@@ -55,12 +55,18 @@ public final class TradeRouteMapScreen extends CompatScreen {
     private static final int ROAD = 0xFFD2B275;
     private static final int FERRY_SHADOW = 0xFF31515A;
     private static final int FERRY_ROUTE = 0xFF6EB7C4;
-    private static final double[] ZOOM_FACTORS = {1.0, 0.70, 0.48, 0.32};
+    private static final double[] ZOOM_FACTORS = {
+            24.0, 16.0, 10.0, 6.0, 3.5, 2.0, 1.0, 0.70, 0.48, 0.32
+    };
+    private static final String[] ZOOM_LABELS = {
+            "4%", "6%", "10%", "17%", "29%", "50%", "100%", "140%", "210%", "310%"
+    };
+    private static final int DEFAULT_ZOOM_LEVEL = 6;
 
     private Payloads.TradeRouteMapPayload data;
     private ViewMode viewMode = ViewMode.MAP;
     private int selectedRoute;
-    private int zoomLevel;
+    private int zoomLevel = DEFAULT_ZOOM_LEVEL;
     private double centerX;
     private double centerZ;
     private boolean centerInitialized;
@@ -141,6 +147,7 @@ public final class TradeRouteMapScreen extends CompatScreen {
             switch (viewMode) {
                 case MAP -> drawMapView(graphics, left, top, uiMouseX, uiMouseY);
                 case ROUTES -> drawRoutesView(graphics, left, top, uiMouseX, uiMouseY);
+                case BONDS -> drawBondsView(graphics, left, top, uiMouseX, uiMouseY);
                 case GUIDE -> drawGuideView(graphics, left, top);
             }
             super.render(graphics, uiMouseX, uiMouseY, delta);
@@ -179,6 +186,7 @@ public final class TradeRouteMapScreen extends CompatScreen {
                 yield super.mouseClicked(click, doubled);
             }
             case ROUTES -> handleRoutesClick(mouseX, mouseY, left, top) || super.mouseClicked(click, doubled);
+            case BONDS -> super.mouseClicked(click, doubled);
             case GUIDE -> super.mouseClicked(click, doubled);
         };
     }
@@ -221,10 +229,11 @@ public final class TradeRouteMapScreen extends CompatScreen {
     }
 
     private void drawTabs(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
-        String[] icons = {"home", "quests", "guide"};
+        String[] icons = {"home", "quests", "trust", "guide"};
         String[] labels = {
                 "screen.village-quest.trade_route.tab.map",
                 "screen.village-quest.trade_route.tab.routes",
+                "screen.village-quest.trade_route.tab.bonds",
                 "screen.village-quest.trade_route.tab.guide"
         };
         for (int i = 0; i < icons.length; i++) {
@@ -233,7 +242,7 @@ public final class TradeRouteMapScreen extends CompatScreen {
             boolean hovered = within(mouseX, mouseY, x, y, TAB_SIZE, TAB_SIZE);
             VillageUiTheme.drawTab(graphics, x, y, TAB_SIZE, TAB_SIZE,
                     viewMode.ordinal() == i, hovered);
-            VillageUiTheme.drawIcon(graphics, VillageUiTheme.icon(icons[i]), x + 5, y + 5, 17);
+            VillageUiTheme.drawIcon(graphics, VillageUiTheme.icon(icons[i]), x + 4, y + 4, 14);
             if (hovered) {
                 graphics.setTooltipForNextFrame(font, Component.translatable(labels[i]), mouseX, mouseY);
             }
@@ -244,6 +253,7 @@ public final class TradeRouteMapScreen extends CompatScreen {
         String key = switch (viewMode) {
             case MAP -> "screen.village-quest.trade_route.title";
             case ROUTES -> "screen.village-quest.trade_route.manage_title";
+            case BONDS -> "screen.village-quest.trade_route.bonds_title";
             case GUIDE -> "screen.village-quest.trade_route.guide_title";
         };
         String value = Component.translatable(key).getString();
@@ -270,6 +280,7 @@ public final class TradeRouteMapScreen extends CompatScreen {
         Payloads.TradeRouteNodeData home = data.nodes().stream()
                 .filter(Payloads.TradeRouteNodeData::home).findFirst().orElse(null);
         if (home == null) {
+            drawShrineMarkers(graphics, bounds, left, top, mouseX, mouseY);
             drawPlayerMarker(graphics, bounds, left, top, mouseX, mouseY, config);
             return;
         }
@@ -346,6 +357,7 @@ public final class TradeRouteMapScreen extends CompatScreen {
             }
         }
         if (config.showVillageMarkers()) {
+            List<LabelBox> placedLabels = new ArrayList<>();
             for (Payloads.TradeRouteNodeData node : data.nodes()) {
                 Point point = pointFor(node.worldX(), node.worldZ(), bounds, left, top, false);
                 String marker = node.playerYard() ? "homestead" : node.home() ? "home" : "village";
@@ -357,14 +369,52 @@ public final class TradeRouteMapScreen extends CompatScreen {
                     tooltip.add(node.name());
                     tooltip.add(Component.literal("X " + node.worldX() + "  Z " + node.worldZ()));
                     graphics.setTooltipForNextFrame(font, tooltip, mouseX, mouseY);
-                } else if (zoomLevel >= 2) {
-                    String label = VillageUiTheme.ellipsize(font, node.name().getString(), 80);
-                    graphics.drawString(font, label, point.x - font.width(label) / 2,
-                            point.y + (node.home() ? 14 : 12), INK, false);
+                } else {
+                    float labelScale = nodeLabelScale();
+                    if (labelScale > 0.0f) {
+                        int renderedLimit = zoomLevel <= 3 ? 52 : zoomLevel <= 5 ? 64 : 80;
+                        String label = compact(node.name().getString(), renderedLimit, labelScale);
+                        float labelWidth = font.width(label) * labelScale;
+                        float labelX = point.x - labelWidth / 2.0f;
+                        float labelY = point.y + (node.home() ? 14 : 12);
+                        LabelBox candidate = new LabelBox(labelX - 2.0f, labelY - 1.0f,
+                                labelX + labelWidth + 2.0f,
+                                labelY + font.lineHeight * labelScale + 1.0f);
+                        if (placedLabels.stream().noneMatch(candidate::overlaps)) {
+                            VillageUiTheme.drawStringScaled(graphics, font, label,
+                                    labelX, labelY, INK, labelScale);
+                            placedLabels.add(candidate);
+                        }
+                    }
                 }
             }
         }
+        drawShrineMarkers(graphics, bounds, left, top, mouseX, mouseY);
         drawPlayerMarker(graphics, bounds, left, top, mouseX, mouseY, config);
+    }
+
+    private void drawShrineMarkers(GuiGraphics graphics, Bounds bounds, int left, int top,
+                                   int mouseX, int mouseY) {
+        for (Payloads.TradeRouteShrineData shrine : data.shrines()) {
+            Point point = pointFor(shrine.worldX(), shrine.worldZ(), bounds, left, top, false);
+            VillageUiTheme.drawMarker(graphics, "shrine", point.x, point.y, 19);
+            if (Math.abs(mouseX - point.x) <= 9 && Math.abs(mouseY - point.y) <= 9) {
+                graphics.setTooltipForNextFrame(font, List.of(shrine.name(), Component.translatable(
+                        "screen.village-quest.trade_route.shrine_coordinates",
+                        shrine.worldX(), shrine.worldY(), shrine.worldZ())), mouseX, mouseY);
+            }
+        }
+        for (Payloads.TradeRouteDecorationData decoration : data.decorations()) {
+            Point point = pointFor(decoration.worldX(), decoration.worldZ(), bounds, left, top, false);
+            VillageUiTheme.drawMarker(graphics, decoration.type() == 0 ? "notice" : "milestone",
+                    point.x, point.y, decoration.type() == 0 ? 13 : 11);
+            if (Math.abs(mouseX - point.x) <= 7 && Math.abs(mouseY - point.y) <= 7) {
+                graphics.setTooltipForNextFrame(font, Component.translatable(
+                        decoration.type() == 0 ? "screen.village-quest.trade_route.notice_coordinates"
+                                : "screen.village-quest.trade_route.milestone_coordinates",
+                        decoration.worldX(), decoration.worldY(), decoration.worldZ()), mouseX, mouseY);
+            }
+        }
     }
 
     private void drawPlayerMarker(GuiGraphics graphics, Bounds bounds, int left, int top,
@@ -402,12 +452,7 @@ public final class TradeRouteMapScreen extends CompatScreen {
                 graphics.setTooltipForNextFrame(font, Component.translatable(labels[i]), mouseX, mouseY);
             }
         }
-        String zoom = switch (zoomLevel) {
-            case 0 -> "100%";
-            case 1 -> "140%";
-            case 2 -> "210%";
-            default -> "310%";
-        };
+        String zoom = ZOOM_LABELS[zoomLevel];
         int zoomWidth = font.width(zoom) + 6;
         int zoomY = top + ZOOM_Y + 3 * (CONTROL_SIZE + CONTROL_GAP) + 1;
         graphics.fill(left + ZOOM_X + CONTROL_SIZE - zoomWidth, zoomY,
@@ -588,6 +633,47 @@ public final class TradeRouteMapScreen extends CompatScreen {
         VillageUiTheme.drawMarker(graphics, "caravan", x + cardWidth - 38, y + 31, 23);
     }
 
+    private void drawBondsView(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
+        int cardWidth = 179;
+        int cardHeight = 34;
+        if (data.bonds().isEmpty()) {
+            VillageUiTheme.drawCard(graphics, left + VIEW_X + 8, top + VIEW_Y + 8,
+                    VIEW_WIDTH - 16, 72, false, true);
+            VillageUiTheme.drawWrappedScaled(graphics, font,
+                    Component.translatable("screen.village-quest.trade_route.bonds_empty").getString(),
+                    left + VIEW_X + 24, top + VIEW_Y + 26, VIEW_WIDTH - 48, MUTED, 0.78f, 4);
+        }
+        for (int i = 0; i < data.bonds().size(); i++) {
+            Payloads.TradeRouteBondData bond = data.bonds().get(i);
+            int column = i / 4;
+            int row = i % 4;
+            int x = left + VIEW_X + column * (cardWidth + 8);
+            int y = top + VIEW_Y + 5 + row * (cardHeight + 4);
+            boolean hovered = within(mouseX, mouseY, x, y, cardWidth, cardHeight);
+            VillageUiTheme.drawCard(graphics, x, y, cardWidth, cardHeight, hovered, false);
+            VillageUiTheme.drawMarker(graphics, "village", x + 15, y + 17, 17);
+            VillageUiTheme.drawStringScaled(graphics, font,
+                    compact(bond.type().getString(), cardWidth - 78, 0.78f), x + 29, y + 6, INK, 0.78f);
+            VillageUiTheme.drawStringScaled(graphics, font,
+                    compact(bond.request().getString(), cardWidth - 38, 0.68f), x + 29, y + 18, BODY, 0.68f);
+            String level = bond.level().getString();
+            VillageUiTheme.drawStringScaled(graphics, font, level,
+                    x + cardWidth - font.width(level) * 0.68f - 7, y + 6, FLOURISHING, 0.68f);
+            if (hovered) {
+                graphics.setTooltipForNextFrame(font, List.of(
+                        bond.type(), bond.level(), bond.request(),
+                        Component.translatable("screen.village-quest.trade_route.bond_coordinates",
+                                bond.worldX(), bond.worldZ()),
+                        Component.translatable("screen.village-quest.trade_route.bond_requests",
+                                bond.completions())), mouseX, mouseY);
+            }
+        }
+        String summary = Component.translatable("screen.village-quest.trade_route.bonds_summary",
+                data.bonds().size(), data.shrines().size()).getString();
+        VillageUiTheme.drawStringScaled(graphics, font, summary,
+                left + VIEW_X + 4, top + FOOTER_Y + 18, MUTED, 0.75f);
+    }
+
     private boolean handleMapClick(int mouseX, int mouseY, int left, int top) {
         for (int i = 0; i < 3; i++) {
             int x = left + ZOOM_X;
@@ -684,12 +770,22 @@ public final class TradeRouteMapScreen extends CompatScreen {
         SurfaceMapRenderer.invalidateScreen();
     }
 
+    private float nodeLabelScale() {
+        return switch (zoomLevel) {
+            case 0, 1 -> 0.0f;
+            case 2 -> 0.50f;
+            case 3 -> 0.60f;
+            case 4 -> 0.70f;
+            case 5 -> 0.82f;
+            default -> 1.0f;
+        };
+    }
+
     private void resetMapCenter(boolean preferPlayer) {
         Minecraft client = Minecraft.getInstance();
         if (preferPlayer && client.player != null) {
             centerX = client.player.getX();
             centerZ = client.player.getZ();
-            zoomLevel = Math.max(1, zoomLevel);
         } else {
             Bounds bounds = networkBounds();
             centerX = (bounds.minX + bounds.maxX) / 2.0;
@@ -733,6 +829,18 @@ public final class TradeRouteMapScreen extends CompatScreen {
                 minZ = Math.min(minZ, point.worldZ());
                 maxZ = Math.max(maxZ, point.worldZ());
             }
+        }
+        for (Payloads.TradeRouteBondData bond : data.bonds()) {
+            minX = Math.min(minX, bond.worldX()); maxX = Math.max(maxX, bond.worldX());
+            minZ = Math.min(minZ, bond.worldZ()); maxZ = Math.max(maxZ, bond.worldZ());
+        }
+        for (Payloads.TradeRouteShrineData shrine : data.shrines()) {
+            minX = Math.min(minX, shrine.worldX()); maxX = Math.max(maxX, shrine.worldX());
+            minZ = Math.min(minZ, shrine.worldZ()); maxZ = Math.max(maxZ, shrine.worldZ());
+        }
+        for (Payloads.TradeRouteDecorationData decoration : data.decorations()) {
+            minX = Math.min(minX, decoration.worldX()); maxX = Math.max(maxX, decoration.worldX());
+            minZ = Math.min(minZ, decoration.worldZ()); maxZ = Math.max(maxZ, decoration.worldZ());
         }
         int paddingX = Math.max(72, (maxX - minX) / 8);
         int paddingZ = Math.max(54, (maxZ - minZ) / 8);
@@ -961,6 +1069,12 @@ public final class TradeRouteMapScreen extends CompatScreen {
 
     private record Bounds(int minX, int maxX, int minZ, int maxZ) {}
     private record Point(int x, int y) {}
+    private record LabelBox(float left, float top, float right, float bottom) {
+        private boolean overlaps(LabelBox other) {
+            return left < other.right && right > other.left
+                    && top < other.bottom && bottom > other.top;
+        }
+    }
     private record WorldPoint(double x, double z, boolean ocean) {
         private double distance(WorldPoint other) {
             double dx = other.x - x;

@@ -15,20 +15,33 @@ import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 public final class WallPlaqueBlock extends HorizontalDirectionalBlock {
-    private static final double MIN_X = 2.75d;
-    private static final double MAX_X = 13.25d;
-    private static final double MIN_Y = 1.0d;
-    private static final double MAX_Y = 15.0d;
-    private static final double MIN_Z = 2.75d;
-    private static final double MAX_Z = 13.25d;
+    private static final double CORE_MIN = 2.0d;
+    private static final double CORE_MAX = 14.0d;
+    private static final double CAP_MIN = 0.75d;
+    private static final double CAP_MAX = 15.25d;
+    private static final double CAP_BAND_MIN = 5.0d;
+    private static final double CAP_BAND_MAX = 11.0d;
     private static final double DEPTH = 1.5d;
-    private static final VoxelShape NORTH_SHAPE = Block.box(MIN_X, MIN_Y, 16.0d - DEPTH, MAX_X, MAX_Y, 16.0d);
-    private static final VoxelShape SOUTH_SHAPE = Block.box(MIN_X, MIN_Y, 0.0d, MAX_X, MAX_Y, DEPTH);
-    private static final VoxelShape EAST_SHAPE = Block.box(0.0d, MIN_Y, MIN_Z, DEPTH, MAX_Y, MAX_Z);
-    private static final VoxelShape WEST_SHAPE = Block.box(16.0d - DEPTH, MIN_Y, MIN_Z, 16.0d, MAX_Y, MAX_Z);
+    private static final VoxelShape NORTH_SHAPE = Shapes.or(
+            Block.box(CORE_MIN, CORE_MIN, 16.0d - DEPTH, CORE_MAX, CORE_MAX, 16.0d),
+            Block.box(CAP_BAND_MIN, CAP_MIN, 16.0d - DEPTH, CAP_BAND_MAX, CAP_MAX, 16.0d),
+            Block.box(CAP_MIN, CAP_BAND_MIN, 16.0d - DEPTH, CAP_MAX, CAP_BAND_MAX, 16.0d));
+    private static final VoxelShape SOUTH_SHAPE = Shapes.or(
+            Block.box(CORE_MIN, CORE_MIN, 0.0d, CORE_MAX, CORE_MAX, DEPTH),
+            Block.box(CAP_BAND_MIN, CAP_MIN, 0.0d, CAP_BAND_MAX, CAP_MAX, DEPTH),
+            Block.box(CAP_MIN, CAP_BAND_MIN, 0.0d, CAP_MAX, CAP_BAND_MAX, DEPTH));
+    private static final VoxelShape EAST_SHAPE = Shapes.or(
+            Block.box(0.0d, CORE_MIN, CORE_MIN, DEPTH, CORE_MAX, CORE_MAX),
+            Block.box(0.0d, CAP_MIN, CAP_BAND_MIN, DEPTH, CAP_MAX, CAP_BAND_MAX),
+            Block.box(0.0d, CAP_BAND_MIN, CAP_MIN, DEPTH, CAP_BAND_MAX, CAP_MAX));
+    private static final VoxelShape WEST_SHAPE = Shapes.or(
+            Block.box(16.0d - DEPTH, CORE_MIN, CORE_MIN, 16.0d, CORE_MAX, CORE_MAX),
+            Block.box(16.0d - DEPTH, CAP_MIN, CAP_BAND_MIN, 16.0d, CAP_MAX, CAP_BAND_MAX),
+            Block.box(16.0d - DEPTH, CAP_BAND_MIN, CAP_MIN, 16.0d, CAP_BAND_MAX, CAP_MAX));
 
     public WallPlaqueBlock(BlockBehaviour.Properties settings) {
         super(settings);

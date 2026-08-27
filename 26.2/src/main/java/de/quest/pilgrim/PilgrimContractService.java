@@ -1,5 +1,7 @@
 package de.quest.pilgrim;
 
+import de.quest.archive.GuildArchiveService;
+import de.quest.archive.GuildArchiveService.ArchiveItem;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.economy.CurrencyService;
@@ -566,7 +568,7 @@ public final class PilgrimContractService {
 
             @Override
             public boolean consumeCompletionRequirements(ServerLevel world, ServerPlayer player) {
-                return hasInventoryItems(player, ModItems.SURVEYORS_COMPASS, 1);
+                return GuildArchiveService.hasValidInInventory(world, player, ArchiveItem.SURVEYORS_COMPASS);
             }
         };
     }

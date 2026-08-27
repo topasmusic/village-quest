@@ -1,29 +1,22 @@
 # Village Quest Wiki
 
-This wiki covers the shared `Village Quest 2.0` release and the active three-line development of `2.1.0 - Prosperity & Prestige`.
+This wiki covers the published `Village Quest 2.2.0 - The Shrines Between Roads` content release for Minecraft `26.2` and the maintained `2.1.1 - Homesteads & Wayfinding` baseline on the two older targets.
 
 Current stable release:
-- `2.0.0 - Roads Between Villages` for Minecraft `1.21.11`, `26.1.2`, and `26.2` on `2026-07-19`
 
-Current major release:
-- `2.0.0 - Roads Between Villages` is published across all three maintained lines
-- it adds `The Empty Caravan`, an early Market-Charter route, the `Caravan Yard`, five persistent surveyed routes, visible caravans, the waypoint-aware ledger map, the five-rank Village Trade Guild, freight contracts, specializations, upgrades, road quality, and recurring route events
+- `2.2.0 - The Shrines Between Roads` for Minecraft `26.2`;
+- `2.1.1 - Homesteads & Wayfinding` for Minecraft `26.1.2` and `1.21.11`;
+- Minecraft `26.1.2` and `1.21.11` remain maintenance lines for confirmed bug, save-safety, exploit, and meaningful performance fixes rather than receiving content-parity builds.
 
-Current highlights:
-- complete resets now reliably clear quest parties and shared multiplayer state as well
-- `Restless Pens` shows both finale requirements correctly in all three shipped languages
-- multiplayer quest parties are now available on dedicated servers
-- the release builds for Minecraft `1.21.11`, `26.1.2`, and `26.2`
-- `Daily`, `Weekly`, the main `Story` arcs, and normal `Pilgrim` combat contracts can be shared cooperatively
-- repeatable quests now use more varied target numbers and rewards that scale with them
-- quest experience now advances bounded level bars, keeping rewards relevant even for players above vanilla level `200`
-- a full Spanish localization is now available, with the original translation provided by `Lutte`
-- the `Questmaster` has a dedicated party view, and the journal keeps the `Questmaster` button visible on every page
-- the reported `Bendable Cuboids` and `MTGCard` client conflicts now have dedicated fallbacks on this line
-- the late `Questmaster` story arc `Shadows on the Trade Road` remains part of the current stable content
-- `The Empty Caravan` turns that road story into a persistent trade-route endgame
-- all three maintained lines share the unified medieval-Minecraft UI, compact card-based Journal, terrain-backed full map and minimap, varied caravan outfits, and the latest formation and recovery hardening
-- all three active development lines add five three-rank Prosperity branches, Pilgrim commissions, paid village services, a prestige collection, and an economy ledger
+Village Quest 2.2 highlights:
+
+- `The Shrines Between Roads`, a six-chapter continuation after the Caravan Yard;
+- persistent village identities, multi-day Guild Notice Board requests, and Known/Trusted/Allied Wayshrine terms;
+- owner-bound two-block Wayshrines, shared charges, destination travel, safe arrivals, and guest access;
+- the journal `Guild Atlas` with the painted Guild Path, Charter map, and static five-track Trust roster;
+- the Guild Archive for server-authoritative recovery of unique tools;
+- new shrine blocks, relics, recipes, route incidents, and the optional Guild Courier's Satchel;
+- complete English, German, and Spanish localization with responsive native Village Quest interfaces.
 
 The core loop is:
 - help a village through grounded daily and weekly work
@@ -39,6 +32,7 @@ The core loop is:
 - [Prosperity and the Village Economy](./prosperity-and-economy.md)
 - [Stories and Village Projects](./stories-and-projects.md)
 - [Trade Routes and Caravans](./trade-routes-and-caravans.md)
+- [The Shrines Between Roads](./shrines-between-roads.md)
 - [Relics, Wayfinder, and Magic Shards](./relics-and-shards.md)
 - [Pilgrim and Roadside Watch](./pilgrim-and-roadside-watch.md)
 - [Quest Reference](./quest-reference.md)

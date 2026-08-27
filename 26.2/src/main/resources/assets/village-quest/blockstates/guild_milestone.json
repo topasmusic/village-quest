@@ -1,0 +1,1 @@
+{"variants":{"facing=north":{"model":"village-quest:block/guild_milestone"},"facing=east":{"model":"village-quest:block/guild_milestone","y":90},"facing=south":{"model":"village-quest:block/guild_milestone","y":180},"facing=west":{"model":"village-quest:block/guild_milestone","y":270}}}

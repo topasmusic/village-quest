@@ -1,6 +1,9 @@
 package de.quest.content.item;
 
+import de.quest.archive.GuildArchiveService;
+import de.quest.archive.GuildArchiveService.ArchiveItem;
 import de.quest.caravan.TradeRouteService;
+import de.quest.shrine.VillageBondService;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -24,13 +27,19 @@ public final class CaravanLedgerItem extends Item {
 
     @Override
     public boolean isFoil(ItemStack stack) {
-        return true;
+        return !GuildArchiveService.isSuperseded(stack);
     }
 
     @Override
     public InteractionResult use(Level level, Player player, InteractionHand hand) {
         if (!(level instanceof ServerLevel world) || !(player instanceof ServerPlayer serverPlayer)) {
             return InteractionResult.SUCCESS;
+        }
+        if (!GuildArchiveService.validateUse(world, serverPlayer,
+                player.getItemInHand(hand), ArchiveItem.CARAVAN_LEDGER)) return InteractionResult.FAIL;
+        if (player.isShiftKeyDown()) {
+            InteractionResult villageInspection = VillageBondService.useInstalledLedgerLens(world, serverPlayer);
+            if (villageInspection != InteractionResult.PASS) return villageInspection;
         }
         return TradeRouteService.useLedger(world, serverPlayer);
     }

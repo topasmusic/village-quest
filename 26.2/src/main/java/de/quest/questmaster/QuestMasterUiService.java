@@ -1,9 +1,12 @@
 package de.quest.questmaster;
 
+import de.quest.archive.GuildArchiveService;
+import de.quest.caravan.TradeRouteService;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.economy.CurrencyService;
 import de.quest.economy.QuestExperienceService;
+import de.quest.content.story.ShrinesBetweenRoadsStoryArc;
 import de.quest.entity.QuestMasterEntity;
 import de.quest.network.Payloads;
 import de.quest.party.QuestPartyService;
@@ -33,6 +36,7 @@ import de.quest.quest.weekly.WeeklyQuestDefinition;
 import de.quest.quest.weekly.WeeklyQuestGenerator;
 import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.reputation.ReputationService;
+import de.quest.shrine.VillageBondService;
 import de.quest.registry.ModItems;
 import de.quest.util.TimeUtil;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
@@ -40,6 +44,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.network.chat.Component;
 import net.minecraft.ChatFormatting;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -184,6 +189,14 @@ public final class QuestMasterUiService {
             return;
         }
 
+        if (payload.entryId().startsWith(GuildArchiveService.ENTRY_PREFIX)) {
+            if (payload.action() == Payloads.QuestMasterActionPayload.ACTION_CLAIM) {
+                GuildArchiveService.handleEntryAction(world, player, payload.entryId());
+            }
+            refreshIfOpen(world, player);
+            return;
+        }
+
         switch (payload.entryId()) {
             case ENTRY_DAILY_MAIN -> handleDailyMainAction(world, player, payload.action());
             case ENTRY_DAILY_BONUS -> handleDailyBonusAction(world, player, payload.action());
@@ -287,6 +300,10 @@ public final class QuestMasterUiService {
         if (action == Payloads.QuestMasterActionPayload.ACTION_CLAIM) {
             return StoryQuestService.claimFromQuestMaster(world, player, arcType);
         }
+        if (action == Payloads.QuestMasterActionPayload.ACTION_CANCEL
+                && arcType == StoryArcType.SHRINES_BETWEEN_ROADS) {
+            return ShrinesBetweenRoadsStoryArc.abandonHeartstoneTrail(world, player);
+        }
         return false;
     }
 
@@ -294,6 +311,7 @@ public final class QuestMasterUiService {
         return switch (action) {
             case Payloads.QuestMasterActionPayload.ACTION_ACCEPT -> ShardRelicQuestService.acceptSpecialQuest(world, player);
             case Payloads.QuestMasterActionPayload.ACTION_CLAIM -> ShardRelicQuestService.claimFromQuestMaster(world, player);
+            case Payloads.QuestMasterActionPayload.ACTION_CANCEL -> ShardRelicQuestService.abandonCacheHunt(world, player);
             default -> false;
         };
     }
@@ -690,6 +708,7 @@ public final class QuestMasterUiService {
         List<Component> description = appendQuestEcho(world, playerId, List.of(chapter.offerParagraph1(), chapter.offerParagraph2()), completion.reputationTrack());
         List<Component> objectives = new ArrayList<>(chapter.progressLines(world, playerId));
         ActionSpec primary = ActionSpec.NONE;
+        ActionSpec secondary = ActionSpec.NONE;
         Component status;
         boolean locked = false;
         boolean partyShareable = partyUiEnabled(world) && QuestShareProfiles.isStoryShareable(arcType);
@@ -705,6 +724,10 @@ public final class QuestMasterUiService {
             } else {
                 primary = new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_NONE,
                         Component.translatable("screen.village-quest.pilgrim.contract.action.in_progress"), false);
+            }
+            if (!ready && arcType == StoryArcType.SHRINES_BETWEEN_ROADS && chapterIndex == 1) {
+                secondary = new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_CANCEL,
+                        Component.translatable("screen.village-quest.questmaster.action.abandon_trail"), true);
             }
         } else {
             boolean canAccept = chapter.canAccept(world, player);
@@ -731,26 +754,95 @@ public final class QuestMasterUiService {
                 List.copyOf(objectives),
                 appendRewardEcho(world, playerId, StoryQuestService.previewRewardLines(world, playerId, completion), completion.reputationTrack()),
                 primary,
-                ActionSpec.NONE,
+                secondary,
                 locked
         );
     }
 
     private static List<Payloads.QuestMasterEntryData> buildSpecialEntries(ServerLevel world, ServerPlayer player) {
-        if (!QuestMasterProgressionService.isSpecialCategoryUnlocked(world, player.getUUID())) {
-            return List.of();
-        }
-
         List<Payloads.QuestMasterEntryData> entries = new ArrayList<>();
-        addEntry(entries, buildShardEntry(world, player));
-        addEntry(entries, buildSmokerEntry(world, player));
-        addEntry(entries, buildCompassEntry(world, player));
-        addEntry(entries, buildMerchantEntry(world, player));
-        addEntry(entries, buildFluteEntry(world, player));
-        if (entries.isEmpty()) {
+        boolean specialUnlocked = QuestMasterProgressionService.isSpecialCategoryUnlocked(world, player.getUUID());
+        if (specialUnlocked) {
+            addEntry(entries, buildShardEntry(world, player));
+            addEntry(entries, buildSmokerEntry(world, player));
+            addEntry(entries, buildCompassEntry(world, player));
+            addEntry(entries, buildMerchantEntry(world, player));
+            addEntry(entries, buildFluteEntry(world, player));
+        }
+        for (GuildArchiveService.Offer offer : GuildArchiveService.offers(world, player)) {
+            entries.add(entry(
+                    GuildArchiveService.ENTRY_PREFIX + offer.id(),
+                    CATEGORY_SPECIAL,
+                    offer.title(),
+                    Component.translatable("screen.village-quest.guild_archive.subtitle"),
+                    offer.status(),
+                    offer.description(),
+                    List.of(),
+                    List.of(),
+                    new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_CLAIM,
+                            offer.actionLabel(), offer.enabled()),
+                    ActionSpec.NONE,
+                    false
+            ));
+        }
+        if (entries.isEmpty() && specialUnlocked) {
             entries.add(buildSpecialIntroEntry());
         }
         return List.copyOf(entries);
+    }
+
+    public static List<Payloads.GuildPathNodeData> buildGuildPathNodes(ServerLevel world, ServerPlayer player) {
+        UUID playerId = player.getUUID();
+        PlayerQuestData playerData = data(world, playerId);
+        boolean emptyCaravan = StoryQuestService.isCompleted(world, playerId, StoryArcType.THE_EMPTY_CARAVAN);
+        boolean shrineStoryComplete = StoryQuestService.isCompleted(world, playerId, StoryArcType.SHRINES_BETWEEN_ROADS);
+        boolean shrineStoryActive = StoryQuestService.isActive(world, playerId, StoryArcType.SHRINES_BETWEEN_ROADS);
+        int shrineChapter = shrineStoryActive
+                ? StoryQuestService.chapterIndex(world, playerId, StoryArcType.SHRINES_BETWEEN_ROADS)
+                : playerData.getStoryChapterProgress(StoryArcType.SHRINES_BETWEEN_ROADS.id());
+        boolean lensInstalled = shrineStoryComplete || shrineChapter > 0;
+        boolean sigil = VillageBondService.hasSigil(world, playerId);
+        boolean shrine = VillageBondService.shrineCount(world, playerId) > 0;
+        boolean board = VillageBondService.villages(world, playerId).stream()
+                .anyMatch(village -> village.completions() > 0);
+
+        return List.of(
+                guildPathNode("ledger", ModItems.CARAVAN_LEDGER,
+                        emptyCaravan || TradeRouteService.routeCount(world, playerId) > 0 || hasItem(player, ModItems.CARAVAN_LEDGER), true),
+                guildPathNode("surveyor_compass", ModItems.SURVEYORS_COMPASS,
+                        playerData.getSurveyorCompassQuestStage() == RelicQuestStage.COMPLETED, emptyCaravan),
+                guildPathNode("starreach_ring", ModItems.STARREACH_RING,
+                        playerData.getShardRelicQuestStage() == ShardRelicQuestStage.COMPLETED, emptyCaravan),
+                guildPathNode("merchant_seal", ModItems.MERCHANT_SEAL,
+                        playerData.getMerchantSealQuestStage() == RelicQuestStage.COMPLETED, emptyCaravan),
+                guildPathNode("shepherd_flute", ModItems.SHEPHERD_FLUTE,
+                        playerData.getShepherdFluteQuestStage() == RelicQuestStage.COMPLETED, emptyCaravan),
+                guildPathNode("apiarist_smoker", ModItems.APIARISTS_SMOKER,
+                        playerData.getApiaristSmokerQuestStage() == RelicQuestStage.COMPLETED, emptyCaravan),
+                guildPathNode("lens", ModItems.CARTOGRAPHERS_LENS, lensInstalled,
+                        emptyCaravan && TradeRouteService.routeCount(world, playerId) >= 2),
+                guildPathNode("sigil", ModItems.WAYFARERS_SIGIL, sigil, lensInstalled),
+                guildPathNode("wayshrine", ModItems.GUILD_WAYSHRINE, shrine, sigil),
+                guildPathNode("notice_board", ModItems.GUILD_NOTICE_POST, board, shrine),
+                guildPathNode("courier_satchel", ModItems.GUILD_COURIERS_SATCHEL,
+                        shrineStoryComplete, shrineStoryActive && shrineChapter >= 5)
+        );
+    }
+
+    private static Payloads.GuildPathNodeData guildPathNode(String id, net.minecraft.world.item.Item item,
+                                                            boolean complete, boolean unlocked) {
+        ItemStack stack = new ItemStack(item);
+        return new Payloads.GuildPathNodeData(id, stack, stack.getHoverName(),
+                Component.translatable("screen.village-quest.guild_path.node." + id + ".ability"),
+                Component.translatable("screen.village-quest.guild_path.node." + id + ".requirement"),
+                complete ? 2 : unlocked ? 1 : 0);
+    }
+
+    private static boolean hasItem(ServerPlayer player, net.minecraft.world.item.Item item) {
+        for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
+            if (player.getInventory().getItem(slot).is(item)) return true;
+        }
+        return false;
     }
 
     private static Payloads.QuestMasterEntryData buildShardEntry(ServerLevel world, ServerPlayer player) {
@@ -801,7 +893,8 @@ public final class QuestMasterUiService {
                     List.copyOf(ShardRelicQuestService.openStatus(world, playerId).lines()),
                     starreachRewards(),
                     new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_CLAIM, Component.translatable("screen.village-quest.questmaster.action.reissue_map"), true),
-                    ActionSpec.NONE,
+                    new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_CANCEL,
+                            Component.translatable("screen.village-quest.questmaster.action.abandon_trail"), true),
                     false
             );
         }
@@ -867,6 +960,7 @@ public final class QuestMasterUiService {
         String locked = Component.translatable("screen.village-quest.questmaster.status.locked").getString();
         return (int) entries.stream()
                 .filter(entry -> entry != null
+                        && categoryId.equals(entry.categoryId())
                         && !entry.locked()
                         && !(CATEGORY_STORY.equals(categoryId)
                         && (ENTRY_STORY_PREFIX + "cooldown").equals(entry.entryId()))

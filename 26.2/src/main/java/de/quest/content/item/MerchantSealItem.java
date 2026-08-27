@@ -1,5 +1,7 @@
 package de.quest.content.item;
 
+import de.quest.archive.GuildArchiveService;
+import de.quest.archive.GuildArchiveService.ArchiveItem;
 import de.quest.entity.PilgrimEntity;
 import de.quest.quest.special.MerchantSealQuestService;
 import net.minecraft.ChatFormatting;
@@ -26,7 +28,7 @@ public final class MerchantSealItem extends Item {
 
     @Override
     public boolean isFoil(ItemStack stack) {
-        return true;
+        return !GuildArchiveService.isSuperseded(stack);
     }
 
     @Override
@@ -35,6 +37,9 @@ public final class MerchantSealItem extends Item {
                 || !(serverPlayer.level() instanceof ServerLevel serverWorld)
                 || hand != InteractionHand.MAIN_HAND) {
             return InteractionResult.PASS;
+        }
+        if (!GuildArchiveService.validateUse(serverWorld, serverPlayer, stack, ArchiveItem.MERCHANT_SEAL)) {
+            return InteractionResult.FAIL;
         }
         if (entity instanceof PilgrimEntity pilgrim) {
             return MerchantSealQuestService.tryUseOnPilgrim(serverWorld, serverPlayer, pilgrim, stack);

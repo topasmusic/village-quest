@@ -151,6 +151,8 @@ These are intended for testing, packmaking, and server administration.
 - `/vq admin nextdaily [player]`
 - `/vq admin completedaily [player]`
 
+`resetdaily` also clears that player's per-village Guild Notice Board delivery locks, so the current requests can be handed in again during focused admin testing.
+
 ### Weekly
 
 - `/vq admin resetweekly [player]`
@@ -212,6 +214,7 @@ Current unlockable project ids:
 - `pasture_charter`
 - `watch_bell`
 - `caravan_yard`
+- `wayshrine_network`
 
 ### Trade Routes
 
@@ -235,8 +238,10 @@ This focused `2.1.0` fixture unlocks the five matching project branches, prepare
 
 - `/vq admin uitest questmaster`
 - `/vq admin uitest pilgrim`
+- `/vq admin uitest wayshrine [owner|guest]`
+- `/vq admin uitest noticeboard [known|trusted|allied]`
 
-These admin-only commands open the real Questmaster dashboard or Pilgrim trader payload without requiring precise NPC interaction. They use current player progression and currency, making them suitable for checking translations, long descriptions, large wallet values, GUI scaling, and reusable component alignment in a real client. For the Questmaster, inspect all four icon tabs, list scrolling, the selected quest detail card, locked/active/claimable states, simultaneous action buttons, reset timers, and the party overlay on a multiplayer client.
+These admin-only commands open the real Questmaster dashboard, Pilgrim trader payload, or non-persistent Wayshrine and Guild Notice Board previews without requiring precise NPC or block interaction. They use current player progression and currency where applicable, making them suitable for checking translations, long descriptions, large wallet values, GUI scaling, and reusable component alignment in a real client. The Wayshrine preview defaults to `owner`, displays a compact five-shrine network with mixed Known/Trusted/Allied terms, charges, and ready travel controls, and offers a separate doubled-price `guest` view. Its synthetic indices are outside every real network, so travel and rename actions cannot alter game state. The Notice Board defaults to `known`; its three explicit states exercise incomplete and complete delivery progress plus every bond-path endpoint without changing quest or world state. For the Questmaster, inspect all four icon tabs, list scrolling, the selected quest detail card, locked/active/claimable states, simultaneous action buttons, reset timers, and the party overlay on a multiplayer client.
 
 ### Pilgrim
 
@@ -345,6 +350,14 @@ Clean up only the route test data with:
 ```mcfunction
 /vq admin routes reset
 ```
+
+### Test The Shrines Between Roads
+
+```mcfunction
+/vq admin shrines testsetup
+```
+
+This creates the five-route test network, clears every seeded route incident, marks the Caravan Ledger as Lens-upgraded, and supplies the Wayfarer's Sigil, three Guild Wayshrines, three Guild Notice Posts, Emberglass Lanterns, Guild Milestones, and the optional Courier's Satchel. Sneak-use the Ledger in real connected villages, complete requests through the Notice Board UI, then bind one shrine at the Homestead and further shrines in any recorded village. Known villages are intentionally available immediately but use the expensive two-charge/ten-minute tier. Sneak-use the Sigil to inspect shrine bindings, milestones, and route distance. Once bound, the active network opens without holding a Sigil; a second player can use it directly with the guest price multiplier.
 
 ## Notes for Testers
 

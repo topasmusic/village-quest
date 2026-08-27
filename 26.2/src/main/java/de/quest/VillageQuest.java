@@ -10,8 +10,10 @@ import de.quest.config.VillageQuestServerConfig;
 import de.quest.network.QuestNetworking;
 import de.quest.quest.QuestService;
 import de.quest.registry.ModBlocks;
+import de.quest.registry.ModBlockEntities;
 import de.quest.registry.ModEntities;
 import de.quest.registry.ModItems;
+import de.quest.registry.ModRecipeBookCategories;
 import net.fabricmc.api.ModInitializer;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
@@ -37,7 +39,9 @@ public class VillageQuest implements ModInitializer {
     public void onInitialize() {
         LOGGER.info("Initializing {}", MOD_ID);
         VillageQuestServerConfig.bootstrap();
+        ModRecipeBookCategories.register();
         ModBlocks.register();
+        ModBlockEntities.register();
         ModItems.register();
         ModEntities.register();
         QuestService.registerEvents();

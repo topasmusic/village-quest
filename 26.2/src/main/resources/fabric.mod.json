@@ -3,7 +3,7 @@
 	"id": "village-quest",
 	"version": "${version}",
 	"name": "Village Quest",
-	"description": "Village progression through quests, stories, trade routes, visible caravans, guild contracts, reputation, projects, relics, and quest parties.",
+	"description": "Village progression through quests, stories, trade routes, visible caravans, guild contracts, village bonds, wayshrines, reputation, projects, relics, and quest parties.",
 	"authors": [
 		"TopasMusic"
 	],

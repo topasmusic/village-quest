@@ -1,0 +1,1 @@
+{"type":"minecraft:block","pools":[{"rolls":1,"entries":[{"type":"minecraft:item","name":"village-quest:guild_wayshrine"}],"conditions":[{"condition":"minecraft:block_state_property","block":"village-quest:guild_wayshrine","properties":{"half":"lower"}},{"condition":"minecraft:survives_explosion"}]}]}

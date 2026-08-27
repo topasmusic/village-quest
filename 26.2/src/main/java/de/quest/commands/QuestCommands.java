@@ -35,13 +35,20 @@ import de.quest.quest.story.VillageProjectService;
 import de.quest.quest.story.VillageProjectType;
 import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.reputation.ReputationService;
+import de.quest.network.Payloads;
+import de.quest.shrine.VillageBondService;
+import de.quest.shrine.VillageBondLevel;
+import de.quest.shrine.VillageBondType;
+import de.quest.shrine.VillageRequestType;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.item.ItemStack;
 
 import static net.minecraft.commands.Commands.argument;
 import static net.minecraft.commands.Commands.literal;
@@ -288,11 +295,36 @@ public final class QuestCommands {
                                                     ctx.getSource(),
                                                     EntityArgument.getPlayer(ctx, "player")
                                             )))))
+                    .then(literal("shrines")
+                            .then(literal("testsetup")
+                                    .executes(ctx -> setupShrineTest(ctx.getSource(), ctx.getSource().getPlayer()))
+                                    .then(argument("player", EntityArgument.player())
+                                            .executes(ctx -> setupShrineTest(
+                                                    ctx.getSource(), EntityArgument.getPlayer(ctx, "player")
+                                            )))))
                     .then(literal("uitest")
                             .then(literal("questmaster")
                                     .executes(ctx -> openQuestMasterUiTest(ctx.getSource())))
                             .then(literal("pilgrim")
-                                    .executes(ctx -> openPilgrimUiTest(ctx.getSource()))))
+                                    .executes(ctx -> openPilgrimUiTest(ctx.getSource())))
+                            .then(literal("wayshrine")
+                                    .executes(ctx -> openWayshrineUiTest(ctx.getSource(), true))
+                                    .then(literal("owner")
+                                            .executes(ctx -> openWayshrineUiTest(ctx.getSource(), true)))
+                                    .then(literal("guest")
+                                            .executes(ctx -> openWayshrineUiTest(ctx.getSource(), false))))
+                            .then(literal("noticeboard")
+                                    .executes(ctx -> openNoticeBoardUiTest(
+                                            ctx.getSource(), VillageBondLevel.KNOWN))
+                                    .then(literal("known")
+                                            .executes(ctx -> openNoticeBoardUiTest(
+                                                    ctx.getSource(), VillageBondLevel.KNOWN)))
+                                    .then(literal("trusted")
+                                            .executes(ctx -> openNoticeBoardUiTest(
+                                                    ctx.getSource(), VillageBondLevel.TRUSTED)))
+                                    .then(literal("allied")
+                                            .executes(ctx -> openNoticeBoardUiTest(
+                                                    ctx.getSource(), VillageBondLevel.ALLIED)))))
                     .then(literal("shardcache")
                             .executes(ctx -> startShardCacheForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
                             .then(argument("player", EntityArgument.player())
@@ -633,6 +665,7 @@ public final class QuestCommands {
 
         var world = source.getServer().overworld();
         DailyQuestService.adminResetDailyState(world, target.getUUID());
+        VillageBondService.adminResetDailyState(world, target.getUUID());
         refreshQuestUi(world, target);
 
         ServerPlayer sourcePlayer = source.getPlayer();
@@ -1095,6 +1128,20 @@ public final class QuestCommands {
         return 1;
     }
 
+    private static int setupShrineTest(CommandSourceStack source, ServerPlayer target) {
+        if (target == null) {
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required")
+                    .withStyle(ChatFormatting.RED), false);
+            return 0;
+        }
+        de.quest.shrine.VillageBondService.adminTestSetup(source.getServer().overworld(), target);
+        source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.shrines.testsetup",
+                target.getDisplayName()).withStyle(ChatFormatting.GREEN), false);
+        target.sendSystemMessage(Component.translatable("command.village-quest.questadmin.shrines.testsetup.hint")
+                .withStyle(ChatFormatting.GOLD), false);
+        return 1;
+    }
+
     private static int setRouteTestEvent(CommandSourceStack source, int routeNumber, String eventKey) {
         ServerPlayer player = source.getPlayer();
         if (player == null) {
@@ -1258,6 +1305,105 @@ public final class QuestCommands {
         }
 
         PilgrimService.openTrade(world, player, pilgrim);
+        return 1;
+    }
+
+    private static int openWayshrineUiTest(CommandSourceStack source, boolean owner) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required")
+                    .withStyle(ChatFormatting.RED), false);
+            return 0;
+        }
+
+        int x = player.getBlockX();
+        int y = player.getBlockY();
+        int z = player.getBlockZ();
+        int currentIndex = 10_000;
+        int priceMultiplier = owner ? 1 : 2;
+        var destinations = java.util.List.of(
+                new Payloads.TradeRouteShrineData(
+                        currentIndex, x, y, z,
+                        Component.translatable("text.village-quest.wayshrine.homestead", 1),
+                        true, 0, VillageBondLevel.TRUSTED.id(), 1, 300),
+                new Payloads.TradeRouteShrineData(
+                        currentIndex + 1, x + 144, y, z - 48,
+                        Component.translatable("text.village-quest.wayshrine.village", 2,
+                                VillageBondType.ARCHIVE.label()),
+                        false, 4 * priceMultiplier, VillageBondLevel.KNOWN.id(), 2, 600),
+                new Payloads.TradeRouteShrineData(
+                        currentIndex + 2, x - 128, y, z + 80,
+                        Component.translatable("text.village-quest.wayshrine.village", 3,
+                                VillageBondType.FORGE.label()),
+                        false, 2 * priceMultiplier, VillageBondLevel.TRUSTED.id(), 1, 300),
+                new Payloads.TradeRouteShrineData(
+                        currentIndex + 3, x + 96, y, z + 144,
+                        Component.translatable("text.village-quest.wayshrine.village", 4,
+                                VillageBondType.PASTURE.label()),
+                        false, 2 * priceMultiplier, VillageBondLevel.ALLIED.id(), 1, 240),
+                new Payloads.TradeRouteShrineData(
+                        currentIndex + 4, x - 160, y, z - 112,
+                        Component.translatable("text.village-quest.wayshrine.village", 5,
+                                VillageBondType.APIARY.label()),
+                        false, 2 * priceMultiplier, VillageBondLevel.TRUSTED.id(), 1, 300)
+        );
+
+        // Preview indices are deliberately outside every real network. Existing server validation
+        // therefore rejects accidental travel or rename actions without changing player/world data.
+        ServerPlayNetworking.send(player, new Payloads.WayshrinePayload(
+                currentIndex, destinations, owner ? player.getGameProfile().name() : "Guild Tester",
+                owner, priceMultiplier, 0, 240L, 14, 5, 50));
+        return 1;
+    }
+
+    private static int openNoticeBoardUiTest(CommandSourceStack source, VillageBondLevel level) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required")
+                    .withStyle(ChatFormatting.RED), false);
+            return 0;
+        }
+
+        VillageBondType type;
+        VillageRequestType request;
+        int inventoryAmount;
+        int completions;
+        int nextThreshold;
+        Component nextLevel;
+        Component nextPerk;
+        if (level == VillageBondLevel.KNOWN) {
+            type = VillageBondType.ARCHIVE;
+            request = VillageRequestType.ARCHIVE_BOOKS;
+            inventoryAmount = 5;
+            completions = 0;
+            nextThreshold = 2;
+            nextLevel = VillageBondLevel.TRUSTED.label();
+            nextPerk = Component.translatable("screen.village-quest.notice_board.perk.trusted");
+        } else if (level == VillageBondLevel.TRUSTED) {
+            type = VillageBondType.FORGE;
+            request = VillageRequestType.FORGE_IRON;
+            inventoryAmount = request.amount();
+            completions = 2;
+            nextThreshold = 8;
+            nextLevel = VillageBondLevel.ALLIED.label();
+            nextPerk = Component.translatable("screen.village-quest.notice_board.perk.allied");
+        } else {
+            type = VillageBondType.PASTURE;
+            request = VillageRequestType.PASTURE_WOOL;
+            inventoryAmount = request.amount();
+            completions = 8;
+            nextThreshold = 0;
+            nextLevel = Component.translatable("screen.village-quest.notice_board.max_level");
+            nextPerk = Component.translatable("screen.village-quest.notice_board.perk.complete");
+        }
+
+        ServerLevel world = source.getServer().overworld();
+        ServerPlayNetworking.send(player, new Payloads.NoticeBoardPayload(
+                player.getBlockX(), player.getBlockY(), player.getBlockZ(),
+                type.label(), level.label(), request.title(), new ItemStack(request.item()),
+                request.amount(), inventoryAmount, request.reward(),
+                CurrencyService.getBalance(world, player.getUUID()), completions, level.id(), nextThreshold,
+                nextLevel, nextPerk, true, inventoryAmount >= request.amount()));
         return 1;
     }
 

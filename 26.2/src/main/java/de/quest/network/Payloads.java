@@ -28,6 +28,9 @@ public final class Payloads {
         PayloadTypeRegistry.clientboundPlay().register(EconomyPayload.ID, EconomyPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(QuestMasterPayload.ID, QuestMasterPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(TradeRouteMapPayload.ID, TradeRouteMapPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(WayshrinePayload.ID, WayshrinePayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(NoticeBoardPayload.ID, NoticeBoardPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(GuildPathPayload.ID, GuildPathPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(QuestFeedbackPayload.ID, QuestFeedbackPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(JournalActionPayload.ID, JournalActionPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(PilgrimTradeActionPayload.ID, PilgrimTradeActionPayload.CODEC);
@@ -37,6 +40,9 @@ public final class Payloads {
         PayloadTypeRegistry.serverboundPlay().register(QuestMasterPartyActionPayload.ID, QuestMasterPartyActionPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(QuestMasterSessionPayload.ID, QuestMasterSessionPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(TradeRouteActionPayload.ID, TradeRouteActionPayload.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(WayshrineTravelPayload.ID, WayshrineTravelPayload.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(WayshrineRenamePayload.ID, WayshrineRenamePayload.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(NoticeBoardActionPayload.ID, NoticeBoardActionPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(ClientPreferencesPayload.ID, ClientPreferencesPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(QuestTrackerActionPayload.ID, QuestTrackerActionPayload.CODEC);
         registered = true;
@@ -145,7 +151,9 @@ public final class Payloads {
             boolean hasMarketCharterProject,
             boolean hasPastureCharterProject,
             boolean hasWatchBellProject,
-            boolean hasCaravanYardProject
+            boolean hasCaravanYardProject,
+            boolean hasWayshrineNetworkProject,
+            List<GuildPathNodeData> guildPathNodes
     ) implements CustomPacketPayload {
         public static final int ACTION_OPEN = 0;
         public static final int ACTION_UPDATE = 1;
@@ -194,6 +202,12 @@ public final class Payloads {
             boolean hasPastureCharterProject = buf.readBoolean();
             boolean hasWatchBellProject = buf.readBoolean();
             boolean hasCaravanYardProject = buf.readBoolean();
+            boolean hasWayshrineNetworkProject = buf.readBoolean();
+            int guildPathNodeCount = Math.max(0, Math.min(64, buf.readVarInt()));
+            List<GuildPathNodeData> guildPathNodes = new ArrayList<>(guildPathNodeCount);
+            for (int i = 0; i < guildPathNodeCount; i++) {
+                guildPathNodes.add(GuildPathNodeData.read(buf));
+            }
             return new JournalPayload(
                     action,
                     total,
@@ -233,7 +247,9 @@ public final class Payloads {
                     hasMarketCharterProject,
                     hasPastureCharterProject,
                     hasWatchBellProject,
-                    hasCaravanYardProject
+                    hasCaravanYardProject,
+                    hasWayshrineNetworkProject,
+                    List.copyOf(guildPathNodes)
             );
         }
 
@@ -277,6 +293,13 @@ public final class Payloads {
             buf.writeBoolean(payload.hasPastureCharterProject());
             buf.writeBoolean(payload.hasWatchBellProject());
             buf.writeBoolean(payload.hasCaravanYardProject());
+            buf.writeBoolean(payload.hasWayshrineNetworkProject());
+            List<GuildPathNodeData> guildPathNodes = payload.guildPathNodes() == null
+                    ? List.of() : payload.guildPathNodes();
+            buf.writeVarInt(guildPathNodes.size());
+            for (GuildPathNodeData node : guildPathNodes) {
+                GuildPathNodeData.write(buf, node);
+            }
         }
 
         @Override
@@ -942,6 +965,7 @@ public final class Payloads {
         public static final int ACTION_ACCEPT = 1;
         public static final int ACTION_CLAIM = 3;
         public static final int ACTION_CANCEL = 4;
+        public static final int ACTION_OPEN_GUILD_PATH = 5;
 
         public static final CustomPacketPayload.Type<QuestMasterActionPayload> ID =
                 new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "questmaster_action"));
@@ -992,6 +1016,48 @@ public final class Payloads {
         public Type<? extends CustomPacketPayload> type() {
             return ID;
         }
+    }
+
+    public record GuildPathNodeData(String nodeId, ItemStack previewStack,
+                                    Component title, Component ability,
+                                    Component requirement, int status) {
+        private static GuildPathNodeData read(RegistryFriendlyByteBuf buf) {
+            return new GuildPathNodeData(buf.readUtf(48), ItemStack.STREAM_CODEC.decode(buf),
+                    ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf),
+                    ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf),
+                    ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf), buf.readVarInt());
+        }
+        private static void write(RegistryFriendlyByteBuf buf, GuildPathNodeData value) {
+            buf.writeUtf(value.nodeId(), 48);
+            ItemStack.STREAM_CODEC.encode(buf, value.previewStack());
+            ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, value.title());
+            ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, value.ability());
+            ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, value.requirement());
+            buf.writeVarInt(value.status());
+        }
+    }
+
+    public record GuildPathPayload(int questMasterEntityId, long balance,
+                                   List<GuildPathNodeData> nodes) implements CustomPacketPayload {
+        public static final CustomPacketPayload.Type<GuildPathPayload> ID =
+                new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "guild_path"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, GuildPathPayload> CODEC =
+                StreamCodec.of(GuildPathPayload::write, GuildPathPayload::read);
+        private static GuildPathPayload read(RegistryFriendlyByteBuf buf) {
+            int entityId = buf.readVarInt();
+            long balance = buf.readLong();
+            int count = buf.readVarInt();
+            List<GuildPathNodeData> nodes = new ArrayList<>(count);
+            for (int i = 0; i < count; i++) nodes.add(GuildPathNodeData.read(buf));
+            return new GuildPathPayload(entityId, balance, List.copyOf(nodes));
+        }
+        private static void write(RegistryFriendlyByteBuf buf, GuildPathPayload payload) {
+            buf.writeVarInt(payload.questMasterEntityId());
+            buf.writeLong(payload.balance());
+            buf.writeVarInt(payload.nodes().size());
+            for (GuildPathNodeData node : payload.nodes()) GuildPathNodeData.write(buf, node);
+        }
+        @Override public Type<? extends CustomPacketPayload> type() { return ID; }
     }
 
     public record QuestMasterSessionPayload(int entityId, int action) implements CustomPacketPayload {
@@ -1150,13 +1216,69 @@ public final class Payloads {
         }
     }
 
+    public record TradeRouteBondData(int index, int worldX, int worldZ, Component type,
+                                     Component level, Component request, int completions) {
+        private static TradeRouteBondData read(RegistryFriendlyByteBuf buf) {
+            return new TradeRouteBondData(buf.readVarInt(), buf.readInt(), buf.readInt(),
+                    ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf),
+                    ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf),
+                    ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf), buf.readVarInt());
+        }
+
+        private static void write(RegistryFriendlyByteBuf buf, TradeRouteBondData value) {
+            buf.writeVarInt(value.index());
+            buf.writeInt(value.worldX());
+            buf.writeInt(value.worldZ());
+            ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, value.type());
+            ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, value.level());
+            ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, value.request());
+            buf.writeVarInt(value.completions());
+        }
+    }
+
+    public record TradeRouteShrineData(int index, int worldX, int worldY, int worldZ,
+                                       Component name, boolean current, int cost,
+                                       int bondTier, int chargeCost, int cooldownSeconds) {
+        private static TradeRouteShrineData read(RegistryFriendlyByteBuf buf) {
+            return new TradeRouteShrineData(buf.readVarInt(), buf.readInt(), buf.readInt(), buf.readInt(),
+                    ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf), buf.readBoolean(), buf.readVarInt(),
+                    buf.readVarInt(), buf.readVarInt(), buf.readVarInt());
+        }
+
+        private static void write(RegistryFriendlyByteBuf buf, TradeRouteShrineData value) {
+            buf.writeVarInt(value.index());
+            buf.writeInt(value.worldX());
+            buf.writeInt(value.worldY());
+            buf.writeInt(value.worldZ());
+            ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, value.name());
+            buf.writeBoolean(value.current());
+            buf.writeVarInt(value.cost());
+            buf.writeVarInt(value.bondTier());
+            buf.writeVarInt(value.chargeCost());
+            buf.writeVarInt(value.cooldownSeconds());
+        }
+    }
+
+    public record TradeRouteDecorationData(int type, int worldX, int worldY, int worldZ) {
+        private static TradeRouteDecorationData read(RegistryFriendlyByteBuf buf) {
+            return new TradeRouteDecorationData(buf.readVarInt(), buf.readInt(), buf.readInt(), buf.readInt());
+        }
+        private static void write(RegistryFriendlyByteBuf buf, TradeRouteDecorationData value) {
+            buf.writeVarInt(value.type()); buf.writeInt(value.worldX());
+            buf.writeInt(value.worldY()); buf.writeInt(value.worldZ());
+        }
+    }
+
     public record TradeRouteMapPayload(
             int action,
             Component title,
             Component summary,
             List<TradeRouteNodeData> nodes,
             List<TradeRouteLineData> routes,
-            List<TradeRouteCaravanData> caravans
+            List<TradeRouteCaravanData> caravans,
+            List<TradeRouteBondData> bonds,
+            List<TradeRouteShrineData> shrines,
+            List<TradeRouteDecorationData> decorations
     ) implements CustomPacketPayload {
         public static final int ACTION_OPEN = 0;
         public static final int ACTION_UPDATE = 1;
@@ -1189,7 +1311,16 @@ public final class Payloads {
             for (int i = 0; i < caravanCount; i++) {
                 caravans.add(TradeRouteCaravanData.read(buf));
             }
-            return new TradeRouteMapPayload(action, title, summary, nodes, routes, caravans);
+            int bondCount = buf.readVarInt();
+            List<TradeRouteBondData> bonds = new ArrayList<>(bondCount);
+            for (int i = 0; i < bondCount; i++) bonds.add(TradeRouteBondData.read(buf));
+            int shrineCount = buf.readVarInt();
+            List<TradeRouteShrineData> shrines = new ArrayList<>(shrineCount);
+            for (int i = 0; i < shrineCount; i++) shrines.add(TradeRouteShrineData.read(buf));
+            int decorationCount = buf.readVarInt();
+            List<TradeRouteDecorationData> decorations = new ArrayList<>(decorationCount);
+            for (int i = 0; i < decorationCount; i++) decorations.add(TradeRouteDecorationData.read(buf));
+            return new TradeRouteMapPayload(action, title, summary, nodes, routes, caravans, bonds, shrines, decorations);
         }
 
         private static void write(RegistryFriendlyByteBuf buf, TradeRouteMapPayload payload) {
@@ -1208,12 +1339,142 @@ public final class Payloads {
             for (TradeRouteCaravanData caravan : payload.caravans()) {
                 TradeRouteCaravanData.write(buf, caravan);
             }
+            buf.writeVarInt(payload.bonds().size());
+            for (TradeRouteBondData bond : payload.bonds()) TradeRouteBondData.write(buf, bond);
+            buf.writeVarInt(payload.shrines().size());
+            for (TradeRouteShrineData shrine : payload.shrines()) TradeRouteShrineData.write(buf, shrine);
+            buf.writeVarInt(payload.decorations().size());
+            for (TradeRouteDecorationData decoration : payload.decorations()) TradeRouteDecorationData.write(buf, decoration);
         }
 
         @Override
         public Type<? extends CustomPacketPayload> type() {
             return ID;
         }
+    }
+
+    public record WayshrinePayload(int currentIndex, List<TradeRouteShrineData> destinations,
+                                   String ownerName, boolean owner, int guestMultiplier,
+                                   int cooldownSeconds, long balance, int charges,
+                                   int chargesPerShard, int maxCharges)
+            implements CustomPacketPayload {
+        public static final CustomPacketPayload.Type<WayshrinePayload> ID =
+                new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "wayshrine"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, WayshrinePayload> CODEC =
+                StreamCodec.of(WayshrinePayload::write, WayshrinePayload::read);
+
+        private static WayshrinePayload read(RegistryFriendlyByteBuf buf) {
+            int current = buf.readVarInt();
+            int count = buf.readVarInt();
+            List<TradeRouteShrineData> destinations = new ArrayList<>(count);
+            for (int i = 0; i < count; i++) destinations.add(TradeRouteShrineData.read(buf));
+            return new WayshrinePayload(current, destinations, buf.readUtf(32), buf.readBoolean(),
+                    buf.readVarInt(), buf.readVarInt(), buf.readLong(), buf.readVarInt(),
+                    buf.readVarInt(), buf.readVarInt());
+        }
+
+        private static void write(RegistryFriendlyByteBuf buf, WayshrinePayload payload) {
+            buf.writeVarInt(payload.currentIndex());
+            buf.writeVarInt(payload.destinations().size());
+            for (TradeRouteShrineData destination : payload.destinations()) TradeRouteShrineData.write(buf, destination);
+            buf.writeUtf(payload.ownerName(), 32);
+            buf.writeBoolean(payload.owner());
+            buf.writeVarInt(payload.guestMultiplier());
+            buf.writeVarInt(payload.cooldownSeconds());
+            buf.writeLong(payload.balance());
+            buf.writeVarInt(payload.charges());
+            buf.writeVarInt(payload.chargesPerShard());
+            buf.writeVarInt(payload.maxCharges());
+        }
+
+        @Override public Type<? extends CustomPacketPayload> type() { return ID; }
+    }
+
+    public record NoticeBoardPayload(int worldX, int worldY, int worldZ,
+                                     Component villageType, Component bondLevel,
+                                     Component requestTitle, ItemStack requestStack,
+                                     int requiredAmount, int inventoryAmount, long reward,
+                                     long balance, int completions, int bondTier,
+                                     int nextThreshold, Component nextLevel,
+                                     Component nextPerk, boolean requestAvailable,
+                                     boolean canDeliver) implements CustomPacketPayload {
+        public static final CustomPacketPayload.Type<NoticeBoardPayload> ID =
+                new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "notice_board"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, NoticeBoardPayload> CODEC =
+                StreamCodec.of(NoticeBoardPayload::write, NoticeBoardPayload::read);
+
+        private static NoticeBoardPayload read(RegistryFriendlyByteBuf buf) {
+            return new NoticeBoardPayload(buf.readInt(), buf.readInt(), buf.readInt(),
+                    ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf),
+                    ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf),
+                    ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf),
+                    ItemStack.STREAM_CODEC.decode(buf), buf.readVarInt(), buf.readVarInt(),
+                    buf.readLong(), buf.readLong(), buf.readVarInt(), buf.readVarInt(), buf.readVarInt(),
+                    ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf),
+                    ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf), buf.readBoolean(), buf.readBoolean());
+        }
+
+        private static void write(RegistryFriendlyByteBuf buf, NoticeBoardPayload payload) {
+            buf.writeInt(payload.worldX()); buf.writeInt(payload.worldY()); buf.writeInt(payload.worldZ());
+            ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, payload.villageType());
+            ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, payload.bondLevel());
+            ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, payload.requestTitle());
+            ItemStack.STREAM_CODEC.encode(buf, payload.requestStack());
+            buf.writeVarInt(payload.requiredAmount()); buf.writeVarInt(payload.inventoryAmount());
+            buf.writeLong(payload.reward()); buf.writeLong(payload.balance());
+            buf.writeVarInt(payload.completions()); buf.writeVarInt(payload.bondTier());
+            buf.writeVarInt(payload.nextThreshold());
+            ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, payload.nextLevel());
+            ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, payload.nextPerk());
+            buf.writeBoolean(payload.requestAvailable());
+            buf.writeBoolean(payload.canDeliver());
+        }
+
+        @Override public Type<? extends CustomPacketPayload> type() { return ID; }
+    }
+
+    public record NoticeBoardActionPayload(int worldX, int worldY, int worldZ, int action)
+            implements CustomPacketPayload {
+        public static final int ACTION_DELIVER = 1;
+        public static final CustomPacketPayload.Type<NoticeBoardActionPayload> ID =
+                new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "notice_board_action"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, NoticeBoardActionPayload> CODEC =
+                StreamCodec.of((buf, value) -> {
+                    buf.writeInt(value.worldX()); buf.writeInt(value.worldY()); buf.writeInt(value.worldZ());
+                    buf.writeVarInt(value.action());
+                }, buf -> new NoticeBoardActionPayload(buf.readInt(), buf.readInt(), buf.readInt(), buf.readVarInt()));
+        @Override public Type<? extends CustomPacketPayload> type() { return ID; }
+    }
+
+    public record WayshrineTravelPayload(int currentIndex, int targetIndex, boolean useCharge) implements CustomPacketPayload {
+        public static final CustomPacketPayload.Type<WayshrineTravelPayload> ID =
+                new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "wayshrine_travel"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, WayshrineTravelPayload> CODEC =
+                StreamCodec.of(WayshrineTravelPayload::write, WayshrineTravelPayload::read);
+        private static WayshrineTravelPayload read(RegistryFriendlyByteBuf buf) {
+            return new WayshrineTravelPayload(buf.readVarInt(), buf.readVarInt(), buf.readBoolean());
+        }
+        private static void write(RegistryFriendlyByteBuf buf, WayshrineTravelPayload payload) {
+            buf.writeVarInt(payload.currentIndex());
+            buf.writeVarInt(payload.targetIndex());
+            buf.writeBoolean(payload.useCharge());
+        }
+        @Override public Type<? extends CustomPacketPayload> type() { return ID; }
+    }
+
+    public record WayshrineRenamePayload(int currentIndex, String name) implements CustomPacketPayload {
+        public static final CustomPacketPayload.Type<WayshrineRenamePayload> ID =
+                new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "wayshrine_rename"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, WayshrineRenamePayload> CODEC =
+                StreamCodec.of(WayshrineRenamePayload::write, WayshrineRenamePayload::read);
+        private static WayshrineRenamePayload read(RegistryFriendlyByteBuf buf) {
+            return new WayshrineRenamePayload(buf.readVarInt(), buf.readUtf(32));
+        }
+        private static void write(RegistryFriendlyByteBuf buf, WayshrineRenamePayload payload) {
+            buf.writeVarInt(payload.currentIndex());
+            buf.writeUtf(payload.name(), 32);
+        }
+        @Override public Type<? extends CustomPacketPayload> type() { return ID; }
     }
 
     public record TradeRouteActionPayload(int action, int routeIndex) implements CustomPacketPayload {

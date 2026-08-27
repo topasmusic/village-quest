@@ -1,5 +1,6 @@
 {
   "type": "minecraft:crafting_shapeless",
+  "group": "village_quest",
   "ingredients": [
     "minecraft:leather_boots",
     "minecraft:feather",

@@ -9,6 +9,7 @@
     "BeehiveBlockMixin",
     "BlockDropMixin",
     "BrewedPotionCriterionMixin",
+    "CraftingRecipeMixin",
     "CatMixin",
     "FurnaceOutputSlotMixin",
     "ForgingScreenHandlerAccessor",
@@ -23,9 +24,11 @@
     "WolfMixin"
   ],
   "client": [
+    "CraftingRecipeBookComponentMixin",
     "HandledScreenAccessor",
     "HandledScreenMixin",
-    "InventoryScreenMixin"
+    "InventoryScreenMixin",
+    "RecipeBookTabButtonMixin"
   ],
   "injectors": {
     "defaultRequire": 1

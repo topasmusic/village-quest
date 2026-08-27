@@ -1,10 +1,12 @@
 package de.quest.quest;
 
+import de.quest.archive.GuildArchiveService;
 import de.quest.content.item.PeaceArmorHandler;
 import de.quest.config.ClientPreferenceService;
 import de.quest.caravan.TradeRouteService;
 import de.quest.content.story.ShadowsTradeRoadEncounterService;
 import de.quest.content.story.EmptyCaravanStoryService;
+import de.quest.content.story.ShrinesBetweenRoadsStoryArc;
 import de.quest.data.QuestState;
 import de.quest.party.QuestPartyService;
 import de.quest.painting.PaintingNameService;
@@ -18,6 +20,7 @@ import de.quest.quest.story.StoryQuestService;
 import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.questmaster.QuestMasterUiService;
 import de.quest.reputation.ReputationService;
+import de.quest.recipe.VillageQuestRecipeBookService;
 import net.fabricmc.fabric.api.entity.event.v1.ServerEntityCombatEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
@@ -30,6 +33,7 @@ import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.item.BlockItem;
 
 public final class QuestService {
     private QuestService() {}
@@ -66,12 +70,16 @@ public final class QuestService {
         ServerTickEvents.END_SERVER_TICK.register(QuestBookHelper::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(QuestTrackerService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(PilgrimService::onServerTick);
+        ServerTickEvents.END_SERVER_TICK.register(VillageQuestRecipeBookService::onServerTick);
+        ServerTickEvents.END_SERVER_TICK.register(GuildArchiveService::onServerTick);
 
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
                 server.execute(() -> {
                     QuestPartyService.handleJoin(handler.player);
                     TradeRouteService.backfillUnlockedLedger(server.overworld(), handler.player);
                     ReputationService.backfillRoadwardenHorn(server.overworld(), handler.player);
+                    GuildArchiveService.migrateInventoryOnJoin(server.overworld(), handler.player);
+                    VillageQuestRecipeBookService.unlockEligibleRecipes(handler.player);
                 }));
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
                 server.execute(() -> handleDisconnect(handler.player)));
@@ -94,6 +102,11 @@ public final class QuestService {
                 var pos = hit.getBlockPos();
                 var state = world.getBlockState(pos);
                 var stack = player.getItemInHand(hand);
+                if (stack.getItem() instanceof BlockItem) {
+                    QuestState stateData = QuestState.get(sw.getServer());
+                    stateData.markTerrainModified(pos);
+                    stateData.markTerrainModified(pos.relative(hit.getDirection()));
+                }
                 QuestHarvestTracker.onUseBlock(sw, sp, pos, state);
                 StoryQuestService.onUseBlock(sw, sp, pos, state, stack);
             }
@@ -102,7 +115,9 @@ public final class QuestService {
 
         PlayerBlockBreakEvents.BEFORE.register((world, player, pos, state, blockEntity) -> {
             if (world instanceof ServerLevel sw && player instanceof net.minecraft.server.level.ServerPlayer sp) {
-                boolean allowed = SpecialQuestService.allowBlockBreak(sw, sp, pos);
+                boolean allowed = de.quest.shrine.VillageBondService.canBreakWayshrine(sw, sp, pos, state)
+                        && ShrinesBetweenRoadsStoryArc.canBreakActiveRuinMilestone(sw, sp, pos, state)
+                        && SpecialQuestService.allowBlockBreak(sw, sp, pos);
                 if (allowed) {
                     QuestHarvestTracker.onBlockBreakStart(sw, sp, pos, state);
                     QuestDropTracker.onBlockBreakStart(sw, sp, pos, state, blockEntity);
@@ -121,6 +136,7 @@ public final class QuestService {
 
         PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, blockEntity) -> {
             if (world instanceof ServerLevel sw && player instanceof net.minecraft.server.level.ServerPlayer sp) {
+                QuestState.get(sw.getServer()).markTerrainModified(pos);
                 DailyQuestService.onBlockBreak(sw, sp, pos, state);
                 StoryQuestService.onBlockBreak(sw, sp, pos, state);
                 SpecialQuestService.onBlockBreak(sw, sp, pos, state);
@@ -188,6 +204,7 @@ public final class QuestService {
         ShadowsTradeRoadEncounterService.resetRuntimeState();
         EmptyCaravanStoryService.resetRuntimeState();
         TradeRouteService.resetRuntimeState();
+        GuildArchiveService.resetTransientState();
         ClientPreferenceService.reset();
     }
 }

@@ -9,6 +9,7 @@ import de.quest.quest.QuestTrackerService;
 import de.quest.quest.daily.DailyQuestService;
 import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.questmaster.QuestMasterUiService;
+import de.quest.shrine.VillageBondService;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -69,6 +70,21 @@ public final class QuestNetworking {
         ServerPlayNetworking.registerGlobalReceiver(Payloads.TradeRouteActionPayload.ID, (payload, context) -> {
             ServerPlayer player = context.player();
             context.server().execute(() -> TradeRouteService.handleMapAction(player, payload));
+        });
+
+        ServerPlayNetworking.registerGlobalReceiver(Payloads.WayshrineTravelPayload.ID, (payload, context) -> {
+            ServerPlayer player = context.player();
+            context.server().execute(() -> VillageBondService.handleTravel(player, payload));
+        });
+
+        ServerPlayNetworking.registerGlobalReceiver(Payloads.WayshrineRenamePayload.ID, (payload, context) -> {
+            ServerPlayer player = context.player();
+            context.server().execute(() -> VillageBondService.handleRename(player, payload));
+        });
+
+        ServerPlayNetworking.registerGlobalReceiver(Payloads.NoticeBoardActionPayload.ID, (payload, context) -> {
+            ServerPlayer player = context.player();
+            context.server().execute(() -> VillageBondService.handleNoticeBoardAction(player, payload));
         });
 
         ServerPlayNetworking.registerGlobalReceiver(Payloads.ClientPreferencesPayload.ID, (payload, context) -> {

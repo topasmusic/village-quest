@@ -13,6 +13,7 @@ import de.quest.quest.story.VillageProjectService;
 import de.quest.quest.story.VillageProjectType;
 import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.quest.weekly.WeeklyQuestStatus;
+import de.quest.questmaster.QuestMasterUiService;
 import de.quest.reputation.ReputationService;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.network.chat.Component;
@@ -99,6 +100,7 @@ public final class QuestBookHelper {
         boolean hasPastureCharterProject = VillageProjectService.isUnlocked(world, pid, VillageProjectType.PASTURE_CHARTER);
         boolean hasWatchBellProject = VillageProjectService.isUnlocked(world, pid, VillageProjectType.WATCH_BELL);
         boolean hasCaravanYardProject = VillageProjectService.isUnlocked(world, pid, VillageProjectType.CARAVAN_YARD);
+        boolean hasWayshrineNetworkProject = VillageProjectService.isUnlocked(world, pid, VillageProjectType.WAYSHRINE_NETWORK);
 
         return new JournalPayload(
                 action,
@@ -139,7 +141,9 @@ public final class QuestBookHelper {
                 hasMarketCharterProject,
                 hasPastureCharterProject,
                 hasWatchBellProject,
-                hasCaravanYardProject
+                hasCaravanYardProject,
+                hasWayshrineNetworkProject,
+                QuestMasterUiService.buildGuildPathNodes(world, player)
         );
     }
 
@@ -206,7 +210,9 @@ public final class QuestBookHelper {
                 false,
                 false,
                 false,
-                false
+                false,
+                false,
+                java.util.List.of()
         ));
     }
 

@@ -76,6 +76,12 @@ tasks.named("sourcesJar").configure {
     archiveBaseName = releaseFileStem
     archiveClassifier = "sources"
     archiveVersion = ""
+
+    // Loom's default sources archive copies source resources verbatim, which
+    // would leave ${version} unresolved in fabric.mod.json.
+    filesMatching("fabric.mod.json") {
+        filter { line -> line.replace('${version}', releaseVersion) }
+    }
 }
 
 def bundledLicenseFiles = files(

@@ -1,0 +1,28 @@
+{
+  "textures":{"stone":"minecraft:block/deepslate_tiles","stone_bricks":"minecraft:block/deepslate_bricks","wood":"minecraft:block/spruce_log","brass":"village-quest:block/shrine_brass","rune":"village-quest:block/shrine_rune_active","particle":"minecraft:block/deepslate_tiles"},
+  "display":{
+    "gui":{"rotation":[30,225,0],"translation":[0,0,0],"scale":[0.46,0.46,0.46]},
+    "ground":{"rotation":[0,0,0],"translation":[0,2,0],"scale":[0.20,0.20,0.20]},
+    "fixed":{"rotation":[0,180,0],"translation":[0,0,0],"scale":[0.45,0.45,0.45]},
+    "thirdperson_righthand":{"rotation":[75,45,0],"translation":[0,2,0],"scale":[0.27,0.27,0.27]},
+    "thirdperson_lefthand":{"rotation":[75,225,0],"translation":[0,2,0],"scale":[0.27,0.27,0.27]},
+    "firstperson_righthand":{"rotation":[0,45,0],"translation":[0,0,0],"scale":[0.28,0.28,0.28]},
+    "firstperson_lefthand":{"rotation":[0,225,0],"translation":[0,0,0],"scale":[0.28,0.28,0.28]}
+  },
+  "elements":[
+    {"from":[0,0,0],"to":[16,2,16],"faces":{"north":{"texture":"#stone"},"south":{"texture":"#stone"},"east":{"texture":"#stone"},"west":{"texture":"#stone"},"up":{"texture":"#stone"},"down":{"texture":"#stone"}}},
+    {"from":[2,2,2],"to":[14,4,14],"faces":{"north":{"texture":"#stone_bricks"},"south":{"texture":"#stone_bricks"},"east":{"texture":"#stone_bricks"},"west":{"texture":"#stone_bricks"},"up":{"texture":"#rune"},"down":{"texture":"#stone_bricks"}}},
+    {"from":[3,4,3],"to":[6,12,6],"faces":{"north":{"texture":"#wood"},"south":{"texture":"#wood"},"east":{"texture":"#wood"},"west":{"texture":"#wood"},"up":{"texture":"#brass"},"down":{"texture":"#brass"}}},
+    {"from":[10,4,3],"to":[13,12,6],"faces":{"north":{"texture":"#wood"},"south":{"texture":"#wood"},"east":{"texture":"#wood"},"west":{"texture":"#wood"},"up":{"texture":"#brass"},"down":{"texture":"#brass"}}},
+    {"from":[3,4,10],"to":[6,12,13],"faces":{"north":{"texture":"#wood"},"south":{"texture":"#wood"},"east":{"texture":"#wood"},"west":{"texture":"#wood"},"up":{"texture":"#brass"},"down":{"texture":"#brass"}}},
+    {"from":[10,4,10],"to":[13,12,13],"faces":{"north":{"texture":"#wood"},"south":{"texture":"#wood"},"east":{"texture":"#wood"},"west":{"texture":"#wood"},"up":{"texture":"#brass"},"down":{"texture":"#brass"}}},
+    {"from":[2,11,2],"to":[14,13,14],"faces":{"north":{"texture":"#wood"},"south":{"texture":"#wood"},"east":{"texture":"#wood"},"west":{"texture":"#wood"},"up":{"texture":"#brass"},"down":{"texture":"#wood"}}},
+    {"from":[0,13,0],"to":[16,15,16],"faces":{"north":{"texture":"#stone"},"south":{"texture":"#stone"},"east":{"texture":"#stone"},"west":{"texture":"#stone"},"up":{"texture":"#stone"},"down":{"texture":"#stone"}}},
+    {"from":[4,15,4],"to":[12,16,12],"faces":{"north":{"texture":"#brass"},"south":{"texture":"#brass"},"east":{"texture":"#brass"},"west":{"texture":"#brass"},"up":{"texture":"#rune"},"down":{"texture":"#stone"}}},
+    {"from":[5.5,5,5.5],"to":[10.5,11,10.5],"rotation":{"origin":[8,8,8],"axis":"y","angle":45,"rescale":true},"faces":{"north":{"texture":"#rune"},"south":{"texture":"#rune"},"east":{"texture":"#rune"},"west":{"texture":"#rune"},"up":{"texture":"#brass"},"down":{"texture":"#brass"}}},
+    {"from":[2.5,3.5,2.5],"to":[6.5,5.5,6.5],"faces":{"north":{"texture":"#brass"},"south":{"texture":"#brass"},"east":{"texture":"#brass"},"west":{"texture":"#brass"},"up":{"texture":"#brass"},"down":{"texture":"#brass"}}},
+    {"from":[9.5,3.5,2.5],"to":[13.5,5.5,6.5],"faces":{"north":{"texture":"#brass"},"south":{"texture":"#brass"},"east":{"texture":"#brass"},"west":{"texture":"#brass"},"up":{"texture":"#brass"},"down":{"texture":"#brass"}}},
+    {"from":[2.5,3.5,9.5],"to":[6.5,5.5,13.5],"faces":{"north":{"texture":"#brass"},"south":{"texture":"#brass"},"east":{"texture":"#brass"},"west":{"texture":"#brass"},"up":{"texture":"#brass"},"down":{"texture":"#brass"}}},
+    {"from":[9.5,3.5,9.5],"to":[13.5,5.5,13.5],"faces":{"north":{"texture":"#brass"},"south":{"texture":"#brass"},"east":{"texture":"#brass"},"west":{"texture":"#brass"},"up":{"texture":"#brass"},"down":{"texture":"#brass"}}}
+  ]
+}

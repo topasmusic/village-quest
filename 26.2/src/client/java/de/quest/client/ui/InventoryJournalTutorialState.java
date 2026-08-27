@@ -16,11 +16,15 @@ public final class InventoryJournalTutorialState {
     private static final String JOURNAL_HINT_SEEN_KEY = "inventory_journal_hint_seen";
     private static final String JOURNAL_HINT_VERSION_KEY = "inventory_journal_hint_version";
     private static final String QUESTMASTER_BUTTON_HINT_SEEN_KEY = "journal_questmaster_button_hint_seen";
+    private static final String ATLAS_DRAG_HINT_SEEN_KEY = "journal_atlas_drag_hint_seen";
+    private static final String ATLAS_INTRO_SEEN_KEY = "journal_atlas_intro_seen";
     private static final int CURRENT_JOURNAL_HINT_VERSION = 2;
     private static boolean loaded;
     private static boolean journalHintSeen;
     private static int journalHintVersion;
     private static boolean questMasterButtonHintSeen;
+    private static boolean atlasDragHintSeen;
+    private static boolean atlasIntroSeen;
 
     private InventoryJournalTutorialState() {}
 
@@ -58,6 +62,34 @@ public final class InventoryJournalTutorialState {
         save();
     }
 
+    public static boolean shouldShowAtlasDragHint() {
+        loadIfNeeded();
+        return VillageQuestClientConfig.get().tutorialHints() && !atlasDragHintSeen;
+    }
+
+    public static void markAtlasDragHintSeen() {
+        loadIfNeeded();
+        if (atlasDragHintSeen) {
+            return;
+        }
+        atlasDragHintSeen = true;
+        save();
+    }
+
+    public static boolean shouldShowAtlasIntro() {
+        loadIfNeeded();
+        return VillageQuestClientConfig.get().tutorialHints() && !atlasIntroSeen;
+    }
+
+    public static void markAtlasIntroSeen() {
+        loadIfNeeded();
+        if (atlasIntroSeen) {
+            return;
+        }
+        atlasIntroSeen = true;
+        save();
+    }
+
     private static void loadIfNeeded() {
         if (loaded) {
             return;
@@ -78,6 +110,8 @@ public final class InventoryJournalTutorialState {
                     journalHintSeen ? 1 : 0
             );
             questMasterButtonHintSeen = Boolean.parseBoolean(properties.getProperty(QUESTMASTER_BUTTON_HINT_SEEN_KEY, "false"));
+            atlasDragHintSeen = Boolean.parseBoolean(properties.getProperty(ATLAS_DRAG_HINT_SEEN_KEY, "false"));
+            atlasIntroSeen = Boolean.parseBoolean(properties.getProperty(ATLAS_INTRO_SEEN_KEY, "false"));
         } catch (IOException exception) {
             VillageQuest.LOGGER.warn("Failed to load Village Quest client settings from {}", configPath, exception);
         }
@@ -98,6 +132,8 @@ public final class InventoryJournalTutorialState {
         properties.setProperty(JOURNAL_HINT_SEEN_KEY, Boolean.toString(journalHintSeen));
         properties.setProperty(JOURNAL_HINT_VERSION_KEY, Integer.toString(journalHintVersion));
         properties.setProperty(QUESTMASTER_BUTTON_HINT_SEEN_KEY, Boolean.toString(questMasterButtonHintSeen));
+        properties.setProperty(ATLAS_DRAG_HINT_SEEN_KEY, Boolean.toString(atlasDragHintSeen));
+        properties.setProperty(ATLAS_INTRO_SEEN_KEY, Boolean.toString(atlasIntroSeen));
 
         try {
             Files.createDirectories(configPath.getParent());

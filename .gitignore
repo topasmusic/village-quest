@@ -32,7 +32,10 @@
 
 # local release QA output and scratch exports
 /26.2/runclient-*.log
+/26.2/logs/
 /26.2/design/2.1.0-prosperity-art/
+/26.2/design/2.2.0-shrines/
+/26.2/tools/
 /tools/__pycache__/
 /es_es.json
 /es_es. original.json

@@ -8,6 +8,9 @@ import de.quest.client.screen.PilgrimTradeScreen;
 import de.quest.client.screen.ProsperityScreen;
 import de.quest.client.screen.QuestMasterScreen;
 import de.quest.client.screen.TradeRouteMapScreen;
+import de.quest.client.screen.WayshrineScreen;
+import de.quest.client.screen.GuildNoticeBoardScreen;
+import de.quest.client.screen.GuildPathScreen;
 import de.quest.client.hud.TradeRouteMinimapHud;
 import de.quest.network.Payloads;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -102,7 +105,9 @@ public final class ClientQuestNetworking {
                         payload.hasMarketCharterProject(),
                         payload.hasPastureCharterProject(),
                         payload.hasWatchBellProject(),
-                        payload.hasCaravanYardProject()
+                        payload.hasCaravanYardProject(),
+                        payload.hasWayshrineNetworkProject(),
+                        payload.guildPathNodes()
                 );
 
                 if (payload.action() == Payloads.JournalPayload.ACTION_OPEN) {
@@ -335,6 +340,39 @@ public final class ClientQuestNetworking {
                 }
                 if (currentScreen(client) instanceof TradeRouteMapScreen screen) {
                     screen.updateData(payload);
+                }
+            });
+        });
+
+        ClientPlayNetworking.registerGlobalReceiver(Payloads.WayshrinePayload.ID, (payload, context) -> {
+            var client = context.client();
+            client.execute(() -> {
+                if (currentScreen(client) instanceof WayshrineScreen screen) {
+                    screen.updateData(payload);
+                } else {
+                    setScreen(client, new WayshrineScreen(payload));
+                }
+            });
+        });
+
+        ClientPlayNetworking.registerGlobalReceiver(Payloads.NoticeBoardPayload.ID, (payload, context) -> {
+            var client = context.client();
+            client.execute(() -> {
+                if (currentScreen(client) instanceof GuildNoticeBoardScreen screen) {
+                    screen.updateData(payload);
+                } else {
+                    setScreen(client, new GuildNoticeBoardScreen(payload));
+                }
+            });
+        });
+
+        ClientPlayNetworking.registerGlobalReceiver(Payloads.GuildPathPayload.ID, (payload, context) -> {
+            var client = context.client();
+            client.execute(() -> {
+                if (currentScreen(client) instanceof GuildPathScreen screen) {
+                    screen.updateData(payload);
+                } else {
+                    setScreen(client, new GuildPathScreen(payload));
                 }
             });
         });

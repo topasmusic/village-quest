@@ -419,6 +419,7 @@ public final class QuestMasterScreen extends CompatScreen {
     }
 
     private void drawCategorySlot(GuiGraphics context, int x, int y, CategoryView category, boolean hovered, boolean selected, boolean locked) {
+        int visibleCount = locked ? 0 : category.entryCount();
         VillageUiTheme.drawTab(context, x, y, CATEGORY_SLOT_WIDTH, CATEGORY_SLOT_HEIGHT,
                 selected && !locked, hovered && !locked);
         VillageUiTheme.drawIcon(context, VillageUiTheme.icon(categoryIcon(category.categoryId())),
@@ -427,14 +428,14 @@ public final class QuestMasterScreen extends CompatScreen {
             context.fill(x + 4, y + 4, x + CATEGORY_SLOT_WIDTH - 4,
                     y + CATEGORY_SLOT_HEIGHT - 4, 0x669A8B76);
         }
-        if (category.entryCount() > 0) {
-            String count = Integer.toString(category.entryCount());
+        if (visibleCount > 0) {
+            String count = Integer.toString(visibleCount);
             int badgeX = x + CATEGORY_SLOT_WIDTH - this.font.width(count) - 8;
             context.fill(badgeX - 2, y + 4, x + CATEGORY_SLOT_WIDTH - 4, y + 14, 0xCC5A321E);
             context.drawString(this.font, count, badgeX, y + 5, STATUS_TEXT, false);
         }
         if (hovered) {
-            Component tooltip = Component.literal(category.label().getString() + " (" + category.entryCount() + ")");
+            Component tooltip = Component.literal(category.label().getString() + " (" + visibleCount + ")");
             context.setTooltipForNextFrame(this.font, tooltip, x + CATEGORY_SLOT_WIDTH, y + 8);
         }
     }

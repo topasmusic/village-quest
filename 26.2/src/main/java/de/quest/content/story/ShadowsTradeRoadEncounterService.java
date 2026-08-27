@@ -1,5 +1,7 @@
 package de.quest.content.story;
 
+import de.quest.archive.GuildArchiveService;
+import de.quest.archive.GuildArchiveService.ArchiveItem;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.entity.CaravanMerchantEntity;
@@ -17,6 +19,7 @@ import de.quest.questmaster.QuestMasterUiService;
 import de.quest.registry.ModEntities;
 import de.quest.registry.ModItems;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.Registry;
 import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -50,6 +53,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.levelgen.structure.Structure;
 
 import java.util.ArrayList;
@@ -72,6 +76,7 @@ public final class ShadowsTradeRoadEncounterService {
 
     private static final TagKey<Structure> ROADMARK_VILLAGES =
             TagKey.create(Registries.STRUCTURE, Identifier.fromNamespaceAndPath("village-quest", "roadmark_villages"));
+    private static final int VILLAGE_DETECTION_MARGIN = 16;
 
     private static final int MIN_RESCUE_DISTANCE = 500;
     private static final int MAX_RESCUE_DISTANCE = 1000;
@@ -229,12 +234,15 @@ public final class ShadowsTradeRoadEncounterService {
         if (player == null || ModItems.SURVEYORS_COMPASS == null) {
             return false;
         }
+        ServerLevel world = (ServerLevel) player.level();
         for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
-            if (player.getInventory().getItem(slot).is(ModItems.SURVEYORS_COMPASS)) {
+            if (GuildArchiveService.isValidOwnedStack(world, player,
+                    player.getInventory().getItem(slot), ArchiveItem.SURVEYORS_COMPASS)) {
                 return true;
             }
         }
-        return player.getOffhandItem().is(ModItems.SURVEYORS_COMPASS);
+        return GuildArchiveService.isValidOwnedStack(world, player,
+                player.getOffhandItem(), ArchiveItem.SURVEYORS_COMPASS);
     }
 
     public static VillageMarker currentVillage(ServerLevel world, BlockPos pos) {
@@ -242,14 +250,59 @@ public final class ShadowsTradeRoadEncounterService {
             return null;
         }
         StructureStart start = world.structureManager().getStructureWithPieceAt(pos, ROADMARK_VILLAGES);
-        if (start == null || !start.isValid()) {
-            return null;
+        if (start != null && start.isValid()) {
+            return villageMarker(start);
         }
+
+        // A village is usually much less solid than its structure footprint: paths,
+        // squares, and large CTOV districts can all sit between individual pieces.
+        // Search only already-loaded neighboring chunks for a referenced village whose
+        // full horizontal bounds are close to the player. This broadens interaction
+        // without accepting arbitrary villager groups or loading remote terrain.
+        Registry<Structure> structures = world.registryAccess().lookupOrThrow(Registries.STRUCTURE);
+        ChunkPos playerChunk = ChunkPos.containing(pos);
+        int chunkRadius = (VILLAGE_DETECTION_MARGIN + 15) / 16;
+        StructureStart nearest = null;
+        long nearestDistanceSqr = Long.MAX_VALUE;
+        for (int chunkX = playerChunk.x() - chunkRadius; chunkX <= playerChunk.x() + chunkRadius; chunkX++) {
+            for (int chunkZ = playerChunk.z() - chunkRadius; chunkZ <= playerChunk.z() + chunkRadius; chunkZ++) {
+                if (!world.hasChunk(chunkX, chunkZ)) {
+                    continue;
+                }
+                for (StructureStart candidate : world.structureManager().startsForStructure(
+                        new ChunkPos(chunkX, chunkZ),
+                        structure -> structures.wrapAsHolder(structure).is(ROADMARK_VILLAGES))) {
+                    if (candidate == null || !candidate.isValid()) {
+                        continue;
+                    }
+                    BoundingBox box = candidate.getBoundingBox();
+                    long dx = distanceToRange(pos.getX(), box.minX(), box.maxX());
+                    long dz = distanceToRange(pos.getZ(), box.minZ(), box.maxZ());
+                    long distanceSqr = dx * dx + dz * dz;
+                    if (distanceSqr <= (long) VILLAGE_DETECTION_MARGIN * VILLAGE_DETECTION_MARGIN
+                            && distanceSqr < nearestDistanceSqr) {
+                        nearest = candidate;
+                        nearestDistanceSqr = distanceSqr;
+                    }
+                }
+            }
+        }
+        return nearest == null ? null : villageMarker(nearest);
+    }
+
+    private static VillageMarker villageMarker(StructureStart start) {
         BoundingBox box = start.getBoundingBox();
         int centerX = (box.minX() + box.maxX()) / 2;
         int centerZ = (box.minZ() + box.maxZ()) / 2;
         return new VillageMarker(centerX + "_" + centerZ, centerX, centerZ,
                 box.minX(), box.maxX(), box.minZ(), box.maxZ());
+    }
+
+    private static int distanceToRange(int value, int min, int max) {
+        if (value < min) {
+            return min - value;
+        }
+        return value > max ? value - max : 0;
     }
 
     public static boolean hasHomeVillage(ServerLevel world, UUID playerId) {
@@ -487,6 +540,13 @@ public final class ShadowsTradeRoadEncounterService {
             return true;
         }
         return false;
+    }
+
+    /** Guild Archive recovery hook for the one-off courier document. */
+    public static boolean restoreGuildWarningLetter(ServerLevel world, ServerPlayer player) {
+        if (world == null || player == null || hasGuildWarningLetter(player)) return false;
+        giveOrDrop(player, createGuildWarningLetter());
+        return true;
     }
 
     public static boolean adminUnlockForTesting(ServerLevel world, ServerPlayer player) {

@@ -1,0 +1,1 @@
+{"type":"minecraft:crafting_shaped","group":"village_quest","pattern":["PBP","WSW"," W "],"key":{"P":"minecraft:paper","B":"minecraft:gold_nugget","W":"minecraft:dark_oak_planks","S":"minecraft:stick"},"result":{"id":"village-quest:guild_notice_post","count":1}}

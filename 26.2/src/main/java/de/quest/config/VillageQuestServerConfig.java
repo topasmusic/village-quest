@@ -57,9 +57,9 @@ public final class VillageQuestServerConfig {
             }
             instance = load(path);
             VillageQuest.LOGGER.info(
-                    "Loaded Village Quest server config: reset zone {}, daily {:02d}:00, weekly {} {:02d}:00, caravans {}",
-                    instance.resetZone, instance.dailyResetHour, instance.weeklyResetDay,
-                    instance.weeklyResetHour, instance.caravanVisualMode);
+                    "Loaded Village Quest server config: reset zone {}, daily {}:00, weekly {} {}:00, caravans {}",
+                    instance.resetZone, String.format("%02d", instance.dailyResetHour), instance.weeklyResetDay,
+                    String.format("%02d", instance.weeklyResetHour), instance.caravanVisualMode);
         } catch (IOException exception) {
             instance = defaults();
             VillageQuest.LOGGER.warn("Failed to load Village Quest server config from {}; using safe defaults", path, exception);

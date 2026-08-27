@@ -2,6 +2,7 @@ package de.quest.client.screen;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
@@ -11,6 +12,20 @@ public abstract class CompatScreen extends Screen {
 
     protected CompatScreen(Component title) {
         super(title);
+    }
+
+    @Override
+    public boolean keyPressed(KeyEvent key) {
+        if (!suppressInventoryKeyClose() && minecraft != null && minecraft.options.keyInventory.matches(key)) {
+            onClose();
+            return true;
+        }
+        return super.keyPressed(key);
+    }
+
+    /** Allows text-entry overlays to keep the inventory key available as normal input. */
+    protected boolean suppressInventoryKeyClose() {
+        return false;
     }
 
     @Override

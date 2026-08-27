@@ -10,6 +10,7 @@ import de.quest.quest.story.StoryArcType;
 import de.quest.quest.weekly.WeeklyQuestService;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.datafix.DataFixTypes;
@@ -18,6 +19,7 @@ import net.minecraft.world.level.saveddata.SavedDataType;
 import java.util.Map;
 import java.util.Collections;
 import java.util.UUID;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 
@@ -27,6 +29,7 @@ public final class QuestState extends SavedData {
             new SavedDataType<>(Identifier.withDefaultNamespace(ID), QuestState::new, CompoundTag.CODEC.xmap(QuestState::fromNbt, QuestState::toNbt), DataFixTypes.LEVEL);
 
     private final Map<UUID, PlayerQuestData> players = new ConcurrentHashMap<>();
+    private final Set<Long> modifiedTerrainChunks = ConcurrentHashMap.newKeySet();
     private long pilgrimNaturalSpawnCooldownUntil;
     private CompoundTag questPartyState = new CompoundTag();
 
@@ -68,6 +71,7 @@ public final class QuestState extends SavedData {
 
     public void resetAllProgress() {
         players.clear();
+        modifiedTerrainChunks.clear();
         pilgrimNaturalSpawnCooldownUntil = 0L;
         questPartyState = new CompoundTag();
         setDirty();
@@ -78,6 +82,7 @@ public final class QuestState extends SavedData {
 
     private void readFromNbt(CompoundTag root) {
         players.clear();
+        modifiedTerrainChunks.clear();
         questPartyState = new CompoundTag();
         if (root == null || root.isEmpty()) {
             return;
@@ -98,6 +103,11 @@ public final class QuestState extends SavedData {
 
     private void readDailyQuestData(CompoundTag root) {
         this.pilgrimNaturalSpawnCooldownUntil = Math.max(0L, root.getLongOr("pilgrimNaturalSpawnCooldownUntil", 0L));
+        ListTag modifiedChunks = root.getListOrEmpty("modifiedTerrainChunks");
+        for (int i = 0; i < modifiedChunks.size(); i++) {
+            CompoundTag item = modifiedChunks.getCompoundOrEmpty(i);
+            modifiedTerrainChunks.add(item.getLongOr("chunk", 0L));
+        }
         readUuidLongMap(root, "currencyBalance", (id, value) -> getPlayerData(id).setCurrencyBalance(value));
         readUuidLongMap(root, "lastRewardDay", (id, value) -> getPlayerData(id).setLastRewardDay(value));
         readUuidLongMap(root, "bonusRewardDay", (id, value) -> getPlayerData(id).setBonusRewardDay(value));
@@ -176,6 +186,13 @@ public final class QuestState extends SavedData {
     private CompoundTag writeDailyQuestData() {
         CompoundTag root = new CompoundTag();
         root.putLong("pilgrimNaturalSpawnCooldownUntil", this.pilgrimNaturalSpawnCooldownUntil);
+        ListTag modifiedChunks = new ListTag();
+        for (long chunk : modifiedTerrainChunks) {
+            CompoundTag item = new CompoundTag();
+            item.putLong("chunk", chunk);
+            modifiedChunks.add(item);
+        }
+        root.put("modifiedTerrainChunks", modifiedChunks);
         ListTag currencyBalance = new ListTag();
         ListTag lastRewardDay = new ListTag();
         ListTag bonusRewardDay = new ListTag();
@@ -525,6 +542,33 @@ public final class QuestState extends SavedData {
         }
         this.pilgrimNaturalSpawnCooldownUntil = clamped;
         setDirty();
+    }
+
+    public void markTerrainModified(BlockPos pos) {
+        if (pos != null && modifiedTerrainChunks.add(packChunk(pos.getX() >> 4, pos.getZ() >> 4))) {
+            setDirty();
+        }
+    }
+
+    public boolean isTerrainModified(BlockPos pos, int chunkRadius) {
+        if (pos == null) {
+            return false;
+        }
+        int centerX = pos.getX() >> 4;
+        int centerZ = pos.getZ() >> 4;
+        int radius = Math.max(0, chunkRadius);
+        for (int x = centerX - radius; x <= centerX + radius; x++) {
+            for (int z = centerZ - radius; z <= centerZ + radius; z++) {
+                if (modifiedTerrainChunks.contains(packChunk(x, z))) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static long packChunk(int x, int z) {
+        return (x & 0xffffffffL) | ((z & 0xffffffffL) << 32);
     }
 
     private static void readUuidLongMap(CompoundTag root, String key, BiConsumer<UUID, Long> consumer) {

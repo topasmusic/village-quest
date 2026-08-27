@@ -10,7 +10,10 @@ public enum TradeRouteEventType {
     HUNGRY_TRAVELERS(5, "hungry_travelers"),
     ROAD_TOLL(6, "road_toll"),
     MISSING_COURIER(7, "missing_courier"),
-    STORM_CAMP(8, "storm_camp");
+    STORM_CAMP(8, "storm_camp"),
+    SHATTERED_WAYSTONE(9, "shattered_waystone"),
+    SHRINE_PILGRIMS(10, "shrine_pilgrims"),
+    RUNES_GONE_DARK(11, "runes_gone_dark");
 
     private final int id;
     private final String translationSuffix;

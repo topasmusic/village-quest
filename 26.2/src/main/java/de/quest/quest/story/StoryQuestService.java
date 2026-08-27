@@ -10,6 +10,7 @@ import de.quest.content.story.ShadowsTradeRoadEncounterService;
 import de.quest.content.story.SilentForgeStoryArc;
 import de.quest.content.story.EmptyCaravanStoryService;
 import de.quest.content.story.TheEmptyCaravanStoryArc;
+import de.quest.content.story.ShrinesBetweenRoadsStoryArc;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.economy.CurrencyService;
@@ -50,14 +51,15 @@ public final class StoryQuestService {
     private static final double STORY_CURRENCY_MULTIPLIER = 0.70d;
     private static final long STORY_ARC_COOLDOWN_MILLIS = 1L * 60L * 60L * 1000L;
 
-    private static final Map<StoryArcType, StoryArcDefinition> ARCS = Map.of(
-            StoryArcType.FAILING_HARVEST, new FailingHarvestStoryArc(),
-            StoryArcType.SILENT_FORGE, new SilentForgeStoryArc(),
-            StoryArcType.MARKET_ROAD_TROUBLES, new MarketRoadTroublesStoryArc(),
-            StoryArcType.RESTLESS_PENS, new RestlessPensStoryArc(),
-            StoryArcType.SHADOWS_ON_THE_TRADE_ROAD, new ShadowsOnTheTradeRoadStoryArc(),
-            StoryArcType.THE_EMPTY_CARAVAN, new TheEmptyCaravanStoryArc(),
-            StoryArcType.NIGHT_BELLS, new NightBellsStoryArc()
+    private static final Map<StoryArcType, StoryArcDefinition> ARCS = Map.ofEntries(
+            Map.entry(StoryArcType.FAILING_HARVEST, new FailingHarvestStoryArc()),
+            Map.entry(StoryArcType.SILENT_FORGE, new SilentForgeStoryArc()),
+            Map.entry(StoryArcType.MARKET_ROAD_TROUBLES, new MarketRoadTroublesStoryArc()),
+            Map.entry(StoryArcType.RESTLESS_PENS, new RestlessPensStoryArc()),
+            Map.entry(StoryArcType.SHADOWS_ON_THE_TRADE_ROAD, new ShadowsOnTheTradeRoadStoryArc()),
+            Map.entry(StoryArcType.THE_EMPTY_CARAVAN, new TheEmptyCaravanStoryArc()),
+            Map.entry(StoryArcType.SHRINES_BETWEEN_ROADS, new ShrinesBetweenRoadsStoryArc()),
+            Map.entry(StoryArcType.NIGHT_BELLS, new NightBellsStoryArc())
     );
 
     private StoryQuestService() {}

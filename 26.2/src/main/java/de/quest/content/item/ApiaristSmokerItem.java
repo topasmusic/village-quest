@@ -1,5 +1,7 @@
 package de.quest.content.item;
 
+import de.quest.archive.GuildArchiveService;
+import de.quest.archive.GuildArchiveService.ArchiveItem;
 import de.quest.quest.special.ApiaristSmokerQuestService;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -22,7 +24,7 @@ public final class ApiaristSmokerItem extends Item {
 
     @Override
     public boolean isFoil(ItemStack stack) {
-        return true;
+        return !GuildArchiveService.isSuperseded(stack);
     }
 
     @Override
@@ -31,6 +33,8 @@ public final class ApiaristSmokerItem extends Item {
                 || !(context.getPlayer() instanceof ServerPlayer player)) {
             return InteractionResult.SUCCESS;
         }
+        if (!GuildArchiveService.validateUse(world, player, context.getItemInHand(),
+                ArchiveItem.APIARISTS_SMOKER)) return InteractionResult.FAIL;
         return ApiaristSmokerQuestService.useSmoker(world, player, context.getClickedPos(), world.getBlockState(context.getClickedPos()));
     }
 }

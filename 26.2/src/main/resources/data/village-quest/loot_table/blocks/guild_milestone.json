@@ -1,0 +1,1 @@
+{"type":"minecraft:block","pools":[{"rolls":1,"entries":[{"type":"minecraft:item","name":"village-quest:guild_milestone"}],"conditions":[{"condition":"minecraft:survives_explosion"}]}]}

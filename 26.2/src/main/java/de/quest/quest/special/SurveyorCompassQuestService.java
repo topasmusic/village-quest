@@ -1,5 +1,7 @@
 package de.quest.quest.special;
 
+import de.quest.archive.GuildArchiveService;
+import de.quest.archive.GuildArchiveService.ArchiveItem;
 import com.mojang.datafixers.util.Pair;
 import de.quest.caravan.TradeRouteService;
 import de.quest.content.story.ShadowsTradeRoadEncounterService;
@@ -1285,7 +1287,8 @@ public final class SurveyorCompassQuestService {
     }
 
     private static void completeQuest(ServerLevel world, ServerPlayer player, PlayerQuestData data) {
-        giveOrDrop(player, new ItemStack(ModItems.SURVEYORS_COMPASS));
+        giveOrDrop(player, GuildArchiveService.issueInitial(world, player, ArchiveItem.SURVEYORS_COMPASS,
+                new ItemStack(ModItems.SURVEYORS_COMPASS)));
         giveOrDrop(player, new ItemStack(Items.NETHERITE_INGOT, BONUS_INGOT_COUNT));
         data.setPendingSpecialOfferKind(null);
         data.setSurveyorCompassQuestStage(RelicQuestStage.COMPLETED);

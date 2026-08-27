@@ -1,5 +1,7 @@
 package de.quest.content.item;
 
+import de.quest.archive.GuildArchiveService;
+import de.quest.archive.GuildArchiveService.ArchiveItem;
 import de.quest.quest.special.SurveyorCompassQuestService;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -24,7 +26,7 @@ public final class SurveyorCompassItem extends Item {
 
     @Override
     public boolean isFoil(ItemStack stack) {
-        return true;
+        return !GuildArchiveService.isSuperseded(stack);
     }
 
     @Override
@@ -32,6 +34,8 @@ public final class SurveyorCompassItem extends Item {
         if (!(world instanceof ServerLevel serverWorld) || !(user instanceof ServerPlayer serverPlayer)) {
             return InteractionResult.SUCCESS;
         }
+        if (!GuildArchiveService.validateUse(serverWorld, serverPlayer,
+                user.getItemInHand(hand), ArchiveItem.SURVEYORS_COMPASS)) return InteractionResult.FAIL;
         return SurveyorCompassQuestService.useCompass(serverWorld, serverPlayer, user.getItemInHand(hand));
     }
 }

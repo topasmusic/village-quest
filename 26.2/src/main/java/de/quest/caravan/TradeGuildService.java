@@ -15,6 +15,10 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.component.ItemContainerContents;
+import de.quest.registry.ModItems;
 
 /** Long-term progression, freight contracts and investments for the caravan network. */
 public final class TradeGuildService {
@@ -155,6 +159,54 @@ public final class TradeGuildService {
         return true;
     }
 
+    public static InteractionResult useSatchel(ServerLevel world, ServerPlayer player, ItemStack satchel) {
+        if (world == null || player == null || satchel == null || !satchel.is(ModItems.GUILD_COURIERS_SATCHEL)) {
+            return InteractionResult.FAIL;
+        }
+        ItemStack stored = satchel.getOrDefault(DataComponents.CONTAINER, ItemContainerContents.EMPTY).copyOne();
+        if (player.isShiftKeyDown()) {
+            if (stored.isEmpty()) {
+                player.sendSystemMessage(Component.translatable("message.village-quest.satchel.empty")
+                        .withStyle(ChatFormatting.GRAY), false);
+                return InteractionResult.FAIL;
+            }
+            satchel.set(DataComponents.CONTAINER, ItemContainerContents.EMPTY);
+            if (!player.getInventory().add(stored)) player.drop(stored, false);
+            player.inventoryMenu.broadcastChanges();
+            player.sendSystemMessage(Component.translatable("message.village-quest.satchel.unpacked",
+                    stored.getCount(), stored.getHoverName()).withStyle(ChatFormatting.GREEN), false);
+            return InteractionResult.SUCCESS;
+        }
+        TradeContractType type = activeContract(world, player.getUUID());
+        if (type == null) {
+            player.sendSystemMessage(Component.translatable("message.village-quest.satchel.no_contract")
+                    .withStyle(ChatFormatting.RED), false);
+            return InteractionResult.FAIL;
+        }
+        if (!stored.isEmpty() && !stored.is(type.item())) {
+            player.sendSystemMessage(Component.translatable("message.village-quest.satchel.wrong_cargo",
+                    stored.getHoverName()).withStyle(ChatFormatting.RED), false);
+            return InteractionResult.FAIL;
+        }
+        int storedCount = stored.getCount();
+        int available = countLooseCargo(player, type.item());
+        int moved = Math.min(type.amount() - storedCount, available);
+        if (moved <= 0) {
+            player.sendSystemMessage(Component.translatable("message.village-quest.satchel.missing",
+                    type.amount() - storedCount, new ItemStack(type.item()).getHoverName())
+                    .withStyle(ChatFormatting.RED), false);
+            return InteractionResult.FAIL;
+        }
+        removeLooseCargo(player, type.item(), moved);
+        satchel.set(DataComponents.CONTAINER, ItemContainerContents.fromItems(
+                List.of(new ItemStack(type.item(), storedCount + moved))));
+        player.inventoryMenu.broadcastChanges();
+        player.sendSystemMessage(Component.translatable("message.village-quest.satchel.packed",
+                storedCount + moved, type.amount(), new ItemStack(type.item()).getHoverName())
+                .withStyle(ChatFormatting.GREEN), false);
+        return InteractionResult.SUCCESS;
+    }
+
     public static void onRouteArrival(ServerLevel world, UUID ownerId, int routeIndex) {
         if (world == null || ownerId == null) return;
         PlayerQuestData data = data(world, ownerId);
@@ -255,9 +307,24 @@ public final class TradeGuildService {
         for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
             ItemStack stack = inventory.getItem(slot);
             if (stack.is(type.item())) total += stack.getCount();
+            if (stack.is(ModItems.GUILD_COURIERS_SATCHEL)) {
+                ItemStack cargo = stack.getOrDefault(DataComponents.CONTAINER, ItemContainerContents.EMPTY).copyOne();
+                if (cargo.is(type.item())) total += cargo.getCount();
+            }
         }
         if (total < type.amount()) return false;
         int remaining = type.amount();
+        for (int slot = 0; slot < inventory.getContainerSize() && remaining > 0; slot++) {
+            ItemStack satchel = inventory.getItem(slot);
+            if (!satchel.is(ModItems.GUILD_COURIERS_SATCHEL)) continue;
+            ItemStack cargo = satchel.getOrDefault(DataComponents.CONTAINER, ItemContainerContents.EMPTY).copyOne();
+            if (!cargo.is(type.item())) continue;
+            int removed = Math.min(remaining, cargo.getCount());
+            cargo.shrink(removed);
+            remaining -= removed;
+            satchel.set(DataComponents.CONTAINER, cargo.isEmpty() ? ItemContainerContents.EMPTY
+                    : ItemContainerContents.fromItems(List.of(cargo)));
+        }
         for (int slot = 0; slot < inventory.getContainerSize() && remaining > 0; slot++) {
             ItemStack stack = inventory.getItem(slot);
             if (!stack.is(type.item())) continue;
@@ -267,5 +334,27 @@ public final class TradeGuildService {
         }
         player.inventoryMenu.broadcastChanges();
         return true;
+    }
+
+    private static int countLooseCargo(ServerPlayer player, net.minecraft.world.item.Item item) {
+        int count = 0;
+        Inventory inventory = player.getInventory();
+        for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
+            ItemStack stack = inventory.getItem(slot);
+            if (stack.is(item)) count += stack.getCount();
+        }
+        return count;
+    }
+
+    private static void removeLooseCargo(ServerPlayer player, net.minecraft.world.item.Item item, int amount) {
+        Inventory inventory = player.getInventory();
+        int remaining = amount;
+        for (int slot = 0; slot < inventory.getContainerSize() && remaining > 0; slot++) {
+            ItemStack stack = inventory.getItem(slot);
+            if (!stack.is(item)) continue;
+            int removed = Math.min(remaining, stack.getCount());
+            stack.shrink(removed);
+            remaining -= removed;
+        }
     }
 }

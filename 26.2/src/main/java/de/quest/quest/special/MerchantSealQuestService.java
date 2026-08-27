@@ -1,5 +1,7 @@
 package de.quest.quest.special;
 
+import de.quest.archive.GuildArchiveService;
+import de.quest.archive.GuildArchiveService.ArchiveItem;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.entity.PilgrimEntity;
@@ -377,7 +379,8 @@ public final class MerchantSealQuestService {
     }
 
     private static void completeQuest(ServerLevel world, ServerPlayer player, PlayerQuestData data) {
-        giveOrDrop(player, new ItemStack(ModItems.MERCHANT_SEAL));
+        giveOrDrop(player, GuildArchiveService.issueInitial(world, player, ArchiveItem.MERCHANT_SEAL,
+                new ItemStack(ModItems.MERCHANT_SEAL)));
         data.setPendingSpecialOfferKind(null);
         data.setMerchantSealQuestStage(RelicQuestStage.COMPLETED);
         data.setMerchantSealTradeProgress(TRADE_TARGET);

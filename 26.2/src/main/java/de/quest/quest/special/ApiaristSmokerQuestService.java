@@ -1,5 +1,7 @@
 package de.quest.quest.special;
 
+import de.quest.archive.GuildArchiveService;
+import de.quest.archive.GuildArchiveService.ArchiveItem;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.quest.QuestBookHelper;
@@ -433,7 +435,8 @@ public final class ApiaristSmokerQuestService {
             return;
         }
 
-        giveOrDrop(player, new ItemStack(ModItems.APIARISTS_SMOKER));
+        giveOrDrop(player, GuildArchiveService.issueInitial(world, player, ArchiveItem.APIARISTS_SMOKER,
+                new ItemStack(ModItems.APIARISTS_SMOKER)));
         data.setPendingSpecialOfferKind(null);
         data.setApiaristSmokerQuestStage(RelicQuestStage.COMPLETED);
         data.setApiaristSmokerHoneyProgress(HONEY_TARGET);
