@@ -76,13 +76,18 @@ public final class WayshrineCrystalRenderer
                 && blockState.getValue(GuildWayshrineBlock.HALF) == DoubleBlockHalf.LOWER;
         state.active = blockState.hasProperty(GuildWayshrineBlock.ACTIVE)
                 && blockState.getValue(GuildWayshrineBlock.ACTIVE);
-        float animationTime = blockEntity.getLevel() == null
+        // Keep the fractional frame time in double precision. Converting a long-running
+        // world's game time to float first eventually discards partialTick completely,
+        // which makes the crystal advance in visible 20 TPS steps.
+        double animationTime = blockEntity.getLevel() == null
                 ? partialTick
-                : blockEntity.getLevel().getGameTime() + partialTick;
+                : blockEntity.getLevel().getGameTime() + (double) partialTick;
+        double rotationPhase = animationTime % ROTATION_PERIOD_TICKS;
+        double bobPhase = (animationTime * 0.09d) % (Math.PI * 2.0d);
         state.rotation = state.active
-                ? STATIC_ANGLE + animationTime * (Mth.TWO_PI / ROTATION_PERIOD_TICKS)
+                ? STATIC_ANGLE + (float) (rotationPhase * (Mth.TWO_PI / ROTATION_PERIOD_TICKS))
                 : STATIC_ANGLE;
-        state.bob = state.active ? Mth.sin(animationTime * 0.09f) * 0.025f : 0.0f;
+        state.bob = state.active ? (float) (Math.sin(bobPhase) * 0.025d) : 0.0f;
     }
 
     @Override

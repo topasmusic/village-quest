@@ -36,6 +36,7 @@ Release date: 2026-08-28
 - Made reissued Guild Archive tools update visibly as soon as an older serialized copy returns to the carried inventory. Superseded relics receive their red invalid name and lore within five server ticks and lose their enchanted glint while the existing server-authoritative generation check remains final.
 - Removed the completed one-off admin fixtures `shrines ruintest`, `shrines boardtest`, `shrines crafttest`, and `archive testsetup`, including their unreachable state flags, methods, localization, and stale documentation. Broader diagnostics, resets, and reusable non-persistent UI profiles remain available.
 - Fixed the server-config startup log using unsupported formatted placeholders, eliminating the Log4j parameter-mismatch warning.
+- Fixed active Wayshrine crystals becoming visibly tick-stepped in long-running worlds after float precision discarded the per-frame partial tick. Rotation and bobbing now retain frame interpolation without changing their speed or range.
 
 - Sunk the authored Broken Heartstone ruin one block into its validated natural site. Its floor now replaces the surface layer instead of sitting as a raised platform above it.
 - Rebuilt the Guild Milestone's animated teal rune treatment on all four sides and removed the two one-sided lower protrusions from the Guild Wayshrine.
