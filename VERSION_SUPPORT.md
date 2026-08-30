@@ -1,7 +1,5 @@
 # Village Quest Version Support
 
-Current canonical maintainer state: `MAINTAINER.md`.
-
 Village Quest uses a single-active-line development policy.
 
 ## 2.2.0 content release

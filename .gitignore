@@ -23,6 +23,17 @@
 # platform files
 **/.DS_Store
 
+# private maintainer context and local planning notes
+/MAINTAINER.md
+/NEXT_SESSION.md
+/*_START_HERE.md
+/*_DRAFT.md
+/*_PLAN.md
+**/MEMORY.md
+**/NEXT_SESSION*.txt
+**/RELEASE_CHECKLIST.md
+**/ROADMAP*.md
+
 # java crash / profiling
 **/hs_err_*.log
 **/replay_*.log

@@ -20,7 +20,7 @@ Village Quest `2.1.0` retains the complete `Roads Between Villages` feature set 
 
 The published `2.2.0` build passed the full Java 25 Gradle test/build gate and the resource validator with `2213` matching English, German, and Spanish localization keys. The maintained `2.1.1` three-line baseline previously passed its target-specific Gradle builds and shared `1898`-key resource gate.
 
-Local development artifacts use `build_channel=unreleased` plus a positive `unreleased_revision`, so their embedded version and filenames carry a distinct suffix such as `x.y.z-unreleased.1`. Increase the revision for every newly handed-off source state, but keep it unchanged for repeat builds of identical source. The latest published Stable runtime and sources JARs are kept beside the latest numbered Unreleased pair instead of being overwritten or reconstructed from development source. See [MAINTAINER.md](MAINTAINER.md) for the canonical working state and release rules.
+Local development artifacts use `build_channel=unreleased` plus a positive `unreleased_revision`, so their embedded version and filenames carry a distinct suffix such as `x.y.z-unreleased.1`. Increase the revision for every newly handed-off source state, but keep it unchanged for repeat builds of identical source. The latest published Stable runtime and sources JARs are kept beside the latest numbered Unreleased pair instead of being overwritten or reconstructed from development source.
 
 - `26.2/` is the active Minecraft `26.2` Mojang-mapped reference work line.
 - `26.1.2/` is the released Minecraft `26.1.2` Mojang-mapped maintenance port.
