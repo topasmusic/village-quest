@@ -15,6 +15,7 @@
 **/build/
 **/out/
 **/classes/
+**/mappings/mappings.tiny
 
 # fabric run data
 **/run/
