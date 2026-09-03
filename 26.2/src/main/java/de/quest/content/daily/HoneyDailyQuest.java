@@ -9,6 +9,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.BeehiveBlock;
@@ -69,20 +70,35 @@ public final class HoneyDailyQuest implements DailyQuestDefinition {
 
     public void onBeeNestInteract(ServerLevel world, ServerPlayer player, BlockState state, ItemStack inHand) {
         if (!DailyQuestService.isTrackingQuest(world, player.getUUID(), type())) return;
-        if (!state.is(Blocks.BEE_NEST) && !state.is(Blocks.BEEHIVE)) return;
-        if (!state.hasProperty(BeehiveBlock.HONEY_LEVEL)) return;
-        Integer level = state.getValue(BeehiveBlock.HONEY_LEVEL);
-        if (level == null || level < 5) return;
 
         UUID playerId = player.getUUID();
-        if (inHand.is(Items.GLASS_BOTTLE)) {
+        HarvestKind harvest = harvestKind(state, inHand == null ? null : inHand.getItem());
+        if (harvest == HarvestKind.HONEY_BOTTLE) {
             DailyQuestService.addQuestInt(world, playerId, DailyQuestKeys.HONEY_PROGRESS, 1);
             DailyQuestService.completeIfEligible(world, player);
             DailyQuestService.sendCurrentProgressActionbar(world, player);
-        } else if (inHand.is(Items.SHEARS)) {
+        } else if (harvest == HarvestKind.HONEYCOMB) {
             DailyQuestService.addQuestInt(world, playerId, DailyQuestKeys.COMB_PROGRESS, 1);
             DailyQuestService.completeIfEligible(world, player);
             DailyQuestService.sendCurrentProgressActionbar(world, player);
         }
+    }
+
+    static HarvestKind harvestKind(BlockState state, Item item) {
+        if (state == null || item == null) return HarvestKind.NONE;
+        if (!state.is(Blocks.BEE_NEST) && !state.is(Blocks.BEEHIVE)) return HarvestKind.NONE;
+        if (!state.hasProperty(BeehiveBlock.HONEY_LEVEL)
+                || state.getValue(BeehiveBlock.HONEY_LEVEL) < BeehiveBlock.MAX_HONEY_LEVELS) {
+            return HarvestKind.NONE;
+        }
+        if (item == Items.GLASS_BOTTLE) return HarvestKind.HONEY_BOTTLE;
+        if (item == Items.SHEARS) return HarvestKind.HONEYCOMB;
+        return HarvestKind.NONE;
+    }
+
+    enum HarvestKind {
+        NONE,
+        HONEY_BOTTLE,
+        HONEYCOMB
     }
 }

@@ -1,21 +1,23 @@
 # Village Quest Wiki
 
-This wiki covers the published `Village Quest 2.2.0 - The Shrines Between Roads` content release for Minecraft `26.2` and the maintained `2.1.1 - Homesteads & Wayfinding` baseline on the two older targets.
+This wiki covers the published `Village Quest 2.3.0 - Living Village Network` content release for Minecraft `26.2` and the maintained `2.1.1 - Homesteads & Wayfinding` baseline on the two older targets.
+
+The 2.3 release joins versioned village conditions, three-choice local requests, need-aware freight, repairable route consequences, renewable Wayshrine energy, Adventure Profiles, an optional multiplayer guild, Journal network guidance, and bounded prestige. It includes the complete save-compatible 2.2.1 quality and balance pass.
 
 Current stable release:
 
-- `2.2.0 - The Shrines Between Roads` for Minecraft `26.2`;
+- `2.3.0 - Living Village Network` for Minecraft `26.2`;
 - `2.1.1 - Homesteads & Wayfinding` for Minecraft `26.1.2` and `1.21.11`;
 - Minecraft `26.1.2` and `1.21.11` remain maintenance lines for confirmed bug, save-safety, exploit, and meaningful performance fixes rather than receiving content-parity builds.
 
-Village Quest 2.2 highlights:
+Village Quest 2.3 highlights:
 
-- `The Shrines Between Roads`, a six-chapter continuation after the Caravan Yard;
-- persistent village identities, multi-day Guild Notice Board requests, and Known/Trusted/Allied Wayshrine terms;
-- owner-bound two-block Wayshrines, shared charges, destination travel, safe arrivals, and guest access;
-- the journal `Guild Atlas` with the painted Guild Path, Charter map, and static five-track Trust roster;
-- the Guild Archive for server-authoritative recovery of unique tools;
-- new shrine blocks, relics, recipes, route incidents, and the optional Guild Courier's Satchel;
+- permanent Known/Trusted/Allied bonds alongside mutable village condition, need, supply, and Wayshrine energy;
+- three server-authoritative Guild Notice Board solutions, need-aware freight, and repairable route consequences;
+- Relaxed, Standard, and Hardened Adventure Profiles without exclusive rewards or removed content;
+- optional multiplayer guild roles, shared renown, and one bounded network project without merging personal story or Archive state;
+- five network prestige ranks and one intentionally confirmed permanent specialization;
+- the redesigned Journal Network view, Guild Atlas, Trust roster, Charter markers, and calmer responsive Notice Board;
 - complete English, German, and Spanish localization with responsive native Village Quest interfaces.
 
 The core loop is:
@@ -33,6 +35,7 @@ The core loop is:
 - [Stories and Village Projects](./stories-and-projects.md)
 - [Trade Routes and Caravans](./trade-routes-and-caravans.md)
 - [The Shrines Between Roads](./shrines-between-roads.md)
+- [Living Village Network](./living-village-network.md)
 - [Relics, Wayfinder, and Magic Shards](./relics-and-shards.md)
 - [Pilgrim and Roadside Watch](./pilgrim-and-roadside-watch.md)
 - [Quest Reference](./quest-reference.md)

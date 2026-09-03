@@ -31,11 +31,9 @@ import de.quest.util.TimeUtil;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.stats.Stats;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
@@ -719,25 +717,7 @@ public final class DailyQuestService {
     }
 
     public static Component displayKey(DailyQuestType quest) {
-        return switch (quest) {
-            case HONEY -> Component.translatable("command.village-quest.setquest.option.honey");
-            case PET_COLLAR -> Component.translatable("command.village-quest.setquest.option.pet");
-            case WHEAT_HARVEST -> Component.translatable("command.village-quest.setquest.option.wheat");
-            case POTATO_HARVEST -> Component.translatable("command.village-quest.setquest.option.potato");
-            case WOODCUTTING -> Component.translatable("command.village-quest.setquest.option.wood");
-            case COAL_MINING -> Component.translatable("command.village-quest.setquest.option.coal");
-            case WOOL_WEAVING -> Component.translatable("command.village-quest.setquest.option.wool");
-            case RIVER_MEAL -> Component.translatable("command.village-quest.setquest.option.river");
-            case AUTUMN_HARVEST -> Component.translatable("command.village-quest.setquest.option.autumn");
-            case SMITH_SMELTING -> Component.translatable("command.village-quest.setquest.option.smelt");
-            case STALL_NEW_LIFE -> Component.translatable("command.village-quest.setquest.option.stall");
-            case VILLAGE_TRADING -> Component.translatable("command.village-quest.setquest.option.trade");
-            case MARKET_ROUNDS -> Component.translatable("command.village-quest.setquest.option.market_rounds");
-            case ZOMBIE_CULL -> Component.translatable("command.village-quest.setquest.option.zombie");
-            case SKELETON_PATROL -> Component.translatable("command.village-quest.setquest.option.skeleton");
-            case SPIDER_SWEEP -> Component.translatable("command.village-quest.setquest.option.spider");
-            case CREEPER_WATCH -> Component.translatable("command.village-quest.setquest.option.creeper");
-        };
+        return DailyQuestCatalog.displayName(quest);
     }
 
     private static void resetProgressFor(PlayerQuestData data) {
@@ -746,78 +726,23 @@ public final class DailyQuestService {
     }
 
     public static DailyQuestDifficulty difficulty(DailyQuestType type) {
-        if (type == null) {
-            return DailyQuestDifficulty.STANDARD;
-        }
-        return switch (type) {
-            case HONEY, PET_COLLAR, WHEAT_HARVEST, POTATO_HARVEST, STALL_NEW_LIFE -> DailyQuestDifficulty.EASY;
-            case WOODCUTTING, WOOL_WEAVING, RIVER_MEAL, AUTUMN_HARVEST, MARKET_ROUNDS, ZOMBIE_CULL, SPIDER_SWEEP -> DailyQuestDifficulty.STANDARD;
-            case COAL_MINING, SMITH_SMELTING, VILLAGE_TRADING, SKELETON_PATROL, CREEPER_WATCH -> DailyQuestDifficulty.HARD;
-        };
+        return DailyQuestCatalog.difficulty(type);
     }
 
     public static String alias(DailyQuestType quest) {
-        if (quest == null) {
-            return "-";
-        }
-        return switch (quest) {
-            case HONEY -> "honey";
-            case PET_COLLAR -> "pet";
-            case WHEAT_HARVEST -> "bakery";
-            case POTATO_HARVEST -> "kitchen";
-            case WOODCUTTING -> "workshop";
-            case COAL_MINING -> "smith";
-            case WOOL_WEAVING -> "wool";
-            case RIVER_MEAL -> "river";
-            case AUTUMN_HARVEST -> "harvest";
-            case SMITH_SMELTING -> "smelt";
-            case STALL_NEW_LIFE -> "stall";
-            case VILLAGE_TRADING -> "trade";
-            case MARKET_ROUNDS -> "market_rounds";
-            case ZOMBIE_CULL -> "zombie";
-            case SKELETON_PATROL -> "skeleton";
-            case SPIDER_SWEEP -> "spider";
-            case CREEPER_WATCH -> "creeper";
-        };
+        return DailyQuestCatalog.alias(quest);
     }
 
     public static String categoryId(DailyQuestCategory category) {
-        if (category == null) {
-            return "none";
-        }
-        return switch (category) {
-            case COOKING -> "cooking";
-            case FARM -> "farm";
-            case ANIMALS -> "animals";
-            case CRAFTING -> "crafting";
-            case VILLAGE -> "village";
-            case COMBAT -> "combat";
-        };
+        return DailyQuestCatalog.categoryId(category);
     }
 
     public static String difficultyId(DailyQuestDifficulty difficulty) {
-        if (difficulty == null) {
-            return "none";
-        }
-        return switch (difficulty) {
-            case EASY -> "easy";
-            case STANDARD -> "standard";
-            case HARD -> "hard";
-        };
+        return DailyQuestCatalog.difficultyId(difficulty);
     }
 
     public static String adminStateId(DailyAdminState state) {
-        if (state == null) {
-            return "not_generated";
-        }
-        return switch (state) {
-            case NOT_GENERATED -> "not_generated";
-            case OFFER_AVAILABLE -> "offer_available";
-            case OFFER_PENDING -> "offer_pending";
-            case ACTIVE -> "active";
-            case COMPLETED -> "completed";
-            case NEXTDAY_PREPARED -> "nextday_prepared";
-        };
+        return DailyQuestCatalog.adminStateId(state);
     }
 
     public static DailyQuestCompletion buildCompletion(DailyQuestType type,
@@ -827,7 +752,7 @@ public final class DailyQuestService {
                                                        Component completionLine3,
                                                        ItemStack rewardB,
                                                        ItemStack rewardC) {
-        DailyQuestRewardProfile profile = rewardProfile(type);
+        DailyQuestCatalog.RewardProfile profile = rewardProfile(type);
         ReputationService.ReputationReward reputationReward = rewardFor(type);
         return new DailyQuestCompletion(
                 title,
@@ -843,22 +768,8 @@ public final class DailyQuestService {
         );
     }
 
-    private static DailyQuestRewardProfile rewardProfile(DailyQuestType type) {
-        RepeatableTargetProfile profile = contextTargetProfile();
-        return switch (difficulty(type)) {
-            case EASY -> new DailyQuestRewardProfile(
-                    RepeatableRewardTuning.adjustCurrency(CurrencyService.SILVERMARK * 3L, profile),
-                    RepeatableRewardTuning.adjustLevels(2, profile)
-            );
-            case STANDARD -> new DailyQuestRewardProfile(
-                    RepeatableRewardTuning.adjustCurrency(CurrencyService.SILVERMARK * 6L, profile),
-                    RepeatableRewardTuning.adjustLevels(4, profile)
-            );
-            case HARD -> new DailyQuestRewardProfile(
-                    RepeatableRewardTuning.adjustCurrency(CurrencyService.SILVERMARK * 12L, profile),
-                    RepeatableRewardTuning.adjustLevels(6, profile)
-            );
-        };
+    private static DailyQuestCatalog.RewardProfile rewardProfile(DailyQuestType type) {
+        return DailyQuestCatalog.rewardProfile(type, contextTargetProfile());
     }
 
     public static long rewardCurrency(DailyQuestType type) {
@@ -1553,21 +1464,29 @@ public final class DailyQuestService {
             return false;
         }
         PlayerQuestData data = data(world, playerId);
-        if (!withTargetProfile(data, slot, () -> definition.isComplete(world, player))) {
+        DailyQuestType questType = activeQuestChoice(world, playerId);
+        boolean shared = slot == ActiveQuestSlot.NORMAL && isSharedNormalDaily(world, playerId, questType);
+        boolean requirementsConsumed = slot == ActiveQuestSlot.NORMAL && (shared
+                ? QuestPartyService.dailyTurnInRequirementsConsumed(world, playerId, questType)
+                : data.hasDailyFlag(DailyQuestKeys.SHARED_TURN_IN_CONSUMED));
+        if (!requirementsConsumed && !withTargetProfile(data, slot, () -> definition.isComplete(world, player))) {
             Component blocked = withTargetProfile(data, slot, () -> definition.claimBlockedMessage(world, player));
             if (blocked != null) {
                 player.sendSystemMessage(blocked, false);
             }
             return false;
         }
-        if (!withTargetProfile(data, slot, () -> definition.consumeCompletionRequirements(world, player))) {
+        if (!requirementsConsumed
+                && !withTargetProfile(data, slot, () -> definition.consumeCompletionRequirements(world, player))) {
             return false;
         }
+        if (!requirementsConsumed && shared) {
+            QuestPartyService.markDailyTurnInRequirementsConsumed(world, playerId, questType);
+        }
 
-        DailyQuestType questType = activeQuestChoice(world, playerId);
         DailyQuestCompletion completion = withTargetProfile(data, slot, () -> definition.buildCompletion(world));
         boolean allowMagicShardDrop = slot == ActiveQuestSlot.NORMAL;
-        if (slot == ActiveQuestSlot.NORMAL && isSharedNormalDaily(world, playerId, questType)) {
+        if (shared) {
             List<ServerPlayer> recipients = onlinePlayers(world, QuestPartyService.activeDailyMembers(world, playerId, questType, false));
             for (ServerPlayer recipient : recipients) {
                 boolean storyWasUnlocked = QuestMasterProgressionService.isStoryCategoryUnlocked(world, recipient.getUUID());
@@ -1786,91 +1705,28 @@ public final class DailyQuestService {
 
     private static void giveReward(ServerPlayer player, ItemStack stack) {
         if (!stack.isEmpty()) {
-            giveOrDrop(player, stack);
+            DailyQuestInventory.giveOrDrop(player, stack);
         }
     }
 
     public static int countInventoryItem(Player player, Item item) {
-        if (player == null || item == null) {
-            return 0;
-        }
-        Inventory inventory = player.getInventory();
-        int total = 0;
-        for (int i = 0; i < inventory.getContainerSize(); i++) {
-            ItemStack stack = inventory.getItem(i);
-            if (!stack.isEmpty() && stack.is(item)) {
-                total += stack.getCount();
-            }
-        }
-        return total;
+        return DailyQuestInventory.count(player, item);
     }
 
     public static int countInventoryItems(Player player, Item... items) {
-        if (player == null || items == null || items.length == 0) {
-            return 0;
-        }
-
-        int total = 0;
-        for (Item item : items) {
-            total += countInventoryItem(player, item);
-        }
-        return total;
+        return DailyQuestInventory.count(player, items);
     }
 
     public static boolean consumeInventoryItem(Player player, Item item, int amount) {
-        if (player == null || item == null || amount <= 0) {
-            return false;
-        }
-        if (countInventoryItem(player, item) < amount) {
-            return false;
-        }
-
-        Inventory inventory = player.getInventory();
-        int remaining = amount;
-        for (int i = 0; i < inventory.getContainerSize() && remaining > 0; i++) {
-            ItemStack stack = inventory.getItem(i);
-            if (stack.isEmpty() || !stack.is(item)) {
-                continue;
-            }
-            int removed = Math.min(remaining, stack.getCount());
-            stack.shrink(removed);
-            remaining -= removed;
-        }
-
-        if (player instanceof ServerPlayer serverPlayer) {
-            serverPlayer.inventoryMenu.broadcastChanges();
-        }
-        return remaining <= 0;
+        return DailyQuestInventory.consume(player, item, amount);
     }
 
     public static boolean consumeInventoryItems(Player player, int amount, Item... items) {
-        if (player == null || amount <= 0 || items == null || items.length == 0) {
-            return false;
-        }
-        if (countInventoryItems(player, items) < amount) {
-            return false;
-        }
-
-        int remaining = amount;
-        for (Item item : items) {
-            if (remaining <= 0) {
-                break;
-            }
-            int available = countInventoryItem(player, item);
-            if (available <= 0) {
-                continue;
-            }
-            int toConsume = Math.min(remaining, available);
-            if (!consumeInventoryItem(player, item, toConsume)) {
-                return false;
-            }
-            remaining -= toConsume;
-        }
-        return remaining <= 0;
+        return DailyQuestInventory.consume(player, amount, items);
     }
 
     public static int getCraftedStat(ServerPlayer player, Item item) {
-        return player.getStats().getValue(Stats.ITEM_CRAFTED.get(item));
+        return DailyQuestInventory.crafted(player, item);
     }
 
     public static int countCompletionItem(ServerLevel world, ServerPlayer player, Item item) {
@@ -1957,19 +1813,15 @@ public final class DailyQuestService {
     }
 
     public static int getPickedUpStat(ServerPlayer player, Item item) {
-        return player.getStats().getValue(Stats.ITEM_PICKED_UP.get(item));
+        return DailyQuestInventory.pickedUp(player, item);
     }
 
     public static int getCustomStat(ServerPlayer player, Identifier stat) {
-        return player.getStats().getValue(Stats.CUSTOM.get(stat));
+        return DailyQuestInventory.custom(player, stat);
     }
 
     public static int sumPickedUpStats(ServerPlayer player, Item... items) {
-        int total = 0;
-        for (Item item : items) {
-            total += getPickedUpStat(player, item);
-        }
-        return total;
+        return DailyQuestInventory.sumPickedUp(player, items);
     }
 
     private static Component formatRewardLine(ItemStack stack) {
@@ -1983,21 +1835,6 @@ public final class DailyQuestService {
                     .append(Component.literal(" x" + stack.getCount()).withStyle(ChatFormatting.GRAY));
         }
         return base;
-    }
-
-    private static void giveOrDrop(ServerPlayer player, ItemStack stack) {
-        ItemStack remainder = stack.copy();
-        boolean inserted = player.getInventory().add(remainder);
-        if (!inserted || !remainder.isEmpty()) {
-            if (!remainder.isEmpty()) {
-                player.drop(remainder, false);
-            }
-            player.sendSystemMessage(Component.translatable("message.village-quest.daily.inventory_full.prefix").withStyle(ChatFormatting.GRAY)
-                    .append(stack.getDisplayName())
-                    .append(Component.translatable("message.village-quest.daily.inventory_full.suffix").withStyle(ChatFormatting.GRAY)), false);
-        } else {
-            player.inventoryMenu.broadcastChanges();
-        }
     }
 
     public static ItemStack createCompanionPainting(ServerLevel world, boolean cat) {
@@ -2099,8 +1936,6 @@ public final class DailyQuestService {
     public static int villageTradeEmeraldTarget() {
         return tunedTarget(VILLAGE_TRADE_EMERALD_TARGET, "daily.trade.emeralds");
     }
-
-    private record DailyQuestRewardProfile(long currencyReward, int levels) {}
 
     public record DailyAdminInfo(DailyQuestType quest,
                                  DailyAdminState state,

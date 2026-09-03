@@ -4,9 +4,11 @@ import de.quest.archive.GuildArchiveService;
 import de.quest.archive.GuildArchiveService.ArchiveItem;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
+import de.quest.config.VillageQuestServerConfig;
 import de.quest.entity.CaravanMerchantEntity;
 import de.quest.entity.TraitorEntity;
 import de.quest.pilgrim.PilgrimContractService;
+import de.quest.party.QuestPartyService;
 import de.quest.quest.QuestBookHelper;
 import de.quest.quest.QuestTrackerService;
 import de.quest.quest.special.SurveyorCompassQuestService;
@@ -53,6 +55,8 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.Difficulty;
+import net.minecraft.world.clock.WorldClocks;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.levelgen.structure.Structure;
 
@@ -78,9 +82,9 @@ public final class ShadowsTradeRoadEncounterService {
             TagKey.create(Registries.STRUCTURE, Identifier.fromNamespaceAndPath("village-quest", "roadmark_villages"));
     private static final int VILLAGE_DETECTION_MARGIN = 16;
 
-    private static final int MIN_RESCUE_DISTANCE = 500;
-    private static final int MAX_RESCUE_DISTANCE = 1000;
-    private static final int MAX_SPAWN_ATTEMPTS = 24;
+    private static final int MIN_RESCUE_DISTANCE = 320;
+    private static final int MAX_RESCUE_DISTANCE = 500;
+    private static final int MAX_SPAWN_ATTEMPTS = 48;
     private static final int TRIGGER_RADIUS = 24;
     private static final int HOSTILE_SPAWN_MIN_RADIUS = 16;
     private static final int HOSTILE_SPAWN_MAX_RADIUS = 26;
@@ -101,6 +105,10 @@ public final class ShadowsTradeRoadEncounterService {
     private static final int ENCOUNTER_MAX_VERTICAL_DELTA = 3;
     private static final int ENCOUNTER_FOOTPRINT_RADIUS = 8;
     private static final int ENCOUNTER_MIN_LEVEL_SAMPLES = 50;
+    private static final int[] MERCHANT_SPAWN_RADII = {3, 5, 7, 9, 12, 16, 20};
+    private static final int MERCHANT_SPAWN_ANGLE_STEPS = 16;
+    private static final int FAILED_SITE_RELOCATION_MIN_RADIUS = 12;
+    private static final int FAILED_SITE_RELOCATION_MAX_RADIUS = 48;
     private static final double MERCHANT_RETREAT_SPEED = 1.0D;
     private static final double MERCHANT_RETURN_SPEED = 0.78D;
     private static final int AGGRO_TICKS = 20 * 7;
@@ -188,6 +196,15 @@ public final class ShadowsTradeRoadEncounterService {
                     new WaveSpec(0, 0, 0, 3)
             )
     );
+
+    private static EncounterSpec encounterSpec(int kind) {
+        return switch (kind) {
+            case RESCUE_KIND_FIRST_SIGNAL -> FIRST_SIGNAL_SPEC;
+            case RESCUE_KIND_HOLDING -> HOLDING_SPEC;
+            case RESCUE_KIND_FINAL -> FINAL_SPEC;
+            default -> null;
+        };
+    }
 
     public static void resetRuntimeState() {
         ACTIVE.values().forEach(encounter -> encounter.bossBar.removeAllPlayers());
@@ -434,15 +451,17 @@ public final class ShadowsTradeRoadEncounterService {
         if (encounter != null) {
             List<Mob> hostiles = livingHostiles(world, encounter);
             int remainingHostiles = hostiles.size() + encounter.pendingSpawns.size();
-            lines.add(Component.translatable(
-                    "quest.village-quest.story.shadows_on_the_trade_road.rescue.progress.wave",
-                    Math.max(1, encounter.waveIndex),
-                    encounter.spec.waves().size()
-            ).withStyle(ChatFormatting.GRAY));
-            lines.add(Component.translatable(
-                    "quest.village-quest.story.shadows_on_the_trade_road.rescue.progress.hostiles",
-                    remainingHostiles
-            ).withStyle(ChatFormatting.GRAY));
+            if (!encounter.spec.waves().isEmpty()) {
+                lines.add(Component.translatable(
+                        "quest.village-quest.story.shadows_on_the_trade_road.rescue.progress.wave",
+                        Math.max(1, encounter.waveIndex),
+                        encounter.spec.waves().size()
+                ).withStyle(ChatFormatting.GRAY));
+                lines.add(Component.translatable(
+                        "quest.village-quest.story.shadows_on_the_trade_road.rescue.progress.hostiles",
+                        remainingHostiles
+                ).withStyle(ChatFormatting.GRAY));
+            }
             lines.add(Component.translatable(
                     "quest.village-quest.story.shadows_on_the_trade_road.rescue.progress.survivors",
                     livingMerchants(world, encounter).size(),
@@ -589,10 +608,19 @@ public final class ShadowsTradeRoadEncounterService {
         );
         boolean accepted = StoryQuestService.acceptQuest(world, player, StoryArcType.SHADOWS_ON_THE_TRADE_ROAD);
         if (accepted && finalConvoy) {
-            scheduleEncounter(world, player, RESCUE_KIND_FINAL, 0);
+            if (!scheduleEncounter(world, player, RESCUE_KIND_FINAL, 0)) {
+                return false;
+            }
             refreshQuestUi(world, player);
         }
-        return accepted;
+        if (!accepted || currentDistressTarget(world, player.getUUID()) == null) {
+            return false;
+        }
+        long currentDayStart = Math.floorDiv(world.getOverworldClockTime(), 24000L) * 24000L;
+        var overworldClock = world.registryAccess().lookupOrThrow(Registries.WORLD_CLOCK)
+                .getOrThrow(WorldClocks.OVERWORLD);
+        world.clockManager().setTotalTicks(overworldClock, currentDayStart + 13000L);
+        return true;
     }
 
     public static void adminResetPlayer(ServerLevel world, UUID playerId) {
@@ -665,28 +693,29 @@ public final class ShadowsTradeRoadEncounterService {
                             : "message.village-quest.story.shadows_on_the_trade_road.rescue_found"
             ).withStyle(ChatFormatting.GOLD), false);
             world.playSound(null, player.blockPosition(), SoundEvents.RAID_HORN.value(), SoundSource.HOSTILE, 0.9f, 0.9f);
+        } else {
+            relocateFailedEncounter(world, player, kind, distressTarget.pos());
         }
     }
 
     private static ActiveEncounter spawnEncounter(ServerLevel world, ServerPlayer player, int kind, BlockPos anchorPos) {
-        EncounterSpec spec = switch (kind) {
-            case RESCUE_KIND_FIRST_SIGNAL -> FIRST_SIGNAL_SPEC;
-            case RESCUE_KIND_HOLDING -> HOLDING_SPEC;
-            case RESCUE_KIND_FINAL -> FINAL_SPEC;
-            default -> null;
-        };
-        if (spec == null || world == null || player == null || anchorPos == null) {
+        EncounterSpec baseSpec = encounterSpec(kind);
+        if (baseSpec == null || world == null || player == null || anchorPos == null) {
             return null;
         }
+        EncounterSpec spec = scaledEncounterSpec(
+                baseSpec,
+                world.getDifficulty(),
+                presentStoryParticipants(world, player, anchorPos));
 
         ActiveEncounter encounter = new ActiveEncounter(player.getUUID(), spec, anchorPos);
         int guardCount = spec.merchants() / 3;
-        List<BlockPos> merchantPositions = new ArrayList<>();
+        List<BlockPos> merchantPositions = findMerchantSpawnPlan(world, anchorPos, spec.merchants());
+        if (merchantPositions.size() < spec.merchants()) {
+            return null;
+        }
         for (int i = 0; i < spec.merchants(); i++) {
-            BlockPos merchantPos = findMerchantSpawn(world, anchorPos, merchantPositions);
-            if (merchantPos == null) {
-                continue;
-            }
+            BlockPos merchantPos = merchantPositions.get(i);
             CaravanMerchantEntity merchant = new CaravanMerchantEntity(ModEntities.CARAVAN_MERCHANT, world);
             moveEntityTo(merchant, merchantPos.getX() + 0.5, merchantPos.getY(), merchantPos.getZ() + 0.5, world.getRandom().nextFloat() * 360.0f, 0.0f);
             merchant.setHealth(merchant.getMaxHealth());
@@ -699,7 +728,6 @@ public final class ShadowsTradeRoadEncounterService {
                 continue;
             }
             encounter.merchantIds.add(merchant.getUUID());
-            merchantPositions.add(merchantPos);
             if (guard) {
                 encounter.guardMerchantIds.add(merchant.getUUID());
             }
@@ -708,8 +736,89 @@ public final class ShadowsTradeRoadEncounterService {
             cleanupEncounterEntities(world, encounter, true);
             return null;
         }
-        startNextWave(world, encounter);
+        if (!spec.waves().isEmpty()) {
+            startNextWave(world, encounter);
+        }
         return encounter;
+    }
+
+    private static EncounterSpec scaledEncounterSpec(EncounterSpec base,
+                                                      Difficulty difficulty,
+                                                      int participants) {
+        if (!usesCombatWaves(difficulty)) {
+            return new EncounterSpec(
+                    base.kind(), base.merchants(), base.bossBarTitle(), base.finalConvoy(), List.of());
+        }
+        List<WaveSpec> waves = base.waves().stream()
+                .map(wave -> new WaveSpec(
+                        scaledHostileCount(wave.zombies(), difficulty, participants,
+                                VillageQuestServerConfig.get().adventureProfile()),
+                        scaledHostileCount(wave.skeletons(), difficulty, participants,
+                                VillageQuestServerConfig.get().adventureProfile()),
+                        scaledHostileCount(wave.spiders(), difficulty, participants,
+                                VillageQuestServerConfig.get().adventureProfile()),
+                        scaledHostileCount(wave.traitors(), difficulty, participants,
+                                VillageQuestServerConfig.get().adventureProfile())))
+                .toList();
+        return new EncounterSpec(base.kind(), base.merchants(), base.bossBarTitle(), base.finalConvoy(), waves);
+    }
+
+    static boolean usesCombatWaves(Difficulty difficulty) {
+        return difficulty != Difficulty.PEACEFUL;
+    }
+
+    static int minimumRescueDistance() {
+        return MIN_RESCUE_DISTANCE;
+    }
+
+    static int maximumRescueDistance() {
+        return MAX_RESCUE_DISTANCE;
+    }
+
+    static int merchantCountForKind(int kind) {
+        EncounterSpec spec = encounterSpec(kind);
+        return spec == null ? 0 : spec.merchants();
+    }
+
+    static int scaledHostileCount(int baseCount, Difficulty difficulty, int participants) {
+        return scaledHostileCount(baseCount, difficulty, participants,
+                VillageQuestServerConfig.AdventureProfile.STANDARD);
+    }
+
+    static int scaledHostileCount(int baseCount, Difficulty difficulty, int participants,
+                                  VillageQuestServerConfig.AdventureProfile profile) {
+        if (baseCount <= 0 || difficulty == Difficulty.PEACEFUL) {
+            return 0;
+        }
+        double difficultyMultiplier = switch (difficulty == null ? Difficulty.NORMAL : difficulty) {
+            case PEACEFUL -> 0.0D;
+            case EASY -> 0.70D;
+            case NORMAL -> 1.0D;
+            case HARD -> 1.20D;
+        };
+        int partySize = Math.max(1, Math.min(4, participants));
+        double partyMultiplier = 1.0D + (partySize - 1) * 0.25D;
+        int scaled = Math.max(1, (int) Math.round(baseCount * difficultyMultiplier * partyMultiplier));
+        VillageQuestServerConfig.AdventureProfile safeProfile = profile == null
+                ? VillageQuestServerConfig.AdventureProfile.STANDARD : profile;
+        return safeProfile.scaleHostileCount(scaled);
+    }
+
+    private static int presentStoryParticipants(ServerLevel world,
+                                                ServerPlayer owner,
+                                                BlockPos anchorPos) {
+        int chapter = StoryQuestService.chapterIndex(
+                world, owner.getUUID(), StoryArcType.SHADOWS_ON_THE_TRADE_ROAD);
+        int present = 0;
+        for (UUID memberId : QuestPartyService.activeStoryMembers(
+                world, owner.getUUID(), StoryArcType.SHADOWS_ON_THE_TRADE_ROAD, chapter)) {
+            ServerPlayer member = world.getServer().getPlayerList().getPlayer(memberId);
+            if (member != null && member.level() == world
+                    && member.blockPosition().distSqr(anchorPos) <= 64.0D * 64.0D) {
+                present++;
+            }
+        }
+        return Math.max(1, present);
     }
 
     private static void tickActiveEncounter(ServerLevel world,
@@ -1200,29 +1309,63 @@ public final class ShadowsTradeRoadEncounterService {
         return nearest;
     }
 
-    private static void scheduleEncounter(ServerLevel world, ServerPlayer player, int kind, int nightsUntilStart) {
+    private static boolean scheduleEncounter(ServerLevel world, ServerPlayer player, int kind, int nightsUntilStart) {
         if (world == null || player == null) {
-            return;
+            return false;
         }
-        BlockPos anchor = findEncounterAnchor(world, player.blockPosition());
+        EncounterSpec spec = encounterSpec(kind);
+        if (spec == null) {
+            return false;
+        }
+        BlockPos anchor = findEncounterAnchor(world, player.blockPosition(), spec.merchants());
         if (anchor == null) {
-            return;
+            return false;
         }
         int targetDay = currentWorldDay(world) + Math.max(0, nightsUntilStart);
-        StoryQuestService.setQuestInt(world, player.getUUID(), StoryQuestKeys.SHADOWS_RESCUE_TARGET_X, anchor.getX());
-        StoryQuestService.setQuestInt(world, player.getUUID(), StoryQuestKeys.SHADOWS_RESCUE_TARGET_Z, anchor.getZ());
+        storeScheduledEncounter(world, player.getUUID(), kind, anchor, targetDay);
+        return true;
+    }
+
+    private static void storeScheduledEncounter(ServerLevel world, UUID playerId, int kind,
+                                                BlockPos anchor, int targetDay) {
+        StoryQuestService.setQuestInt(world, playerId, StoryQuestKeys.SHADOWS_RESCUE_TARGET_X, anchor.getX());
+        StoryQuestService.setQuestInt(world, playerId, StoryQuestKeys.SHADOWS_RESCUE_TARGET_Z, anchor.getZ());
         StoryQuestService.setQuestInt(
                 world,
-                player.getUUID(),
+                playerId,
                 kind == RESCUE_KIND_FINAL ? StoryQuestKeys.SHADOWS_FINAL_TARGET_DAY : StoryQuestKeys.SHADOWS_RESCUE_TARGET_DAY,
                 targetDay
         );
-        StoryQuestService.setQuestInt(world, player.getUUID(), StoryQuestKeys.SHADOWS_RESCUE_KIND, kind);
+        StoryQuestService.setQuestInt(world, playerId, StoryQuestKeys.SHADOWS_RESCUE_KIND, kind);
         if (kind == RESCUE_KIND_FINAL) {
-            StoryQuestService.setQuestInt(world, player.getUUID(), StoryQuestKeys.SHADOWS_RESCUE_TARGET_DAY, 0);
+            StoryQuestService.setQuestInt(world, playerId, StoryQuestKeys.SHADOWS_RESCUE_TARGET_DAY, 0);
         } else {
-            StoryQuestService.setQuestInt(world, player.getUUID(), StoryQuestKeys.SHADOWS_FINAL_TARGET_DAY, 0);
+            StoryQuestService.setQuestInt(world, playerId, StoryQuestKeys.SHADOWS_FINAL_TARGET_DAY, 0);
         }
+    }
+
+    private static void relocateFailedEncounter(ServerLevel world, ServerPlayer player, int kind,
+                                                BlockPos failedAnchor) {
+        EncounterSpec spec = encounterSpec(kind);
+        if (world == null || player == null || failedAnchor == null || spec == null) {
+            return;
+        }
+        BlockPos replacement = findNearbyEncounterAnchor(world, failedAnchor, spec.merchants());
+        if (replacement == null) {
+            clearScheduledEncounter(world, player.getUUID());
+            if (!scheduleEncounter(world, player, kind, 0)) {
+                player.sendSystemMessage(Component.translatable(
+                        "message.village-quest.story.shadows_on_the_trade_road.rescue_site_failed"
+                ).withStyle(ChatFormatting.RED), false);
+                return;
+            }
+        } else {
+            storeScheduledEncounter(world, player.getUUID(), kind, replacement, currentWorldDay(world));
+        }
+        player.sendSystemMessage(Component.translatable(
+                "message.village-quest.story.shadows_on_the_trade_road.rescue_relocated"
+        ).withStyle(ChatFormatting.YELLOW), false);
+        refreshQuestUi(world, player);
     }
 
     private static void clearScheduledEncounter(ServerLevel world, UUID playerId) {
@@ -1365,23 +1508,97 @@ public final class ShadowsTradeRoadEncounterService {
         );
     }
 
-    private static BlockPos findEncounterAnchor(ServerLevel world, BlockPos origin) {
+    private static BlockPos findEncounterAnchor(ServerLevel world, BlockPos origin, int merchantCount) {
         for (int attempt = 0; attempt < MAX_SPAWN_ATTEMPTS; attempt++) {
             double angle = world.getRandom().nextDouble() * Math.PI * 2.0;
             int distance = Mth.nextInt(world.getRandom(), MIN_RESCUE_DISTANCE, MAX_RESCUE_DISTANCE);
             int x = origin.getX() + Mth.floor(Math.cos(angle) * distance);
             int z = origin.getZ() + Mth.floor(Math.sin(angle) * distance);
             BlockPos base = safeSurface(world, x, z);
-            if (base != null && world.getWorldBorder().isWithinBounds(base) && hasDryEncounterFootprint(world, base)) {
+            if (isViableEncounterAnchor(world, base, merchantCount)) {
                 return base;
             }
         }
-        BlockPos fallback = safeSurface(world, origin.getX() + MIN_RESCUE_DISTANCE, origin.getZ());
-        if (fallback != null && hasDryEncounterFootprint(world, fallback)) {
-            return fallback;
+        for (int direction = 0; direction < 8; direction++) {
+            double angle = direction * (Math.PI / 4.0D);
+            int x = origin.getX() + Mth.floor(Math.cos(angle) * MAX_RESCUE_DISTANCE);
+            int z = origin.getZ() + Mth.floor(Math.sin(angle) * MAX_RESCUE_DISTANCE);
+            BlockPos fallback = safeSurface(world, x, z);
+            if (isViableEncounterAnchor(world, fallback, merchantCount)) {
+                return fallback;
+            }
         }
-        BlockPos localFallback = safeSurface(world, origin.getX(), origin.getZ());
-        return localFallback != null && hasDryEncounterFootprint(world, localFallback) ? localFallback : null;
+        return null;
+    }
+
+    private static BlockPos findNearbyEncounterAnchor(ServerLevel world, BlockPos origin, int merchantCount) {
+        for (int attempt = 0; attempt < MAX_SPAWN_ATTEMPTS; attempt++) {
+            double angle = world.getRandom().nextDouble() * Math.PI * 2.0D;
+            int distance = Mth.nextInt(world.getRandom(), FAILED_SITE_RELOCATION_MIN_RADIUS,
+                    FAILED_SITE_RELOCATION_MAX_RADIUS);
+            BlockPos candidate = safeSurface(world,
+                    origin.getX() + Mth.floor(Math.cos(angle) * distance),
+                    origin.getZ() + Mth.floor(Math.sin(angle) * distance));
+            if (isViableEncounterAnchor(world, candidate, merchantCount)) {
+                return candidate;
+            }
+        }
+        return null;
+    }
+
+    private static boolean isViableEncounterAnchor(ServerLevel world, BlockPos anchor, int merchantCount) {
+        return anchor != null
+                && world.getWorldBorder().isWithinBounds(anchor)
+                && hasDryEncounterFootprint(world, anchor)
+                && findMerchantSpawnPlan(world, anchor, merchantCount).size() >= merchantCount;
+    }
+
+    private static List<BlockPos> findMerchantSpawnPlan(ServerLevel world, BlockPos anchor, int merchantCount) {
+        if (world == null || anchor == null || merchantCount <= 0) {
+            return List.of();
+        }
+        List<BlockPos> safeCandidates = new ArrayList<>();
+        int phase = Math.floorMod(hashAnchor(anchor), MERCHANT_SPAWN_ANGLE_STEPS);
+        for (int radius : MERCHANT_SPAWN_RADII) {
+            for (int step = 0; step < MERCHANT_SPAWN_ANGLE_STEPS; step++) {
+                double angle = (step + phase / (double) MERCHANT_SPAWN_ANGLE_STEPS)
+                        * (Math.PI * 2.0D / MERCHANT_SPAWN_ANGLE_STEPS);
+                int x = anchor.getX() + Mth.floor(Math.cos(angle) * radius);
+                int z = anchor.getZ() + Mth.floor(Math.sin(angle) * radius);
+                BlockPos candidate = safeSurface(world, x, z);
+                if (candidate != null && world.getWorldBorder().isWithinBounds(candidate)
+                        && !safeCandidates.contains(candidate)) {
+                    safeCandidates.add(candidate);
+                }
+            }
+        }
+        return selectSpacedMerchantPositions(anchor, safeCandidates, merchantCount);
+    }
+
+    static List<BlockPos> selectSpacedMerchantPositions(BlockPos anchor,
+                                                        List<BlockPos> candidates,
+                                                        int merchantCount) {
+        if (anchor == null || candidates == null || merchantCount <= 0) {
+            return List.of();
+        }
+        List<BlockPos> selected = new ArrayList<>();
+        for (BlockPos candidate : candidates) {
+            if (candidate == null
+                    || Math.abs(candidate.getY() - anchor.getY()) > ENCOUNTER_MAX_VERTICAL_DELTA
+                    || !isMerchantSpawnFarEnough(candidate, selected)) {
+                continue;
+            }
+            selected.add(candidate);
+            if (selected.size() >= merchantCount) {
+                return List.copyOf(selected);
+            }
+        }
+        return List.of();
+    }
+
+    private static int hashAnchor(BlockPos anchor) {
+        int value = anchor.getX() * 734_287_67 ^ anchor.getZ() * 912_931;
+        return value ^ value >>> 16;
     }
 
     private static BlockPos findMerchantSpawn(ServerLevel world, BlockPos anchor, List<BlockPos> existingSpawns) {

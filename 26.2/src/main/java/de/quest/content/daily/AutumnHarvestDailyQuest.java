@@ -7,14 +7,11 @@ import de.quest.quest.daily.DailyQuestService;
 import java.util.UUID;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.StemBlock;
 import net.minecraft.world.level.block.state.BlockState;
 
 public final class AutumnHarvestDailyQuest implements DailyQuestDefinition {
@@ -73,25 +70,19 @@ public final class AutumnHarvestDailyQuest implements DailyQuestDefinition {
     public void onBlockBreak(ServerLevel world, ServerPlayer player, BlockPos pos, BlockState state) {
         if (!DailyQuestService.isTrackingQuest(world, player.getUUID(), type())) return;
 
-        if (state.is(Blocks.PUMPKIN) && hasAdjacentStem(world, pos, Blocks.PUMPKIN_STEM, Blocks.ATTACHED_PUMPKIN_STEM)) {
-            incrementProgress(world, player, DailyQuestKeys.AUTUMN_PUMPKIN_PROGRESS, DailyQuestService.autumnPumpkinTarget());
-        } else if (state.is(Blocks.MELON) && hasAdjacentStem(world, pos, Blocks.MELON_STEM, Blocks.ATTACHED_MELON_STEM)) {
-            incrementProgress(world, player, DailyQuestKeys.AUTUMN_MELON_PROGRESS, DailyQuestService.autumnMelonTarget());
+        String key = progressKey(state);
+        if (DailyQuestKeys.AUTUMN_PUMPKIN_PROGRESS.equals(key)) {
+            incrementProgress(world, player, key, DailyQuestService.autumnPumpkinTarget());
+        } else if (DailyQuestKeys.AUTUMN_MELON_PROGRESS.equals(key)) {
+            incrementProgress(world, player, key, DailyQuestService.autumnMelonTarget());
         }
     }
 
-    private boolean hasAdjacentStem(ServerLevel world, BlockPos fruitPos, Block stemBlock, Block attachedStemBlock) {
-        for (Direction direction : Direction.Plane.HORIZONTAL) {
-            BlockState adjacent = world.getBlockState(fruitPos.relative(direction));
-            if (adjacent.is(attachedStemBlock)) {
-                return true;
-            }
-            if (adjacent.is(stemBlock) && adjacent.getBlock() instanceof StemBlock
-                    && adjacent.hasProperty(StemBlock.AGE) && adjacent.getValue(StemBlock.AGE) >= 7) {
-                return true;
-            }
-        }
-        return false;
+    static String progressKey(BlockState state) {
+        if (state == null) return null;
+        if (state.is(Blocks.PUMPKIN)) return DailyQuestKeys.AUTUMN_PUMPKIN_PROGRESS;
+        if (state.is(Blocks.MELON)) return DailyQuestKeys.AUTUMN_MELON_PROGRESS;
+        return null;
     }
 
     private void incrementProgress(ServerLevel world, ServerPlayer player, String key, int target) {

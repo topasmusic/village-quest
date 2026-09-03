@@ -1,6 +1,6 @@
 # The Shrines Between Roads
 
-`The Shrines Between Roads` is the late trade-network story after `The Empty Caravan`. It becomes available once the Caravan Yard is open, two village routes are installed, and three guild freight contracts have arrived successfully. The Questmaster's `Guild Path` page previews its future tools, blocks, abilities, and exact unlock requirements before the player reaches them.
+`The Shrines Between Roads` is the late trade-network story after `The Empty Caravan`. It becomes available once the Caravan Yard is open, two village routes are installed, and three guild freight contracts have arrived successfully. The Journal's `Guild Atlas` contains the `Guild Path`, which previews future tools, blocks, abilities, and exact unlock requirements before the player reaches them.
 
 ## Story progression
 
@@ -9,7 +9,7 @@
 3. `Three Hands of the Guild` requires consultation with a Cartographer, Toolsmith, and Cleric, followed by `16 Amethyst Shards`, `8 Gold Ingots`, `16 Lapis Lazuli`, and the cracked core.
 4. `The First Flame` supplies the Wayfarer's Sigil. Craft a dormant Guild Wayshrine from the restored core, one Amethyst Shard, two Gold Ingots, and five Stone Bricks, then bind it at the Homestead with the Sigil. Its dark crystal is the dormant state; binding wakes and illuminates that same crystal.
 5. `A Chain of Welcome` asks for two Trusted connected villages and three bound shrines in total.
-6. `The Last Relay` requires one new completed freight contract and one new successful route incident. It permanently unlocks the Wayshrine Network project and awards the optional Guild Courier's Satchel; attunement is represented by the awakened shrine network rather than another inventory item.
+6. `The Last Relay` requires one new completed freight contract and one new successful route incident. Once the freight arrives, the next eligible route midpoint guarantees that incident and ignores normal chance reduction, patrols, and Roadwarden prevention. In `MAP_ONLY`, where interactive incidents do not exist, the fresh freight arrival completes the relay. It permanently unlocks the Wayshrine Network project and awards the optional Guild Courier's Satchel; attunement is represented by the awakened shrine network rather than another inventory item.
 
 ## Village identities and requests
 
@@ -33,7 +33,7 @@ The destination board uses the same ten direct zoom steps, world-bound coverage,
 
 ## Guild Path
 
-The Questmaster's `Special` tab includes a `Guild Path` entry. It opens an authored painted landscape rather than a list: drag across Homestead Bay, Surveyor Ridge, Starreach Isle, the guild workshops, Broken Heartstone ruins, Wayshrine Plateau, Guild Village, and Relay Harbor. The map stays at its authored 100% scale, while `Current` returns to the first authoritatively reachable milestone. The Ledger, Compass, Starreach Ring, Seal, Flute, Smoker, Lens, Sigil, Wayshrine, Notice Board, and Courier's Satchel remain clickable landmarks even while locked. Hover labels identify them; clicking a landmark temporarily opens its localized ability and exact requirement, and the card clears as soon as the pointer moves again. Completed and current states come from authoritative quest data rather than a separate battle-pass currency. The painted layer extends beneath the journal frame and title plaque, while the underlying artwork contains no baked text, item art, locks, or progress state, so localization and responsive scaling remain native UI elements.
+The Journal's `Guild Atlas` includes the `Guild Path`. It opens an authored painted landscape rather than a list: drag across Homestead Bay, Surveyor Ridge, Starreach Isle, the guild workshops, Broken Heartstone ruins, Wayshrine Plateau, Guild Village, and Relay Harbor. The map stays at its authored 100% scale, while `Current` returns to the first authoritatively reachable milestone. The Ledger, Compass, Starreach Ring, Seal, Flute, Smoker, Lens, Sigil, Wayshrine, Notice Board, and Courier's Satchel remain clickable landmarks even while locked. Hover labels identify them; clicking a landmark temporarily opens its localized ability and exact requirement, and the card clears as soon as the pointer moves again. Completed and current states come from authoritative quest data rather than a separate battle-pass currency. The painted layer extends beneath the journal frame and title plaque, while the underlying artwork contains no baked text, item art, locks, or progress state, so localization and responsive scaling remain native UI elements.
 
 The active heart is a small floating Magic-Shard cluster. Its rotation, bob, and irregular cyan/violet emissive pulse are entirely client-side; the inactive crystal is dim and static. It adds no server ticker, chunk load, network traffic, or renderer dependency.
 
@@ -52,7 +52,7 @@ The Archive also restores the temporary Lens or Cracked Core for free only while
 
 ## New blocks and tools
 
-All Village Quest crafting recipes share a dedicated tab in the vanilla recipe book. A recipe is discovered once the complete required material set is present in the player's inventory; after discovery it remains in the book permanently and uses vanilla filtering and automatic grid placement.
+All Village Quest crafting recipes share a dedicated tab in the vanilla recipe book. A recipe is discovered from its signature ingredient or story component rather than only after the complete crafting bundle is already present; after discovery it remains in the book permanently and uses vanilla filtering and automatic grid placement.
 
 - `Guild Wayshrine`: bound fast-travel endpoint with active and inactive model states.
 - `Guild Notice Post`: opens a localized request interface and fulfils the current local delivery.

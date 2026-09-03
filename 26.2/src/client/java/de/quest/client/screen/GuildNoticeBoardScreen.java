@@ -3,7 +3,7 @@ package de.quest.client.screen;
 import de.quest.VillageQuest;
 import de.quest.client.ui.VillageUiTheme;
 import de.quest.economy.CurrencyService;
-import de.quest.network.Payloads;
+import de.quest.network.VillageNetworkPayloads;
 import java.util.List;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.gui.GuiGraphics;
@@ -15,7 +15,7 @@ import net.minecraft.world.item.ItemStack;
 /** Illustrated village commission board with server-authoritative delivery actions. */
 public final class GuildNoticeBoardScreen extends CompatScreen {
     private static final Identifier FRAME = Identifier.fromNamespaceAndPath(
-            VillageQuest.MOD_ID, "textures/gui/guild_atlas_frame.png");
+            VillageQuest.MOD_ID, "textures/gui/guild_notice_board_frame.png");
     private static final Identifier INNER = Identifier.fromNamespaceAndPath(
             VillageQuest.MOD_ID, "textures/gui/guild_notice_board_inner.png");
     private static final Identifier BOND_COMPLETE = Identifier.fromNamespaceAndPath(
@@ -29,39 +29,49 @@ public final class GuildNoticeBoardScreen extends CompatScreen {
     private static final int WIDTH = 416;
     private static final int HEIGHT = 234;
     private static final int INNER_X = 8;
-    private static final int INNER_Y = 18;
+    private static final int INNER_Y = 14;
     private static final int INNER_WIDTH = 400;
     private static final int INNER_HEIGHT = 207;
     private static final int INK = 0xFF2D1B12;
     private static final int BODY = 0xFF5B4635;
-    private static final int META = 0xFF76501E;
+    private static final int META = 0xFF5A3B24;
     private static final int TEAL = 0xFF236B68;
-    private static final int GOLD = 0xFF9A6620;
+    private static final int GOLD = 0xFF704411;
     private static final int LIGHT = 0xFFF1D29A;
 
-    private static final int WALLET_RIGHT_INSET = 34;
+    private static final int WALLET_RIGHT_INSET = 26;
     private static final int WALLET_TOP = 7;
 
     private static final int DELIVER_X = 168;
     private static final int CLOSE_X = 330;
-    private static final int BUTTON_Y = 211;
+    private static final int BUTTON_Y = 214;
     private static final int DELIVER_WIDTH = 156;
     private static final int CLOSE_WIDTH = 68;
-    private static final int BUTTON_HEIGHT = 17;
+    private static final int BUTTON_HEIGHT = 16;
 
-    private static final int[] BOND_CENTERS = {116, 208, 300};
-    private static final int BOND_CENTER_Y = 190;
-    private static final int BOND_SEAL_SIZE = 24;
+    private static final int[] BOND_CENTERS = {143, 211, 271};
+    private static final int BOND_CENTER_Y = 200;
+    private static final int BOND_SEAL_SIZE = 20;
+    private static final int[] OFFER_X = {81, 169, 258};
+    private static final int[] OFFER_WIDTH = {78, 78, 79};
+    private static final int OFFER_Y = 43;
+    private static final int OFFER_HEIGHT = 38;
+    private static final int[] OFFER_CENTER_X = {120, 208, 298};
 
-    private Payloads.NoticeBoardPayload data;
+    private VillageNetworkPayloads.NoticeBoardPayload data;
+    private int selectedOfferId;
 
-    public GuildNoticeBoardScreen(Payloads.NoticeBoardPayload data) {
+    public GuildNoticeBoardScreen(VillageNetworkPayloads.NoticeBoardPayload data) {
         super(Component.translatable("screen.village-quest.notice_board.title"));
         this.data = data;
+        this.selectedOfferId = firstOffer().id();
     }
 
-    public void updateData(Payloads.NoticeBoardPayload data) {
+    public void updateData(VillageNetworkPayloads.NoticeBoardPayload data) {
         this.data = data;
+        if (data.offers() == null || data.offers().stream().noneMatch(offer -> offer.id() == selectedOfferId)) {
+            selectedOfferId = firstOffer().id();
+        }
     }
 
     @Override
@@ -82,7 +92,7 @@ public final class GuildNoticeBoardScreen extends CompatScreen {
             VillageUiTheme.blitScaled(graphics, INNER,
                     left + INNER_X, top + INNER_Y, INNER_WIDTH, INNER_HEIGHT,
                     INNER_WIDTH, INNER_HEIGHT);
-            drawRequest(graphics, left, top);
+            drawRequest(graphics, left, top, uiX, uiY);
             drawBondPath(graphics, left, top, uiX, uiY);
             VillageUiTheme.blitScaled(graphics, FRAME, left, top, WIDTH, HEIGHT,
                     FRAME_TEXTURE_WIDTH, FRAME_TEXTURE_HEIGHT);
@@ -103,65 +113,89 @@ public final class GuildNoticeBoardScreen extends CompatScreen {
         VillageUiTheme.drawWalletStrip(graphics, font, left, top, WIDTH, data.balance(),
                 WALLET_RIGHT_INSET, WALLET_TOP);
 
-        String village = data.villageType().getString() + " · " + data.bondLevel().getString();
+        String village = data.villageType().getString() + " · " + data.bondLevel().getString()
+                + " · " + data.villageCondition().getString() + " · " + data.adventureProfile().getString();
         float villageScale = 0.64f;
         String visible = VillageUiTheme.ellipsize(font, village,
                 Math.round((WIDTH - 48) / villageScale));
         float villageWidth = font.width(visible) * villageScale;
         VillageUiTheme.drawStringScaled(graphics, font, visible,
-                left + (WIDTH - villageWidth) / 2.0f, top + 35.0f, LIGHT, villageScale);
+                left + (WIDTH - villageWidth) / 2.0f, top + 32.0f, LIGHT, villageScale);
     }
 
-    private void drawRequest(GuiGraphics graphics, int left, int top) {
-        String section = Component.translatable("screen.village-quest.notice_board.request").getString();
-        VillageUiTheme.drawStringScaled(graphics, font, section,
-                left + 145, top + 57, META, 0.66f);
-        drawScaledItem(graphics, data.requestStack(), left + 96, top + 79, 2.0f);
+    private void drawRequest(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
+        List<VillageNetworkPayloads.NoticeBoardOfferData> offers = offers();
+        for (int i = 0; i < offers.size() && i < 3; i++) {
+            VillageNetworkPayloads.NoticeBoardOfferData offer = offers.get(i);
+            int x = left + OFFER_X[i];
+            int offerY = top + OFFER_Y;
+            int offerWidth = OFFER_WIDTH[i];
+            boolean selected = offer.id() == selectedOfferId;
+            if (selected) {
+                graphics.fill(x + 6, offerY + OFFER_HEIGHT - 5,
+                        x + offerWidth - 6, offerY + OFFER_HEIGHT - 2, TEAL);
+            }
+            drawScaledItem(graphics, offer.stack(), left + OFFER_CENTER_X[i] - 8, top + 50, 1.0f);
+            drawCenteredScaled(graphics, offer.inventoryAmount() + " / " + offer.requiredAmount(),
+                    left + OFFER_CENTER_X[i], top + 69, BODY, 0.60f, offerWidth - 8);
+            if (within(mouseX, mouseY, x, offerY, offerWidth, OFFER_HEIGHT)) {
+                int remaining = Math.max(0, offer.requiredAmount() - offer.inventoryAmount());
+                graphics.setTooltipForNextFrame(font, List.of(
+                        offer.title(),
+                        Component.translatable("screen.village-quest.notice_board.selection",
+                                offer.title(), remaining, offer.support()),
+                        CurrencyService.formatBalance(offer.reward())), mouseX, mouseY);
+            }
+        }
 
-        String requestTitle = VillageUiTheme.ellipsize(font, data.requestTitle().getString(), 158);
-        VillageUiTheme.drawStringScaled(graphics, font, requestTitle,
-                left + 145, top + 72, INK, 0.72f);
-        int required = Math.max(0, data.requiredAmount());
-        int shown = required <= 0 ? 0 : Math.min(Math.max(0, data.inventoryAmount()), required);
-        int remaining = Math.max(0, required - shown);
-        String needed = data.requestAvailable()
-                ? Component.translatable("screen.village-quest.notice_board.still_needed", remaining).getString()
+        VillageNetworkPayloads.NoticeBoardOfferData selected = selectedOffer();
+        int required = Math.max(0, selected.requiredAmount());
+        int shown = required <= 0 ? 0 : Math.min(Math.max(0, selected.inventoryAmount()), required);
+        drawCenteredScaled(graphics, selected.title().getString(),
+                left + 208, top + 96, INK, 0.68f, 220);
+        drawScaledItem(graphics, selected.stack(), left + 90, top + 107, 1.5f);
+        drawCenteredScaled(graphics, shown + " / " + required,
+                left + 208, top + 108, INK, 0.65f, 150);
+
+        String context = data.requestAvailable()
+                ? Component.translatable("screen.village-quest.notice_board.network_need",
+                        data.villageNeed(), Math.max(0, Math.min(100, data.villageSupport())), 100).getString()
                 : Component.translatable("screen.village-quest.notice_board.available_after_reset").getString();
-        String neededVisible = VillageUiTheme.ellipsize(font, needed, Math.round(195 / 0.58f));
-        VillageUiTheme.drawStringScaled(graphics, font, neededVisible,
-                left + 153, top + 88, BODY, 0.58f);
+        drawCenteredScaled(graphics, context, left + 216, top + 120, META, 0.60f, 190);
+        drawCenteredScaled(graphics, CurrencyService.formatBalance(selected.reward()).getString(),
+                left + 174, top + 132, GOLD, 0.60f, 92);
+        drawCenteredScaled(graphics, "+" + selected.support(),
+                left + 274, top + 132, TEAL, 0.60f, 58);
 
-        int progressX = left + 92;
-        int progressY = top + 139;
-        int progressWidth = 176;
+        int progressX = left + 128;
+        int progressY = top + 141;
+        int progressWidth = 168;
         graphics.fill(progressX, progressY, progressX + progressWidth, progressY + 7, 0xFF5A351E);
         int innerWidth = progressWidth - 4;
         int filled = required <= 0 ? innerWidth : Math.round(innerWidth * (shown / (float) required));
         graphics.fill(progressX + 2, progressY + 2, progressX + 2 + filled, progressY + 5, TEAL);
-        String progress = shown + " / " + required;
-        VillageUiTheme.drawStringScaled(graphics, font, progress,
-                left + 278, top + 140, INK, 0.58f);
-
-        String rewardLabel = Component.translatable("screen.village-quest.notice_board.reward").getString();
-        String reward = CurrencyService.formatBalance(data.reward()).getString();
-        drawCenteredScaled(graphics, rewardLabel, left + 321, top + 63, META, 0.52f, 82);
-        drawCenteredScaled(graphics, reward, left + 321, top + 122, GOLD, 0.56f, 105);
+        VillageUiTheme.drawStringScaled(graphics, font, shown + " / " + required,
+                left + 301, top + 140, INK, 0.60f);
     }
 
     private void drawBondPath(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
-        String bondDetail;
+        String bondSummary;
         if (data.nextThreshold() > 0) {
-            String next = Component.translatable(
+            bondSummary = Component.translatable(
                     "screen.village-quest.notice_board.next_progress", data.nextLevel(),
                     data.completions(), data.nextThreshold()).getString();
-            bondDetail = next + " · " + data.nextPerk().getString();
         } else {
-            bondDetail = data.nextPerk().getString();
+            bondSummary = data.nextPerk().getString();
         }
-        drawCenteredScaled(graphics, bondDetail, left + WIDTH / 2.0f, top + 163,
-                LIGHT, 0.48f, 350);
+        drawCenteredScaled(graphics, bondSummary, left + WIDTH / 2.0f, top + 172,
+                INK, 0.60f, 260);
 
         int bondTier = Math.max(0, Math.min(data.bondTier(), BOND_CENTERS.length - 1));
+        int connectorY = top + BOND_CENTER_Y;
+        graphics.fill(left + BOND_CENTERS[0], connectorY - 1,
+                left + BOND_CENTERS[BOND_CENTERS.length - 1], connectorY + 1, 0xFF5A351E);
+        graphics.fill(left + BOND_CENTERS[0], connectorY - 1,
+                left + BOND_CENTERS[BOND_CENTERS.length - 1], connectorY, TEAL);
         for (int i = 0; i < BOND_CENTERS.length; i++) {
             boolean completed = bondTier > i;
             boolean current = bondTier == i;
@@ -175,7 +209,7 @@ public final class GuildNoticeBoardScreen extends CompatScreen {
 
         String hint = Component.translatable("screen.village-quest.notice_board.bond_hint").getString();
         int finalThreshold = data.nextThreshold() > 0 ? data.nextThreshold() : 8;
-        if (within(mouseX, mouseY, left + 54, top + 168, 308, 40)) {
+        if (within(mouseX, mouseY, left + 90, top + 165, 238, 45)) {
             graphics.setTooltipForNextFrame(font, List.of(
                     Component.translatable("screen.village-quest.notice_board.bond_path"),
                     Component.translatable("screen.village-quest.notice_board.bond_summary"),
@@ -195,7 +229,7 @@ public final class GuildNoticeBoardScreen extends CompatScreen {
                 Component.translatable(data.requestAvailable()
                         ? "screen.village-quest.notice_board.deliver"
                         : "screen.village-quest.notice_board.return_tomorrow").getString(),
-                data.canDeliver(), deliverHover, false);
+                data.requestAvailable() && selectedOffer().canDeliver(), deliverHover, false);
         VillageUiTheme.drawButton(graphics, font,
                 left + CLOSE_X, top + BUTTON_Y, CLOSE_WIDTH, BUTTON_HEIGHT,
                 Component.translatable("screen.village-quest.notice_board.close").getString(),
@@ -212,11 +246,20 @@ public final class GuildNoticeBoardScreen extends CompatScreen {
         int mouseX = responsiveMouseX(click.x(), WIDTH, HEIGHT);
         int mouseY = responsiveMouseY(click.y(), WIDTH, HEIGHT);
         if (within(mouseX, mouseY,
-                left + DELIVER_X, top + BUTTON_Y, DELIVER_WIDTH, BUTTON_HEIGHT) && data.canDeliver()) {
-            ClientPlayNetworking.send(new Payloads.NoticeBoardActionPayload(
+                left + DELIVER_X, top + BUTTON_Y, DELIVER_WIDTH, BUTTON_HEIGHT)
+                && data.requestAvailable() && selectedOffer().canDeliver()) {
+            ClientPlayNetworking.send(new VillageNetworkPayloads.NoticeBoardActionPayload(
                     data.worldX(), data.worldY(), data.worldZ(),
-                    Payloads.NoticeBoardActionPayload.ACTION_DELIVER));
+                    VillageNetworkPayloads.NoticeBoardActionPayload.ACTION_DELIVER, selectedOffer().id()));
             return true;
+        }
+        List<VillageNetworkPayloads.NoticeBoardOfferData> offers = offers();
+        for (int i = 0; i < offers.size() && i < 3; i++) {
+            if (within(mouseX, mouseY, left + OFFER_X[i], top + OFFER_Y,
+                    OFFER_WIDTH[i], OFFER_HEIGHT)) {
+                selectedOfferId = offers.get(i).id();
+                return true;
+            }
         }
         if (within(mouseX, mouseY,
                 left + CLOSE_X, top + BUTTON_Y, CLOSE_WIDTH, BUTTON_HEIGHT)) {
@@ -248,5 +291,19 @@ public final class GuildNoticeBoardScreen extends CompatScreen {
 
     private static boolean within(double x, double y, int left, int top, int width, int height) {
         return x >= left && x < left + width && y >= top && y < top + height;
+    }
+
+    private List<VillageNetworkPayloads.NoticeBoardOfferData> offers() {
+        if (data.offers() != null && !data.offers().isEmpty()) return data.offers();
+        return List.of(new VillageNetworkPayloads.NoticeBoardOfferData(0, data.requestTitle(), data.requestStack(),
+                data.requiredAmount(), data.inventoryAmount(), data.reward(), 0, false, data.canDeliver()));
+    }
+
+    private VillageNetworkPayloads.NoticeBoardOfferData firstOffer() {
+        return offers().getFirst();
+    }
+
+    private VillageNetworkPayloads.NoticeBoardOfferData selectedOffer() {
+        return offers().stream().filter(offer -> offer.id() == selectedOfferId).findFirst().orElse(firstOffer());
     }
 }

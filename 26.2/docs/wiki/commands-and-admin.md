@@ -36,6 +36,9 @@ All commands are available as `/villagequest ...` and the short alias `/vq ...`.
 - `/vq routes guild`
   Show trade-guild rank, score, daily income, escrow, route specialization, road length, quality, and solved incidents.
 
+- `/vq routes approach <route 1-5> <careful|bold>`
+  Choose the route's visible incident plan. Careful lowers frequency, reward, and failure strain and adds protection; Bold raises opportunity, reward, and repairable risk.
+
 - `/vq routes contracts`
   Show the current freight contract or up to three daily guild offers.
 
@@ -68,6 +71,31 @@ All commands are available as `/villagequest ...` and the short alias `/vq ...`.
 
 - `/vq routes survey cancel`
   Discard the draft and restore the previous route and pause state.
+
+- `/vq network`
+  Show recorded villages, Adventure Profile, network renown, rank, honor title, and specialization.
+
+- `/vq network specialize <steward|courier|wayfarer>`
+  Preview a permanent network specialization after rank 2 without applying it.
+
+- `/vq network specialize <steward|courier|wayfarer> confirm`
+  Confirm and permanently apply the named specialization. It can only be chosen once.
+
+### Optional Living-Network Guild
+
+- `/vq guild create <name>`
+- `/vq guild invite <player>`
+- `/vq guild accept`
+- `/vq guild status`
+- `/vq guild promote <player>`
+- `/vq guild transfer <player>`
+- `/vq guild kick <player>`
+- `/vq guild project <common_reserve|waystation|archive_exchange>`
+- `/vq guild leave`
+
+The shared guild stores only membership, roles, renown, and its selected network project. Personal story rewards, Archive ownership, and unique tools remain personal. Leaders promote Stewards, transfer leadership, or remove members; Leaders and Stewards may invite and choose a project after guild rank 2. A Leader with other members must transfer leadership or remove those members before leaving, so an offline member can never permanently trap guild management.
+
+`invite`, `promote`, `transfer`, and `kick` resolve stored player profiles as well as online players. After a player has joined the server at least once, these actions can therefore target that cached name while the player is offline.
 
 ### Quest Commands
 
@@ -169,6 +197,7 @@ This command clears the saved Village Quest state for every player at once:
 - daily, weekly, story, special, and pilgrim progress
 - unlocked village projects
 - registered villages, persistent trade routes, route events, quality, and earnings
+- living-village supply, energy, prestige, specialization, and optional shared guild state
 - pilgrim natural spawn cooldown state
 - quest parties, pending invites, shared sessions, and reconnect-grace state
 - active Village Quest journals, trackers, questmaster sessions, and pilgrim trades
@@ -194,7 +223,7 @@ It is a Village Quest data reset, not a world or inventory wipe.
 - a carried `Wayfinder's Compass`
 - unlocked compass structure modes if they were still missing
 
-`/vq admin story shadows testrescue` jumps the player into the regular caravan-defense test state.
+`/vq admin story shadows testrescue` jumps the player into the regular caravan-defense test state, chooses a prevalidated dry encounter site roughly `320–500` blocks away, and advances the Overworld clock to the required night. The complete merchant formation must fit before the compass target is committed. On Peaceful the merchants and escort remain present while hostile waves stay at zero; if the final spawn still fails, the encounter relocates or reports its reschedule instead of failing silently.
 
 `/vq admin story shadows testfinal` jumps the player into the final large-convoy defense test state and arms the convoy for the current day/night cycle instead of the normal two-night story wait.
 

@@ -19,6 +19,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.component.ItemContainerContents;
 import de.quest.registry.ModItems;
+import de.quest.shrine.VillageBondService;
 
 /** Long-term progression, freight contracts and investments for the caravan network. */
 public final class TradeGuildService {
@@ -88,10 +89,22 @@ public final class TradeGuildService {
             if (type.requiredGuildRank() <= rank) eligible.add(type);
         }
         if (eligible.isEmpty()) return List.of();
-        int start = Math.floorMod(playerId.hashCode() * 31 + (int) TimeUtil.currentDay() * 17, eligible.size());
+        List<TradeContractType> needMatched = eligible.stream()
+                .filter(type -> VillageBondService.villages(world, playerId).stream()
+                        .anyMatch(village -> village.network().need().matches(type.item())))
+                .toList();
         List<TradeContractType> offers = new ArrayList<>();
-        for (int i = 0; i < Math.min(3, eligible.size()); i++) {
-            offers.add(eligible.get((start + i) % eligible.size()));
+        int seed = playerId.hashCode() * 31 + (int) TimeUtil.currentDay() * 17;
+        if (!needMatched.isEmpty()) {
+            int start = Math.floorMod(seed, needMatched.size());
+            for (int i = 0; i < needMatched.size() && offers.size() < 3; i++) {
+                offers.add(needMatched.get((start + i) % needMatched.size()));
+            }
+        }
+        int generalStart = Math.floorMod(seed, eligible.size());
+        for (int i = 0; i < eligible.size() && offers.size() < 3; i++) {
+            TradeContractType candidate = eligible.get((generalStart + i) % eligible.size());
+            if (!offers.contains(candidate)) offers.add(candidate);
         }
         return List.copyOf(offers);
     }
@@ -111,7 +124,8 @@ public final class TradeGuildService {
             TradeContractType type = offers.get(i);
             lines.add(Component.translatable("message.village-quest.trade_guild.contract_offer",
                     i + 1, type.title(), type.amount(), new ItemStack(type.item()).getHoverName(),
-                    CurrencyService.formatBalance(type.reward()), type.specialization().label())
+                    CurrencyService.formatBalance(type.reward()), type.specialization().label(),
+                    matchingRouteLabel(world, playerId, type))
                     .withStyle(ChatFormatting.GRAY));
         }
         return lines;
@@ -133,9 +147,29 @@ public final class TradeGuildService {
         data.setTradeRouteInt(CONTRACT_DUE_DAY, (int) TimeUtil.currentDay() + 3);
         data.setTradeRouteFlag(CONTRACT_SUPPLIED, false);
         QuestState.get(world.getServer()).setDirty();
-        player.sendSystemMessage(Component.translatable("message.village-quest.trade_guild.contract_accepted",
+        player.sendSystemMessage(Component.translatable(matchesRouteNeed(world, player.getUUID(), routeIndex, type)
+                        ? "message.village-quest.trade_guild.contract_accepted_matching"
+                        : "message.village-quest.trade_guild.contract_accepted",
                 type.title(), routeIndex + 1).withStyle(ChatFormatting.GREEN), false);
         return true;
+    }
+
+    private static boolean matchesRouteNeed(ServerLevel world, UUID playerId, int routeIndex, TradeContractType type) {
+        int x = TradeRouteService.routeDestinationX(world, playerId, routeIndex);
+        int z = TradeRouteService.routeDestinationZ(world, playerId, routeIndex);
+        return VillageBondService.villages(world, playerId).stream()
+                .anyMatch(village -> Math.abs(village.x() - x) <= 8 && Math.abs(village.z() - z) <= 8
+                        && village.network().need().matches(type.item()));
+    }
+
+    private static Component matchingRouteLabel(ServerLevel world, UUID playerId, TradeContractType type) {
+        List<String> matches = new ArrayList<>();
+        for (int route = 0; route < TradeRouteService.routeCount(world, playerId); route++) {
+            if (matchesRouteNeed(world, playerId, route, type)) matches.add(Integer.toString(route + 1));
+        }
+        return matches.isEmpty()
+                ? Component.translatable("text.village-quest.trade_guild.contract.general_supply")
+                : Component.translatable("text.village-quest.trade_guild.contract.need_routes", String.join(", ", matches));
     }
 
     public static boolean supplyContract(ServerLevel world, ServerPlayer player) {
@@ -211,6 +245,13 @@ public final class TradeGuildService {
         if (world == null || ownerId == null) return;
         PlayerQuestData data = data(world, ownerId);
         TradeContractType type = activeContract(world, ownerId);
+        boolean suppliedFreight = type != null && !expired(data)
+                && data.hasTradeRouteFlag(CONTRACT_SUPPLIED)
+                && data.getTradeRouteInt(CONTRACT_ROUTE) == routeIndex + 1;
+        VillageBondService.recordRouteArrival(world, ownerId,
+                TradeRouteService.routeDestinationX(world, ownerId, routeIndex),
+                TradeRouteService.routeDestinationZ(world, ownerId, routeIndex),
+                suppliedFreight ? type.item() : null, suppliedFreight);
         if (type == null) return;
         if (expired(data)) {
             failContract(world, ownerId);

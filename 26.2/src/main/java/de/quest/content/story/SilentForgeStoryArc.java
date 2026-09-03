@@ -32,15 +32,16 @@ import java.util.Map;
 import java.util.UUID;
 
 public final class SilentForgeStoryArc implements StoryArcDefinition {
-    private static final int COLD_HEARTH_COAL_TARGET = 67;
-    private static final int COLD_HEARTH_IRON_TARGET = 47;
-    private static final int COLD_HEARTH_REDSTONE_TARGET = 29;
-    private static final int COLD_HEARTH_GOLD_TARGET = 17;
+    private static final int COLD_HEARTH_COAL_TARGET = 64;
+    private static final int COLD_HEARTH_IRON_TARGET = 40;
+    private static final int COLD_HEARTH_REDSTONE_TARGET = 24;
+    private static final int COLD_HEARTH_GOLD_TARGET = 16;
     private static final int COLD_HEARTH_DIAMOND_TARGET = 4;
-    private static final int BELLOWS_IRON_TARGET = 31;
+    private static final int BELLOWS_IRON_TARGET = 24;
     private static final int BELLOWS_BLAST_FURNACE_TARGET = 3;
     private static final int BELLOWS_CAULDRON_TARGET = 3;
     private static final int TOOLS_TARGET = 3;
+    private static final int MASTER_BOOK_FAMILIES_TARGET = 2;
 
     private final List<StoryChapterDefinition> chapters = List.of(
             new ColdHearthChapter(),
@@ -546,13 +547,13 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
 
     private static final class MastersEdgeChapter extends SilentForgeChapter {
         private int bookProgressCount(ServerLevel world, UUID playerId) {
-            int total = 0;
-            total += Math.min(1, progress(world, playerId, StoryQuestKeys.SILENT_FORGE_SHARPNESS_BOOK));
-            total += Math.min(1, progress(world, playerId, StoryQuestKeys.SILENT_FORGE_FIRE_PROTECTION_BOOK));
-            total += Math.min(1, progress(world, playerId, StoryQuestKeys.SILENT_FORGE_PROTECTION_BOOK));
-            total += Math.min(1, progress(world, playerId, StoryQuestKeys.SILENT_FORGE_BLAST_PROTECTION_BOOK));
-            total += Math.min(1, progress(world, playerId, StoryQuestKeys.SILENT_FORGE_PROJECTILE_PROTECTION_BOOK));
-            return total;
+            int sharpness = Math.min(1, progress(world, playerId, StoryQuestKeys.SILENT_FORGE_SHARPNESS_BOOK));
+            int protectionFamily = Math.min(1,
+                    progress(world, playerId, StoryQuestKeys.SILENT_FORGE_FIRE_PROTECTION_BOOK)
+                            + progress(world, playerId, StoryQuestKeys.SILENT_FORGE_PROTECTION_BOOK)
+                            + progress(world, playerId, StoryQuestKeys.SILENT_FORGE_BLAST_PROTECTION_BOOK)
+                            + progress(world, playerId, StoryQuestKeys.SILENT_FORGE_PROJECTILE_PROTECTION_BOOK));
+            return sharpness + protectionFamily;
         }
 
         private void recordRequiredBook(ServerLevel world, UUID playerId, ItemStack stack) {
@@ -575,7 +576,7 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
 
         private void recoverMissedBookPurchases(ServerLevel world, ServerPlayer player) {
             UUID playerId = player.getUUID();
-            if (progress(world, playerId, StoryQuestKeys.SILENT_FORGE_BOOK_MIGRATION) >= 1) {
+            if (bookProgressCount(world, playerId) >= MASTER_BOOK_FAMILIES_TARGET) {
                 return;
             }
             for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
@@ -681,14 +682,14 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
 
         @Override
         public void onAccepted(ServerLevel world, ServerPlayer player) {
-            StoryQuestService.setQuestInt(world, player.getUUID(), StoryQuestKeys.SILENT_FORGE_BOOK_MIGRATION, 1);
+            recoverMissedBookPurchases(world, player);
         }
 
         @Override
         public void onServerTick(ServerLevel world, ServerPlayer player) {
             UUID playerId = player.getUUID();
             recoverMissedBookPurchases(world, player);
-            if (bookProgressCount(world, playerId) < 5) {
+            if (bookProgressCount(world, playerId) < MASTER_BOOK_FAMILIES_TARGET) {
                 return;
             }
 
@@ -713,11 +714,11 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
         @Override
         public List<Component> progressLines(ServerLevel world, UUID playerId) {
             int books = bookProgressCount(world, playerId);
-            if (books < 5) {
+            if (books < MASTER_BOOK_FAMILIES_TARGET) {
                 return List.of(Component.translatable(
                         "quest.village-quest.story.silent_forge.chapter_4.progress.1",
                         books,
-                        5
+                        MASTER_BOOK_FAMILIES_TARGET
                 ).withStyle(ChatFormatting.GRAY));
             }
 
@@ -770,7 +771,7 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
         @Override
         public boolean isComplete(ServerLevel world, ServerPlayer player) {
             UUID playerId = player.getUUID();
-            return bookProgressCount(world, playerId) >= 5
+            return bookProgressCount(world, playerId) >= MASTER_BOOK_FAMILIES_TARGET
                     && armorCraftedCount(world, playerId) >= 4
                     && armorEnchantedCount(world, playerId) >= 4
                     && progress(world, playerId, StoryQuestKeys.SILENT_FORGE_MASTER_EDGE_CRAFTED) >= 1
@@ -797,7 +798,7 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
                 return null;
             }
             UUID playerId = player.getUUID();
-            if (bookProgressCount(world, playerId) < 5
+            if (bookProgressCount(world, playerId) < MASTER_BOOK_FAMILIES_TARGET
                     || armorCraftedCount(world, playerId) < 4
                     || armorEnchantedCount(world, playerId) < 4
                     || progress(world, playerId, StoryQuestKeys.SILENT_FORGE_MASTER_EDGE_CRAFTED) < 1
@@ -841,10 +842,19 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
 
         @Override
         public void onVillagerTrade(ServerLevel world, ServerPlayer player, ItemStack stack) {
-            if (stack == null || !stack.is(Items.ENCHANTED_BOOK) || bookProgressCount(world, player.getUUID()) >= 5) {
+            if (stack == null || !stack.is(Items.ENCHANTED_BOOK) || bookProgressCount(world, player.getUUID()) >= MASTER_BOOK_FAMILIES_TARGET) {
                 return;
             }
             recordRequiredBook(world, player.getUUID(), stack);
+        }
+
+        @Override
+        public void onTrackedItemPickup(ServerLevel world, ServerPlayer player, ItemStack stack, int count) {
+            if (stack != null && stack.is(Items.ENCHANTED_BOOK)
+                    && bookProgressCount(world, player.getUUID()) < MASTER_BOOK_FAMILIES_TARGET) {
+                recordRequiredBook(world, player.getUUID(), stack);
+                StoryQuestService.completeIfEligible(world, player);
+            }
         }
 
         @Override

@@ -1,7 +1,6 @@
 package de.quest.quest;
 
 import de.quest.archive.GuildArchiveService;
-import de.quest.content.item.PeaceArmorHandler;
 import de.quest.config.ClientPreferenceService;
 import de.quest.caravan.TradeRouteService;
 import de.quest.content.story.ShadowsTradeRoadEncounterService;
@@ -22,7 +21,6 @@ import de.quest.questmaster.QuestMasterUiService;
 import de.quest.reputation.ReputationService;
 import de.quest.recipe.VillageQuestRecipeBookService;
 import net.fabricmc.fabric.api.entity.event.v1.ServerEntityCombatEvents;
-import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -83,15 +81,6 @@ public final class QuestService {
                 }));
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
                 server.execute(() -> handleDisconnect(handler.player)));
-
-        ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
-            if (entity instanceof net.minecraft.server.level.ServerPlayer player) {
-                if (PeaceArmorHandler.tryNegateAttack(player, source.getEntity())) {
-                    return false;
-                }
-            }
-            return true;
-        });
 
         UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
             if (world instanceof ServerLevel sw && player instanceof net.minecraft.server.level.ServerPlayer sp) {
@@ -162,6 +151,9 @@ public final class QuestService {
                 DailyQuestService.onEntityUse(sw, sp, entity, stack);
                 StoryQuestService.onEntityUse(sw, sp, entity, stack);
                 PilgrimContractService.onEntityUse(sw, sp, entity, stack);
+                if (entity instanceof net.minecraft.world.entity.npc.villager.Villager villager) {
+                    de.quest.shrine.VillageBondService.onVillagerContact(sw, sp, villager);
+                }
             }
             return InteractionResult.PASS;
         });

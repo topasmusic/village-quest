@@ -21,6 +21,43 @@ public final class VillageQuestServerConfig {
         MAP_ONLY
     }
 
+    /** World-owner balance profile. It changes effort and tolerance, never content or exclusive rewards. */
+    public enum AdventureProfile {
+        RELAXED(0.75, 0.82, 8, 2),
+        STANDARD(1.0, 1.0, 12, 1),
+        HARDENED(1.25, 1.18, 16, 0);
+
+        private final double requestMultiplier;
+        private final double combatMultiplier;
+        private final int routeFailureStrain;
+        private final int incidentProtection;
+
+        AdventureProfile(double requestMultiplier, double combatMultiplier,
+                         int routeFailureStrain, int incidentProtection) {
+            this.requestMultiplier = requestMultiplier;
+            this.combatMultiplier = combatMultiplier;
+            this.routeFailureStrain = routeFailureStrain;
+            this.incidentProtection = incidentProtection;
+        }
+
+        public int scaleRequestAmount(int baseAmount) {
+            return Math.max(1, (int) Math.ceil(Math.max(1, baseAmount) * requestMultiplier));
+        }
+
+        public int scaleHostileCount(int baseCount) {
+            return Math.max(1, (int) Math.round(Math.max(1, baseCount) * combatMultiplier));
+        }
+
+        public int routeFailureStrain() {
+            return routeFailureStrain;
+        }
+
+        /** Number of failed normal incident rolls before the profile grants a safe journey. */
+        public int incidentProtection() {
+            return incidentProtection;
+        }
+    }
+
     private static final String FILE_NAME = "server.properties";
     private static VillageQuestServerConfig instance = defaults();
 
@@ -31,6 +68,7 @@ public final class VillageQuestServerConfig {
     private final int weeklyResetHour;
     private final boolean allowPlayerCaravanYards;
     private final CaravanVisualMode caravanVisualMode;
+    private final AdventureProfile adventureProfile;
 
     private VillageQuestServerConfig(String configuredResetTimezone,
                                      ZoneId resetZone,
@@ -38,7 +76,8 @@ public final class VillageQuestServerConfig {
                                      DayOfWeek weeklyResetDay,
                                      int weeklyResetHour,
                                      boolean allowPlayerCaravanYards,
-                                     CaravanVisualMode caravanVisualMode) {
+                                     CaravanVisualMode caravanVisualMode,
+                                     AdventureProfile adventureProfile) {
         this.configuredResetTimezone = configuredResetTimezone;
         this.resetZone = resetZone;
         this.dailyResetHour = dailyResetHour;
@@ -46,6 +85,7 @@ public final class VillageQuestServerConfig {
         this.weeklyResetHour = weeklyResetHour;
         this.allowPlayerCaravanYards = allowPlayerCaravanYards;
         this.caravanVisualMode = caravanVisualMode;
+        this.adventureProfile = adventureProfile;
     }
 
     public static void bootstrap() {
@@ -57,9 +97,10 @@ public final class VillageQuestServerConfig {
             }
             instance = load(path);
             VillageQuest.LOGGER.info(
-                    "Loaded Village Quest server config: reset zone {}, daily {}:00, weekly {} {}:00, caravans {}",
+                    "Loaded Village Quest server config: reset zone {}, daily {}:00, weekly {} {}:00, caravans {}, profile {}",
                     instance.resetZone, String.format("%02d", instance.dailyResetHour), instance.weeklyResetDay,
-                    String.format("%02d", instance.weeklyResetHour), instance.caravanVisualMode);
+                    String.format("%02d", instance.weeklyResetHour), instance.caravanVisualMode,
+                    instance.adventureProfile);
         } catch (IOException exception) {
             instance = defaults();
             VillageQuest.LOGGER.warn("Failed to load Village Quest server config from {}; using safe defaults", path, exception);
@@ -98,6 +139,10 @@ public final class VillageQuestServerConfig {
         return caravanVisualMode;
     }
 
+    public AdventureProfile adventureProfile() {
+        return adventureProfile;
+    }
+
     private static VillageQuestServerConfig load(Path path) throws IOException {
         Properties properties = new Properties();
         try (InputStream input = Files.newInputStream(path)) {
@@ -112,13 +157,16 @@ public final class VillageQuestServerConfig {
         boolean yards = booleanValue(properties, "allow_player_caravan_yards", true);
         CaravanVisualMode caravanMode = enumValue(
                 properties, "physical_caravans", CaravanVisualMode.FULL, CaravanVisualMode.class);
+        AdventureProfile adventureProfile = enumValue(
+                properties, "adventure_profile", AdventureProfile.STANDARD, AdventureProfile.class);
         return new VillageQuestServerConfig(
-                configuredZone, zone, dailyHour, weeklyDay, weeklyHour, yards, caravanMode);
+                configuredZone, zone, dailyHour, weeklyDay, weeklyHour, yards, caravanMode, adventureProfile);
     }
 
     private static VillageQuestServerConfig defaults() {
         return new VillageQuestServerConfig(
-                "AUTO", ZoneId.systemDefault(), 6, DayOfWeek.MONDAY, 6, true, CaravanVisualMode.FULL);
+                "AUTO", ZoneId.systemDefault(), 6, DayOfWeek.MONDAY, 6, true,
+                CaravanVisualMode.FULL, AdventureProfile.STANDARD);
     }
 
     private static ZoneId parseZone(String raw) {
@@ -183,13 +231,16 @@ public final class VillageQuestServerConfig {
 
     private static String defaultFile() {
         return """
-                # Village Quest 2.1.1 server/world-owner settings
+                # Village Quest 2.3.x server/world-owner settings
                 # Restart the game or dedicated server after changing this file.
                 # AUTO uses the timezone of the running integrated or dedicated server.
                 reset_timezone=AUTO
                 daily_reset_hour=6
                 weekly_reset_day=MONDAY
                 weekly_reset_hour=6
+
+                # RELAXED, STANDARD, or HARDENED. Changes quantities, combat pressure, incident pity, and failure strain.
+                adventure_profile=STANDARD
 
                 # Allows one deliberately registered player base to act as the route network's home node after Market Charter access.
                 allow_player_caravan_yards=true

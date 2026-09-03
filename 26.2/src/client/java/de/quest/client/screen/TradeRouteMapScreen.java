@@ -208,7 +208,6 @@ public final class TradeRouteMapScreen extends CompatScreen {
     public boolean mouseReleased(MouseButtonEvent click) {
         if (click.button() == 0 && mapDragging) {
             mapDragging = false;
-            SurfaceMapRenderer.invalidateScreen();
             return true;
         }
         return super.mouseReleased(click);
@@ -553,19 +552,21 @@ public final class TradeRouteMapScreen extends CompatScreen {
                     Component.translatable("screen.village-quest.trade_route.earnings_short",
                             selected.lifetimeEarnings()).getString(),
                     Component.translatable("screen.village-quest.trade_route.specialization",
-                            selected.specializationLabel()).getString()
+                            selected.specializationLabel()).getString(),
+                    Component.translatable("screen.village-quest.trade_route.approach",
+                            selected.incidentApproachLabel()).getString()
             };
             int y = detailY + 34;
             for (String line : lines) {
                 VillageUiTheme.drawStringScaled(graphics, font,
                         compact(line, detailWidth - 24, 0.70f),
                         detailX + 12, y, BODY, 0.70f);
-                y += 10;
+                y += 9;
             }
             if (!selected.eventLabel().getString().isEmpty()) {
                 VillageUiTheme.drawStringScaled(graphics, font,
                         compact(selected.eventLabel().getString(), detailWidth - 24, 0.70f),
-                        detailX + 12, detailY + 66, DANGEROUS, 0.70f);
+                        detailX + 12, detailY + 72, DANGEROUS, 0.66f);
             }
             drawRouteActions(graphics, selected, detailX, detailY + detailHeight + 7,
                     detailWidth, mouseX, mouseY);
@@ -655,13 +656,17 @@ public final class TradeRouteMapScreen extends CompatScreen {
             VillageUiTheme.drawStringScaled(graphics, font,
                     compact(bond.type().getString(), cardWidth - 78, 0.78f), x + 29, y + 6, INK, 0.78f);
             VillageUiTheme.drawStringScaled(graphics, font,
-                    compact(bond.request().getString(), cardWidth - 38, 0.68f), x + 29, y + 18, BODY, 0.68f);
+                    compact(bond.condition().getString() + " · " + bond.need().getString(),
+                            cardWidth - 38, 0.62f), x + 29, y + 18, BODY, 0.62f);
             String level = bond.level().getString();
             VillageUiTheme.drawStringScaled(graphics, font, level,
                     x + cardWidth - font.width(level) * 0.68f - 7, y + 6, FLOURISHING, 0.68f);
             if (hovered) {
                 graphics.setTooltipForNextFrame(font, List.of(
-                        bond.type(), bond.level(), bond.request(),
+                        bond.type(), bond.level(), bond.condition(), bond.need(),
+                        Component.translatable("screen.village-quest.trade_route.bond_supply",
+                                bond.support(), 100, bond.energyProgress(), 3),
+                        bond.request(),
                         Component.translatable("screen.village-quest.trade_route.bond_coordinates",
                                 bond.worldX(), bond.worldZ()),
                         Component.translatable("screen.village-quest.trade_route.bond_requests",

@@ -3,6 +3,7 @@ package de.quest.client.ui;
 import com.mojang.blaze3d.platform.NativeImage;
 import de.quest.VillageQuest;
 import de.quest.client.config.VillageQuestClientConfig;
+import de.quest.map.SurfaceMapProjection;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
@@ -158,16 +159,16 @@ public final class SurfaceMapRenderer {
         }
         int cellSize = sampleCellSize(minX, maxX, minZ, maxZ, sampleWidth, sampleHeight);
         int gridSize = sampleGridSize();
-        if (existing != null && existing.matches(level, minX, maxX, minZ, maxZ, cellSize, gridSize)
+        if (existing != null && existing.covers(level, minX, maxX, minZ, maxZ, cellSize, gridSize)
                 && now - existing.sampledAt < maxAge) {
             return existing;
         }
-        int originCellX = Math.floorDiv(minX, cellSize) - 1;
-        int originCellZ = Math.floorDiv(minZ, cellSize) - 1;
-        int endCellX = Math.floorDiv(maxX - 1, cellSize) + 1;
-        int endCellZ = Math.floorDiv(maxZ - 1, cellSize) + 1;
-        int rasterWidth = endCellX - originCellX + 1;
-        int rasterHeight = endCellZ - originCellZ + 1;
+        SurfaceMapProjection.Coverage coverage = SurfaceMapProjection.bufferedCoverage(
+                minX, maxX, minZ, maxZ, cellSize);
+        int originCellX = coverage.originCellX();
+        int originCellZ = coverage.originCellZ();
+        int rasterWidth = coverage.cellWidth();
+        int rasterHeight = coverage.cellHeight();
         Sample[] samples = new Sample[rasterWidth * rasterHeight];
         for (int row = 0; row < rasterHeight; row++) {
             int worldZ = fixedSampleCoordinate(originCellZ + row, cellSize);
@@ -176,7 +177,8 @@ public final class SurfaceMapRenderer {
                 samples[row * rasterWidth + column] = sample(level, worldX, worldZ);
             }
         }
-        return new Raster(level, minX, maxX, minZ, maxZ, originCellX, originCellZ,
+        return new Raster(level, coverage.minX(), coverage.maxX(), coverage.minZ(), coverage.maxZ(),
+                originCellX, originCellZ,
                 cellSize, gridSize, rasterWidth, rasterHeight, samples, now);
     }
 
@@ -279,38 +281,63 @@ public final class SurfaceMapRenderer {
         if (raster == null) {
             return;
         }
-        texture.upload(raster, width, height, decorate);
-        double requestedWidth = Math.max(1.0, maxX - minX);
-        double requestedHeight = Math.max(1.0, maxZ - minZ);
-        int drawX = x + (int) Math.round((raster.minX - minX) / requestedWidth * width);
-        int drawY = y + (int) Math.round((raster.minZ - minZ) / requestedHeight * height);
-        graphics.blit(RenderPipelines.GUI_TEXTURED, texture.id, drawX, drawY, 0.0f, 0.0f,
-                width, height, width, height);
+        int textureWidth = raster.width * SurfaceMapProjection.PIXELS_PER_CELL;
+        int textureHeight = raster.height * SurfaceMapProjection.PIXELS_PER_CELL;
+        texture.upload(raster, textureWidth, textureHeight, decorate);
+        double u0 = SurfaceMapProjection.textureCoordinate(minX, raster.minX, raster.cellSize);
+        double v0 = SurfaceMapProjection.textureCoordinate(minZ, raster.minZ, raster.cellSize);
+        double u1 = SurfaceMapProjection.textureCoordinate(maxX, raster.minX, raster.cellSize);
+        double v1 = SurfaceMapProjection.textureCoordinate(maxZ, raster.minZ, raster.cellSize);
+        drawTextureRegion(graphics, texture.id, x, y, width, height,
+                u0, v0, u1, v1, textureWidth, textureHeight);
+    }
+
+    private static void drawTextureRegion(GuiGraphics graphics, Identifier texture,
+                                          int x, int y, int width, int height,
+                                          double u0, double v0, double u1, double v1,
+                                          int textureWidth, int textureHeight) {
+        double fullSourceWidth = Math.max(0.0001D, u1 - u0);
+        double fullSourceHeight = Math.max(0.0001D, v1 - v0);
+        double clippedU0 = Math.max(0.0D, u0);
+        double clippedV0 = Math.max(0.0D, v0);
+        double clippedU1 = Math.min(textureWidth, u1);
+        double clippedV1 = Math.min(textureHeight, v1);
+        if (clippedU1 <= clippedU0 || clippedV1 <= clippedV0) {
+            return;
+        }
+        int drawX0 = x + (int) Math.round((clippedU0 - u0) / fullSourceWidth * width);
+        int drawY0 = y + (int) Math.round((clippedV0 - v0) / fullSourceHeight * height);
+        int drawX1 = x + (int) Math.round((clippedU1 - u0) / fullSourceWidth * width);
+        int drawY1 = y + (int) Math.round((clippedV1 - v0) / fullSourceHeight * height);
+        int sourceWidth = Math.max(1, (int) Math.round(clippedU1 - clippedU0));
+        int sourceHeight = Math.max(1, (int) Math.round(clippedV1 - clippedV0));
+        int drawWidth = Math.max(1, drawX1 - drawX0);
+        int drawHeight = Math.max(1, drawY1 - drawY0);
+        var matrices = graphics.pose();
+        matrices.pushMatrix();
+        matrices.translate(drawX0, drawY0);
+        matrices.scale(drawWidth / (float) sourceWidth, drawHeight / (float) sourceHeight);
+        graphics.blit(RenderPipelines.GUI_TEXTURED, texture, 0, 0,
+                (float) clippedU0, (float) clippedV0,
+                sourceWidth, sourceHeight, textureWidth, textureHeight);
+        matrices.popMatrix();
     }
 
     private static void paint(NativeImage image, Raster raster, int width, int height,
                               boolean decorate) {
         float opacity = decorate ? 1.0f : VillageQuestClientConfig.get().minimapOpacity();
         image.fillRect(0, 0, width, height, withOpacity(0xFFD8B978, opacity));
-        double worldWidth = Math.max(1.0, raster.maxX - raster.minX);
-        double worldHeight = Math.max(1.0, raster.maxZ - raster.minZ);
         for (int row = 0; row < raster.height; row++) {
-            int cellZ = raster.originCellZ + row;
-            int y0 = projectedCoordinate((long) cellZ * raster.cellSize,
-                    raster.minZ, worldHeight, height);
-            int y1 = projectedCoordinate((long) (cellZ + 1) * raster.cellSize,
-                    raster.minZ, worldHeight, height);
+            int y0 = row * SurfaceMapProjection.PIXELS_PER_CELL;
+            int y1 = y0 + SurfaceMapProjection.PIXELS_PER_CELL;
             int clippedY0 = Math.max(0, y0);
             int clippedY1 = Math.min(height, y1);
             if (clippedY1 <= clippedY0) {
                 continue;
             }
             for (int column = 0; column < raster.width; column++) {
-                int cellX = raster.originCellX + column;
-                int x0 = projectedCoordinate((long) cellX * raster.cellSize,
-                        raster.minX, worldWidth, width);
-                int x1 = projectedCoordinate((long) (cellX + 1) * raster.cellSize,
-                        raster.minX, worldWidth, width);
+                int x0 = column * SurfaceMapProjection.PIXELS_PER_CELL;
+                int x1 = x0 + SurfaceMapProjection.PIXELS_PER_CELL;
                 int clippedX0 = Math.max(0, x0);
                 int clippedX1 = Math.min(width, x1);
                 if (clippedX1 <= clippedX0) {
@@ -334,8 +361,6 @@ public final class SurfaceMapRenderer {
 
     private static void drawTerrainGlyphs(NativeImage image, Raster raster,
                                           int width, int height) {
-        double worldWidth = Math.max(1.0, raster.maxX - raster.minX);
-        double worldHeight = Math.max(1.0, raster.maxZ - raster.minZ);
         for (int row = 1; row < raster.height - 1; row++) {
             for (int column = 1; column < raster.width - 1; column++) {
                 if (Math.floorMod(raster.originCellX + column, 2) != 0
@@ -344,8 +369,10 @@ public final class SurfaceMapRenderer {
                 }
                 Sample sample = raster.at(column, row);
                 int hash = hash(sample.worldX * 7, sample.worldZ * 11);
-                int px = projectedCoordinate(sample.worldX, raster.minX, worldWidth, width);
-                int py = projectedCoordinate(sample.worldZ, raster.minZ, worldHeight, height);
+                int px = column * SurfaceMapProjection.PIXELS_PER_CELL
+                        + SurfaceMapProjection.PIXELS_PER_CELL / 2;
+                int py = row * SurfaceMapProjection.PIXELS_PER_CELL
+                        + SurfaceMapProjection.PIXELS_PER_CELL / 2;
                 if (sample.terrain == Terrain.FOREST && Math.floorMod(hash, 9) == 0) {
                     fillSafe(image, px, py - 1, 1, 3, 0xFF31532D);
                     fillSafe(image, px - 1, py, 3, 1, 0xFF4D7D3C);
@@ -787,10 +814,10 @@ public final class SurfaceMapRenderer {
                     + Math.max(0, Math.min(width - 1, x))];
         }
 
-        private boolean matches(ClientLevel otherLevel, int otherMinX, int otherMaxX,
-                                int otherMinZ, int otherMaxZ, int otherCellSize, int otherGridSize) {
-            return level == otherLevel && minX == otherMinX && maxX == otherMaxX
-                    && minZ == otherMinZ && maxZ == otherMaxZ
+        private boolean covers(ClientLevel otherLevel, int otherMinX, int otherMaxX,
+                               int otherMinZ, int otherMaxZ, int otherCellSize, int otherGridSize) {
+            return level == otherLevel && otherMinX >= minX && otherMaxX <= maxX
+                    && otherMinZ >= minZ && otherMaxZ <= maxZ
                     && cellSize == otherCellSize && gridSize == otherGridSize;
         }
     }

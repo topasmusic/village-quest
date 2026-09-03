@@ -9,7 +9,6 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -17,9 +16,6 @@ import net.minecraft.world.item.crafting.Recipe;
 
 public final class VillageQuestRecipeBookService {
     private static final int CHECK_INTERVAL_TICKS = 20;
-    private static final TagKey<Item> WHITE_FLOWERS = TagKey.create(
-            Registries.ITEM, Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "white_flowers"));
-
     private VillageQuestRecipeBookService() {}
 
     public static void onServerTick(MinecraftServer server) {
@@ -45,27 +41,13 @@ public final class VillageQuestRecipeBookService {
     private static List<RecipeUnlock> unlocks() {
         return List.of(
                 recipe("emberglass_lantern",
-                        item(Items.IRON_NUGGET, 4), item(Items.AMETHYST_SHARD, 1)),
+                        item(Items.AMETHYST_SHARD, 1)),
                 recipe("guild_milestone",
-                        item(Items.STONE_BRICKS, 6), item(Items.GOLD_NUGGET, 1)),
+                        item(Items.GOLD_NUGGET, 1)),
                 recipe("guild_notice_post",
-                        item(Items.PAPER, 2), item(Items.GOLD_NUGGET, 1),
-                        item(Items.DARK_OAK_PLANKS, 3), item(Items.STICK, 1)),
+                        item(Items.PAPER, 1)),
                 recipe("guild_wayshrine",
-                        item(Items.STONE_BRICKS, 5), item(Items.AMETHYST_SHARD, 1),
-                        item(Items.GOLD_INGOT, 2), item(ModItems.RESTORED_SHRINE_CORE, 1)),
-                recipe("friedens_haube",
-                        item(Items.LEATHER_HELMET, 1), item(Items.FEATHER, 1),
-                        item(Items.DYE.white(), 1), tag(WHITE_FLOWERS, 1)),
-                recipe("friedens_brustplatte",
-                        item(Items.LEATHER_CHESTPLATE, 1), item(Items.FEATHER, 1),
-                        item(Items.DYE.white(), 1), tag(WHITE_FLOWERS, 1)),
-                recipe("friedens_beinschiene",
-                        item(Items.LEATHER_LEGGINGS, 1), item(Items.FEATHER, 1),
-                        item(Items.DYE.white(), 1), tag(WHITE_FLOWERS, 1)),
-                recipe("friedens_stiefel",
-                        item(Items.LEATHER_BOOTS, 1), item(Items.FEATHER, 1),
-                        item(Items.DYE.white(), 1), tag(WHITE_FLOWERS, 1))
+                        item(ModItems.RESTORED_SHRINE_CORE, 1))
         );
     }
 
@@ -91,19 +73,15 @@ public final class VillageQuestRecipeBookService {
     }
 
     private static MaterialRequirement item(Item item, int count) {
-        return new MaterialRequirement(item, null, count);
-    }
-
-    private static MaterialRequirement tag(TagKey<Item> tag, int count) {
-        return new MaterialRequirement(null, tag, count);
+        return new MaterialRequirement(item, count);
     }
 
     private record RecipeUnlock(ResourceKey<Recipe<?>> key, List<MaterialRequirement> requirements) {}
 
-    private record MaterialRequirement(Item item, TagKey<Item> tag, int count) {
+    private record MaterialRequirement(Item item, int count) {
         private boolean matches(ItemStack stack) {
             return stack != null && !stack.isEmpty()
-                    && (item != null ? stack.is(item) : tag != null && stack.is(tag));
+                    && item != null && stack.is(item);
         }
     }
 }

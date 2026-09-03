@@ -34,6 +34,9 @@
 **/NEXT_SESSION*.txt
 **/RELEASE_CHECKLIST.md
 **/ROADMAP*.md
+**/ASSET_GENERATION*.md
+**/BUGFIX_PLAN*.md
+**/*[Cc][Oo][Dd][Ee][Xx]*
 
 # java crash / profiling
 **/hs_err_*.log

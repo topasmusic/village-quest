@@ -72,17 +72,17 @@ public final class QuestNetworking {
             context.server().execute(() -> TradeRouteService.handleMapAction(player, payload));
         });
 
-        ServerPlayNetworking.registerGlobalReceiver(Payloads.WayshrineTravelPayload.ID, (payload, context) -> {
+        ServerPlayNetworking.registerGlobalReceiver(VillageNetworkPayloads.WayshrineTravelPayload.ID, (payload, context) -> {
             ServerPlayer player = context.player();
             context.server().execute(() -> VillageBondService.handleTravel(player, payload));
         });
 
-        ServerPlayNetworking.registerGlobalReceiver(Payloads.WayshrineRenamePayload.ID, (payload, context) -> {
+        ServerPlayNetworking.registerGlobalReceiver(VillageNetworkPayloads.WayshrineRenamePayload.ID, (payload, context) -> {
             ServerPlayer player = context.player();
             context.server().execute(() -> VillageBondService.handleRename(player, payload));
         });
 
-        ServerPlayNetworking.registerGlobalReceiver(Payloads.NoticeBoardActionPayload.ID, (payload, context) -> {
+        ServerPlayNetworking.registerGlobalReceiver(VillageNetworkPayloads.NoticeBoardActionPayload.ID, (payload, context) -> {
             ServerPlayer player = context.player();
             context.server().execute(() -> VillageBondService.handleNoticeBoardAction(player, payload));
         });

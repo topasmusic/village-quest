@@ -12,6 +12,7 @@ import de.quest.caravan.TradeGuildService;
 import de.quest.caravan.TradeRouteEventType;
 import de.quest.caravan.TradeRouteSpecialization;
 import de.quest.caravan.TradeRouteUpgrade;
+import de.quest.caravan.TradeRouteIncidentApproach;
 import de.quest.economy.CurrencyService;
 import de.quest.economy.ProsperityService;
 import de.quest.party.QuestPartyService;
@@ -35,20 +36,17 @@ import de.quest.quest.story.VillageProjectService;
 import de.quest.quest.story.VillageProjectType;
 import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.reputation.ReputationService;
-import de.quest.network.Payloads;
 import de.quest.shrine.VillageBondService;
 import de.quest.shrine.VillageBondLevel;
-import de.quest.shrine.VillageBondType;
-import de.quest.shrine.VillageRequestType;
+import de.quest.village.LivingVillageNetworkState;
+import de.quest.guild.VillageGuildState;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.item.ItemStack;
 
 import static net.minecraft.commands.Commands.argument;
 import static net.minecraft.commands.Commands.literal;
@@ -110,6 +108,11 @@ public final class QuestCommands {
     private static final SuggestionProvider<CommandSourceStack> ROUTE_EVENT_SUGGESTIONS = (ctx, builder) -> {
         builder.suggest("clear");
         for (TradeRouteEventType value : TradeRouteEventType.values()) builder.suggest(value.key());
+        return builder.buildFuture();
+    };
+
+    private static final SuggestionProvider<CommandSourceStack> ROUTE_APPROACH_SUGGESTIONS = (ctx, builder) -> {
+        for (TradeRouteIncidentApproach value : TradeRouteIncidentApproach.values()) builder.suggest(value.key());
         return builder.buildFuture();
     };
 
@@ -261,7 +264,7 @@ public final class QuestCommands {
                                                             ctx.getSource(),
                                                             EntityArgument.getPlayer(ctx, "player"),
                                                             parseProject(StringArgumentType.getString(ctx, "project")),
-                                                            false
+                                                    false
                                                     ))))))
                     .then(literal("routes")
                             .then(literal("testsetup")
@@ -301,29 +304,35 @@ public final class QuestCommands {
                                     .then(argument("player", EntityArgument.player())
                                             .executes(ctx -> setupShrineTest(
                                                     ctx.getSource(), EntityArgument.getPlayer(ctx, "player")
+                                            ))))
+                            .then(literal("reverse")
+                                    .executes(ctx -> reverseShrineTest(ctx.getSource(), ctx.getSource().getPlayer()))
+                                    .then(argument("player", EntityArgument.player())
+                                            .executes(ctx -> reverseShrineTest(
+                                                    ctx.getSource(), EntityArgument.getPlayer(ctx, "player")
                                             )))))
-                    .then(literal("uitest")
+                            .then(literal("uitest")
                             .then(literal("questmaster")
-                                    .executes(ctx -> openQuestMasterUiTest(ctx.getSource())))
+                                    .executes(ctx -> AdminUiPreviewService.openQuestMaster(ctx.getSource())))
                             .then(literal("pilgrim")
-                                    .executes(ctx -> openPilgrimUiTest(ctx.getSource())))
+                                    .executes(ctx -> AdminUiPreviewService.openPilgrim(ctx.getSource())))
                             .then(literal("wayshrine")
-                                    .executes(ctx -> openWayshrineUiTest(ctx.getSource(), true))
+                                    .executes(ctx -> AdminUiPreviewService.openWayshrine(ctx.getSource(), true))
                                     .then(literal("owner")
-                                            .executes(ctx -> openWayshrineUiTest(ctx.getSource(), true)))
+                                            .executes(ctx -> AdminUiPreviewService.openWayshrine(ctx.getSource(), true)))
                                     .then(literal("guest")
-                                            .executes(ctx -> openWayshrineUiTest(ctx.getSource(), false))))
+                                            .executes(ctx -> AdminUiPreviewService.openWayshrine(ctx.getSource(), false))))
                             .then(literal("noticeboard")
-                                    .executes(ctx -> openNoticeBoardUiTest(
+                                    .executes(ctx -> AdminUiPreviewService.openNoticeBoard(
                                             ctx.getSource(), VillageBondLevel.KNOWN))
                                     .then(literal("known")
-                                            .executes(ctx -> openNoticeBoardUiTest(
+                                            .executes(ctx -> AdminUiPreviewService.openNoticeBoard(
                                                     ctx.getSource(), VillageBondLevel.KNOWN)))
                                     .then(literal("trusted")
-                                            .executes(ctx -> openNoticeBoardUiTest(
+                                            .executes(ctx -> AdminUiPreviewService.openNoticeBoard(
                                                     ctx.getSource(), VillageBondLevel.TRUSTED)))
                                     .then(literal("allied")
-                                            .executes(ctx -> openNoticeBoardUiTest(
+                                            .executes(ctx -> AdminUiPreviewService.openNoticeBoard(
                                                     ctx.getSource(), VillageBondLevel.ALLIED)))))
                     .then(literal("shardcache")
                             .executes(ctx -> startShardCacheForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
@@ -480,6 +489,13 @@ public final class QuestCommands {
                     .executes(ctx -> openRoutes(ctx.getSource()))
                     .then(literal("minimap").executes(ctx -> toggleRouteMinimap(ctx.getSource())))
                     .then(literal("guild").executes(ctx -> showTradeGuild(ctx.getSource())))
+                    .then(literal("approach")
+                            .then(argument("route", IntegerArgumentType.integer(1, TradeRouteService.MAX_ROUTES))
+                                    .then(argument("approach", StringArgumentType.word())
+                                            .suggests(ROUTE_APPROACH_SUGGESTIONS)
+                                            .executes(ctx -> setRouteApproach(ctx.getSource(),
+                                                    IntegerArgumentType.getInteger(ctx, "route"),
+                                                    StringArgumentType.getString(ctx, "approach"))))))
                     .then(literal("specialize")
                             .then(argument("route", IntegerArgumentType.integer(1, TradeRouteService.MAX_ROUTES))
                                     .then(argument("specialization", StringArgumentType.word())
@@ -535,7 +551,9 @@ public final class QuestCommands {
                     .then(partyCommand)
                     .then(walletCommand)
                     .then(reputationCommand)
-                    .then(routesCommand));
+                    .then(routesCommand)
+                    .then(VillageNetworkCommands.networkCommand())
+                    .then(VillageNetworkCommands.guildCommand()));
             dispatcher.register(literal("vq").redirect(villageQuestCommand));
         });
     }
@@ -1142,6 +1160,30 @@ public final class QuestCommands {
         return 1;
     }
 
+    private static int reverseShrineTest(CommandSourceStack source, ServerPlayer target) {
+        if (target == null) {
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required")
+                    .withStyle(ChatFormatting.RED), false);
+            return 0;
+        }
+        VillageBondService.AdminReverseResult result = VillageBondService.adminReverseTestSetup(
+                source.getServer().overworld(), target);
+        if (!result.reversed()) {
+            source.sendSuccess(() -> Component.translatable(
+                    "command.village-quest.questadmin.shrines.reverse.no_test", target.getDisplayName()
+            ).withStyle(ChatFormatting.RED), false);
+            return 0;
+        }
+        source.sendSuccess(() -> Component.translatable(
+                "command.village-quest.questadmin.shrines.reverse",
+                target.getDisplayName(), CurrencyService.formatBalance(result.currencyRemoved())
+        ).withStyle(ChatFormatting.GREEN), false);
+        target.sendSystemMessage(Component.translatable(
+                "command.village-quest.questadmin.shrines.reverse.hint"
+        ).withStyle(ChatFormatting.GOLD), false);
+        return 1;
+    }
+
     private static int setRouteTestEvent(CommandSourceStack source, int routeNumber, String eventKey) {
         ServerPlayer player = source.getPlayer();
         if (player == null) {
@@ -1258,155 +1300,6 @@ public final class QuestCommands {
         return 1;
     }
 
-    private static int openQuestMasterUiTest(CommandSourceStack source) {
-        ServerPlayer player = source.getPlayer();
-        if (player == null) {
-            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required")
-                    .withStyle(ChatFormatting.RED), false);
-            return 0;
-        }
-
-        var world = source.getServer().overworld();
-        var questMaster = QuestMasterService.findNearbyQuestMaster(
-                world, player.getX(), player.getY(), player.getZ());
-        if (questMaster == null) {
-            questMaster = QuestMasterService.spawnNearPlayer(world, player);
-        }
-        if (questMaster == null) {
-            source.sendSuccess(() -> Component.translatable(
-                    "command.village-quest.questmaster.spawn.failed").withStyle(ChatFormatting.RED), false);
-            return 0;
-        }
-
-        QuestMasterUiService.open(world, player, questMaster);
-        return 1;
-    }
-
-    private static int openPilgrimUiTest(CommandSourceStack source) {
-        ServerPlayer player = source.getPlayer();
-        if (player == null) {
-            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required")
-                    .withStyle(ChatFormatting.RED), false);
-            return 0;
-        }
-
-        var world = source.getServer().overworld();
-        var pilgrim = PilgrimService.findActivePilgrim(world);
-        if (pilgrim == null) {
-            pilgrim = PilgrimService.spawnNearPlayer(world, player, true);
-        }
-        if (pilgrim != null && player.distanceToSqr(pilgrim) > 16.0d) {
-            pilgrim.setPos(player.getX() + 1.5d, player.getY(), player.getZ() + 1.5d);
-        }
-        if (pilgrim == null) {
-            source.sendSuccess(() -> Component.translatable(
-                    "command.village-quest.questadmin.pilgrim.spawn.failed").withStyle(ChatFormatting.RED), false);
-            return 0;
-        }
-
-        PilgrimService.openTrade(world, player, pilgrim);
-        return 1;
-    }
-
-    private static int openWayshrineUiTest(CommandSourceStack source, boolean owner) {
-        ServerPlayer player = source.getPlayer();
-        if (player == null) {
-            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required")
-                    .withStyle(ChatFormatting.RED), false);
-            return 0;
-        }
-
-        int x = player.getBlockX();
-        int y = player.getBlockY();
-        int z = player.getBlockZ();
-        int currentIndex = 10_000;
-        int priceMultiplier = owner ? 1 : 2;
-        var destinations = java.util.List.of(
-                new Payloads.TradeRouteShrineData(
-                        currentIndex, x, y, z,
-                        Component.translatable("text.village-quest.wayshrine.homestead", 1),
-                        true, 0, VillageBondLevel.TRUSTED.id(), 1, 300),
-                new Payloads.TradeRouteShrineData(
-                        currentIndex + 1, x + 144, y, z - 48,
-                        Component.translatable("text.village-quest.wayshrine.village", 2,
-                                VillageBondType.ARCHIVE.label()),
-                        false, 4 * priceMultiplier, VillageBondLevel.KNOWN.id(), 2, 600),
-                new Payloads.TradeRouteShrineData(
-                        currentIndex + 2, x - 128, y, z + 80,
-                        Component.translatable("text.village-quest.wayshrine.village", 3,
-                                VillageBondType.FORGE.label()),
-                        false, 2 * priceMultiplier, VillageBondLevel.TRUSTED.id(), 1, 300),
-                new Payloads.TradeRouteShrineData(
-                        currentIndex + 3, x + 96, y, z + 144,
-                        Component.translatable("text.village-quest.wayshrine.village", 4,
-                                VillageBondType.PASTURE.label()),
-                        false, 2 * priceMultiplier, VillageBondLevel.ALLIED.id(), 1, 240),
-                new Payloads.TradeRouteShrineData(
-                        currentIndex + 4, x - 160, y, z - 112,
-                        Component.translatable("text.village-quest.wayshrine.village", 5,
-                                VillageBondType.APIARY.label()),
-                        false, 2 * priceMultiplier, VillageBondLevel.TRUSTED.id(), 1, 300)
-        );
-
-        // Preview indices are deliberately outside every real network. Existing server validation
-        // therefore rejects accidental travel or rename actions without changing player/world data.
-        ServerPlayNetworking.send(player, new Payloads.WayshrinePayload(
-                currentIndex, destinations, owner ? player.getGameProfile().name() : "Guild Tester",
-                owner, priceMultiplier, 0, 240L, 14, 5, 50));
-        return 1;
-    }
-
-    private static int openNoticeBoardUiTest(CommandSourceStack source, VillageBondLevel level) {
-        ServerPlayer player = source.getPlayer();
-        if (player == null) {
-            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required")
-                    .withStyle(ChatFormatting.RED), false);
-            return 0;
-        }
-
-        VillageBondType type;
-        VillageRequestType request;
-        int inventoryAmount;
-        int completions;
-        int nextThreshold;
-        Component nextLevel;
-        Component nextPerk;
-        if (level == VillageBondLevel.KNOWN) {
-            type = VillageBondType.ARCHIVE;
-            request = VillageRequestType.ARCHIVE_BOOKS;
-            inventoryAmount = 5;
-            completions = 0;
-            nextThreshold = 2;
-            nextLevel = VillageBondLevel.TRUSTED.label();
-            nextPerk = Component.translatable("screen.village-quest.notice_board.perk.trusted");
-        } else if (level == VillageBondLevel.TRUSTED) {
-            type = VillageBondType.FORGE;
-            request = VillageRequestType.FORGE_IRON;
-            inventoryAmount = request.amount();
-            completions = 2;
-            nextThreshold = 8;
-            nextLevel = VillageBondLevel.ALLIED.label();
-            nextPerk = Component.translatable("screen.village-quest.notice_board.perk.allied");
-        } else {
-            type = VillageBondType.PASTURE;
-            request = VillageRequestType.PASTURE_WOOL;
-            inventoryAmount = request.amount();
-            completions = 8;
-            nextThreshold = 0;
-            nextLevel = Component.translatable("screen.village-quest.notice_board.max_level");
-            nextPerk = Component.translatable("screen.village-quest.notice_board.perk.complete");
-        }
-
-        ServerLevel world = source.getServer().overworld();
-        ServerPlayNetworking.send(player, new Payloads.NoticeBoardPayload(
-                player.getBlockX(), player.getBlockY(), player.getBlockZ(),
-                type.label(), level.label(), request.title(), new ItemStack(request.item()),
-                request.amount(), inventoryAmount, request.reward(),
-                CurrencyService.getBalance(world, player.getUUID()), completions, level.id(), nextThreshold,
-                nextLevel, nextPerk, true, inventoryAmount >= request.amount()));
-        return 1;
-    }
-
     private static int toggleQuestTracker(CommandSourceStack source) {
         ServerPlayer player = source.getPlayer();
         if (player == null) {
@@ -1417,6 +1310,21 @@ public final class QuestCommands {
         source.sendSuccess(() -> Component.translatable(
                 enabled ? "command.village-quest.questtracker.enabled" : "command.village-quest.questtracker.disabled"
         ).withStyle(ChatFormatting.GREEN), false);
+        return 1;
+    }
+
+    private static int setRouteApproach(CommandSourceStack source, int routeNumber, String rawApproach) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) return 0;
+        TradeRouteIncidentApproach approach = TradeRouteIncidentApproach.byKey(rawApproach);
+        if (approach == null || !TradeRouteService.setIncidentApproach(
+                source.getServer().overworld(), player, routeNumber - 1, approach)) {
+            player.sendSystemMessage(Component.translatable("command.village-quest.routes.approach.invalid")
+                    .withStyle(ChatFormatting.RED), false);
+            return 0;
+        }
+        player.sendSystemMessage(Component.translatable("command.village-quest.routes.approach.set",
+                routeNumber, approach.label(), approach.terms()).withStyle(ChatFormatting.AQUA), false);
         return 1;
     }
 
@@ -1703,6 +1611,8 @@ public final class QuestCommands {
         int removedPilgrims = PilgrimService.despawnAll(world);
         int removedTradeRoad = ShadowsTradeRoadEncounterService.despawnAll(world);
         QuestState.get(server).resetAllProgress();
+        LivingVillageNetworkState.get(server).resetAllProgress();
+        VillageGuildState.get(server).resetAllProgress();
 
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             player.sendSystemMessage(Component.translatable("command.village-quest.questadmin.reset.complete.notify").withStyle(ChatFormatting.GRAY), false);

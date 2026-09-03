@@ -459,19 +459,27 @@ public final class WeeklyQuestService {
             return false;
         }
         PlayerQuestData data = data(world, playerId);
-        if (!withTargetProfile(data, () -> definition.isComplete(world, player))) {
+        WeeklyQuestType questType = activeQuestType(world, playerId);
+        boolean shared = isSharedWeekly(world, playerId, questType);
+        boolean requirementsConsumed = shared
+                ? QuestPartyService.weeklyTurnInRequirementsConsumed(world, playerId, questType)
+                : data.hasWeeklyFlag(WeeklyQuestKeys.SHARED_TURN_IN_CONSUMED);
+        if (!requirementsConsumed && !withTargetProfile(data, () -> definition.isComplete(world, player))) {
             Component blocked = withTargetProfile(data, () -> definition.claimBlockedMessage(world, player));
             if (blocked != null) {
                 player.sendSystemMessage(blocked, false);
             }
             return false;
         }
-        if (!withTargetProfile(data, () -> definition.consumeCompletionRequirements(world, player))) {
+        if (!requirementsConsumed
+                && !withTargetProfile(data, () -> definition.consumeCompletionRequirements(world, player))) {
             return false;
         }
+        if (!requirementsConsumed && shared) {
+            QuestPartyService.markWeeklyTurnInRequirementsConsumed(world, playerId, questType);
+        }
 
-        WeeklyQuestType questType = activeQuestType(world, playerId);
-        if (isSharedWeekly(world, playerId, questType)) {
+        if (shared) {
             List<ServerPlayer> recipients = onlinePlayers(world, QuestPartyService.activeWeeklyMembers(world, playerId, questType, false));
             var completion = withTargetProfile(data, definition::buildCompletion);
             for (ServerPlayer recipient : recipients) {

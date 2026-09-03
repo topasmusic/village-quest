@@ -27,8 +27,7 @@ public abstract class BeehiveBlockMixin {
             method = "useItemOn",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/world/level/Level;gameEvent(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/core/Holder;Lnet/minecraft/core/BlockPos;)V",
-                    ordinal = 0,
+                    target = "Lnet/minecraft/world/item/ItemStack;hurtAndBreak(ILnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/entity/EquipmentSlot;)V",
                     shift = At.Shift.AFTER
             )
     )
@@ -47,8 +46,7 @@ public abstract class BeehiveBlockMixin {
             method = "useItemOn",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/world/level/Level;gameEvent(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/core/Holder;Lnet/minecraft/core/BlockPos;)V",
-                    ordinal = 1,
+                    target = "Lnet/minecraft/world/item/ItemStack;shrink(I)V",
                     shift = At.Shift.AFTER
             )
     )

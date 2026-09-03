@@ -1,5 +1,312 @@
 # Changelog
 
+## 2.3.0
+
+Release date: 2026-09-03
+
+### New features
+
+- Added the Living Village Network: permanent Known/Trusted/Allied bonds now coexist with visible, mutable village conditions, identity-specific needs, bounded supply cycles, and three server-authoritative Guild Notice Board solutions.
+- Connected the network to need-aware freight, repairable route consequences, careful or bold incident approaches, and renewable Wayshrine energy. Adventure Profiles let servers choose Relaxed, Standard, or Hardened pacing without removing content or creating exclusive rewards.
+- Added optional multiplayer guilds with recoverable Leader/Steward/Member roles, shared renown, and one shared network project while keeping story progress, Archive ownership, and unique rewards personal.
+- Added five bounded network prestige ranks and a one-time confirmed Steward, Courier, or Wayfarer specialization, plus a complete Journal Network view and the redesigned Guild Atlas, Trust roster, Charter map, and Guild Notice Board.
+- Included the complete save-compatible 2.2.1 quality, balance, longevity, and usability pass in this release.
+
+### Bug fixes and improvements
+
+- Made `Shadows on the Trade Road` difficulty-aware, including a completable no-hostile Peaceful path, present-party scaling, and a guaranteed Last Relay fallback.
+- Fixed stemless Pumpkin and Melon progress in Autumn Harvest, successful Honey Bottle and Honeycomb tracking, shared Fresh Finery/Woodcutting/Coal Mining profiles, reconnect-safe shared turn-ins, exact-once Anvil Shift-click handling, and explicit specialization confirmation.
+- Hardened server authority and validation around Notice Board item removal, route destinations and energy, guild permissions and offline members, schema migration, bounded request generation, and invalid client payloads.
+- Reduced large resource and UI code surfaces into focused helpers, stabilized map and Journal rendering, and completed a calmer responsive Notice Board and corrected Atlas icon alignment.
+- Removed the obsolete Peace Armor implementation and recipes without deleting unrelated save data, and removed development-only QA fixtures from the Stable command surface.
+
+### Verification
+
+- The final Java 25 build passes all `61` tests in `22` suites. Resource validation confirms `2336` matching English, German, and Spanish localization keys for 26.2 and also passes for both maintained 2.1.1 lines.
+- The maintainer completed the requested solo, multiplayer, reconnect, dedicated-server, and interface gameplay checks successfully before the Stable build.
+
+## 2.3.0-unreleased.16
+
+Build date: 2026-09-03
+
+### Notice Board frame closure and Bond spacing
+
+- Raised the complete illustrated Notice Board interior by four UI pixels so its dark-oak header now begins directly beneath the frame's upper rail instead of exposing a black transparent strip.
+- Shifted every interior-bound item, text line, selection underline, detail bar, hover target, and Bond label by the same amount to preserve the `.15` composition exactly.
+- Raised the three Bond-state seals and their connector by four UI pixels, creating a clearer visual gap above the footer buttons without changing their state or interaction behavior.
+
+### Verification
+
+- The fresh Java 25 test/build passes with `63` tests in `23` suites. The resource validator confirms `2364` matching EN/DE/ES keys, and both archives embed `2.3.0-unreleased.16`. The maintainer-requested client capture confirms the closed upper frame seam and raised Bond-state seals at the real responsive UI scale; the test world was then saved and the client closed normally.
+
+## 2.3.0-unreleased.15
+
+Build date: 2026-09-03
+
+### Calmer Notice Board and centered Charter markers
+
+- Replaced the prop-heavy Guild Notice Board interior with a quieter Journal-aligned parchment composition: three compact selectors, one clear selected-request field, and a restrained Bond area now establish a single reading order without side furniture competing for attention.
+- Realigned every item, count, reward, support value, progress bar, Bond label, hover target, and selection hitbox to the new painted regions. The three Bond seals now sit directly on one code-drawn connector instead of relying on decorative circles inside circles.
+- Corrected the Charter marker backing geometry. Its shadow and all three octagonal layers now share the exact emblem center instead of extending farther to the right and bottom; the softer shadow also avoids the previous blocky dark offset.
+- Kept the new `400 x 207` RGB inner art at a restrained 128-color visual palette for a compact archive and recorded its ImageGen source and post-processing in the asset log.
+
+### Verification
+
+- The fresh Java 25 test/build passes with `63` tests in `23` suites. The resource validator confirms `2364` matching EN/DE/ES keys, the texture regression confirms the new `400 x 207` non-indexed RGB interior, and both archives embed `2.3.0-unreleased.15`. The maintainer-requested client launch confirmed the final Board composition at the real responsive UI scale; the world was then saved and the client closed normally.
+
+## 2.3.0-unreleased.14
+
+Build date: 2026-09-02
+
+### Notice Board cutout and text alignment
+
+- Removed the generated white/gray transparency matte from every edge of the dedicated Notice Board frame. The title plate, rails, corners, and gems now composite cleanly over dark scenery without a rectangular seam.
+- Widened the upper-right wallet backing and shifted its dynamic coin strip into the plate. Moved the village subtitle one pixel down and shortened the delivery bar so its amount remains comfortably inside the detail panel.
+- Added a regression check requiring the frame to retain an open transparent interior and contain no bright neutral opaque matte pixels.
+
+### Verification
+
+- The fresh Java 25 test/build passes with `63` tests in `23` suites. The resource validator confirms `2364` matching EN/DE/ES keys; the new matte-seam regression passes, and both archives embed `2.3.0-unreleased.14` with the corrected `17,991`-byte RGBA frame. Minecraft was not launched for this pass.
+
+## 2.3.0-unreleased.13
+
+Build date: 2026-09-02
+
+### Notice Board frame and spacing
+
+- Replaced the shared heavy Atlas surround with a dedicated transparent `416 x 234` Notice Board frame. Its slim oak rails, restrained brass corners, wider title plaque, and clear interior let the illustrated board read as one interface instead of a cabinet squeezed inside a second cabinet.
+- Moved the selected commission title and its supporting values fully inside the large detail field. The Bond summary now has its own breathing room above slightly smaller status seals, while the footer sits lower against the new narrow rail.
+- Added a resource regression check for the new frame's exact runtime dimensions, true RGBA transparency, and non-indexed color mode.
+
+### Verification
+
+- The fresh Java 25 test/build passes with `63` tests in `23` suites. The resource validator confirms `2364` matching EN/DE/ES keys; the texture regression test confirms the dedicated `416 x 234` non-indexed RGBA frame, and both archives embed `2.3.0-unreleased.13`. Minecraft was not launched for this pass.
+
+## 2.3.0-unreleased.12
+
+Build date: 2026-09-02
+
+### Notice Board visual follow-up
+
+- Re-rendered the simplified Notice Board at its native `400 x 207` detail density instead of the deliberately coarse effective `200 x 104` grid. A restrained 128-color visual palette keeps it Minecraft-like and compact without the oversized 2x2 pixel clusters seen in `.11`.
+- Moved the next Bond threshold five UI pixels down from the dark parchment seam into the clear lower panel and adjusted its hover area with it.
+- Increased the size and contrast of compact offer counts, village-need context, reward, support, and progress text so secondary information remains readable against the parchment.
+
+### Verification
+
+- The fresh Java 25 test/build passes with `63` tests in `23` suites. The resource validator confirms `2364` matching EN/DE/ES keys; the texture regression test confirms the `400 x 207` non-indexed RGB resource, and both archives embed `2.3.0-unreleased.12`. Minecraft was not launched for this pass.
+
+## 2.3.0-unreleased.11
+
+Build date: 2026-09-02
+
+### Notice Board readability redesign
+
+- Rebuilt the Guild Notice Board around one clear selected commission instead of three equally dense cards. Three compact item selectors now show only the carried/required count; their full title, remaining amount, support, and reward remain available on hover.
+- Increased the important text sizes, moved the adventure profile into the village subtitle, reduced repeated labels, and kept one large title, quantity, village need, reward, support value, and delivery bar in the central detail panel.
+- Replaced the oversized circles-within-circles Bond path with three standalone server-authoritative status seals on a restrained connector. Only the next threshold remains permanently visible; the full path and perk explanation remain in its hover card.
+- Replaced the painted inner board with a calmer Minecraft-style texture using an effective `200 x 104` art grid, a limited visual palette, and crisp two-pixel clusters. The packaged resource remains the required `400 x 207` RGB PNG but falls to roughly `28 KB`.
+
+### Verification
+
+- The fresh Java 25 test/build passes with `63` tests in `23` suites. The resource validator confirms `2364` matching EN/DE/ES keys; the texture regression test confirms the required `400 x 207` non-indexed RGB resource, and both archives embed `2.3.0-unreleased.11`. Minecraft was not launched for this pass.
+
+## 2.3.0-unreleased.10
+
+Build date: 2026-09-01
+
+### Bug fixes and QA clarity
+
+- Raised all five Trust-tab emblems by two UI pixels so their artwork is visually centered inside the round atlas frames.
+- Replaced the combined specialization rejection with precise errors for an unknown key, insufficient network rank, or an already permanent choice. The rank-2 requirement remains unchanged.
+- Clarified and highlighted that Solo Fix QA cleanup belongs after test 4/4; cleanup intentionally restores the synthetic renown and therefore makes the specialization test unavailable again.
+
+### Verification
+
+- The fresh Java 25 test/build passes with `63` tests in `23` suites. The resource validator confirms `2364` matching EN/DE/ES keys, and both archives embed `2.3.0-unreleased.10`. Minecraft was not launched for this pass.
+
+## 2.3.0-unreleased.9
+
+Build date: 2026-09-01
+
+### Bug fixes
+
+- Fixed the client bootstrap crash introduced by the `.7` Anvil shift-click guard and exposed by the first `.8` manual launch. Its injected runtime contract no longer lives inside the Mixin-owned `de.quest.mixin` package, so transformed Minecraft menu classes may load and implement it normally.
+- Added a regression test that keeps runtime contracts referenced by transformed targets outside the configured Mixin package. No quest, save, command, or gameplay behavior changed.
+
+### Verification
+
+- The fresh Java 25 test/build passes with `63` tests in `23` suites. The resource validator confirms `2361` matching EN/DE/ES keys, both archives embed `2.3.0-unreleased.9`, and the runtime JAR contains the contract only as `de.quest.access.ForgingQuickMoveState`. No additional client launch was performed.
+
+## 2.3.0-unreleased.8
+
+Build date: 2026-08-31
+
+### Admin QA
+
+- Replaced the broad Unreleased all-systems test setup with the focused `/vq admin unreleased fixtest [player]` solo fixture for the gameplay-sensitive `.7` fixes. It prepares isolated stemless Pumpkin/Melon blocks, two full and one invalid Honey harvest target, a real Anvil repair/Shift-click diagnostic, and the minimum synthetic renown needed to preview and confirm a specialization.
+- Added staged `autumn`, `honey`, and `anvil` helpers because only one Daily can be active at a time, plus marker-only inventory `fill`, Anvil `status`, guide, and `cleanup` helpers. The Anvil phase starts the existing Admin Core Test objective and supplements its idempotent completion flag with an exact real-hook dispatch counter; no objective is incremented artificially.
+- The fixture refuses existing party members, accepted/completed or current-progress Dailies, non-Overworld setup, and existing permanent specializations. Cleanup removes only recorded matching blocks, tagged filler, fixture Daily state, and the synthetic renown delta; unrelated inventory and real renown gained during QA remain untouched.
+- Removed the old `/vq admin unreleased testsetup`, `guide`, `conditions`, and `lastrelay` commands and their active localization/documentation. Multiplayer reconnect and pooled-progress cases remain explicitly outside this Solo fixture.
+
+### Verification
+
+- The fresh Java 25 test/build passes with `62` tests in `22` suites. The resource validator confirms `2361` matching EN/DE/ES keys, and both archives embed `2.3.0-unreleased.8`. No Minecraft client or manual gameplay test was started.
+
+## 2.3.0-unreleased.7
+
+Build date: 2026-08-31
+
+### Architecture and reliability
+
+- Audited every active Daily and Weekly objective against its authored target, event hook, shared profile, turn-in rules, completion, and reset path. Existing action/drop correlation, mature-crop and right-click-harvest handling, Fortune-aware drop tracking, furnace/crafting/trade/breeding/shearing hooks, atomic delivery consumption, and shard-bonus target profiles remain intact.
+- Replaced the Beehive interaction's ordinal-based game-event injections with hooks tied directly to the successful shears-damage and bottle-consumption operations. Both paths remain server-only and still require a full Bee Nest or Beehive.
+- Added targeted regressions for stem-independent Autumn Harvest fruit, valid/invalid honey harvesting, every corrected Daily party profile, and persistence of the shared turn-in ledger.
+
+### Bug fixes and improvements
+
+- Autumn Harvest now counts pumpkins and melons broken after quest acceptance regardless of whether a generated or player-grown stem is still adjacent. Inventory that existed before acceptance still does not count, and each block-break event advances only once.
+- Fixed shared Daily profiles for Fresh Finery, Woodcutting, and Coal Mining. Parties now pool the current pet-collar recolor counter, both Woodcutting objectives, and the Coal Mining quest's actual raw-coal key while retaining the legacy collar completion flag for old saves.
+- Made shared inventory turn-ins reconnect-safe. Once an eligible party claim consumes its bundle, a persisted server-owned ledger lets grace-period members claim the same shared completion without submitting the items again; leaving or expiring from the party copies that proof to personal quest state, while normal day/week resets clear it.
+- Prevented partial-inventory anvil shift-clicks from dispatching the same successful output through both the normal result hook and quick-move fallback.
+- Made the one-time Network specialization explicitly two-step. The first command previews the permanent choice and benefit; only the same command with `confirm` applies it.
+
+### Verification
+
+- The fresh Java 25 test/build passes with `60` tests in `21` suites. The resource validator confirms `2354` matching EN/DE/ES keys, and both archives embed `2.3.0-unreleased.7`. No Minecraft client or manual gameplay test was started for this audit pass.
+
+## 2.3.0-unreleased.6
+
+Build date: 2026-08-31
+
+### Architecture and reliability
+
+- Replaced viewport-relative surface-map rasterization with buffered, world-aligned cells. Wayshrine and Trade Route maps now reuse overlapping raster data while panning, and projection regression tests prove that the same world position retains the same pixel phase after moving away and back.
+- Replaced the Journal Network tab's flat line payload with structured summary, village, and guild records. The client now builds independently collapsible cards instead of reconstructing a long server-formatted text block, and symmetric sender/receiver limits prevent oversized future lists from shifting the packet stream.
+- Added resource regressions for Atlas backgrounds, all 33 Surveyor's Compass textures, the Apiary painting, Notice Board art, Village Ledger, and all five Trust icons, including exact dimensions, RGB/RGBA depth, alpha expectations, and protection against palette quantization.
+- The fresh Java 25 test/build completed with `57` tests in `19` suites; the resource validator confirmed `2353` matching EN/DE/ES keys, both archives embed `2.3.0-unreleased.6`, and the prior `.5` plus published Stable artifacts remain byte-identical. No client was started for this pass.
+
+### Bug fixes and improvements
+
+- Made `Shadows on the Trade Road` rescue setup reliable on Peaceful and other difficulties. Candidate sites are now limited to roughly `320–500` blocks, accepted only when the entire spaced merchant formation fits on dry safe ground, and relocated or clearly rescheduled if the final spawn still fails. The admin rescue test also establishes the required night immediately; Peaceful keeps its visible merchants and escort path while spawning exactly zero hostile waves.
+- Stopped Wayshrine-map pixels from subtly changing after a drag. Panning no longer invalidates the complete surface texture on release, while zoom and explicit recentering still rebuild deliberately.
+- Fixed the Wayshrine rename field's pale doubled-looking text with a darker single-pass ink treatment, clearer placeholder, and stronger parchment contrast.
+- Rebuilt the crowded Network tab into a next-action card, compact rank/profile summary, one condition-accented card per village, and a separate guild summary. Crisis, Strained, Stable, Recovering, and Thriving remain readable in text and gain red, amber, gold, teal, and green secondary accents.
+- Reworked the Guild Notice Board around a new text-free `400 x 207` inner illustration with three integrated offer plaques, a fixed profile ribbon, two-line localized offer titles, aligned item/amount/reward/support zones, and click targets matching the painted cards. Selection and delivery remain server-authoritative.
+- Reduced Charter landmarks from `30` to `22` pixels and proportionally reduced their backing, lock, completion mark, hover offset, and hitbox. Replaced the over-detailed Village Ledger with a simpler book-and-compass medallion, and replaced all five Trust emblems with centered limited-palette Minecraft-style silhouettes.
+- Downscaled the three Guild Atlas backgrounds to `1184 x 592`, all 33 Surveyor's Compass textures to `128 x 128`, and the Apiary Charter painting to `256 x 256` using Lanczos while retaining RGB/RGBA data. Those targeted resources fell from `13,820,358` to `5,125,859` bytes, a reduction of about `8.69 MB` (`62.9%`).
+
+## 2.3.0-unreleased.5
+
+Build date: 2026-08-30
+
+### New features
+
+- Added non-destructive visible reactions for every Living Village condition. Crisis, Strained, Stable, Recovering, and Thriving villages now use bounded ambient particles, while a completed recovery can play a short celebration; no player blocks are replaced.
+- Guild invitations, promotions, leadership transfers, and removals now accept cached player profiles, so an operator or guild leader can manage a member who is currently offline without touching that member's personal story, Archive ownership, or unique tools.
+- Added the targeted `/vq admin unreleased testsetup [player]` QA entry point for mechanics that still need real play. It prepares five village identities and conditions, route consequences, Wayshrine energy, rank-2 guild state, rank-2-threshold network renown, required delivery items, an interactive ordered guide, and a Journal launch. Existing guilds are preserved.
+- Added focused `/vq admin unreleased guide [player]`, `/vq admin unreleased conditions`, and `/vq admin unreleased lastrelay` helpers. The guide intentionally excludes deterministic removal, resource, migration, NBT, balance-math, and invalid-payload checks already covered by automation.
+
+### Architecture and reliability
+
+- Split party persistence, inventory handling, session identity/lifecycle, member messaging, runtime records, and view construction out of `QuestPartyService`. The remaining facade keeps the public integration surface while domain rules live in focused package-private modules.
+- Split trade-route legacy data access, geometry/ferry calculations, route-inventory handling, surface resolution, incident approaches, and survey serialization/validation out of `TradeRouteService`.
+- Split daily-quest catalog and inventory rules, Questmaster party/guild payload construction, Living Village Notice Board logic and atmosphere effects, Journal content/data/cards, Living Network commands, admin UI previews, and Living Network payloads into dedicated modules.
+- Replaced positional Journal tab-icon coupling with icon keys owned by each section and retained the packaged-resource regression test for all five icons.
+- Added explicit automated coverage for route geometry and surveys, Last Relay guarantees, Shadows balance/Peaceful behavior, Living Village state/migration/admin fixtures, request selection, guild persistence and roles, party persistence, Prosperity bounds, Journal icons, and continued absence of the removed Peace Armor resources.
+
+### Bug fixes and improvements
+
+- Kept every new Notice Board action server-authoritative: the server regenerates and validates the selected offer before removing inventory, so stale or forged client actions cannot consume supplies.
+- The targeted QA fixture binds its first synthetic route and village record to the current real inhabited village when one is available. This permits a real Notice Post delivery test while retaining the other four identities as synthetic inspection fixtures.
+- Last Relay QA now prepares fresh baseline freight and positions Route 1 immediately before its midpoint, allowing the story-critical incident bypass to be verified without waiting through a full route cycle.
+- Offline/reconnect acceptance remains an explicit two-profile manual check; automated persistence tests cover stored party/guild state, but do not pretend to replace real client disconnect timing.
+
+## 2.3.0-unreleased.4
+
+Build date: 2026-08-30
+
+### Bug fixes and improvements
+
+- Fixed the new Journal Network tab rendering Minecraft's black-and-magenta missing-texture tile. The tab now uses the packaged `icon_social` network/community artwork, each section owns its icon key instead of relying on a parallel positional array, and a regression test verifies that all five Journal tab textures are present in the runtime resources.
+
+## 2.3.0-unreleased.3
+
+Build date: 2026-08-29
+
+### Bug fixes and improvements
+
+- Removed the obsolete alpha-era Peace Armor side system. Its four shapeless recipes, automatic recipe-book discoveries, lore-driven global monster-damage cancellation hook, dedicated handler, exclusive white-flower tag, and localization entries are gone. Existing pieces remain valid vanilla leather armor with their saved custom name and lore, but no longer grant probabilistic or full-set monster immunity; no custom item registry ID or world progress is removed.
+
+## 2.3.0-unreleased.2
+
+Build date: 2026-08-29
+
+### New features
+
+- Completed the planned `Living Village Network` content batch. Each Notice Board now presents three server-authoritative choices generated from village identity, current need, condition, prior delivery, personal trust, Adventure Profile, network specialization, and optional guild project. Choices remain deterministic, avoid immediate repeats when possible, always use ordinary obtainable resources, and are revalidated before inventory removal.
+- Connected route arrivals now strengthen the concrete destination village and build renewable Wayshrine energy. Matching named freight contributes more, freight offers prioritize current recorded needs and identify matching routes, every three energy steps create a bound-shrine charge, and a completed supply project can create another charge. Magic Shards remain the fast reserve rather than the only sustainable source.
+- Added explicit `careful` and `bold` incident plans per route. Careful operation reduces normal incident frequency, destination strain, and rewards while adding a protected journey; Bold increases incident opportunities and rewards at higher repairable risk. Required story incidents still bypass normal prevention.
+- Added server-owned `RELAXED`, `STANDARD`, and `HARDENED` Adventure Profiles for request quantities, hostile pressure, incident protection, and bounded failure strain. Profiles never remove content or grant exclusive rewards; Peaceful remains a zero-hostile completion path.
+- Added optional persistent multiplayer guilds with Leader, Steward, and Member roles, invitations, shared renown, and Common Reserve, Waystation, or Archive Exchange projects. Personal story rewards, Guild Archive ownership, and unique tools remain personal.
+- Added a five-rank bounded network-prestige path with cosmetic honor titles and a one-time Steward, Courier, or Wayfarer specialization. The Journal now has a dedicated Network tab containing the current best action, every village's trust/condition/need/supply/energy, profile, guild state, prestige, and specialization.
+
+### Bug fixes and improvements
+
+- Upgraded living-village persistence to schema `2` with safe defaults for route arrivals, repairable failures, energy progress, owner renown, and specialization. Optional guild data uses its own versioned world SavedData, so a missing guild layer cannot damage personal quest state.
+- Trusted and Allied bonds now provide concrete visible commission benefits through lower quantities and improved rewards; Allied work also supplies more. Village condition changes urgency and reward without creating an unbounded quantity ladder.
+- Route incident failure can no longer silently affect only an abstract route status: it produces a bounded destination consequence with a hard repair floor, while successful board work and freight restore it. Offline time still causes no supply decay or missed-day punishment.
+- The upgraded Lens provides a one-time in-world introduction to the system, Caravan Ledger bond cards show condition, need, supply, and Wayshrine energy, and route details expose the selected incident plan.
+- Full progress reset also removes shared guild state. Added migration, NBT roundtrip, three-choice generation, anti-repeat, trust/profile balance, route-energy, repair floor, guild-role/project, prestige, specialization, and Peaceful-profile regression coverage.
+- Added Leader-only guild transfer and member removal so an offline member cannot permanently trap the founder in a guild. Route energy now advances only when the destination has a bound Wayshrine, preventing generated charges from disappearing into an unavailable endpoint.
+
+## 2.3.0-unreleased.1
+
+Build date: 2026-08-29
+
+### New features
+
+- Began `Living Village Network` with a dedicated, explicitly versioned SavedData model. Every discovered Granary, Forge, Pasture, Apiary, and Archive village now receives a bounded supply condition, one of two identity-specific current needs, support progress, completed supply cycles, and revision metadata without replacing its existing Known/Trusted/Allied bond.
+- Existing 2.2.x villages migrate lazily and idempotently to a safe `Stable` supply state. Missing or malformed legacy fields receive deterministic defaults, and repeated inspection or reload does not duplicate or advance village state.
+- Guild Notice Post deliveries now improve the village's visible supply state. A delivery matching the current need contributes more support, while every previously valid request remains useful and completable; finishing a supply cycle selects the village identity's other need instead of raising quantities forever.
+- The Cartographer's Lens inspection and Guild Notice Board expose the current village condition, primary need, and exact supply progress in English, German, and Spanish.
+
+### Bug fixes and improvements
+
+- Kept personal village trust and mutable network condition as separate data, so a future shortage cannot remove an earned Wayshrine tier or story unlock.
+- Full admin progress resets and the marker-guarded shrine test-profile setup/reversal now clear the matching 2.3 network records, preventing synthetic villages from leaking into later real village indices.
+- Added serialization, migration, idempotence, bounded-cycle, identity-need, and matching-delivery regression coverage for the 2.3 foundation.
+- Includes the complete save-compatible `2.2.1-unreleased.1` quality, balance, accessibility, economy, recipe discovery, Journal, Last Relay, and Peaceful-story work.
+
+## 2.2.1-unreleased.1
+
+Build date: 2026-08-28
+
+### New features
+
+- Added difficulty- and nearby-party-aware scaling for the `Shadows on the Trade Road` combat encounters. Peaceful uses an explicit escort-success path with no hostile waves, so Vanilla mob removal cannot block the story.
+- Added a story-safe `Last Relay` incident guarantee: after its fresh freight contract arrives, the next eligible route midpoint starts an incident regardless of route quality, patrols, Roadwarden charges, or the normal random roll. `MAP_ONLY` worlds may complete the relay through the freight arrival itself.
+- Recipe-book discoveries now trigger from each recipe's signature ingredient or story component instead of requiring the complete crafting bundle at once.
+
+### Bug fixes and improvements
+
+- Rebalanced Village Festival and Guild Ceremony into small, self-funding three-use services with a guaranteed minimum bonus per payout; buying either service can no longer be an unavoidable currency loss.
+- Replaced the harshest prime-number story requirements with readable stack-aligned goals, reduced the longest Restless Pens ride, and lowered the crowd requirements for Market Day and the Shepherd's Call.
+- `The Quiet Hives` now accepts the required carried honey supplies regardless of how they were obtained, while direct harvesting still records normal progress.
+- `The Master's Edge` accepts one Sharpness and one protection-family enchanted book as its training proof, including books acquired outside villager trading; the crafted and enchanted equipment turn-in remains intact.
+- The Journal overview's `Next step` card now shows the highest-priority active quest and its current authoritative progress instead of generic advice.
+- Corrected Wayshrine charge wording so two-charge Known journeys are never described as using a single charge.
+- Updated the active-line README, shrine documentation, economy documentation, generated config heading, and Guild Path location for the current 2.2.x line.
+- Retained the marker-guarded shrine test-profile recovery command from the private `2.2.0-unreleased.3` recovery build.
+
+## 2.2.0-unreleased.3
+
+Build date: 2026-08-28
+
+### Bug fixes and improvements
+
+- Added the temporary, marker-guarded `/vq admin shrines reverse [player]` recovery command. It removes the persistent shrine test profile, clears its five synthetic routes and shrine/archive state, subtracts the fixture's 300 Silvermarks from both wallet and earned-currency statistics, and relocks the Caravan Yard unless the real Empty Caravan story already earned it. Genuine story-derived Lens and Sigil flags remain intact; inventory items are intentionally untouched.
+
 ## 2.2.0
 
 Release date: 2026-08-28

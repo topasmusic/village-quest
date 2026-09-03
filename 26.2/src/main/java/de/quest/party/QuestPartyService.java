@@ -1,5 +1,8 @@
 package de.quest.party;
 
+import static de.quest.party.QuestPartySessions.*;
+import static de.quest.party.QuestPartyMessaging.*;
+
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.pilgrim.PilgrimContractService;
@@ -9,12 +12,14 @@ import de.quest.quest.QuestBookHelper;
 import de.quest.quest.QuestTrackerService;
 import de.quest.quest.daily.DailyQuestDefinition;
 import de.quest.quest.daily.DailyQuestGenerator;
+import de.quest.quest.daily.DailyQuestKeys;
 import de.quest.quest.daily.DailyQuestService;
 import de.quest.quest.story.StoryArcType;
 import de.quest.quest.story.StoryChapterDefinition;
 import de.quest.quest.story.StoryQuestService;
 import de.quest.quest.weekly.WeeklyQuestDefinition;
 import de.quest.quest.weekly.WeeklyQuestGenerator;
+import de.quest.quest.weekly.WeeklyQuestKeys;
 import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.questmaster.QuestMasterUiService;
 import de.quest.util.Texts;
@@ -22,7 +27,6 @@ import de.quest.util.TimeUtil;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
@@ -32,10 +36,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.ChatFormatting;
 
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -73,56 +74,7 @@ public final class QuestPartyService {
             return;
         }
 
-        ListTag parties = root.getListOrEmpty("parties");
-        for (int i = 0; i < parties.size(); i++) {
-            CompoundTag partyNbt = parties.getCompoundOrEmpty(i);
-            UUID partyId = parseUuid(partyNbt.getStringOr("id", ""));
-            UUID leaderId = parseUuid(partyNbt.getStringOr("leader", ""));
-            if (partyId == null || leaderId == null) {
-                continue;
-            }
-
-            PartyRuntime party = new PartyRuntime(partyId, leaderId);
-            ListTag members = partyNbt.getListOrEmpty("members");
-            for (int memberIndex = 0; memberIndex < members.size(); memberIndex++) {
-                UUID memberId = parseUuid(members.getCompoundOrEmpty(memberIndex).getStringOr("id", ""));
-                if (memberId == null || party.members().contains(memberId)) {
-                    continue;
-                }
-                party.members().add(memberId);
-                MEMBER_TO_PARTY.put(memberId, partyId);
-            }
-            if (party.members().isEmpty()) {
-                continue;
-            }
-            if (!party.members().contains(leaderId)) {
-                party.setLeaderId(party.members().iterator().next());
-            }
-
-            readSharedSession(partyNbt.getCompoundOrEmpty("daily"), party.daily());
-            readSharedSession(partyNbt.getCompoundOrEmpty("weekly"), party.weekly());
-            readSharedSession(partyNbt.getCompoundOrEmpty("story"), party.story());
-            readSharedSession(partyNbt.getCompoundOrEmpty("pilgrim"), party.pilgrim());
-            readOfferMap(partyNbt.getListOrEmpty("dailyOffers"), party.dailyOffers());
-            readOfferMap(partyNbt.getListOrEmpty("weeklyOffers"), party.weeklyOffers());
-            readOfferMap(partyNbt.getListOrEmpty("storyOffers"), party.storyOffers());
-            readOfferMap(partyNbt.getListOrEmpty("pilgrimOffers"), party.pilgrimOffers());
-            readDisconnectMap(partyNbt.getListOrEmpty("disconnects"), party.disconnectDeadlines());
-            PARTIES.put(partyId, party);
-        }
-
-        ListTag invites = root.getListOrEmpty("invites");
-        for (int i = 0; i < invites.size(); i++) {
-            CompoundTag inviteNbt = invites.getCompoundOrEmpty(i);
-            UUID targetId = parseUuid(inviteNbt.getStringOr("target", ""));
-            UUID partyId = parseUuid(inviteNbt.getStringOr("party", ""));
-            UUID inviterId = parseUuid(inviteNbt.getStringOr("inviter", ""));
-            long expiresAt = inviteNbt.getLongOr("expiresAt", 0L);
-            if (targetId == null || partyId == null || inviterId == null || expiresAt <= 0L) {
-                continue;
-            }
-            INVITES.put(targetId, new PartyInvite(partyId, inviterId, expiresAt));
-        }
+        QuestPartyPersistence.read(root, PARTIES, MEMBER_TO_PARTY, INVITES);
 
         loaded = true;
         cleanupInvalidState(server);
@@ -387,73 +339,7 @@ public final class QuestPartyService {
         }
         cleanupInvite(viewer.getUUID());
         PartyRuntime party = partyFor(viewer.getUUID());
-        List<PartyMemberView> members = new ArrayList<>();
-        if (party != null) {
-            for (UUID memberId : party.members()) {
-                ServerPlayer member = server.getPlayerList().getPlayer(memberId);
-                Component name = member == null ? Component.literal(shortId(memberId)).withStyle(ChatFormatting.GRAY) : member.getDisplayName().copy();
-                Long disconnectUntil = party.disconnectDeadlines().get(memberId);
-                if (disconnectUntil != null && disconnectUntil > System.currentTimeMillis()) {
-                    name = name.copy().append(Component.translatable(
-                            "screen.village-quest.questmaster.party.member.offline",
-                            formatRemainingMinutes(disconnectUntil - System.currentTimeMillis())
-                    ).withStyle(ChatFormatting.DARK_GRAY));
-                }
-                members.add(new PartyMemberView(
-                        memberId.toString(),
-                        name,
-                        Objects.equals(party.leaderId(), memberId),
-                        Objects.equals(viewer.getUUID(), memberId)
-                ));
-            }
-        }
-
-        List<PartyInviteCandidateView> candidates = new ArrayList<>();
-        boolean inviteEnabled = party == null || Objects.equals(party.leaderId(), viewer.getUUID());
-        int currentSize = party == null ? 1 : party.members().size();
-        for (ServerPlayer other : server.getPlayerList().getPlayers()) {
-            if (other.getUUID().equals(viewer.getUUID())) {
-                continue;
-            }
-            boolean sameParty = party != null && party.members().contains(other.getUUID());
-            Component status;
-            boolean inviteable;
-            if (sameParty) {
-                status = Component.translatable("screen.village-quest.questmaster.party.candidate.in_party").withStyle(ChatFormatting.GRAY);
-                inviteable = false;
-            } else if (hasParty(other.getUUID())) {
-                status = Component.translatable("screen.village-quest.questmaster.party.candidate.busy").withStyle(ChatFormatting.DARK_GRAY);
-                inviteable = false;
-            } else if (!inviteEnabled) {
-                status = Component.translatable("screen.village-quest.questmaster.party.candidate.only_leader").withStyle(ChatFormatting.DARK_GRAY);
-                inviteable = false;
-            } else if (currentSize >= MAX_PARTY_SIZE) {
-                status = Component.translatable("screen.village-quest.questmaster.party.candidate.full").withStyle(ChatFormatting.DARK_GRAY);
-                inviteable = false;
-            } else {
-                status = Component.translatable("screen.village-quest.questmaster.party.candidate.invite").withStyle(ChatFormatting.GREEN);
-                inviteable = true;
-            }
-            candidates.add(new PartyInviteCandidateView(other.getUUID().toString(), other.getDisplayName().copy(), status, inviteable));
-        }
-        candidates.sort(Comparator.comparing(candidate -> candidate.name().getString(), String.CASE_INSENSITIVE_ORDER));
-
-        Component summary;
-        if (party == null) {
-            summary = Component.translatable("screen.village-quest.questmaster.party.summary.solo").withStyle(ChatFormatting.GRAY);
-        } else if (Objects.equals(party.leaderId(), viewer.getUUID())) {
-            summary = Component.translatable("screen.village-quest.questmaster.party.summary.leader", party.members().size(), MAX_PARTY_SIZE).withStyle(ChatFormatting.GOLD);
-        } else {
-            summary = Component.translatable("screen.village-quest.questmaster.party.summary.member", party.members().size(), MAX_PARTY_SIZE).withStyle(ChatFormatting.GRAY);
-        }
-
-        return new PartySnapshot(
-                party != null,
-                party != null && Objects.equals(party.leaderId(), viewer.getUUID()),
-                summary,
-                List.copyOf(members),
-                List.copyOf(candidates)
-        );
+        return QuestPartyViewBuilder.build(server, viewer, party, MEMBER_TO_PARTY);
     }
 
     public static DailyQuestService.DailyQuestType resolveSharedDailyChoice(ServerLevel world,
@@ -656,6 +542,66 @@ public final class QuestPartyService {
         }
     }
 
+    public static boolean dailyTurnInRequirementsConsumed(ServerLevel world,
+                                                          UUID playerId,
+                                                          DailyQuestService.DailyQuestType type) {
+        SharedQuestRuntime session = sharedDailySession(world, playerId, type);
+        return session != null && session.hasFlag(DailyQuestKeys.SHARED_TURN_IN_CONSUMED);
+    }
+
+    public static void markDailyTurnInRequirementsConsumed(ServerLevel world,
+                                                           UUID playerId,
+                                                           DailyQuestService.DailyQuestType type) {
+        SharedQuestRuntime session = sharedDailySession(world, playerId, type);
+        PartyRuntime party = partyFor(playerId);
+        if (world == null || session == null || party == null) return;
+
+        session.setFlag(DailyQuestKeys.SHARED_TURN_IN_CONSUMED, true);
+        long day = TimeUtil.currentDay();
+        for (UUID memberId : party.members()) {
+            if (!session.hasSynced(memberId)) continue;
+            PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
+            if (data.getAcceptedDay() == day
+                    && data.getLastRewardDay() != day
+                    && data.getDailyChoice() == type
+                    && data.getDailyChoiceDay() == day) {
+                data.setDailyFlag(DailyQuestKeys.SHARED_TURN_IN_CONSUMED, true);
+            }
+        }
+        QuestState.get(world.getServer()).setDirty();
+        storePersistentState(world.getServer());
+    }
+
+    public static boolean weeklyTurnInRequirementsConsumed(ServerLevel world,
+                                                           UUID playerId,
+                                                           WeeklyQuestService.WeeklyQuestType type) {
+        SharedQuestRuntime session = sharedWeeklySession(world, playerId, type);
+        return session != null && session.hasFlag(WeeklyQuestKeys.SHARED_TURN_IN_CONSUMED);
+    }
+
+    public static void markWeeklyTurnInRequirementsConsumed(ServerLevel world,
+                                                            UUID playerId,
+                                                            WeeklyQuestService.WeeklyQuestType type) {
+        SharedQuestRuntime session = sharedWeeklySession(world, playerId, type);
+        PartyRuntime party = partyFor(playerId);
+        if (world == null || session == null || party == null) return;
+
+        session.setFlag(WeeklyQuestKeys.SHARED_TURN_IN_CONSUMED, true);
+        long cycle = TimeUtil.currentWeekCycle();
+        for (UUID memberId : party.members()) {
+            if (!session.hasSynced(memberId)) continue;
+            PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
+            if (data.getWeeklyAcceptedCycle() == cycle
+                    && data.getWeeklyRewardCycle() != cycle
+                    && data.getWeeklyChoice() == type
+                    && data.getWeeklyChoiceCycle() == cycle) {
+                data.setWeeklyFlag(WeeklyQuestKeys.SHARED_TURN_IN_CONSUMED, true);
+            }
+        }
+        QuestState.get(world.getServer()).setDirty();
+        storePersistentState(world.getServer());
+    }
+
     public static void onStoryQuestAccepted(ServerLevel world,
                                             ServerPlayer player,
                                             StoryArcType arcType,
@@ -801,11 +747,8 @@ public final class QuestPartyService {
                                            StoryArcType arcType,
                                            int chapterIndex,
                                            Item item) {
-        int total = 0;
-        for (ServerPlayer member : onlineMembers(world, activeStoryMembers(world, playerId, arcType, chapterIndex))) {
-            total += DailyQuestService.countInventoryItem(member, item);
-        }
-        return total;
+        return QuestPartyInventory.countItem(
+                onlineMembers(world, activeStoryMembers(world, playerId, arcType, chapterIndex)), item);
     }
 
     public static boolean consumeStoryTurnInItem(ServerLevel world,
@@ -814,25 +757,8 @@ public final class QuestPartyService {
                                                  int chapterIndex,
                                                  Item item,
                                                  int amount) {
-        if (countStoryTurnInItem(world, playerId, arcType, chapterIndex, item) < amount) {
-            return false;
-        }
-        int remaining = amount;
-        for (ServerPlayer member : onlineMembers(world, activeStoryMembers(world, playerId, arcType, chapterIndex))) {
-            if (remaining <= 0) {
-                break;
-            }
-            int available = DailyQuestService.countInventoryItem(member, item);
-            if (available <= 0) {
-                continue;
-            }
-            int toConsume = Math.min(remaining, available);
-            if (!DailyQuestService.consumeInventoryItem(member, item, toConsume)) {
-                return false;
-            }
-            remaining -= toConsume;
-        }
-        return remaining <= 0;
+        return QuestPartyInventory.consumeItem(
+                onlineMembers(world, activeStoryMembers(world, playerId, arcType, chapterIndex)), item, amount);
     }
 
     public static int countStoryTurnInItems(ServerLevel world,
@@ -840,11 +766,8 @@ public final class QuestPartyService {
                                             StoryArcType arcType,
                                             int chapterIndex,
                                             java.util.function.Predicate<ItemStack> matcher) {
-        int total = 0;
-        for (ServerPlayer member : onlineMembers(world, activeStoryMembers(world, playerId, arcType, chapterIndex))) {
-            total += countInventoryItems(member, matcher);
-        }
-        return total;
+        return QuestPartyInventory.countMatching(
+                onlineMembers(world, activeStoryMembers(world, playerId, arcType, chapterIndex)), matcher);
     }
 
     public static boolean consumeStoryTurnInItems(ServerLevel world,
@@ -853,25 +776,8 @@ public final class QuestPartyService {
                                                   int chapterIndex,
                                                   java.util.function.Predicate<ItemStack> matcher,
                                                   int amount) {
-        if (countStoryTurnInItems(world, playerId, arcType, chapterIndex, matcher) < amount) {
-            return false;
-        }
-        int remaining = amount;
-        for (ServerPlayer member : onlineMembers(world, activeStoryMembers(world, playerId, arcType, chapterIndex))) {
-            if (remaining <= 0) {
-                break;
-            }
-            int available = countInventoryItems(member, matcher);
-            if (available <= 0) {
-                continue;
-            }
-            int toConsume = Math.min(remaining, available);
-            if (!consumeInventoryItems(member, matcher, toConsume)) {
-                return false;
-            }
-            remaining -= toConsume;
-        }
-        return remaining <= 0;
+        return QuestPartyInventory.consumeMatching(
+                onlineMembers(world, activeStoryMembers(world, playerId, arcType, chapterIndex)), matcher, amount);
     }
 
     public static void clearStorySessionIfFinished(ServerLevel world,
@@ -1534,82 +1440,19 @@ public final class QuestPartyService {
     }
 
     public static int countPartyInventoryItem(ServerLevel world, UUID playerId, Item item) {
-        int total = 0;
-        for (ServerPlayer member : orderedOnlineMembers(world, playerId)) {
-            total += DailyQuestService.countInventoryItem(member, item);
-        }
-        return total;
+        return QuestPartyInventory.countItem(orderedOnlineMembers(world, playerId), item);
     }
 
     public static boolean consumePartyInventoryItem(ServerLevel world, UUID playerId, Item item, int amount) {
-        if (world == null || item == null || amount <= 0) {
-            return false;
-        }
-        if (countPartyInventoryItem(world, playerId, item) < amount) {
-            return false;
-        }
-
-        int remaining = amount;
-        for (ServerPlayer member : orderedOnlineMembers(world, playerId)) {
-            if (remaining <= 0) {
-                break;
-            }
-            int available = DailyQuestService.countInventoryItem(member, item);
-            if (available <= 0) {
-                continue;
-            }
-            int toConsume = Math.min(remaining, available);
-            if (!DailyQuestService.consumeInventoryItem(member, item, toConsume)) {
-                return false;
-            }
-            remaining -= toConsume;
-        }
-        return remaining <= 0;
-    }
-
-    private static int countInventoryItems(ServerPlayer player, java.util.function.Predicate<ItemStack> matcher) {
-        if (player == null || matcher == null) {
-            return 0;
-        }
-        int total = 0;
-        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
-            ItemStack stack = player.getInventory().getItem(i);
-            if (matcher.test(stack)) {
-                total += stack.getCount();
-            }
-        }
-        return total;
-    }
-
-    private static boolean consumeInventoryItems(ServerPlayer player,
-                                                 java.util.function.Predicate<ItemStack> matcher,
-                                                 int amount) {
-        if (player == null || matcher == null || amount <= 0 || countInventoryItems(player, matcher) < amount) {
-            return false;
-        }
-        int remaining = amount;
-        for (int i = 0; i < player.getInventory().getContainerSize() && remaining > 0; i++) {
-            ItemStack stack = player.getInventory().getItem(i);
-            if (!matcher.test(stack)) {
-                continue;
-            }
-            int removed = Math.min(remaining, stack.getCount());
-            stack.shrink(removed);
-            remaining -= removed;
-        }
-        player.inventoryMenu.broadcastChanges();
-        return remaining <= 0;
+        return QuestPartyInventory.consumeItem(orderedOnlineMembers(world, playerId), item, amount);
     }
 
     public static int countDailyTurnInItem(ServerLevel world,
                                            UUID playerId,
                                            DailyQuestService.DailyQuestType type,
                                            Item item) {
-        int total = 0;
-        for (ServerPlayer member : onlineMembers(world, activeDailyMembers(world, playerId, type, false))) {
-            total += DailyQuestService.countInventoryItem(member, item);
-        }
-        return total;
+        return QuestPartyInventory.countItem(
+                onlineMembers(world, activeDailyMembers(world, playerId, type, false)), item);
     }
 
     public static boolean consumeDailyTurnInItem(ServerLevel world,
@@ -1617,36 +1460,16 @@ public final class QuestPartyService {
                                                  DailyQuestService.DailyQuestType type,
                                                  Item item,
                                                  int amount) {
-        if (countDailyTurnInItem(world, playerId, type, item) < amount) {
-            return false;
-        }
-        int remaining = amount;
-        for (ServerPlayer member : onlineMembers(world, activeDailyMembers(world, playerId, type, false))) {
-            if (remaining <= 0) {
-                break;
-            }
-            int available = DailyQuestService.countInventoryItem(member, item);
-            if (available <= 0) {
-                continue;
-            }
-            int toConsume = Math.min(remaining, available);
-            if (!DailyQuestService.consumeInventoryItem(member, item, toConsume)) {
-                return false;
-            }
-            remaining -= toConsume;
-        }
-        return remaining <= 0;
+        return QuestPartyInventory.consumeItem(
+                onlineMembers(world, activeDailyMembers(world, playerId, type, false)), item, amount);
     }
 
     public static int countWeeklyTurnInItem(ServerLevel world,
                                             UUID playerId,
                                             WeeklyQuestService.WeeklyQuestType type,
                                             Item item) {
-        int total = 0;
-        for (ServerPlayer member : onlineMembers(world, activeWeeklyMembers(world, playerId, type, false))) {
-            total += DailyQuestService.countInventoryItem(member, item);
-        }
-        return total;
+        return QuestPartyInventory.countItem(
+                onlineMembers(world, activeWeeklyMembers(world, playerId, type, false)), item);
     }
 
     public static boolean consumeWeeklyTurnInItem(ServerLevel world,
@@ -1654,25 +1477,8 @@ public final class QuestPartyService {
                                                   WeeklyQuestService.WeeklyQuestType type,
                                                   Item item,
                                                   int amount) {
-        if (countWeeklyTurnInItem(world, playerId, type, item) < amount) {
-            return false;
-        }
-        int remaining = amount;
-        for (ServerPlayer member : onlineMembers(world, activeWeeklyMembers(world, playerId, type, false))) {
-            if (remaining <= 0) {
-                break;
-            }
-            int available = DailyQuestService.countInventoryItem(member, item);
-            if (available <= 0) {
-                continue;
-            }
-            int toConsume = Math.min(remaining, available);
-            if (!DailyQuestService.consumeInventoryItem(member, item, toConsume)) {
-                return false;
-            }
-            remaining -= toConsume;
-        }
-        return remaining <= 0;
+        return QuestPartyInventory.consumeItem(
+                onlineMembers(world, activeWeeklyMembers(world, playerId, type, false)), item, amount);
     }
 
     public static void clearDailySessionIfFinished(ServerLevel world, UUID playerId, DailyQuestService.DailyQuestType type) {
@@ -1772,7 +1578,7 @@ public final class QuestPartyService {
         return created;
     }
 
-    private static PartyRuntime partyFor(UUID memberId) {
+    static PartyRuntime partyFor(UUID memberId) {
         if (memberId == null) {
             return null;
         }
@@ -2188,6 +1994,9 @@ public final class QuestPartyService {
                 session.setFlag(flag, true);
             }
         }
+        if (data.hasDailyFlag(DailyQuestKeys.SHARED_TURN_IN_CONSUMED)) {
+            session.setFlag(DailyQuestKeys.SHARED_TURN_IN_CONSUMED, true);
+        }
         session.markSynced(memberId);
     }
 
@@ -2213,6 +2022,9 @@ public final class QuestPartyService {
             if (profile.matchesFlag(flag)) {
                 session.setFlag(flag, true);
             }
+        }
+        if (data.hasWeeklyFlag(WeeklyQuestKeys.SHARED_TURN_IN_CONSUMED)) {
+            session.setFlag(WeeklyQuestKeys.SHARED_TURN_IN_CONSUMED, true);
         }
         session.markSynced(memberId);
     }
@@ -2283,6 +2095,8 @@ public final class QuestPartyService {
                 data.setDailyFlag(flag, true);
             }
         }
+        data.setDailyFlag(DailyQuestKeys.SHARED_TURN_IN_CONSUMED,
+                session.hasFlag(DailyQuestKeys.SHARED_TURN_IN_CONSUMED));
     }
 
     private static void applySharedWeeklyProgress(PlayerQuestData data,
@@ -2306,6 +2120,8 @@ public final class QuestPartyService {
                 data.setWeeklyFlag(flag, true);
             }
         }
+        data.setWeeklyFlag(WeeklyQuestKeys.SHARED_TURN_IN_CONSUMED,
+                session.hasFlag(WeeklyQuestKeys.SHARED_TURN_IN_CONSUMED));
     }
 
     private static void applySharedStoryProgress(PlayerQuestData data,
@@ -2353,208 +2169,6 @@ public final class QuestPartyService {
                 data.setPilgrimFlag(flag, true);
             }
         }
-    }
-
-    private static SharedQuestRuntime sharedDailySession(ServerLevel world,
-                                                         UUID playerId,
-                                                         DailyQuestService.DailyQuestType type) {
-        PartyRuntime party = partyFor(playerId);
-        if (world == null || party == null || type == null || activeDailyType(party) != type) {
-            return null;
-        }
-        return party.daily().hasSynced(playerId) ? party.daily() : null;
-    }
-
-    private static SharedQuestRuntime sharedWeeklySession(ServerLevel world,
-                                                          UUID playerId,
-                                                          WeeklyQuestService.WeeklyQuestType type) {
-        PartyRuntime party = partyFor(playerId);
-        if (world == null || party == null || type == null || activeWeeklyType(party) != type) {
-            return null;
-        }
-        return party.weekly().hasSynced(playerId) ? party.weekly() : null;
-    }
-
-    private static SharedQuestRuntime sharedDailySessionForType(ServerLevel world,
-                                                                UUID playerId,
-                                                                DailyQuestService.DailyQuestType type) {
-        PartyRuntime party = partyFor(playerId);
-        if (world == null || party == null || type == null || activeDailyType(party) != type) {
-            return null;
-        }
-        return party.daily();
-    }
-
-    private static SharedQuestRuntime sharedWeeklySessionForType(ServerLevel world,
-                                                                 UUID playerId,
-                                                                 WeeklyQuestService.WeeklyQuestType type) {
-        PartyRuntime party = partyFor(playerId);
-        if (world == null || party == null || type == null || activeWeeklyType(party) != type) {
-            return null;
-        }
-        return party.weekly();
-    }
-
-    private static SharedQuestRuntime sharedStorySession(ServerLevel world,
-                                                         UUID playerId,
-                                                         StoryArcType arcType,
-                                                         int chapterIndex) {
-        PartyRuntime party = partyFor(playerId);
-        if (world == null || party == null || arcType == null || !matchesStorySession(party, arcType, chapterIndex)) {
-            return null;
-        }
-        return party.story().hasSynced(playerId) ? party.story() : null;
-    }
-
-    private static SharedQuestRuntime sharedStorySessionForType(ServerLevel world,
-                                                                UUID playerId,
-                                                                StoryArcType arcType,
-                                                                int chapterIndex) {
-        PartyRuntime party = partyFor(playerId);
-        if (world == null || party == null || arcType == null || !matchesStorySession(party, arcType, chapterIndex)) {
-            return null;
-        }
-        return party.story();
-    }
-
-    private static SharedQuestRuntime sharedPilgrimSession(ServerLevel world,
-                                                           UUID playerId,
-                                                           PilgrimContractType type) {
-        PartyRuntime party = partyFor(playerId);
-        if (world == null || party == null || type == null || activePilgrimType(party) != type) {
-            return null;
-        }
-        return party.pilgrim().hasSynced(playerId) ? party.pilgrim() : null;
-    }
-
-    private static SharedQuestRuntime sharedPilgrimSessionForType(ServerLevel world,
-                                                                  UUID playerId,
-                                                                  PilgrimContractType type) {
-        PartyRuntime party = partyFor(playerId);
-        if (world == null || party == null || type == null || activePilgrimType(party) != type) {
-            return null;
-        }
-        return party.pilgrim();
-    }
-
-    private static SharedQuestRuntime ensureDailySession(PartyRuntime party, DailyQuestService.DailyQuestType type) {
-        if (party == null || type == null) {
-            return null;
-        }
-        long day = TimeUtil.currentDay();
-        SharedQuestRuntime session = party.daily();
-        if (!session.matches(type.name(), day)) {
-            session.bind(type.name(), day);
-            party.dailyOffers().clear();
-        }
-        return session;
-    }
-
-    private static SharedQuestRuntime ensureStorySession(PartyRuntime party, StoryArcType arcType, int chapterIndex) {
-        if (party == null || arcType == null || chapterIndex < 0) {
-            return null;
-        }
-        String questId = storySessionId(arcType, chapterIndex);
-        SharedQuestRuntime session = party.story();
-        if (!session.matches(questId, chapterIndex)) {
-            session.bind(questId, chapterIndex);
-            party.storyOffers().clear();
-        }
-        return session;
-    }
-
-    private static SharedQuestRuntime ensurePilgrimSession(PartyRuntime party, PilgrimContractType type) {
-        if (party == null || type == null) {
-            return null;
-        }
-        long day = TimeUtil.currentDay();
-        SharedQuestRuntime session = party.pilgrim();
-        if (!session.matches(type.id(), day)) {
-            session.bind(type.id(), day);
-            party.pilgrimOffers().clear();
-        }
-        return session;
-    }
-
-    private static SharedQuestRuntime ensureWeeklySession(PartyRuntime party, WeeklyQuestService.WeeklyQuestType type) {
-        if (party == null || type == null) {
-            return null;
-        }
-        long cycle = TimeUtil.currentWeekCycle();
-        SharedQuestRuntime session = party.weekly();
-        if (!session.matches(type.name(), cycle)) {
-            session.bind(type.name(), cycle);
-            party.weeklyOffers().clear();
-        }
-        return session;
-    }
-
-    private static DailyQuestService.DailyQuestType activeDailyType(PartyRuntime party) {
-        if (party == null) {
-            return null;
-        }
-        SharedQuestRuntime session = party.daily();
-        if (!session.isCurrent(TimeUtil.currentDay())) {
-            session.clear();
-            return null;
-        }
-        try {
-            return session.questId() == null ? null : DailyQuestService.DailyQuestType.valueOf(session.questId());
-        } catch (IllegalArgumentException ex) {
-            session.clear();
-            return null;
-        }
-    }
-
-    private static WeeklyQuestService.WeeklyQuestType activeWeeklyType(PartyRuntime party) {
-        if (party == null) {
-            return null;
-        }
-        SharedQuestRuntime session = party.weekly();
-        if (!session.isCurrent(TimeUtil.currentWeekCycle())) {
-            session.clear();
-            return null;
-        }
-        try {
-            return session.questId() == null ? null : WeeklyQuestService.WeeklyQuestType.valueOf(session.questId());
-        } catch (IllegalArgumentException ex) {
-            session.clear();
-            return null;
-        }
-    }
-
-    private static StoryArcType activeStoryType(PartyRuntime party) {
-        if (party == null) {
-            return null;
-        }
-        SharedQuestRuntime session = party.story();
-        if (session.questId() == null) {
-            return null;
-        }
-        return parseStoryType(session.questId());
-    }
-
-    private static int activeStoryChapterIndex(PartyRuntime party) {
-        if (party == null) {
-            return -1;
-        }
-        SharedQuestRuntime session = party.story();
-        if (session.questId() == null) {
-            return -1;
-        }
-        return parseStoryChapter(session.questId());
-    }
-
-    private static PilgrimContractType activePilgrimType(PartyRuntime party) {
-        if (party == null) {
-            return null;
-        }
-        SharedQuestRuntime session = party.pilgrim();
-        if (!session.isCurrent(TimeUtil.currentDay())) {
-            session.clear();
-            return null;
-        }
-        return PilgrimContractType.fromId(session.questId());
     }
 
     private static void queueDailyQuestOffer(ServerLevel world,
@@ -3160,219 +2774,7 @@ public final class QuestPartyService {
         if (server == null || !isEnabled(server)) {
             return;
         }
-        QuestState.get(server).setQuestPartyState(writePersistentState());
-    }
-
-    private static CompoundTag writePersistentState() {
-        CompoundTag root = new CompoundTag();
-        ListTag parties = new ListTag();
-        for (PartyRuntime party : PARTIES.values()) {
-            CompoundTag partyNbt = new CompoundTag();
-            partyNbt.putString("id", party.id().toString());
-            partyNbt.putString("leader", party.leaderId().toString());
-            ListTag members = new ListTag();
-            for (UUID memberId : party.members()) {
-                CompoundTag memberNbt = new CompoundTag();
-                memberNbt.putString("id", memberId.toString());
-                members.add(memberNbt);
-            }
-            partyNbt.put("members", members);
-            partyNbt.put("daily", writeSharedSession(party.daily()));
-            partyNbt.put("weekly", writeSharedSession(party.weekly()));
-            partyNbt.put("story", writeSharedSession(party.story()));
-            partyNbt.put("pilgrim", writeSharedSession(party.pilgrim()));
-            partyNbt.put("dailyOffers", writeOfferMap(party.dailyOffers()));
-            partyNbt.put("weeklyOffers", writeOfferMap(party.weeklyOffers()));
-            partyNbt.put("storyOffers", writeOfferMap(party.storyOffers()));
-            partyNbt.put("pilgrimOffers", writeOfferMap(party.pilgrimOffers()));
-            partyNbt.put("disconnects", writeDisconnectMap(party.disconnectDeadlines()));
-            parties.add(partyNbt);
-        }
-        root.put("parties", parties);
-
-        ListTag invites = new ListTag();
-        for (var entry : INVITES.entrySet()) {
-            PartyInvite invite = entry.getValue();
-            CompoundTag inviteNbt = new CompoundTag();
-            inviteNbt.putString("target", entry.getKey().toString());
-            inviteNbt.putString("party", invite.partyId().toString());
-            inviteNbt.putString("inviter", invite.inviterId().toString());
-            inviteNbt.putLong("expiresAt", invite.expiresAtMillis());
-            invites.add(inviteNbt);
-        }
-        root.put("invites", invites);
-        return root;
-    }
-
-    private static CompoundTag writeSharedSession(SharedQuestRuntime session) {
-        CompoundTag sessionNbt = new CompoundTag();
-        if (session == null || session.questId() == null) {
-            return sessionNbt;
-        }
-        sessionNbt.putString("questId", session.questId());
-        sessionNbt.putLong("revision", session.revision());
-        ListTag ints = new ListTag();
-        for (var entry : session.intState().entrySet()) {
-            CompoundTag item = new CompoundTag();
-            item.putString("key", entry.getKey());
-            item.putInt("value", entry.getValue());
-            ints.add(item);
-        }
-        sessionNbt.put("ints", ints);
-        ListTag flags = new ListTag();
-        for (String flag : session.flags()) {
-            CompoundTag item = new CompoundTag();
-            item.putString("key", flag);
-            flags.add(item);
-        }
-        sessionNbt.put("flags", flags);
-        ListTag synced = new ListTag();
-        for (UUID memberId : session.syncedMembers()) {
-            CompoundTag item = new CompoundTag();
-            item.putString("id", memberId.toString());
-            synced.add(item);
-        }
-        sessionNbt.put("synced", synced);
-        return sessionNbt;
-    }
-
-    private static void readSharedSession(CompoundTag sessionNbt, SharedQuestRuntime session) {
-        if (session == null || sessionNbt == null || sessionNbt.isEmpty()) {
-            return;
-        }
-        String questId = sessionNbt.getStringOr("questId", "");
-        long revision = sessionNbt.getLongOr("revision", Long.MIN_VALUE);
-        if (questId.isEmpty() || revision == Long.MIN_VALUE) {
-            return;
-        }
-        session.bind(questId, revision);
-        ListTag ints = sessionNbt.getListOrEmpty("ints");
-        for (int i = 0; i < ints.size(); i++) {
-            CompoundTag item = ints.getCompoundOrEmpty(i);
-            session.setInt(item.getStringOr("key", ""), item.getIntOr("value", 0));
-        }
-        ListTag flags = sessionNbt.getListOrEmpty("flags");
-        for (int i = 0; i < flags.size(); i++) {
-            String key = flags.getCompoundOrEmpty(i).getStringOr("key", "");
-            if (!key.isEmpty()) {
-                session.setFlag(key, true);
-            }
-        }
-        ListTag synced = sessionNbt.getListOrEmpty("synced");
-        for (int i = 0; i < synced.size(); i++) {
-            UUID memberId = parseUuid(synced.getCompoundOrEmpty(i).getStringOr("id", ""));
-            if (memberId != null) {
-                session.markSynced(memberId);
-            }
-        }
-    }
-
-    private static ListTag writeOfferMap(Map<UUID, QuestJoinOffer> offers) {
-        ListTag list = new ListTag();
-        for (var entry : offers.entrySet()) {
-            CompoundTag item = new CompoundTag();
-            item.putString("target", entry.getKey().toString());
-            item.putString("questId", entry.getValue().questId());
-            item.putLong("revision", entry.getValue().revision());
-            if (entry.getValue().sourceId() != null) {
-                item.putString("source", entry.getValue().sourceId().toString());
-            }
-            list.add(item);
-        }
-        return list;
-    }
-
-    private static void readOfferMap(ListTag list, Map<UUID, QuestJoinOffer> offers) {
-        for (int i = 0; i < list.size(); i++) {
-            CompoundTag item = list.getCompoundOrEmpty(i);
-            UUID targetId = parseUuid(item.getStringOr("target", ""));
-            String questId = item.getStringOr("questId", "");
-            long revision = item.getLongOr("revision", Long.MIN_VALUE);
-            UUID sourceId = parseUuid(item.getStringOr("source", ""));
-            if (targetId == null || questId.isEmpty() || revision == Long.MIN_VALUE) {
-                continue;
-            }
-            offers.put(targetId, new QuestJoinOffer(questId, revision, sourceId));
-        }
-    }
-
-    private static ListTag writeDisconnectMap(Map<UUID, Long> disconnects) {
-        ListTag list = new ListTag();
-        for (var entry : disconnects.entrySet()) {
-            CompoundTag item = new CompoundTag();
-            item.putString("id", entry.getKey().toString());
-            item.putLong("until", entry.getValue());
-            list.add(item);
-        }
-        return list;
-    }
-
-    private static void readDisconnectMap(ListTag list, Map<UUID, Long> disconnects) {
-        for (int i = 0; i < list.size(); i++) {
-            CompoundTag item = list.getCompoundOrEmpty(i);
-            UUID memberId = parseUuid(item.getStringOr("id", ""));
-            long until = item.getLongOr("until", 0L);
-            if (memberId != null && until > 0L) {
-                disconnects.put(memberId, until);
-            }
-        }
-    }
-
-    private static DailyQuestService.DailyQuestType parseDailyType(String questId) {
-        if (questId == null || questId.isEmpty()) {
-            return null;
-        }
-        try {
-            return DailyQuestService.DailyQuestType.valueOf(questId);
-        } catch (IllegalArgumentException ex) {
-            return null;
-        }
-    }
-
-    private static WeeklyQuestService.WeeklyQuestType parseWeeklyType(String questId) {
-        if (questId == null || questId.isEmpty()) {
-            return null;
-        }
-        try {
-            return WeeklyQuestService.WeeklyQuestType.valueOf(questId);
-        } catch (IllegalArgumentException ex) {
-            return null;
-        }
-    }
-
-    private static String storySessionId(StoryArcType arcType, int chapterIndex) {
-        return arcType == null ? "" : arcType.id() + "#" + chapterIndex;
-    }
-
-    private static boolean matchesStorySession(PartyRuntime party, StoryArcType arcType, int chapterIndex) {
-        if (party == null || arcType == null || chapterIndex < 0) {
-            return false;
-        }
-        SharedQuestRuntime session = party.story();
-        return session.matches(storySessionId(arcType, chapterIndex), chapterIndex);
-    }
-
-    private static StoryArcType parseStoryType(String questId) {
-        if (questId == null || questId.isEmpty()) {
-            return null;
-        }
-        int split = questId.indexOf('#');
-        return StoryArcType.fromId(split >= 0 ? questId.substring(0, split) : questId);
-    }
-
-    private static int parseStoryChapter(String questId) {
-        if (questId == null || questId.isEmpty()) {
-            return -1;
-        }
-        int split = questId.indexOf('#');
-        if (split < 0 || split + 1 >= questId.length()) {
-            return -1;
-        }
-        try {
-            return Integer.parseInt(questId.substring(split + 1));
-        } catch (NumberFormatException ex) {
-            return -1;
-        }
+        QuestState.get(server).setQuestPartyState(QuestPartyPersistence.write(PARTIES, INVITES));
     }
 
     private static UUID parseUuid(String value) {
@@ -3384,122 +2786,6 @@ public final class QuestPartyService {
         } catch (IllegalArgumentException ex) {
             return null;
         }
-    }
-
-    private static String formatRemainingMinutes(long millis) {
-        long minutes = Math.max(1L, (long) Math.ceil(millis / 60000.0d));
-        return Long.toString(minutes);
-    }
-
-    private static List<ServerPlayer> orderedOnlineMembers(ServerLevel world, UUID playerId) {
-        List<ServerPlayer> members = new ArrayList<>();
-        if (world == null) {
-            return members;
-        }
-        PartyRuntime party = partyFor(playerId);
-        if (party == null) {
-            ServerPlayer player = world.getServer().getPlayerList().getPlayer(playerId);
-            if (player != null) {
-                members.add(player);
-            }
-            return members;
-        }
-
-        ServerPlayer owner = world.getServer().getPlayerList().getPlayer(playerId);
-        if (owner != null) {
-            members.add(owner);
-        }
-        for (UUID memberId : party.members()) {
-            if (memberId.equals(playerId)) {
-                continue;
-            }
-            ServerPlayer member = world.getServer().getPlayerList().getPlayer(memberId);
-            if (member != null) {
-                members.add(member);
-            }
-        }
-        return members;
-    }
-
-    private static List<ServerPlayer> onlineMembers(ServerLevel world, List<UUID> memberIds) {
-        List<ServerPlayer> members = new ArrayList<>();
-        if (world == null || memberIds == null) {
-            return members;
-        }
-        for (UUID memberId : memberIds) {
-            ServerPlayer member = world.getServer().getPlayerList().getPlayer(memberId);
-            if (member != null) {
-                members.add(member);
-            }
-        }
-        return members;
-    }
-
-    private static MutableComponent buildInviteMessage(ServerPlayer inviter) {
-        MutableComponent accept = Component.translatable("message.village-quest.party.invite.accept")
-                .withStyle(style -> style.withColor(0x57A550).withClickEvent(new ClickEvent.RunCommand("/vq party accept")));
-        MutableComponent decline = Component.translatable("message.village-quest.party.invite.decline")
-                .withStyle(style -> style.withColor(0xA55252).withClickEvent(new ClickEvent.RunCommand("/vq party decline")));
-        return Component.translatable("message.village-quest.party.invite.receive", inviter.getDisplayName())
-                .withStyle(ChatFormatting.GRAY)
-                .append(Component.literal(" "))
-                .append(accept)
-                .append(Component.literal(" "))
-                .append(decline);
-    }
-
-    private static Component nameOf(ServerLevel world, UUID playerId) {
-        if (world == null || playerId == null) {
-            return Component.translatable("message.village-quest.party.unknown");
-        }
-        ServerPlayer player = world.getServer().getPlayerList().getPlayer(playerId);
-        return player == null ? Component.literal(shortId(playerId)).withStyle(ChatFormatting.GRAY) : player.getDisplayName().copy();
-    }
-
-    private static String shortId(UUID playerId) {
-        String value = playerId == null ? "player" : playerId.toString().replace("-", "");
-        return value.length() <= 8 ? value : value.substring(0, 8);
-    }
-
-    private static void broadcast(ServerLevel world, PartyRuntime party, Component message) {
-        if (world == null || party == null || message == null) {
-            return;
-        }
-        for (UUID memberId : party.members()) {
-            ServerPlayer player = world.getServer().getPlayerList().getPlayer(memberId);
-            if (player != null) {
-                player.sendSystemMessage(message, false);
-            }
-        }
-    }
-
-    private static void refreshPartyUi(ServerLevel world, PartyRuntime party) {
-        if (world == null || party == null) {
-            return;
-        }
-        for (UUID memberId : party.members()) {
-            ServerPlayer player = world.getServer().getPlayerList().getPlayer(memberId);
-            if (player != null) {
-                refreshPlayer(world, player);
-            }
-        }
-    }
-
-    private static void refreshPlayer(ServerLevel world, ServerPlayer player) {
-        if (world == null || player == null) {
-            return;
-        }
-        QuestBookHelper.refreshQuestBook(world, player);
-        QuestTrackerService.refresh(world, player);
-        QuestMasterUiService.refreshIfOpen(world, player);
-        PilgrimService.refreshIfTrading(world, player);
-    }
-
-    private static void refreshOpenUi(ServerPlayer player) {
-        if (player == null) {
-            return;
-        }
-        QuestMasterUiService.refreshIfOpen((ServerLevel) player.level(), player);
     }
 
     private static void removeInvitesForParty(UUID partyId) {
@@ -3554,188 +2840,6 @@ public final class QuestPartyService {
         }
     }
 
-    private record ExpiryTarget(UUID partyId, UUID memberId) {}
-
-    private record PartyInvite(UUID partyId, UUID inviterId, long expiresAtMillis) {}
-
-    private record QuestJoinOffer(String questId, long revision, UUID sourceId) {}
-
-    private static final class PartyRuntime {
-        private final UUID id;
-        private UUID leaderId;
-        private final LinkedHashSet<UUID> members = new LinkedHashSet<>();
-        private final SharedQuestRuntime daily = new SharedQuestRuntime();
-        private final SharedQuestRuntime weekly = new SharedQuestRuntime();
-        private final SharedQuestRuntime story = new SharedQuestRuntime();
-        private final SharedQuestRuntime pilgrim = new SharedQuestRuntime();
-        private final Map<UUID, QuestJoinOffer> dailyOffers = new HashMap<>();
-        private final Map<UUID, QuestJoinOffer> weeklyOffers = new HashMap<>();
-        private final Map<UUID, QuestJoinOffer> storyOffers = new HashMap<>();
-        private final Map<UUID, QuestJoinOffer> pilgrimOffers = new HashMap<>();
-        private final Map<UUID, Long> disconnectDeadlines = new HashMap<>();
-
-        private PartyRuntime(UUID id, UUID leaderId) {
-            this.id = id;
-            this.leaderId = leaderId;
-        }
-
-        private UUID id() {
-            return id;
-        }
-
-        private UUID leaderId() {
-            return leaderId;
-        }
-
-        private void setLeaderId(UUID leaderId) {
-            this.leaderId = leaderId;
-        }
-
-        private LinkedHashSet<UUID> members() {
-            return members;
-        }
-
-        private SharedQuestRuntime daily() {
-            return daily;
-        }
-
-        private SharedQuestRuntime weekly() {
-            return weekly;
-        }
-
-        private SharedQuestRuntime story() {
-            return story;
-        }
-
-        private SharedQuestRuntime pilgrim() {
-            return pilgrim;
-        }
-
-        private Map<UUID, QuestJoinOffer> dailyOffers() {
-            return dailyOffers;
-        }
-
-        private Map<UUID, QuestJoinOffer> weeklyOffers() {
-            return weeklyOffers;
-        }
-
-        private Map<UUID, QuestJoinOffer> storyOffers() {
-            return storyOffers;
-        }
-
-        private Map<UUID, QuestJoinOffer> pilgrimOffers() {
-            return pilgrimOffers;
-        }
-
-        private Map<UUID, Long> disconnectDeadlines() {
-            return disconnectDeadlines;
-        }
-    }
-
-    private static final class SharedQuestRuntime {
-        private String questId;
-        private long revision = Long.MIN_VALUE;
-        private final Map<String, Integer> intState = new HashMap<>();
-        private final Set<String> flags = new HashSet<>();
-        private final Set<UUID> syncedMembers = new HashSet<>();
-
-        private String questId() {
-            return questId;
-        }
-
-        private long revision() {
-            return revision;
-        }
-
-        private Map<String, Integer> intState() {
-            return intState;
-        }
-
-        private Set<String> flags() {
-            return flags;
-        }
-
-        private Set<UUID> syncedMembers() {
-            return syncedMembers;
-        }
-
-        private boolean matches(String questId, long revision) {
-            return Objects.equals(this.questId, questId) && this.revision == revision;
-        }
-
-        private boolean isCurrent(long revision) {
-            return this.questId != null && this.revision == revision;
-        }
-
-        private void bind(String questId, long revision) {
-            this.questId = questId;
-            this.revision = revision;
-            this.intState.clear();
-            this.flags.clear();
-            this.syncedMembers.clear();
-        }
-
-        private void clear() {
-            this.questId = null;
-            this.revision = Long.MIN_VALUE;
-            this.intState.clear();
-            this.flags.clear();
-            this.syncedMembers.clear();
-        }
-
-        private int getInt(String key) {
-            return key == null ? 0 : intState.getOrDefault(key, 0);
-        }
-
-        private void setInt(String key, int value) {
-            if (key == null || key.isEmpty()) {
-                return;
-            }
-            if (value == 0) {
-                intState.remove(key);
-            } else {
-                intState.put(key, value);
-            }
-        }
-
-        private void addInt(String key, int amount) {
-            if (amount == 0) {
-                return;
-            }
-            setInt(key, getInt(key) + amount);
-        }
-
-        private boolean hasFlag(String key) {
-            return key != null && flags.contains(key);
-        }
-
-        private void setFlag(String key, boolean enabled) {
-            if (key == null || key.isEmpty()) {
-                return;
-            }
-            if (enabled) {
-                flags.add(key);
-            } else {
-                flags.remove(key);
-            }
-        }
-
-        private boolean hasSynced(UUID memberId) {
-            return memberId != null && syncedMembers.contains(memberId);
-        }
-
-        private void markSynced(UUID memberId) {
-            if (memberId != null) {
-                syncedMembers.add(memberId);
-            }
-        }
-
-        private void unmarkSynced(UUID memberId) {
-            if (memberId != null) {
-                syncedMembers.remove(memberId);
-            }
-        }
-    }
 }
 
 

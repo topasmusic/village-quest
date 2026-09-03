@@ -35,5 +35,7 @@ public final class WeeklyQuestKeys {
     public static final String ROADWARDEN_HOSTILES = "weekly.roadwarden.hostiles";
     public static final String ROADWARDEN_CREEPERS = "weekly.roadwarden.creepers";
 
+    public static final String SHARED_TURN_IN_CONSUMED = "weekly.shared_turn_in_consumed";
+
     private WeeklyQuestKeys() {}
 }

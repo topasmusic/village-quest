@@ -146,7 +146,7 @@ An incident is different from a pathfinding stall: its lead merchant carries a v
 
 This makes roads between villages visible and useful without leaving hundreds of permanent entities across the world.
 
-The older `Shadows on the Trade Road` rescue encounters use the same safety philosophy but remain combat encounters: they require a broad, mostly level footprint before starting, create the complete merchant group or retry later, and pull a survivor back to a spaced safe position if combat knocks them far below or outside the encounter area.
+The older `Shadows on the Trade Road` rescue encounters use the same safety philosophy but remain combat encounters: they search a bounded site roughly `320–500` blocks from the player, require dry safe positions for the complete spaced merchant formation before committing the compass target, and pull a survivor back to a safe position if combat knocks them far below or outside the encounter area. A final spawn failure relocates the encounter nearby or visibly reschedules it. Peaceful still spawns the merchants and permits the full escort/completion path, but creates no hostile waves.
 
 ## Building Better Roads
 
@@ -175,6 +175,8 @@ This keeps villagers from walking rigidly through the exact center of every mark
 ## Recurring Route Events
 
 Only the full Caravan Yard network rolls recurring incidents. A player network can have at most one active incident at a time, and its first incident is a guaranteed tutorial. Later incident chance falls with road quality, flourishing security, lantern crews, weather covers, and escorts. Merely starting an incident no longer marks the route dangerous.
+
+Each route also exposes a deliberate response plan through `/vq routes approach <route> <careful|bold>` and its Ledger detail. `careful` reduces frequency and reward, reduces destination-village strain by 40%, and grants an extra protected journey after an incident. `bold` increases incident opportunity and reward by 25%, with 25% more repairable destination strain on failure. Adventure Profile adds its own protection and tolerance. A story-required incident is never blocked by these normal safety rules.
 
 Routes can stop for one of eight situations:
 
@@ -209,13 +211,15 @@ This is deliberately a long-term infrastructure loop. A route begins uncertain, 
 
 `/vq routes guild` shows the five-rank guild progression. Its score comes from registered routes, sampled road quality, resolved incidents, and completed freight contracts. Rank unlocks stronger contracts and later route investments; it does not provide an infinitely scaling raw-stat bonus.
 
-`/vq routes contracts` shows up to three deterministic daily offers. The workflow is:
+`/vq routes contracts` shows up to three deterministic daily offers. Recorded destination needs are prioritized, and each matching offer lists the route numbers whose village currently needs that item. A different valid route remains general supply rather than becoming unusable. The workflow is:
 
 1. `/vq routes contracts accept <offer 1-3> <route 1-5>`
 2. Carry the listed cargo and run `/vq routes contracts supply`.
 3. Keep the assigned route active. Its next arrival within three real-world reset days completes the order.
 
 Contract payout increases modestly for long installed roads. A matching specialization adds `25%`; the final `Trade Office` upgrade adds another `25%`. Freight completion and its separate payout still occur when ordinary route income has already reached the network's daily cap.
+
+Every route arrival now also helps a recorded destination village and advances that village's Wayshrine-energy meter. Matching supplied freight has the stronger effect. Three energy steps generate a shared charge at a bound destination shrine, while failed incidents create bounded supply strain with a hard repair floor instead of destroying trust or story progress.
 
 Routes can specialize as `general`, `provisions`, `forge`, `livestock`, `courier`, or `guarded` through `/vq routes specialize <route> <type>`. The first choice is free; later refits cost `15 Silvermarks`.
 

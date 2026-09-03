@@ -4,6 +4,7 @@ import de.quest.VillageQuest;
 import de.quest.archive.GuildArchiveService;
 import de.quest.archive.GuildArchiveService.ArchiveItem;
 import de.quest.caravan.TradeRouteService;
+import de.quest.config.VillageQuestServerConfig;
 import de.quest.data.QuestState;
 import de.quest.economy.CurrencyService;
 import de.quest.quest.QuestCompletionMode;
@@ -381,8 +382,13 @@ public final class ShrinesBetweenRoadsStoryArc implements StoryArcDefinition {
             StoryQuestService.setQuestInt(world, player.getUUID(), StoryQuestKeys.SHRINES_RELAY_SUCCESS_BASELINE, TradeRouteService.totalRouteSuccesses(world, player.getUUID()));
         }
         @Override public void onServerTick(ServerLevel world, ServerPlayer player) {
-            boolean complete = TradeRouteService.completedGuildContracts(world, player.getUUID()) > progress(world, player.getUUID(), StoryQuestKeys.SHRINES_RELAY_CONTRACT_BASELINE)
-                    && TradeRouteService.totalRouteSuccesses(world, player.getUUID()) > progress(world, player.getUUID(), StoryQuestKeys.SHRINES_RELAY_SUCCESS_BASELINE);
+            boolean freshContract = TradeRouteService.completedGuildContracts(world, player.getUUID())
+                    > progress(world, player.getUUID(), StoryQuestKeys.SHRINES_RELAY_CONTRACT_BASELINE);
+            boolean freshIncident = TradeRouteService.totalRouteSuccesses(world, player.getUUID())
+                    > progress(world, player.getUUID(), StoryQuestKeys.SHRINES_RELAY_SUCCESS_BASELINE);
+            boolean noInteractiveIncidents = VillageQuestServerConfig.get().caravanVisualMode()
+                    == VillageQuestServerConfig.CaravanVisualMode.MAP_ONLY;
+            boolean complete = lastRelayComplete(freshContract, freshIncident, !noInteractiveIncidents);
             StoryQuestService.setStoryFlag(world, player.getUUID(), StoryQuestKeys.SHRINES_RELAY_READY, complete);
             StoryQuestService.completeIfEligible(world, player);
         }
@@ -393,5 +399,11 @@ public final class ShrinesBetweenRoadsStoryArc implements StoryArcDefinition {
                     new ItemStack(ModItems.GUILD_COURIERS_SATCHEL)));
         }
         @Override public StoryChapterCompletion buildCompletion() { return completion(6, CurrencyService.CROWN * 4, 14, ReputationService.ReputationTrack.TRADE, 25, VillageProjectType.WAYSHRINE_NETWORK); }
+    }
+
+    static boolean lastRelayComplete(boolean freshContract,
+                                     boolean freshIncident,
+                                     boolean interactiveIncidentsEnabled) {
+        return freshContract && (freshIncident || !interactiveIncidentsEnabled);
     }
 }

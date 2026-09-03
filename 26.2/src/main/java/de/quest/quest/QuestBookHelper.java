@@ -1,5 +1,6 @@
 package de.quest.quest;
 
+import de.quest.network.Payloads;
 import de.quest.network.Payloads.JournalPayload;
 import de.quest.economy.CurrencyService;
 import de.quest.pilgrim.PilgrimContractService;
@@ -15,6 +16,11 @@ import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.quest.weekly.WeeklyQuestStatus;
 import de.quest.questmaster.QuestMasterUiService;
 import de.quest.reputation.ReputationService;
+import de.quest.shrine.VillageBondService;
+import de.quest.village.LivingVillageNetworkState;
+import de.quest.village.LivingVillageNetworkService;
+import de.quest.config.VillageQuestServerConfig;
+import de.quest.guild.VillageGuildService;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
@@ -24,6 +30,9 @@ import net.minecraft.world.item.Item;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class QuestBookHelper {
@@ -101,6 +110,36 @@ public final class QuestBookHelper {
         boolean hasWatchBellProject = VillageProjectService.isUnlocked(world, pid, VillageProjectType.WATCH_BELL);
         boolean hasCaravanYardProject = VillageProjectService.isUnlocked(world, pid, VillageProjectType.CARAVAN_YARD);
         boolean hasWayshrineNetworkProject = VillageProjectService.isUnlocked(world, pid, VillageProjectType.WAYSHRINE_NETWORK);
+        LivingVillageNetworkState.NetworkSnapshot networkProgress =
+                LivingVillageNetworkState.get(world.getServer()).network(pid);
+        List<VillageBondService.VillageBondView> networkVillages = VillageBondService.villages(world, pid);
+        Payloads.NetworkSummaryData networkSummary = new Payloads.NetworkSummaryData(
+                networkProgress.rank(),
+                networkProgress.renown(),
+                networkProgress.nextRankThreshold(),
+                LivingVillageNetworkService.honorLabel(networkProgress.rank()),
+                networkProgress.specialization().label(),
+                Component.translatable("text.village-quest.adventure_profile."
+                        + VillageQuestServerConfig.get().adventureProfile().name().toLowerCase(Locale.ROOT)));
+        List<Payloads.NetworkVillageData> networkVillageData = networkVillages.stream()
+                .map(village -> new Payloads.NetworkVillageData(
+                        village.index(),
+                        village.type().label(),
+                        village.level().label(),
+                        village.network().condition().label(),
+                        village.network().condition().key(),
+                        village.network().need().label(),
+                        village.network().support(),
+                        village.network().energyProgress()))
+                .toList();
+        List<Component> networkGuildLines = VillageGuildService.statusLines(world, pid);
+        VillageBondService.VillageBondView priorityVillage = networkVillages.stream()
+                .min(Comparator.comparingInt(village -> village.network().support())).orElse(null);
+        Component networkNextAction = priorityVillage == null
+                ? Component.translatable("screen.village-quest.journal.network.next.discover")
+                : Component.translatable("screen.village-quest.journal.network.next.supply",
+                priorityVillage.type().label(), priorityVillage.network().need().label(),
+                priorityVillage.network().support(), 100);
 
         return new JournalPayload(
                 action,
@@ -143,7 +182,11 @@ public final class QuestBookHelper {
                 hasWatchBellProject,
                 hasCaravanYardProject,
                 hasWayshrineNetworkProject,
-                QuestMasterUiService.buildGuildPathNodes(world, player)
+                QuestMasterUiService.buildGuildPathNodes(world, player),
+                networkNextAction,
+                networkSummary,
+                networkVillageData,
+                networkGuildLines
         );
     }
 
@@ -212,6 +255,11 @@ public final class QuestBookHelper {
                 false,
                 false,
                 false,
+                java.util.List.of(),
+                Component.empty(),
+                new Payloads.NetworkSummaryData(0, 0, 0,
+                        Component.empty(), Component.empty(), Component.empty()),
+                java.util.List.of(),
                 java.util.List.of()
         ));
     }

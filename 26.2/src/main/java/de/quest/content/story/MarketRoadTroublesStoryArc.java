@@ -32,14 +32,14 @@ import java.util.Map;
 import java.util.UUID;
 
 public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
-    private static final int SHUTTERED_STALLS_EMERALD_TARGET = 73;
-    private static final int LEDGER_PAPER_TARGET = 57;
-    private static final int LEDGER_BOOK_TARGET = 17;
-    private static final int GOODS_MUST_FLOW_TRADE_TARGET = 31;
+    private static final int SHUTTERED_STALLS_EMERALD_TARGET = 64;
+    private static final int LEDGER_PAPER_TARGET = 48;
+    private static final int LEDGER_BOOK_TARGET = 16;
+    private static final int GOODS_MUST_FLOW_TRADE_TARGET = 24;
     private static final int GOODS_MUST_FLOW_PROFESSION_TARGET = 6;
-    private static final int MARKET_DAY_RETURNS_VILLAGER_TARGET = 17;
+    private static final int MARKET_DAY_RETURNS_VILLAGER_TARGET = 12;
     private static final int MARKET_DAY_RETURNS_BELL_TARGET = 1;
-    private static final int MARKET_DAY_RETURNS_BELL_NEARBY_TARGET = 18;
+    private static final int MARKET_DAY_RETURNS_BELL_NEARBY_TARGET = 12;
     private static final double MARKET_DAY_RETURNS_BELL_RADIUS = 20.0D;
 
     private final List<StoryChapterDefinition> chapters = List.of(

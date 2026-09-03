@@ -88,8 +88,8 @@ public class JournalScreen extends CompatScreen {
     private static final int ATLAS_MAP_HEIGHT = 207;
     private static final int ATLAS_RENDER_WIDTH = 780;
     private static final int ATLAS_RENDER_HEIGHT = 390;
-    private static final int ATLAS_TEXTURE_WIDTH = 1774;
-    private static final int ATLAS_TEXTURE_HEIGHT = 887;
+    private static final int ATLAS_TEXTURE_WIDTH = 1184;
+    private static final int ATLAS_TEXTURE_HEIGHT = 592;
     private static final int ATLAS_MARKER_SIZE = 25;
     private static final int ATLAS_DETAIL_WIDTH = 150;
     private static final int ATLAS_DETAIL_HEIGHT = 88;
@@ -105,10 +105,11 @@ public class JournalScreen extends CompatScreen {
     private static final int TRUST_ROW_STEP = 26;
     private static final int TRUST_ICON_X = 84;
     private static final int TRUST_ICON_SIZE = 24;
+    private static final int TRUST_ICON_Y_OFFSET = -1;
     private static final int TRUST_TEXT_X = 120;
     private static final int TRUST_PROGRESS_X = 256;
     private static final int TRUST_PROGRESS_WIDTH = 78;
-    private static final int CHARTER_MARKER_SIZE = 30;
+    private static final int CHARTER_MARKER_SIZE = 22;
     private static final Map<String, Landmark> PATH_LANDMARKS = Map.ofEntries(
             Map.entry("ledger", new Landmark(0.124f, 0.637f)),
             Map.entry("surveyor_compass", new Landmark(0.141f, 0.282f)),
@@ -141,15 +142,18 @@ public class JournalScreen extends CompatScreen {
     );
 
     private enum Section {
-        OVERVIEW("screen.village-quest.journal.v2.tab.overview"),
-        QUESTS("screen.village-quest.journal.v2.tab.quests"),
-        ATLAS("screen.village-quest.journal.v2.tab.atlas"),
-        GUIDE("screen.village-quest.journal.v2.tab.guide");
+        OVERVIEW("screen.village-quest.journal.v2.tab.overview", "home"),
+        QUESTS("screen.village-quest.journal.v2.tab.quests", "quests"),
+        NETWORK("screen.village-quest.journal.v2.tab.network", "social"),
+        ATLAS("screen.village-quest.journal.v2.tab.atlas", "guide"),
+        GUIDE("screen.village-quest.journal.v2.tab.guide", "story");
 
         private final String key;
+        private final String icon;
 
-        Section(String key) {
+        Section(String key, String icon) {
             this.key = key;
+            this.icon = icon;
         }
     }
 
@@ -211,133 +215,9 @@ public class JournalScreen extends CompatScreen {
 
     private record Landmark(float x, float y) {}
 
-    private record JournalCard(
-            String id,
-            Component title,
-            Component subtitle,
-            List<Component> details,
-            int accent,
-            int cancelAction
-    ) {}
-
-    private record SpecialItemEntry(String nameKey, String loreKey) {}
-
-    private record ProjectEntry(String keyPrefix, boolean unlocked) {}
-
     private record ReputationProgress(int current, int floor, int target, boolean complete) {}
 
-    public static class JournalData {
-        public final int total;
-        public final int discovered;
-        public final int completed;
-        public final int active;
-        public final long currencyBalance;
-        public final int farmingReputation;
-        public final int craftingReputation;
-        public final int animalReputation;
-        public final int tradeReputation;
-        public final int monsterReputation;
-        public final boolean hasStarreachRing;
-        public final boolean hasMerchantSeal;
-        public final boolean hasShepherdFlute;
-        public final boolean hasApiaristSmoker;
-        public final boolean hasSurveyorCompass;
-        public final boolean hasCaravanLedger;
-        public final boolean dailyActive;
-        public final Component dailyTitle;
-        public final Component dailyProgress;
-        public final boolean weeklyActive;
-        public final Component weeklyTitle;
-        public final Component weeklyProgress;
-        public final boolean storyActive;
-        public final Component storyTitle;
-        public final Component storyProgress;
-        public final boolean pilgrimActive;
-        public final Component pilgrimTitle;
-        public final Component pilgrimProgress;
-        public final boolean specialActive;
-        public final Component specialTitle;
-        public final Component specialProgress;
-        public final boolean hasVillageLedgerProject;
-        public final boolean hasApiaryCharterProject;
-        public final boolean hasForgeCharterProject;
-        public final boolean hasMarketCharterProject;
-        public final boolean hasPastureCharterProject;
-        public final boolean hasWatchBellProject;
-        public final boolean hasCaravanYardProject;
-        public final boolean hasWayshrineNetworkProject;
-        public final List<Payloads.GuildPathNodeData> guildPathNodes;
-
-        public JournalData(
-                int total, int discovered, int completed, int active, long currencyBalance,
-                int farmingReputation, int craftingReputation, int animalReputation,
-                int tradeReputation, int monsterReputation,
-                boolean hasStarreachRing, boolean hasMerchantSeal, boolean hasShepherdFlute,
-                boolean hasApiaristSmoker, boolean hasSurveyorCompass, boolean hasCaravanLedger,
-                boolean dailyActive, Component dailyTitle, Component dailyProgress,
-                boolean weeklyActive, Component weeklyTitle, Component weeklyProgress,
-                boolean storyActive, Component storyTitle, Component storyProgress,
-                boolean pilgrimActive, Component pilgrimTitle, Component pilgrimProgress,
-                boolean specialActive, Component specialTitle, Component specialProgress,
-                boolean hasVillageLedgerProject, boolean hasApiaryCharterProject,
-                boolean hasForgeCharterProject, boolean hasMarketCharterProject,
-                boolean hasPastureCharterProject, boolean hasWatchBellProject,
-                boolean hasCaravanYardProject, boolean hasWayshrineNetworkProject,
-                List<Payloads.GuildPathNodeData> guildPathNodes
-        ) {
-            this.total = total;
-            this.discovered = discovered;
-            this.completed = completed;
-            this.active = active;
-            this.currencyBalance = currencyBalance;
-            this.farmingReputation = farmingReputation;
-            this.craftingReputation = craftingReputation;
-            this.animalReputation = animalReputation;
-            this.tradeReputation = tradeReputation;
-            this.monsterReputation = monsterReputation;
-            this.hasStarreachRing = hasStarreachRing;
-            this.hasMerchantSeal = hasMerchantSeal;
-            this.hasShepherdFlute = hasShepherdFlute;
-            this.hasApiaristSmoker = hasApiaristSmoker;
-            this.hasSurveyorCompass = hasSurveyorCompass;
-            this.hasCaravanLedger = hasCaravanLedger;
-            this.dailyActive = dailyActive;
-            this.dailyTitle = safe(dailyTitle);
-            this.dailyProgress = safe(dailyProgress);
-            this.weeklyActive = weeklyActive;
-            this.weeklyTitle = safe(weeklyTitle);
-            this.weeklyProgress = safe(weeklyProgress);
-            this.storyActive = storyActive;
-            this.storyTitle = safe(storyTitle);
-            this.storyProgress = safe(storyProgress);
-            this.pilgrimActive = pilgrimActive;
-            this.pilgrimTitle = safe(pilgrimTitle);
-            this.pilgrimProgress = safe(pilgrimProgress);
-            this.specialActive = specialActive;
-            this.specialTitle = safe(specialTitle);
-            this.specialProgress = safe(specialProgress);
-            this.hasVillageLedgerProject = hasVillageLedgerProject;
-            this.hasApiaryCharterProject = hasApiaryCharterProject;
-            this.hasForgeCharterProject = hasForgeCharterProject;
-            this.hasMarketCharterProject = hasMarketCharterProject;
-            this.hasPastureCharterProject = hasPastureCharterProject;
-            this.hasWatchBellProject = hasWatchBellProject;
-            this.hasCaravanYardProject = hasCaravanYardProject;
-            this.hasWayshrineNetworkProject = hasWayshrineNetworkProject;
-            this.guildPathNodes = guildPathNodes == null ? List.of() : List.copyOf(guildPathNodes);
-        }
-
-        public boolean hasAnySpecialItem() {
-            return hasStarreachRing || hasMerchantSeal || hasShepherdFlute || hasApiaristSmoker
-                    || hasSurveyorCompass || hasCaravanLedger;
-        }
-
-        private static Component safe(Component value) {
-            return value == null ? Component.empty() : value;
-        }
-    }
-
-    private JournalData data;
+    private JournalScreenData data;
     private Section section = Section.OVERVIEW;
     private String expandedCardId = "overview_progress";
     private int scrollOffset;
@@ -355,12 +235,12 @@ public class JournalScreen extends CompatScreen {
     private long atlasHintUntilMs;
     private boolean atlasIntroChecked;
     private boolean atlasIntroVisible;
-    public JournalScreen(JournalData data) {
+    public JournalScreen(JournalScreenData data) {
         super(Component.translatable("screen.village-quest.journal.title"));
         this.data = data;
     }
 
-    public void updateData(JournalData data) {
+    public void updateData(JournalScreenData data) {
         this.data = data;
         clampScroll();
     }
@@ -449,7 +329,6 @@ public class JournalScreen extends CompatScreen {
     }
 
     private void drawTabs(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
-        String[] icons = {"home", "quests", "guide", "story"};
         Section[] sections = Section.values();
         for (int i = 0; i < sections.length; i++) {
             Section candidate = sections[i];
@@ -458,7 +337,7 @@ public class JournalScreen extends CompatScreen {
             boolean selected = candidate == section;
             boolean hovered = within(mouseX, mouseY, x, y, TAB_WIDTH, TAB_HEIGHT);
             VillageUiTheme.drawTab(graphics, x, y, TAB_WIDTH, TAB_HEIGHT, selected, hovered);
-            VillageUiTheme.drawIcon(graphics, VillageUiTheme.icon(icons[i]),
+            VillageUiTheme.drawIcon(graphics, VillageUiTheme.icon(candidate.icon),
                     x + (TAB_WIDTH - 21) / 2, y + (TAB_HEIGHT - 21) / 2, 21);
             if (hovered) {
                 graphics.setTooltipForNextFrame(font, Component.translatable(candidate.key), mouseX, mouseY);
@@ -578,7 +457,7 @@ public class JournalScreen extends CompatScreen {
 
             drawAtlasEmblem(graphics, node.emblem(),
                     left + TRUST_ICON_X + TRUST_ICON_SIZE / 2,
-                    rowY + TRUST_ICON_SIZE / 2 + 1);
+                    rowY + TRUST_ICON_SIZE / 2 + TRUST_ICON_Y_OFFSET);
 
             int accent = trustAccent(node.id());
             VillageUiTheme.drawStringScaled(graphics, font,
@@ -696,16 +575,16 @@ public class JournalScreen extends CompatScreen {
         if (node.status() == 1) {
             long phase = (System.currentTimeMillis() / 310L) % 5L;
             int alpha = phase == 0L || phase == 4L ? 0x52 : 0x34;
-            graphics.fill(centerX - 10, centerY - 14, centerX + 10, centerY - 12,
+            graphics.fill(centerX - 7, centerY - 11, centerX + 7, centerY - 9,
                     (alpha << 24) | 0x00D7A34B);
         }
         drawCharterMarkerBacking(graphics, centerX, centerY, hovered);
         drawAtlasEmblem(graphics, node.emblem(), centerX, centerY, CHARTER_MARKER_SIZE);
         if (node.status() == 0) {
-            graphics.fill(centerX + 3, centerY + 3, centerX + 13, centerY + 14, 0xC443342B);
-            drawLock(graphics, centerX + 5, centerY + 4);
+            graphics.fill(centerX + 2, centerY + 2, centerX + 10, centerY + 10, 0xC443342B);
+            drawCharterLock(graphics, centerX + 4, centerY + 3);
         } else if (node.status() == 2) {
-            drawAtlasCompletionSeal(graphics, centerX + 8, centerY + 8);
+            drawCharterCompletionSeal(graphics, centerX + 5, centerY + 5);
         }
         if (hovered) {
             drawAtlasMarkerLabel(graphics, node.title().getString(), centerX,
@@ -715,14 +594,33 @@ public class JournalScreen extends CompatScreen {
 
     private static void drawCharterMarkerBacking(GuiGraphics graphics, int centerX, int centerY,
                                                   boolean hovered) {
-        int shadow = 0x8A160D08;
-        graphics.fill(centerX - 8, centerY - 13, centerX + 10, centerY + 17, shadow);
-        graphics.fill(centerX - 13, centerY - 8, centerX + 15, centerY + 12, shadow);
+        int shadow = 0x66160D08;
+        graphics.fill(centerX - 7, centerY - 12, centerX + 7, centerY + 12, shadow);
+        graphics.fill(centerX - 10, centerY - 10, centerX + 10, centerY + 10, shadow);
+        graphics.fill(centerX - 12, centerY - 7, centerX + 12, centerY + 7, shadow);
 
         int outline = hovered ? 0xFFD7A23E : 0xFF2B190F;
-        graphics.fill(centerX - 8, centerY - 15, centerX + 9, centerY + 16, outline);
-        graphics.fill(centerX - 12, centerY - 12, centerX + 13, centerY + 13, outline);
-        graphics.fill(centerX - 15, centerY - 8, centerX + 16, centerY + 9, outline);
+        graphics.fill(centerX - 6, centerY - 11, centerX + 6, centerY + 11, outline);
+        graphics.fill(centerX - 9, centerY - 9, centerX + 9, centerY + 9, outline);
+        graphics.fill(centerX - 11, centerY - 6, centerX + 11, centerY + 6, outline);
+    }
+
+    private static void drawCharterLock(GuiGraphics graphics, int x, int y) {
+        graphics.fill(x, y + 3, x + 5, y + 7, 0xFFD9A83B);
+        graphics.fill(x + 1, y + 1, x + 2, y + 4, 0xFFD9A83B);
+        graphics.fill(x + 3, y + 1, x + 4, y + 4, 0xFFD9A83B);
+        graphics.fill(x + 2, y, x + 3, y + 1, 0xFFD9A83B);
+        graphics.fill(x + 2, y + 4, x + 3, y + 6, 0xFF513118);
+    }
+
+    private static void drawCharterCompletionSeal(GuiGraphics graphics, int x, int y) {
+        graphics.fill(x, y + 1, x + 6, y + 5, 0xFF4A2B19);
+        graphics.fill(x + 1, y, x + 5, y + 6, 0xFF4A2B19);
+        graphics.fill(x + 1, y + 1, x + 5, y + 5, 0xFF236B68);
+        graphics.fill(x + 1, y + 3, x + 2, y + 4, 0xFFF6D37A);
+        graphics.fill(x + 2, y + 4, x + 3, y + 5, 0xFFF6D37A);
+        graphics.fill(x + 3, y + 2, x + 4, y + 4, 0xFFF6D37A);
+        graphics.fill(x + 4, y + 1, x + 5, y + 3, 0xFFF6D37A);
     }
 
     private static void drawAtlasEmblem(GuiGraphics graphics, AtlasEmblem emblem,
@@ -1281,163 +1179,14 @@ public class JournalScreen extends CompatScreen {
     }
 
     private List<JournalCard> cardsForSection() {
+        JournalContentBuilder content = new JournalContentBuilder(data);
         return switch (section) {
-            case OVERVIEW -> overviewCards();
-            case QUESTS -> activeQuestCards();
+            case OVERVIEW -> content.overviewCards();
+            case QUESTS -> content.activeQuestCards();
+            case NETWORK -> content.networkCards();
             case ATLAS -> List.of();
-            case GUIDE -> guideCards();
+            case GUIDE -> content.guideCards();
         };
-    }
-
-    private List<JournalCard> overviewCards() {
-        int reputationTotal = reputationTotal();
-        return List.of(
-                card("overview_progress", "screen.village-quest.journal.v2.overview.progress",
-                        Component.translatable("screen.village-quest.journal.v2.overview.progress_short",
-                                data.completed, data.discovered),
-                        List.of(
-                                Component.translatable("screen.village-quest.journal.summary.total", data.total),
-                                Component.translatable("screen.village-quest.journal.summary.discovered", data.discovered),
-                                Component.translatable("screen.village-quest.journal.summary.active", data.active),
-                                Component.translatable("screen.village-quest.journal.summary.completed", data.completed)
-                ), TEAL),
-                card("overview_village", "screen.village-quest.journal.v2.overview.village",
-                        Component.translatable("screen.village-quest.journal.summary.reputation", reputationTotal),
-                        List.of(
-                                Component.translatable("screen.village-quest.journal.summary.projects", completedProjectCount())
-                        ), GOLD),
-                card("overview_next", "screen.village-quest.journal.v2.overview.next",
-                        Component.translatable("screen.village-quest.journal.v2.overview.next_short"),
-                        List.of(
-                                Component.translatable("screen.village-quest.journal.v2.overview.next_body"),
-                                Component.translatable(data.hasCaravanLedger
-                                        ? "screen.village-quest.journal.v2.overview.routes_ready"
-                                        : "screen.village-quest.journal.v2.overview.routes_locked")
-                        ), BLUE)
-        );
-    }
-
-    private List<JournalCard> activeQuestCards() {
-        List<JournalCard> cards = new ArrayList<>();
-        addActiveCard(cards, data.dailyActive, "daily", "screen.village-quest.journal.active.daily",
-                data.dailyTitle, data.dailyProgress, "screen.village-quest.journal.active.daily_hint",
-                BLUE, JournalActionPayload.ACTION_CANCEL_DAILY);
-        addActiveCard(cards, data.weeklyActive, "weekly", "screen.village-quest.journal.active.weekly",
-                data.weeklyTitle, data.weeklyProgress, "screen.village-quest.journal.active.weekly_hint",
-                GOLD, JournalActionPayload.ACTION_CANCEL_WEEKLY);
-        addActiveCard(cards, data.storyActive, "story", "screen.village-quest.journal.active.story",
-                data.storyTitle, data.storyProgress, "screen.village-quest.journal.v2.active.story_hint",
-                GREEN, -1);
-        addActiveCard(cards, data.pilgrimActive, "pilgrim", "screen.village-quest.journal.active.pilgrim",
-                data.pilgrimTitle, data.pilgrimProgress, "screen.village-quest.journal.v2.active.pilgrim_hint",
-                0xFF9B6B34, -1);
-        addActiveCard(cards, data.specialActive, "special", "screen.village-quest.journal.active.special",
-                data.specialTitle, data.specialProgress, "screen.village-quest.journal.v2.active.special_hint",
-                PURPLE, -1);
-        if (cards.isEmpty()) {
-            cards.add(card("active_none", "screen.village-quest.journal.active.none",
-                    Component.translatable("screen.village-quest.journal.active.none_hint"),
-                    List.of(Component.translatable("screen.village-quest.journal.v2.active.none_body")), MUTED));
-        }
-        return cards;
-    }
-
-    private void addActiveCard(List<JournalCard> cards, boolean active, String id, String labelKey,
-                               Component title, Component progress, String hintKey, int accent, int cancelAction) {
-        if (!active) {
-            return;
-        }
-        List<Component> details = new ArrayList<>();
-        if (!progress.getString().isBlank()) {
-            details.add(progress);
-        }
-        details.add(Component.translatable(hintKey));
-        cards.add(new JournalCard(id, title.getString().isBlank() ? Component.translatable(labelKey) : title,
-                Component.translatable(labelKey), List.copyOf(details), accent, cancelAction));
-    }
-
-    private List<JournalCard> reputationCards() {
-        List<JournalCard> cards = new ArrayList<>();
-        addReputationCard(cards, ReputationService.ReputationTrack.FARMING, data.farmingReputation, GREEN);
-        addReputationCard(cards, ReputationService.ReputationTrack.CRAFTING, data.craftingReputation, GOLD);
-        addReputationCard(cards, ReputationService.ReputationTrack.ANIMALS, data.animalReputation, TEAL);
-        addReputationCard(cards, ReputationService.ReputationTrack.TRADE, data.tradeReputation, BLUE);
-        addReputationCard(cards, ReputationService.ReputationTrack.MONSTER_HUNTING, data.monsterReputation, RED);
-        return cards;
-    }
-
-    private void addReputationCard(List<JournalCard> cards, ReputationService.ReputationTrack track,
-                                   int value, int accent) {
-        Component rank = Component.translatable(ReputationService.rankFor(value).translationKey());
-        cards.add(new JournalCard("rep_" + track.name(), Component.translatable(track.translationKey()),
-                Component.translatable("screen.village-quest.journal.v2.reputation.short", value, rank),
-                List.of(Component.literal(storyAwareNextUnlockLine(track, value))), accent, -1));
-    }
-
-    private List<JournalCard> collectionCards() {
-        List<JournalCard> cards = new ArrayList<>();
-        List<ProjectEntry> projects = List.of(
-                new ProjectEntry("quest.village-quest.project.village_ledger", data.hasVillageLedgerProject),
-                new ProjectEntry("quest.village-quest.project.apiary_charter", data.hasApiaryCharterProject),
-                new ProjectEntry("quest.village-quest.project.forge_charter", data.hasForgeCharterProject),
-                new ProjectEntry("quest.village-quest.project.market_charter", data.hasMarketCharterProject),
-                new ProjectEntry("quest.village-quest.project.pasture_charter", data.hasPastureCharterProject),
-                new ProjectEntry("quest.village-quest.project.watch_bell", data.hasWatchBellProject),
-                new ProjectEntry("quest.village-quest.project.caravan_yard", data.hasCaravanYardProject)
-        );
-        int index = 0;
-        for (ProjectEntry project : projects) {
-            List<Component> details = new ArrayList<>();
-            details.add(Component.translatable(project.keyPrefix() + ".description"));
-            details.add(Component.translatable(project.keyPrefix() + ".effect"));
-            if (project.unlocked()) {
-                details.add(Component.translatable(project.keyPrefix() + ".memory"));
-            }
-            cards.add(new JournalCard("project_" + index++, Component.translatable(project.keyPrefix() + ".title"),
-                    Component.translatable(project.unlocked()
-                            ? "screen.village-quest.journal.projects.built"
-                            : "screen.village-quest.journal.projects.locked"),
-                    List.copyOf(details), project.unlocked() ? GREEN : MUTED, -1));
-        }
-        for (SpecialItemEntry item : ownedSpecialItems()) {
-            cards.add(new JournalCard("item_" + item.nameKey(), Component.translatable(item.nameKey()),
-                    Component.translatable("screen.village-quest.journal.v2.collection.owned"),
-                    List.of(Component.translatable(item.loreKey())), PURPLE, -1));
-        }
-        return cards;
-    }
-
-    private List<SpecialItemEntry> ownedSpecialItems() {
-        List<SpecialItemEntry> items = new ArrayList<>();
-        if (data.hasStarreachRing) items.add(new SpecialItemEntry("item.village-quest.starreach_ring", "item.village-quest.starreach_ring.lore"));
-        if (data.hasMerchantSeal) items.add(new SpecialItemEntry("item.village-quest.merchant_seal", "item.village-quest.merchant_seal.lore"));
-        if (data.hasShepherdFlute) items.add(new SpecialItemEntry("item.village-quest.shepherd_flute", "item.village-quest.shepherd_flute.lore"));
-        if (data.hasApiaristSmoker) items.add(new SpecialItemEntry("item.village-quest.apiarists_smoker", "item.village-quest.apiarists_smoker.lore"));
-        if (data.hasSurveyorCompass) items.add(new SpecialItemEntry("item.village-quest.surveyors_compass", "screen.village-quest.journal.relics.surveyors_compass"));
-        if (data.hasCaravanLedger) items.add(new SpecialItemEntry("item.village-quest.caravan_ledger", "item.village-quest.caravan_ledger.lore"));
-        return items;
-    }
-
-    private List<JournalCard> guideCards() {
-        return List.of(
-                guide("guide_start", "start", GREEN),
-                guide("guide_quests", "quests", GOLD),
-                guide("guide_prosperity", "prosperity", PURPLE),
-                guide("guide_routes", "routes", TEAL),
-                guide("guide_controls", "controls", BLUE)
-        );
-    }
-
-    private JournalCard guide(String id, String suffix, int accent) {
-        return new JournalCard(id,
-                Component.translatable("screen.village-quest.journal.v2.guide." + suffix + ".title"),
-                Component.translatable("screen.village-quest.journal.v2.guide." + suffix + ".short"),
-                List.of(Component.translatable("screen.village-quest.journal.v2.guide." + suffix + ".body")),
-                accent, -1);
-    }
-
-    private JournalCard card(String id, String titleKey, Component subtitle, List<Component> details, int accent) {
-        return new JournalCard(id, Component.translatable(titleKey), subtitle, details, accent, -1);
     }
 
     private List<AtlasNode> atlasNodes() {
@@ -1738,24 +1487,6 @@ public class JournalScreen extends CompatScreen {
 
     private void clampScroll() {
         scrollOffset = Math.max(0, Math.min(scrollOffset, Math.max(0, scrollMax)));
-    }
-
-    private int reputationTotal() {
-        return data.farmingReputation + data.craftingReputation + data.animalReputation
-                + data.tradeReputation + data.monsterReputation;
-    }
-
-    private int completedProjectCount() {
-        int count = 0;
-        if (data.hasVillageLedgerProject) count++;
-        if (data.hasApiaryCharterProject) count++;
-        if (data.hasForgeCharterProject) count++;
-        if (data.hasMarketCharterProject) count++;
-        if (data.hasPastureCharterProject) count++;
-        if (data.hasWatchBellProject) count++;
-        if (data.hasCaravanYardProject) count++;
-        if (data.hasWayshrineNetworkProject) count++;
-        return count;
     }
 
     private String storyAwareNextUnlockLine(ReputationService.ReputationTrack track, int value) {

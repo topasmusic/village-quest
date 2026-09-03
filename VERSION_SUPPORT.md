@@ -2,9 +2,9 @@
 
 Village Quest uses a single-active-line development policy.
 
-## 2.2.0 content release
+## 2.3.0 content release
 
-`Village Quest 2.2.0 - The Shrines Between Roads` is released exclusively for Minecraft `26.2`. It is the current stable content line and is not backported to the two older Minecraft targets.
+`Village Quest 2.3.0 - Living Village Network` is released exclusively for Minecraft `26.2`. It is the current stable content line, includes the complete save-compatible `2.2.1` quality and balance pass, and is not backported to the two older Minecraft targets.
 
 ## 2.1.1 parity release
 

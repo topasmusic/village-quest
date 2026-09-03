@@ -197,21 +197,24 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
 
         @Override
         public List<Component> progressLines(ServerLevel world, UUID playerId) {
+            int honeyReady = Math.max(
+                    progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_HONEY),
+                    StoryQuestService.countCompletionItem(world, playerId, Items.HONEY_BOTTLE));
+            int combReady = Math.max(
+                    progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_COMB),
+                    StoryQuestService.countCompletionItem(world, playerId, Items.HONEYCOMB));
             return List.of(Component.translatable(
                     "quest.village-quest.story.failing_harvest.chapter_2.progress",
-                    progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_HONEY),
+                    Math.min(honeyReady, QUIET_HIVES_HONEY_TARGET),
                     QUIET_HIVES_HONEY_TARGET,
-                    progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_COMB),
+                    Math.min(combReady, QUIET_HIVES_COMB_TARGET),
                     QUIET_HIVES_COMB_TARGET
             ).withStyle(ChatFormatting.GRAY));
         }
 
         @Override
         public boolean isComplete(ServerLevel world, ServerPlayer player) {
-            UUID playerId = player.getUUID();
-            return progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_HONEY) >= QUIET_HIVES_HONEY_TARGET
-                    && progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_COMB) >= QUIET_HIVES_COMB_TARGET
-                    && hasItem(world, player, Items.HONEY_BOTTLE, QUIET_HIVES_HONEY_TARGET)
+            return hasItem(world, player, Items.HONEY_BOTTLE, QUIET_HIVES_HONEY_TARGET)
                     && hasItem(world, player, Items.HONEYCOMB, QUIET_HIVES_COMB_TARGET);
         }
 
@@ -233,10 +236,8 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
                 return null;
             }
             UUID playerId = player.getUUID();
-            if (progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_HONEY) < QUIET_HIVES_HONEY_TARGET
-                    || progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_COMB) < QUIET_HIVES_COMB_TARGET
-                    || (hasItem(world, player, Items.HONEY_BOTTLE, QUIET_HIVES_HONEY_TARGET)
-                    && hasItem(world, player, Items.HONEYCOMB, QUIET_HIVES_COMB_TARGET))) {
+            if (hasItem(world, player, Items.HONEY_BOTTLE, QUIET_HIVES_HONEY_TARGET)
+                    && hasItem(world, player, Items.HONEYCOMB, QUIET_HIVES_COMB_TARGET)) {
                 return null;
             }
             return Texts.turnInMissing(

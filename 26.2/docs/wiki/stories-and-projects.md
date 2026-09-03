@@ -98,6 +98,8 @@ This is the late road-defense follow-up unlocked after `Watch Bell` and `3` comp
 - defend the larger guild caravan through the full assault
 - the last wave adds elite `Traitor` bandits
 
+Combat size follows the world's Vanilla difficulty and the number of active story-party members actually present within `64` blocks when the encounter starts. `Peaceful` uses an explicit no-hostile escort success: the caravan appears, no combat wave is queued, and Vanilla's hostile-mob removal therefore cannot leave the chapter waiting for impossible kills.
+
 ### `The Empty Caravan`
 
 This six-chapter solo follow-up becomes available after `Shadows on the Trade Road` is complete.
@@ -153,9 +155,8 @@ This is also a pure supply delivery. The guild accepts stored or traded building
 
 ### Chapter 2: `Quiet Hives`
 
-- collect `3` honey bottles from full hives after accepting
-- collect `1` honeycomb from a full hive after accepting
-- carry and turn in the same honey bundle
+- carry and turn in `3` honey bottles and `1` honeycomb
+- harvesting full hives records the normal story progress, but traded, stored, or otherwise acquired supplies are also accepted
 
 ### Chapter 3: `Bread For The Square`
 
@@ -176,17 +177,17 @@ This is also a pure supply delivery. The guild accepts stored or traded building
 
 ### Chapter 1: `Cold Hearth`
 
-- mine `67` coal
-- mine `47` raw iron
-- mine `29` redstone
-- mine `17` raw gold
+- mine `64` coal
+- mine `40` raw iron
+- mine `24` redstone
+- mine `16` raw gold
 - mine `4` diamonds
 - carry the complete mineral bundle for turn-in
 
 ### Chapter 2: `The Bellows Breathe Again`
 
-- pull `31` iron ingots from a furnace after accepting
-- turn in `31` iron ingots
+- pull `24` iron ingots from a furnace after accepting
+- turn in `24` iron ingots
 - turn in `3` blast furnaces
 - turn in `3` cauldrons
 
@@ -207,7 +208,7 @@ At turn-in, carry a complete pristine kit with those quantities. The craft progr
 
 This chapter now advances through one visible stage at a time:
 
-1. buy `Sharpness`, `Fire Protection`, `Protection`, `Blast Protection`, and `Projectile Protection` enchanted books from villagers; every enchantment level counts
+1. acquire one `Sharpness` enchanted book and one book from the `Protection`, `Fire Protection`, `Blast Protection`, or `Projectile Protection` family; trade, exploration, loot, and other acquisition paths count
 2. craft one each of the `Iron Helmet`, `Iron Chestplate`, `Iron Leggings`, and `Iron Boots`
 3. apply `Protection`, `Fire Protection`, `Blast Protection`, or `Projectile Protection` at any level to every armor piece; the four protections can be assigned to the four pieces in any order
 4. craft a `Diamond Sword`
@@ -224,25 +225,25 @@ Finishing a stage unlocks the next automatically. Only the final five-piece deli
 
 ### Chapter 1: `Shuttered Stalls`
 
-- earn `73` emeralds from real villager trades
+- earn `64` emeralds from real villager trades
 
 ### Chapter 2: `Ledger And Notices`
 
-1. craft `57` paper
-2. after the paper stage completes, craft `17` books
+1. craft `48` paper
+2. after the paper stage completes, craft `16` books
 3. carry and turn in the complete paper-and-book bundle
 
 Each completed stage unlocks the next automatically. Books crafted before the paper stage is complete do not count for this chapter.
 
 ### Chapter 3: `Goods Must Flow`
 
-- complete `31` real villager trades
+- complete `24` real villager trades
 - speak to the `Toolsmith`, `Weaponsmith`, `Farmer`, `Fisherman`, `Shepherd`, and `Librarian`
 
 ### Chapter 4: `Market Day Returns`
 
-- speak with `17` different adult villagers
-- ring a bell while at least `18` adult villagers are within `20` blocks
+- speak with `12` different adult villagers
+- ring a bell while at least `12` adult villagers are within `20` blocks
 
 ### Result
 
@@ -252,23 +253,23 @@ Each completed stage unlocks the next automatically. Books crafted before the pa
 
 ### Chapter 1: `Empty Troughs`
 
-- trigger `17` breedings
-- keep `53` hay bales ready for turn-in
+- trigger `12` breedings
+- keep `48` hay bales ready for turn-in
 
 ### Chapter 2: `Wool Before Weather`
 
-- shear `29` sheep
-- turn in `57` wool of any color
+- shear `24` sheep
+- turn in `48` wool of any color
 
 ### Chapter 3: `New Pastures`
 
-- ride `4,800` blocks on horseback after accepting the chapter
+- ride `2,400` blocks on horseback after accepting the chapter
 - routine distance ticks are deliberately silent; reaching the full route-survey distance still plays the chapter-ready cue
 
 ### Chapter 4: `The Shepherd's Call`
 
 - ring a bell
-- have at least `9` adult pasture animals within `12` blocks when the bell rings
+- have at least `8` adult pasture animals within `12` blocks when the bell rings
 - carry `Gold Horse Armor` or `Diamond Horse Armor`
 
 ### Result

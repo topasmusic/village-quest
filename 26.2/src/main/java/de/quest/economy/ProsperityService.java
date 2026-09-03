@@ -50,31 +50,33 @@ public final class ProsperityService {
     private static final String STAT_SERVICES = "prosperity.stat.services";
     private static final String STAT_INVESTMENTS = "prosperity.stat.investments";
     private static final String STAT_COLLECTIONS = "prosperity.stat.collections";
+    static final long FESTIVAL_MINIMUM_BONUS = CurrencyService.SILVERMARK * 4L;
+    static final long CEREMONY_MINIMUM_BONUS = CurrencyService.SILVERMARK * 8L;
 
     private ProsperityService() {}
 
     public enum VillageService {
-        ROAD_PATROL("road_patrol", "service_road_patrol", 8L, true),
-        SURVEY_REPORT("survey_report", "service_survey_report", 5L, true),
-        EMERGENCY_RECALL("emergency_recall", "service_emergency_recall", 10L, true),
-        VILLAGE_FESTIVAL("village_festival", "service_village_festival", 15L, false),
-        GUILD_CEREMONY("guild_ceremony", "service_guild_ceremony", 25L, false);
+        ROAD_PATROL("road_patrol", "service_road_patrol", CurrencyService.CROWN * 8L, true),
+        SURVEY_REPORT("survey_report", "service_survey_report", CurrencyService.CROWN * 5L, true),
+        EMERGENCY_RECALL("emergency_recall", "service_emergency_recall", CurrencyService.CROWN * 10L, true),
+        VILLAGE_FESTIVAL("village_festival", "service_village_festival", CurrencyService.CROWN, false),
+        GUILD_CEREMONY("guild_ceremony", "service_guild_ceremony", CurrencyService.CROWN * 2L, false);
 
         private final String id;
         private final String icon;
-        private final long crowns;
+        private final long cost;
         private final boolean routeTargeted;
 
-        VillageService(String id, String icon, long crowns, boolean routeTargeted) {
+        VillageService(String id, String icon, long cost, boolean routeTargeted) {
             this.id = id;
             this.icon = icon;
-            this.crowns = crowns;
+            this.cost = cost;
             this.routeTargeted = routeTargeted;
         }
 
         public String id() { return id; }
         public String icon() { return icon; }
-        public long cost() { return crowns * CurrencyService.CROWN; }
+        public long cost() { return cost; }
         public boolean routeTargeted() { return routeTargeted; }
         public Component title() { return Component.translatable("screen.village-quest.prosperity.service." + id); }
 
@@ -333,7 +335,7 @@ public final class ProsperityService {
         if (charges <= 0) return reward;
         playerData.setPilgrimInt(FESTIVAL_CHARGES, charges - 1);
         dirty(world);
-        return safeAdd(reward, Math.max(1L, reward / 4L));
+        return safeAdd(reward, festivalBonusAmount(reward));
     }
 
     public static long applyCeremonyBonus(ServerLevel world, UUID playerId, long reward) {
@@ -343,7 +345,15 @@ public final class ProsperityService {
         if (charges <= 0) return reward;
         playerData.setPilgrimInt(CEREMONY_CHARGES, charges - 1);
         dirty(world);
-        return safeAdd(reward, Math.max(1L, reward / 4L));
+        return safeAdd(reward, ceremonyBonusAmount(reward));
+    }
+
+    static long festivalBonusAmount(long reward) {
+        return reward <= 0L ? 0L : Math.max(FESTIVAL_MINIMUM_BONUS, reward / 4L);
+    }
+
+    static long ceremonyBonusAmount(long reward) {
+        return reward <= 0L ? 0L : Math.max(CEREMONY_MINIMUM_BONUS, reward / 4L);
     }
 
     public static boolean buyOrApplyCollection(ServerLevel world, ServerPlayer player, String rewardId, int routeIndex) {
@@ -401,6 +411,18 @@ public final class ProsperityService {
     public static void recordCurrencyDelta(ServerLevel world, UUID playerId, long delta) {
         if (world == null || playerId == null || delta == 0L) return;
         increment(world, playerId, delta > 0 ? STAT_EARNED : STAT_SPENT, Math.abs(delta));
+    }
+
+    /** Reverses an admin-fixture grant without recording the rollback as spending. */
+    public static long adminReverseFixtureCurrency(ServerLevel world, UUID playerId, long amount) {
+        if (world == null || playerId == null || amount <= 0L) return 0L;
+        PlayerQuestData playerData = data(world, playerId);
+        long removed = Math.min(amount, CurrencyService.getBalance(world, playerId));
+        CurrencyService.setBalance(world, playerId, CurrencyService.getBalance(world, playerId) - removed);
+        int earned = playerData.getPilgrimInt(STAT_EARNED);
+        playerData.setPilgrimInt(STAT_EARNED, (int) Math.max(0L, (long) earned - amount));
+        dirty(world);
+        return removed;
     }
 
     public static void recordShopPurchase(ServerLevel world, UUID playerId) {

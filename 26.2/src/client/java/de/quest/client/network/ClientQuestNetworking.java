@@ -4,6 +4,7 @@ import de.quest.client.config.VillageQuestClientConfig;
 import de.quest.client.hud.QuestTrackerHud;
 import de.quest.client.screen.AdminJournalScreen;
 import de.quest.client.screen.JournalScreen;
+import de.quest.client.screen.JournalScreenData;
 import de.quest.client.screen.PilgrimTradeScreen;
 import de.quest.client.screen.ProsperityScreen;
 import de.quest.client.screen.QuestMasterScreen;
@@ -13,6 +14,7 @@ import de.quest.client.screen.GuildNoticeBoardScreen;
 import de.quest.client.screen.GuildPathScreen;
 import de.quest.client.hud.TradeRouteMinimapHud;
 import de.quest.network.Payloads;
+import de.quest.network.VillageNetworkPayloads;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
@@ -67,7 +69,7 @@ public final class ClientQuestNetworking {
                     return;
                 }
 
-                JournalScreen.JournalData data = new JournalScreen.JournalData(
+                JournalScreenData data = new JournalScreenData(
                         payload.total(),
                         payload.discovered(),
                         payload.completed(),
@@ -107,7 +109,11 @@ public final class ClientQuestNetworking {
                         payload.hasWatchBellProject(),
                         payload.hasCaravanYardProject(),
                         payload.hasWayshrineNetworkProject(),
-                        payload.guildPathNodes()
+                        payload.guildPathNodes(),
+                        payload.networkNextAction(),
+                        payload.networkSummary(),
+                        payload.networkVillages(),
+                        payload.networkGuildLines()
                 );
 
                 if (payload.action() == Payloads.JournalPayload.ACTION_OPEN) {
@@ -344,7 +350,7 @@ public final class ClientQuestNetworking {
             });
         });
 
-        ClientPlayNetworking.registerGlobalReceiver(Payloads.WayshrinePayload.ID, (payload, context) -> {
+        ClientPlayNetworking.registerGlobalReceiver(VillageNetworkPayloads.WayshrinePayload.ID, (payload, context) -> {
             var client = context.client();
             client.execute(() -> {
                 if (currentScreen(client) instanceof WayshrineScreen screen) {
@@ -355,7 +361,7 @@ public final class ClientQuestNetworking {
             });
         });
 
-        ClientPlayNetworking.registerGlobalReceiver(Payloads.NoticeBoardPayload.ID, (payload, context) -> {
+        ClientPlayNetworking.registerGlobalReceiver(VillageNetworkPayloads.NoticeBoardPayload.ID, (payload, context) -> {
             var client = context.client();
             client.execute(() -> {
                 if (currentScreen(client) instanceof GuildNoticeBoardScreen screen) {

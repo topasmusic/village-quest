@@ -556,6 +556,27 @@ public final class StoryQuestService {
         refreshQuestUi(world, playerId);
     }
 
+    /** Selects the final shrine chapter immediately before its guaranteed relay incident. */
+    public static boolean adminPrepareLastRelayForTesting(ServerLevel world, ServerPlayer player) {
+        if (world == null || player == null) return false;
+        UUID playerId = player.getUUID();
+        PlayerQuestData data = data(world, playerId);
+        data.clearStoryProgress();
+        data.setActiveStoryArc(StoryArcType.SHRINES_BETWEEN_ROADS);
+        data.setStoryDiscovered(StoryArcType.SHRINES_BETWEEN_ROADS.id(), true);
+        data.setStoryCompleted(StoryArcType.SHRINES_BETWEEN_ROADS.id(), false);
+        data.setStoryChapterProgress(StoryArcType.SHRINES_BETWEEN_ROADS.id(), 5);
+        data.setStoryInt(StoryQuestKeys.SHRINES_RELAY_CONTRACT_BASELINE,
+                Math.max(0, TradeRouteService.completedGuildContracts(world, playerId) - 1));
+        data.setStoryInt(StoryQuestKeys.SHRINES_RELAY_SUCCESS_BASELINE,
+                TradeRouteService.totalRouteSuccesses(world, playerId));
+        data.setStoryFlag(StoryQuestKeys.SHRINES_RELAY_READY, false);
+        data.setStoryCooldownUntil(0L);
+        QuestState.get(world.getServer()).setDirty();
+        refreshQuestUi(world, playerId);
+        return TradeRouteService.adminPrepareLastRelayTest(world, player);
+    }
+
     public static void onServerTick(MinecraftServer server) {
         ServerLevel world = server.overworld();
         ShadowsTradeRoadEncounterService.onServerTick(server);

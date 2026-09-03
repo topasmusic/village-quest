@@ -4,6 +4,7 @@ import de.quest.VillageQuest;
 import de.quest.client.ui.SurfaceMapRenderer;
 import de.quest.client.ui.VillageUiTheme;
 import de.quest.network.Payloads;
+import de.quest.network.VillageNetworkPayloads;
 import de.quest.registry.ModBlocks;
 import java.util.ArrayList;
 import java.util.List;
@@ -14,6 +15,7 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
@@ -60,7 +62,7 @@ public final class WayshrineScreen extends CompatScreen {
     };
     private static final int DEFAULT_ZOOM_LEVEL = 6;
 
-    private Payloads.WayshrinePayload data;
+    private VillageNetworkPayloads.WayshrinePayload data;
     private int selectedIndex;
     private boolean mapDragging;
     private double centerX;
@@ -72,7 +74,7 @@ public final class WayshrineScreen extends CompatScreen {
     private boolean useCharge;
     private EditBox nameField;
 
-    public WayshrineScreen(Payloads.WayshrinePayload data) {
+    public WayshrineScreen(VillageNetworkPayloads.WayshrinePayload data) {
         super(Component.translatable("screen.village-quest.wayshrine.title"));
         this.data = data;
         this.useCharge = data.charges() > 0;
@@ -81,7 +83,7 @@ public final class WayshrineScreen extends CompatScreen {
         resetMapCenter();
     }
 
-    public void updateData(Payloads.WayshrinePayload updated) {
+    public void updateData(VillageNetworkPayloads.WayshrinePayload updated) {
         this.data = updated;
         if (updated.charges() <= 0) useCharge = false;
         this.cooldownObservedAtMillis = System.currentTimeMillis();
@@ -104,6 +106,11 @@ public final class WayshrineScreen extends CompatScreen {
         nameField.setMaxLength(32);
         nameField.setVisible(false);
         nameField.setBordered(false);
+        nameField.setTextColor(INK);
+        nameField.setTextColorUneditable(MUTED);
+        nameField.setInvertHighlightedTextColor(false);
+        nameField.setHint(Component.translatable("screen.village-quest.wayshrine.rename_hint")
+                .withStyle(ChatFormatting.DARK_GRAY));
         addRenderableWidget(nameField);
     }
 
@@ -332,7 +339,7 @@ public final class WayshrineScreen extends CompatScreen {
         String heading = Component.translatable("screen.village-quest.wayshrine.rename_title").getString();
         graphics.drawCenteredString(font, heading, left + WINDOW_WIDTH / 2, top + 92, INK);
         graphics.fill(left + 107, top + 109, left + 325, top + 137, 0xFF6B4726);
-        graphics.fill(left + 109, top + 111, left + 323, top + 135, 0xFFF5E7C7);
+        graphics.fill(left + 109, top + 111, left + 323, top + 135, 0xFFE8D3A5);
         boolean saveHover = within(mouseX, mouseY, left + 107, top + 139, 104, 18);
         boolean cancelHover = within(mouseX, mouseY, left + 221, top + 139, 104, 18);
         VillageUiTheme.drawButton(graphics, font, left + 107, top + 139, 104, 18,
@@ -385,7 +392,7 @@ public final class WayshrineScreen extends CompatScreen {
                 left + TRAVEL_X, top + FOOTER_Y, TRAVEL_WIDTH, FOOTER_HEIGHT)
                 && selected() != null && cooldownSeconds() <= 0
                 && (useCharge ? data.charges() >= selected().chargeCost() : data.balance() >= selected().cost())) {
-            ClientPlayNetworking.send(new Payloads.WayshrineTravelPayload(
+            ClientPlayNetworking.send(new VillageNetworkPayloads.WayshrineTravelPayload(
                     data.currentIndex(), selectedIndex, useCharge && data.charges() >= selected().chargeCost()));
             onClose();
             return true;
@@ -441,7 +448,6 @@ public final class WayshrineScreen extends CompatScreen {
     public boolean mouseReleased(MouseButtonEvent click) {
         if (click.button() == 0 && mapDragging) {
             mapDragging = false;
-            SurfaceMapRenderer.invalidateScreen();
             return true;
         }
         return super.mouseReleased(click);
@@ -479,7 +485,7 @@ public final class WayshrineScreen extends CompatScreen {
 
     private void saveRename() {
         if (nameField == null || nameField.getValue().trim().isEmpty()) return;
-        ClientPlayNetworking.send(new Payloads.WayshrineRenamePayload(data.currentIndex(), nameField.getValue()));
+        ClientPlayNetworking.send(new VillageNetworkPayloads.WayshrineRenamePayload(data.currentIndex(), nameField.getValue()));
         closeRename();
     }
 

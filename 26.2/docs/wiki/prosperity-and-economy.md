@@ -59,8 +59,8 @@ Services are repeatable Crown sinks with bounded effects:
 | Road Patrol | `8 Crowns` | prevents incidents on the selected route for its next three journeys |
 | Survey Report | `5 Crowns` | adds `15` road-quality points to the selected route, up to `100` |
 | Emergency Recall | `10 Crowns` | clears an incident and returns the selected caravan to its nearest endpoint |
-| Village Festival | `15 Crowns` | adds `25%` currency to the next three Daily, Weekly, or normal Pilgrim-contract payouts |
-| Guild Ceremony | `25 Crowns` | at Trade Guild rank `3`, adds `25%` currency to the next three completed freight contracts |
+| Village Festival | `1 Crown` | adds `25%` (at least `4 Silvermarks`) to each of the next three Daily, Weekly, or normal Pilgrim-contract payouts |
+| Guild Ceremony | `2 Crowns` | at Trade Guild rank `3`, adds `25%` (at least `8 Silvermarks`) to each of the next three completed freight contracts |
 
 These effects do not stack without limit. Buying a new Festival or Ceremony resets its remaining uses to three.
 

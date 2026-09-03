@@ -1,6 +1,6 @@
 # Configuration and Map Cache
 
-Village Quest 2.1.1 creates two human-readable files under `.minecraft/config/village-quest/`. Edit them while Minecraft or the dedicated server is stopped, then restart. Invalid values are logged and replaced with safe defaults; changing these files never rewrites quest progression.
+Village Quest 2.3.x creates two human-readable files under `.minecraft/config/village-quest/`. Edit them while Minecraft or the dedicated server is stopped, then restart. Invalid values are logged and replaced with safe defaults; changing these files never rewrites quest progression.
 
 ## Server Settings
 
@@ -12,10 +12,13 @@ Village Quest 2.1.1 creates two human-readable files under `.minecraft/config/vi
 | `daily_reset_hour` | `6` | Local hour from `0` to `23` for Daily reset. |
 | `weekly_reset_day` | `MONDAY` | Local weekday for Weekly reset. |
 | `weekly_reset_hour` | `6` | Local hour for Weekly reset. |
+| `adventure_profile` | `STANDARD` | `RELAXED`, `STANDARD`, or `HARDENED`; changes quantities, combat pressure, incident protection, and repairable route-failure strain, never content or exclusive rewards. |
 | `allow_player_caravan_yards` | `true` | Allows a confirmed player base to serve as the route network's home node. |
 | `physical_caravans` | `FULL` | `FULL`, `REDUCED`, or `MAP_ONLY`; simulation and economy remain active in every mode. |
 
 `AUTO` does not read a player's locale or force Central European time. In singleplayer it follows the integrated server process; on a dedicated server it follows that server's configured Java/OS timezone. Java's timezone rules handle daylight-saving transitions.
+
+Older generated files do not need to be deleted. If `adventure_profile` is absent, the server uses `STANDARD`; add the line manually while the server is stopped to choose another profile.
 
 ## Client Settings
 

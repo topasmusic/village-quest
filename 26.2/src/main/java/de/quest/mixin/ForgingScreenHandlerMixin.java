@@ -1,5 +1,6 @@
 package de.quest.mixin;
 
+import de.quest.access.ForgingQuickMoveState;
 import de.quest.quest.special.SpecialQuestService;
 import de.quest.quest.special.ShardRelicQuestService;
 import de.quest.quest.story.StoryQuestService;
@@ -19,15 +20,17 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(ItemCombinerMenu.class)
-public abstract class ForgingScreenHandlerMixin {
+public abstract class ForgingScreenHandlerMixin implements ForgingQuickMoveState {
     @Shadow @Final protected Container inputSlots;
 
     @Unique private ItemStack villageQuest$anvilQuickMoveLeftInput = ItemStack.EMPTY;
     @Unique private ItemStack villageQuest$anvilQuickMoveRightInput = ItemStack.EMPTY;
+    @Unique private boolean villageQuest$quickMovingResult;
 
     @Inject(method = "quickMoveStack", at = @At("HEAD"))
     private void villageQuest$captureAnvilQuickMoveInputs(Player player, int slot, CallbackInfoReturnable<ItemStack> cir) {
         villageQuest$clearAnvilQuickMoveInputs();
+        villageQuest$quickMovingResult = false;
         if (!((Object) this instanceof AnvilMenu handler)) {
             return;
         }
@@ -35,6 +38,7 @@ public abstract class ForgingScreenHandlerMixin {
             return;
         }
 
+        villageQuest$quickMovingResult = true;
         villageQuest$anvilQuickMoveLeftInput = this.inputSlots.getItem(0).copy();
         villageQuest$anvilQuickMoveRightInput = this.inputSlots.getItem(1).copy();
     }
@@ -57,12 +61,19 @@ public abstract class ForgingScreenHandlerMixin {
                 return;
             }
 
-            StoryQuestService.onAnvilOutput((ServerLevel) serverPlayer.level(), serverPlayer, villageQuest$anvilQuickMoveLeftInput, villageQuest$anvilQuickMoveRightInput, output.copy());
-            SpecialQuestService.onAnvilOutput((ServerLevel) serverPlayer.level(), serverPlayer, villageQuest$anvilQuickMoveLeftInput, villageQuest$anvilQuickMoveRightInput, output.copy());
+            ServerLevel world = (ServerLevel) serverPlayer.level();
+            StoryQuestService.onAnvilOutput(world, serverPlayer, villageQuest$anvilQuickMoveLeftInput, villageQuest$anvilQuickMoveRightInput, output.copy());
+            SpecialQuestService.onAnvilOutput(world, serverPlayer, villageQuest$anvilQuickMoveLeftInput, villageQuest$anvilQuickMoveRightInput, output.copy());
             ShardRelicQuestService.onAnvilOutput(serverPlayer, villageQuest$anvilQuickMoveLeftInput, villageQuest$anvilQuickMoveRightInput, output.copy());
         } finally {
             villageQuest$clearAnvilQuickMoveInputs();
+            villageQuest$quickMovingResult = false;
         }
+    }
+
+    @Override
+    public boolean villageQuest$isQuickMovingResult() {
+        return villageQuest$quickMovingResult;
     }
 
     @Unique

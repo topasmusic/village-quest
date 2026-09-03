@@ -1,5 +1,6 @@
 package de.quest.mixin;
 
+import de.quest.access.ForgingQuickMoveState;
 import de.quest.quest.special.SpecialQuestService;
 import de.quest.quest.special.ShardRelicQuestService;
 import de.quest.quest.story.StoryQuestService;
@@ -18,6 +19,10 @@ public abstract class AnvilScreenHandlerMixin {
     @Inject(method = "onTake", at = @At("HEAD"))
     private void villageQuest$trackAnvilEnchant(Player player, ItemStack stack, CallbackInfo ci) {
         if (!(player instanceof ServerPlayer serverPlayer) || stack.isEmpty()) {
+            return;
+        }
+        if ((Object) this instanceof ForgingQuickMoveState quickMove
+                && quickMove.villageQuest$isQuickMovingResult()) {
             return;
         }
 

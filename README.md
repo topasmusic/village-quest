@@ -1,24 +1,24 @@
 # Village Quest
 
-`Village Quest 2.2.0 - The Shrines Between Roads` is released for Minecraft `26.2`. The older `26.1.2` and `1.21.11` lines remain on `2.1.1 - Homesteads & Wayfinding` and receive only deliberately scoped maintenance fixes.
+`Village Quest 2.3.0 - Living Village Network` is released for Minecraft `26.2`. The older `26.1.2` and `1.21.11` lines remain on `2.1.1 - Homesteads & Wayfinding` and receive only deliberately scoped maintenance fixes.
 
 This repository currently contains three version folders of `Village Quest`.
 
 Current stable releases:
 
-- `2.2.0 - The Shrines Between Roads` for Minecraft `26.2`;
+- `2.3.0 - Living Village Network` for Minecraft `26.2`;
 - `2.1.1 - Homesteads & Wayfinding` for Minecraft `26.1.2` and `1.21.11`.
 
-Version `2.2.0` adds village bonds and rotating requests, the owner-bound Wayshrine network, Guild Archive recovery, the journal Guild Atlas, new shrine blocks and relics, and the optional Guild Courier's Satchel. It is a `26.2`-only content release; the two older Minecraft lines remain on their latest stable maintenance build.
+Version `2.3.0` adds the Living Village Network, mutable village conditions and needs, server-authoritative Notice Board choices, need-aware freight, renewable Wayshrine energy, Adventure Profiles, optional multiplayer guilds, and bounded network prestige. It also contains the complete save-compatible `2.2.1` quality and balance pass. It is a `26.2`-only content release; the two older Minecraft lines remain on their latest stable maintenance build.
 
 Release highlights:
 
-- `26.2` adds the six-chapter `The Shrines Between Roads` endgame, persistent village identities and bonds, multi-day Guild Notice Board deliveries, Wayshrines, the Guild Atlas, Guild Archive recovery, new route incidents, and dedicated shrine assets.
+- `26.2` connects permanent village bonds to visible local conditions, identity-specific needs, three-choice Notice Board deliveries, freight and route consequences, renewable Wayshrine energy, guild projects, prestige, and a redesigned Journal and Guild Atlas.
 - The `26.1.2` and `1.21.11` releases retain the complete `2.1.1` feature-parity baseline and remain downloadable maintenance lines.
 
 Village Quest `2.1.0` retains the complete `Roads Between Villages` feature set and expands it with `Prosperity & Prestige`.
 
-The published `2.2.0` build passed the full Java 25 Gradle test/build gate and the resource validator with `2213` matching English, German, and Spanish localization keys. The maintained `2.1.1` three-line baseline previously passed its target-specific Gradle builds and shared `1898`-key resource gate.
+The published `2.3.0` build passed all `61` Java 25 tests in `22` suites and the resource validator with `2336` matching English, German, and Spanish localization keys. The maintained `2.1.1` baseline previously passed its target-specific Gradle builds and shared `1898`-key resource gate.
 
 Local development artifacts use `build_channel=unreleased` plus a positive `unreleased_revision`, so their embedded version and filenames carry a distinct suffix such as `x.y.z-unreleased.1`. Increase the revision for every newly handed-off source state, but keep it unchanged for repeat builds of identical source. The latest published Stable runtime and sources JARs are kept beside the latest numbered Unreleased pair instead of being overwritten or reconstructed from development source.
 
@@ -31,7 +31,7 @@ Port behavior deliberately between lines; do not copy code blindly because mappi
 
 ## Version support
 
-`2.1.1 - Homesteads & Wayfinding` is the final completed feature-parity release for Minecraft `26.2`, `26.1.2`, and `1.21.11`. Minecraft `26.2` is now the single active content-development line. The older builds remain downloadable and may receive separately tested maintenance updates for confirmed bugs, save safety, severe exploits, or meaningful performance improvements, but they do not receive new content, interface redesigns, or balance backports.
+`2.1.1 - Homesteads & Wayfinding` remains the completed shared feature-parity baseline, while Minecraft `26.2` now carries the `2.3.0` content release and remains the single active content-development line. The older builds remain downloadable and may receive separately tested maintenance updates for confirmed bugs, save safety, severe exploits, or meaningful performance improvements, but they do not receive new content, interface redesigns, or balance backports.
 
 When Village Quest adopts a later stable Minecraft target, that version replaces `26.2` as the single active line instead of adding another permanently maintained branch. See [VERSION_SUPPORT.md](VERSION_SUPPORT.md) for the complete policy.
 

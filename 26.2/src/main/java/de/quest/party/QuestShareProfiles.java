@@ -26,7 +26,7 @@ public final class QuestShareProfiles {
                 Set.of()
         ));
         DAILY.put(DailyQuestService.DailyQuestType.PET_COLLAR, profile(
-                Set.of(),
+                Set.of(DailyQuestKeys.PET_COLLAR_PROGRESS),
                 Set.of(DailyQuestKeys.PET_COLLAR_DONE),
                 Set.of()
         ));
@@ -41,12 +41,12 @@ public final class QuestShareProfiles {
                 Set.of()
         ));
         DAILY.put(DailyQuestService.DailyQuestType.WOODCUTTING, profile(
-                Set.of(DailyQuestKeys.WOOD_PROGRESS),
+                Set.of(DailyQuestKeys.WOOD_PROGRESS, DailyQuestKeys.COAL_PROGRESS),
                 Set.of(),
                 Set.of()
         ));
         DAILY.put(DailyQuestService.DailyQuestType.COAL_MINING, profile(
-                Set.of(DailyQuestKeys.COAL_PROGRESS, DailyQuestKeys.IRON_PROGRESS),
+                Set.of(DailyQuestKeys.SMITH_COAL_PROGRESS, DailyQuestKeys.IRON_PROGRESS),
                 Set.of(),
                 Set.of()
         ));

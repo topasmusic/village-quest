@@ -129,7 +129,7 @@ public final class QuestMasterUiService {
                 Component.empty(),
                 List.of(),
                 List.of(),
-                emptyPartyPayload(),
+                QuestMasterPartyPayloadBuilder.build(null),
                 0L
         ));
     }
@@ -792,57 +792,7 @@ public final class QuestMasterUiService {
     }
 
     public static List<Payloads.GuildPathNodeData> buildGuildPathNodes(ServerLevel world, ServerPlayer player) {
-        UUID playerId = player.getUUID();
-        PlayerQuestData playerData = data(world, playerId);
-        boolean emptyCaravan = StoryQuestService.isCompleted(world, playerId, StoryArcType.THE_EMPTY_CARAVAN);
-        boolean shrineStoryComplete = StoryQuestService.isCompleted(world, playerId, StoryArcType.SHRINES_BETWEEN_ROADS);
-        boolean shrineStoryActive = StoryQuestService.isActive(world, playerId, StoryArcType.SHRINES_BETWEEN_ROADS);
-        int shrineChapter = shrineStoryActive
-                ? StoryQuestService.chapterIndex(world, playerId, StoryArcType.SHRINES_BETWEEN_ROADS)
-                : playerData.getStoryChapterProgress(StoryArcType.SHRINES_BETWEEN_ROADS.id());
-        boolean lensInstalled = shrineStoryComplete || shrineChapter > 0;
-        boolean sigil = VillageBondService.hasSigil(world, playerId);
-        boolean shrine = VillageBondService.shrineCount(world, playerId) > 0;
-        boolean board = VillageBondService.villages(world, playerId).stream()
-                .anyMatch(village -> village.completions() > 0);
-
-        return List.of(
-                guildPathNode("ledger", ModItems.CARAVAN_LEDGER,
-                        emptyCaravan || TradeRouteService.routeCount(world, playerId) > 0 || hasItem(player, ModItems.CARAVAN_LEDGER), true),
-                guildPathNode("surveyor_compass", ModItems.SURVEYORS_COMPASS,
-                        playerData.getSurveyorCompassQuestStage() == RelicQuestStage.COMPLETED, emptyCaravan),
-                guildPathNode("starreach_ring", ModItems.STARREACH_RING,
-                        playerData.getShardRelicQuestStage() == ShardRelicQuestStage.COMPLETED, emptyCaravan),
-                guildPathNode("merchant_seal", ModItems.MERCHANT_SEAL,
-                        playerData.getMerchantSealQuestStage() == RelicQuestStage.COMPLETED, emptyCaravan),
-                guildPathNode("shepherd_flute", ModItems.SHEPHERD_FLUTE,
-                        playerData.getShepherdFluteQuestStage() == RelicQuestStage.COMPLETED, emptyCaravan),
-                guildPathNode("apiarist_smoker", ModItems.APIARISTS_SMOKER,
-                        playerData.getApiaristSmokerQuestStage() == RelicQuestStage.COMPLETED, emptyCaravan),
-                guildPathNode("lens", ModItems.CARTOGRAPHERS_LENS, lensInstalled,
-                        emptyCaravan && TradeRouteService.routeCount(world, playerId) >= 2),
-                guildPathNode("sigil", ModItems.WAYFARERS_SIGIL, sigil, lensInstalled),
-                guildPathNode("wayshrine", ModItems.GUILD_WAYSHRINE, shrine, sigil),
-                guildPathNode("notice_board", ModItems.GUILD_NOTICE_POST, board, shrine),
-                guildPathNode("courier_satchel", ModItems.GUILD_COURIERS_SATCHEL,
-                        shrineStoryComplete, shrineStoryActive && shrineChapter >= 5)
-        );
-    }
-
-    private static Payloads.GuildPathNodeData guildPathNode(String id, net.minecraft.world.item.Item item,
-                                                            boolean complete, boolean unlocked) {
-        ItemStack stack = new ItemStack(item);
-        return new Payloads.GuildPathNodeData(id, stack, stack.getHoverName(),
-                Component.translatable("screen.village-quest.guild_path.node." + id + ".ability"),
-                Component.translatable("screen.village-quest.guild_path.node." + id + ".requirement"),
-                complete ? 2 : unlocked ? 1 : 0);
-    }
-
-    private static boolean hasItem(ServerPlayer player, net.minecraft.world.item.Item item) {
-        for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
-            if (player.getInventory().getItem(slot).is(item)) return true;
-        }
-        return false;
+        return GuildPathPayloadBuilder.build(world, player);
     }
 
     private static Payloads.QuestMasterEntryData buildShardEntry(ServerLevel world, ServerPlayer player) {
@@ -1752,118 +1702,23 @@ public final class QuestMasterUiService {
     }
 
     private static Payloads.QuestMasterPartyData buildPartyPayload(ServerPlayer player) {
-        if (player == null || !QuestPartyService.isEnabled(((ServerLevel) player.level()).getServer())) {
-            return emptyPartyPayload();
-        }
-        QuestPartyService.PartySnapshot snapshot = QuestPartyService.snapshot(player);
-        List<Payloads.QuestMasterPartyMemberData> members = new ArrayList<>(snapshot.members().size());
-        for (QuestPartyService.PartyMemberView member : snapshot.members()) {
-            members.add(new Payloads.QuestMasterPartyMemberData(
-                    member.playerId(),
-                    member.name(),
-                    member.leader(),
-                    member.self()
-            ));
-        }
-        List<Payloads.QuestMasterPartyCandidateData> candidates = new ArrayList<>(snapshot.candidates().size());
-        for (QuestPartyService.PartyInviteCandidateView candidate : snapshot.candidates()) {
-            candidates.add(new Payloads.QuestMasterPartyCandidateData(
-                    candidate.playerId(),
-                    candidate.name(),
-                    candidate.status(),
-                    candidate.inviteable()
-            ));
-        }
-        return new Payloads.QuestMasterPartyData(
-                snapshot.hasParty(),
-                snapshot.leader(),
-                snapshot.summary(),
-                List.copyOf(members),
-                List.copyOf(candidates)
-        );
-    }
-
-    private static Payloads.QuestMasterPartyData emptyPartyPayload() {
-        return new Payloads.QuestMasterPartyData(false, false, Component.empty(), List.of(), List.of());
+        return QuestMasterPartyPayloadBuilder.build(player);
     }
 
     private static Component dailyPartyStatus(ServerLevel world, UUID playerId, DailyQuestService.DailyQuestType type) {
-        if (!partyUiEnabled(world)) {
-            return Component.empty();
-        }
-        if (type == null || !QuestShareProfiles.isDailyShareable(type)) {
-            return Component.translatable("screen.village-quest.questmaster.party.status.unavailable").withStyle(ChatFormatting.DARK_GRAY);
-        }
-        if (!QuestPartyService.hasParty(playerId)) {
-            return Component.translatable("screen.village-quest.questmaster.party.status.solo").withStyle(ChatFormatting.GRAY);
-        }
-        int sharedMembers = QuestPartyService.dailySharedMemberCount(world, playerId, type);
-        if (type == QuestPartyService.resolveSharedDailyChoice(world, playerId, null) && sharedMembers > 1) {
-            return Component.translatable(
-                    "screen.village-quest.questmaster.party.status.shared",
-                    sharedMembers,
-                    QuestPartyService.partySize(playerId)
-            ).withStyle(ChatFormatting.GREEN);
-        }
-        return Component.translatable(
-                "screen.village-quest.questmaster.party.status.party",
-                QuestPartyService.partySize(playerId),
-                QuestPartyService.MAX_PARTY_SIZE
-        ).withStyle(ChatFormatting.GRAY);
+        return QuestMasterPartyPayloadBuilder.dailyStatus(world, playerId, type);
     }
 
     private static Component weeklyPartyStatus(ServerLevel world, UUID playerId, WeeklyQuestService.WeeklyQuestType type) {
-        if (!partyUiEnabled(world)) {
-            return Component.empty();
-        }
-        if (type == null || !QuestShareProfiles.isWeeklyShareable(type)) {
-            return Component.translatable("screen.village-quest.questmaster.party.status.unavailable").withStyle(ChatFormatting.DARK_GRAY);
-        }
-        if (!QuestPartyService.hasParty(playerId)) {
-            return Component.translatable("screen.village-quest.questmaster.party.status.solo").withStyle(ChatFormatting.GRAY);
-        }
-        int sharedMembers = QuestPartyService.weeklySharedMemberCount(world, playerId, type);
-        if (type == QuestPartyService.resolveSharedWeeklyChoice(world, playerId, null) && sharedMembers > 1) {
-            return Component.translatable(
-                    "screen.village-quest.questmaster.party.status.shared",
-                    sharedMembers,
-                    QuestPartyService.partySize(playerId)
-            ).withStyle(ChatFormatting.GREEN);
-        }
-        return Component.translatable(
-                "screen.village-quest.questmaster.party.status.party",
-                QuestPartyService.partySize(playerId),
-                QuestPartyService.MAX_PARTY_SIZE
-        ).withStyle(ChatFormatting.GRAY);
+        return QuestMasterPartyPayloadBuilder.weeklyStatus(world, playerId, type);
     }
 
     private static Component storyPartyStatus(ServerLevel world, UUID playerId, StoryArcType arcType, int chapterIndex) {
-        if (!partyUiEnabled(world)) {
-            return Component.empty();
-        }
-        if (arcType == null || !QuestShareProfiles.isStoryShareable(arcType)) {
-            return Component.translatable("screen.village-quest.questmaster.party.status.unavailable").withStyle(ChatFormatting.DARK_GRAY);
-        }
-        if (!QuestPartyService.hasParty(playerId)) {
-            return Component.translatable("screen.village-quest.questmaster.party.status.solo").withStyle(ChatFormatting.GRAY);
-        }
-        int sharedMembers = QuestPartyService.storySharedMemberCount(world, playerId, arcType, chapterIndex);
-        if (sharedMembers > 1) {
-            return Component.translatable(
-                    "screen.village-quest.questmaster.party.status.shared",
-                    sharedMembers,
-                    QuestPartyService.partySize(playerId)
-            ).withStyle(ChatFormatting.GREEN);
-        }
-        return Component.translatable(
-                "screen.village-quest.questmaster.party.status.party",
-                QuestPartyService.partySize(playerId),
-                QuestPartyService.MAX_PARTY_SIZE
-        ).withStyle(ChatFormatting.GRAY);
+        return QuestMasterPartyPayloadBuilder.storyStatus(world, playerId, arcType, chapterIndex);
     }
 
     private static boolean partyUiEnabled(ServerLevel world) {
-        return world != null && QuestPartyService.isEnabled(world.getServer());
+        return QuestMasterPartyPayloadBuilder.enabled(world);
     }
 
     private static Payloads.QuestMasterEntryData buildStoryArchiveEntry(ServerLevel world, UUID playerId) {

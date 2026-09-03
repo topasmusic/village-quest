@@ -38,14 +38,14 @@ import java.util.List;
 import java.util.UUID;
 
 public final class RestlessPensStoryArc implements StoryArcDefinition {
-    private static final int EMPTY_TROUGHS_BREED_TARGET = 17;
-    private static final int EMPTY_TROUGHS_HAY_TARGET = 53;
-    private static final int WOOL_BEFORE_WEATHER_SHEAR_TARGET = 29;
-    private static final int WOOL_BEFORE_WEATHER_WOOL_TARGET = 57;
-    private static final int NEW_PASTURES_RIDE_TARGET_CM = 480_000;
-    private static final int NEW_PASTURES_RIDE_TARGET_BLOCKS = 4_800;
+    private static final int EMPTY_TROUGHS_BREED_TARGET = 12;
+    private static final int EMPTY_TROUGHS_HAY_TARGET = 48;
+    private static final int WOOL_BEFORE_WEATHER_SHEAR_TARGET = 24;
+    private static final int WOOL_BEFORE_WEATHER_WOOL_TARGET = 48;
+    private static final int NEW_PASTURES_RIDE_TARGET_CM = 240_000;
+    private static final int NEW_PASTURES_RIDE_TARGET_BLOCKS = 2_400;
     private static final int SHEPHERDS_CALL_TARGET = 1;
-    private static final int SHEPHERDS_CALL_ANIMAL_TARGET = 9;
+    private static final int SHEPHERDS_CALL_ANIMAL_TARGET = 8;
 
     private final List<StoryChapterDefinition> chapters = List.of(
             new EmptyTroughsChapter(),

@@ -2,7 +2,7 @@
 
 `Village Quest` is a Fabric mod built around village progression. Take on daily and weekly work, build reputation, unlock story arcs and village projects, and later deal with the `Pilgrim` and the road beyond the village.
 
-Current release: `2.1.1 - Homesteads & Wayfinding`, the base-network, ferry, deterministic-map, configuration, diagnostics, and item-art update.
+Current stable release: `2.3.0 - Living Village Network`, including the complete save-compatible `2.2.1` quality, balance, and fairness pass.
 
 Minecraft `26.2` is the active line for future Village Quest content after this final three-version parity release.
 
@@ -29,10 +29,13 @@ Minecraft `26.2` is the active line for future Village Quest content after this 
 - The compact modular `Questmaster` dashboard separates Daily, Weekly, Story, and Special work into icon tabs, with a dedicated quest list and a scrollable detail card for descriptions, objectives, rewards, and actions
 - One-time Questmaster chat notices announce fresh Daily, Weekly, and Story work; Story cooldowns show a live timer without turning the empty waiting state into a false badge
 - A restrained quest sound ladder distinguishes acceptance, normal progress, completed objectives, stage transitions, and final rewards without turning routine gathering into constant noise
-- A compact five-tab Journal with collapsible progress cards, visual Trust milestone bars, a quest tracker, and a wallet with `Silvermark` and `Crown`
+- A compact five-tab Journal with collapsible progress cards, a complete Living Network overview, visual Trust milestone bars, a quest tracker, and a wallet with `Silvermark` and `Crown`
 - A one-time animated inventory pointer introduces the Journal bookmark and follows its compatibility fallback when another mod changes the inventory layout
 - Reputation across farming, crafting, animals, trade, and later roadside work
 - Story arcs and permanent village projects
+- A versioned Living Village Network that keeps earned Known/Trusted/Allied bonds permanent while each connected village develops a separate visible condition, an identity-specific need, bounded support cycles, three dynamic Notice Board solutions, route consequences, renewable Wayshrine energy, five prestige ranks, and a chosen specialization
+- Optional shared multiplayer guilds with Leader/Steward/Member permissions, shared renown, and one of three large network projects; story rewards, Archive ownership, and unique tools remain personal
+- `RELAXED`, `STANDARD`, and `HARDENED` server profiles change effort and failure tolerance without removing content or adding exclusive rewards
 - Five three-rank Prosperity branches that turn completed village projects into permanent Crown investments, discounts, safer roads, and a `15`-rank endgame
 - Prosperity unlocks from the first matching permanent charter; the Market Charter separately introduces the ledger and its provisional first trade route
 - Pilgrim commissions for ordering unlocked goods, five paid village services, a ten-piece prestige collection, and a persistent lifetime economy ledger
@@ -58,7 +61,7 @@ Minecraft `26.2` is the active line for future Village Quest content after this 
 - Quest wording now consistently separates fresh actions from deliveries: actions must happen after acceptance, pure supplies may come from storage or trade, and hybrid quests require both fresh progress and the complete carried bundle. Pure action quests complete immediately; item deliveries, Story chapters, and Special commissions wait for the Questmaster
 - The traveling `Pilgrim` trader with rotating wares
 - `Shadows on the Trade Road`, a late `Questmaster` follow-up arc after `Watch Bell` plus `3` completed `Pilgrim` combat rumors
-- Nighttime caravan defense encounters with `Caravan Merchant` survivors and elite `Traitor` bandits in the final convoy wave
+- Difficulty- and present-party-scaled nighttime caravan defenses with `Caravan Merchant` survivors and elite `Traitor` bandits; Peaceful uses a no-hostile escort-success path instead of impossible kills
 - Story-linked `Wayfinder's Compass` modes for `Caravan Distress` and `Guild Convoy`
 - Contextual villager dialogue for talk-based `Market Rounds`, `Market Road Troubles`, and `Shadows` objectives
 - `Magic Shards`, special quests, and relic rewards
@@ -76,6 +79,7 @@ Project docs are available in the local wiki:
 - [Prosperity and the Village Economy](docs/wiki/prosperity-and-economy.md)
 - [Stories and Village Projects](docs/wiki/stories-and-projects.md)
 - [Trade Routes and Caravans](docs/wiki/trade-routes-and-caravans.md)
+- [Living Village Network](docs/wiki/living-village-network.md)
 - [Relics, Wayfinder, and Magic Shards](docs/wiki/relics-and-shards.md)
 - [Pilgrim and Roadside Watch](docs/wiki/pilgrim-and-roadside-watch.md)
 - [Quest Reference](docs/wiki/quest-reference.md)
@@ -94,6 +98,7 @@ Project docs are available in the local wiki:
 - `/vq routes`
 - `/vq routes minimap`
 - `/vq routes guild`
+- `/vq routes approach <1-5> <careful|bold>`
 - `/vq routes contracts`
 - `/vq routes contracts accept <1-3> <route>`
 - `/vq routes contracts supply`
@@ -105,6 +110,18 @@ Project docs are available in the local wiki:
 - `/vq routes survey mark`
 - `/vq routes survey finish`
 - `/vq routes survey cancel`
+- `/vq network`
+- `/vq network specialize <steward|courier|wayfarer>` previews the permanent choice
+- `/vq network specialize <steward|courier|wayfarer> confirm` applies it once
+- `/vq guild create <name>`
+- `/vq guild invite <player>`
+- `/vq guild accept`
+- `/vq guild status`
+- `/vq guild promote <player>`
+- `/vq guild transfer <player>`
+- `/vq guild kick <player>`
+- `/vq guild project <common_reserve|waystation|archive_exchange>`
+- `/vq guild leave`
 - `/vq diagnose`
 
 Wallet rate:
