@@ -61,6 +61,28 @@ final class LivingVillageNetworkStateTest {
     }
 
     @Test
+    void ninthVillageKeepsIndependentNetworkStateAcrossSaveLoad() {
+        LivingVillageNetworkState state = new LivingVillageNetworkState();
+        for (int i = 0; i < 9; i++) {
+            state.ensureVillage(OWNER, i, 1_000 + i * 32, -2_000 - i * 48,
+                    VillageBondType.values()[i % VillageBondType.values().length]);
+        }
+        state.addSupport(OWNER, 7, 5, 100);
+        state.addSupport(OWNER, 8, 19, 101);
+
+        LivingVillageNetworkState loaded = LivingVillageNetworkState.fromNbt(
+                LivingVillageNetworkState.toNbt(state));
+        var villageEight = loaded.snapshot(OWNER, 7).orElseThrow();
+        var villageNine = loaded.snapshot(OWNER, 8).orElseThrow();
+
+        assertEquals(9, loaded.villagesView().size());
+        assertEquals(1_224, villageEight.x());
+        assertEquals(1_256, villageNine.x());
+        assertNotEquals(villageEight.support(), villageNine.support());
+        assertNotEquals(villageEight.type(), villageNine.type());
+    }
+
+    @Test
     void unversionedDataGetsSafeDefaultsAndInvalidOwnersAreIgnored() {
         CompoundTag legacy = new CompoundTag();
         ListTag entries = new ListTag();

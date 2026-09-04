@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashSet;
 import java.util.Set;
+import de.quest.data.PlayerQuestData;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.Bootstrap;
@@ -78,5 +79,48 @@ final class VillageBondServiceTest {
         assertTrue(VillageBondService.requestAvailable(0, 20_000));
         assertFalse(VillageBondService.requestAvailable(20_000, 20_000));
         assertTrue(VillageBondService.requestAvailable(20_000, 20_001));
+    }
+
+    @Test
+    void ninthHistoricalVillageKeepsIndependentIdentityAndLookup() {
+        PlayerQuestData data = new PlayerQuestData();
+        for (int i = 0; i < 8; i++) {
+            assertEquals(i, VillageBondService.ensureVillageRecord(
+                    data, i * 32, i * -48, VillageBondType.values()[i % VillageBondType.values().length]));
+        }
+        int villageEightX = data.getTradeRouteInt(VillageBondService.villageKey(7, "x"));
+        int villageEightZ = data.getTradeRouteInt(VillageBondService.villageKey(7, "z"));
+        int villageEightType = data.getTradeRouteInt(VillageBondService.villageKey(7, "type"));
+
+        assertEquals(8, VillageBondService.ensureVillageRecord(data, 8 * 32, 8 * -48, VillageBondType.ARCHIVE));
+
+        assertEquals(9, VillageBondService.historicalVillageCount(data));
+        assertEquals(8, VillageBondService.findVillage(data, 8 * 32, 8 * -48));
+        assertEquals(villageEightX, data.getTradeRouteInt(VillageBondService.villageKey(7, "x")));
+        assertEquals(villageEightZ, data.getTradeRouteInt(VillageBondService.villageKey(7, "z")));
+        assertEquals(villageEightType, data.getTradeRouteInt(VillageBondService.villageKey(7, "type")));
+        assertEquals(8 * 32, data.getTradeRouteInt(VillageBondService.villageKey(8, "x")));
+        assertEquals(8 * -48, data.getTradeRouteInt(VillageBondService.villageKey(8, "z")));
+        assertEquals(VillageBondType.ARCHIVE.id() + 1,
+                data.getTradeRouteInt(VillageBondService.villageKey(8, "type")));
+    }
+
+    @Test
+    void historicalVillageSafetyLimitRefusesWithoutAliasing() {
+        PlayerQuestData data = new PlayerQuestData();
+        for (int i = 0; i < VillageBondService.MAX_HISTORICAL_VILLAGES; i++) {
+            assertEquals(i, VillageBondService.ensureVillageRecord(data, i * 32, i * 48, VillageBondType.GRANARY));
+        }
+        int last = VillageBondService.MAX_HISTORICAL_VILLAGES - 1;
+        int lastX = data.getTradeRouteInt(VillageBondService.villageKey(last, "x"));
+        int lastZ = data.getTradeRouteInt(VillageBondService.villageKey(last, "z"));
+
+        assertEquals(-1, VillageBondService.ensureVillageRecord(
+                data, VillageBondService.MAX_HISTORICAL_VILLAGES * 32,
+                VillageBondService.MAX_HISTORICAL_VILLAGES * 48, VillageBondType.FORGE));
+        assertEquals(VillageBondService.MAX_HISTORICAL_VILLAGES,
+                VillageBondService.historicalVillageCount(data));
+        assertEquals(lastX, data.getTradeRouteInt(VillageBondService.villageKey(last, "x")));
+        assertEquals(lastZ, data.getTradeRouteInt(VillageBondService.villageKey(last, "z")));
     }
 }

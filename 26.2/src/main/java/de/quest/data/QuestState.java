@@ -35,7 +35,7 @@ public final class QuestState extends SavedData {
 
     private QuestState() {}
 
-    private static QuestState fromNbt(CompoundTag nbt) {
+    static QuestState fromNbt(CompoundTag nbt) {
         QuestState state = new QuestState();
         if (nbt != null) {
             state.readFromNbt(nbt);
@@ -43,7 +43,7 @@ public final class QuestState extends SavedData {
         return state;
     }
 
-    private static CompoundTag toNbt(QuestState state) {
+    static CompoundTag toNbt(QuestState state) {
         CompoundTag root = new CompoundTag();
         root.put("questManager", state.writeDailyQuestData());
         root.put("questPartyManager", state.questPartyState);

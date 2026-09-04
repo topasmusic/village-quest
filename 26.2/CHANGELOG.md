@@ -1,5 +1,23 @@
 # Changelog
 
+## 2.3.1
+
+Release date: 2026-09-04
+
+### New features
+
+- No new gameplay features. This is a focused, save-compatible reliability hotfix for the existing 2.3.0 Living Village Network release.
+
+### Bug fixes and improvements
+
+- Froze Daily and Weekly shared-turn-in eligibility when party inventory requirements are consumed. Previously synced members retain their reconnect-safe completion, while late joiners and stale pre-consumption offers can no longer inherit a free reward.
+- Separated the eight active Wayshrine slots from historical village records. A ninth and later connected village now receives its own coordinates, bond, request, and Living Village Network state instead of silently aliasing village index 7; a defensive limit of 1,024 historical records refuses further registration without changing existing data.
+- Made the Notice Board payload codec symmetric with one shared maximum of eight offers. The server now announces and serializes exactly the same bounded count the client reads, leaving the following profile field aligned even when an oversized internal list is supplied.
+
+### Verification
+
+- The Java 25 test suite passes all `73` tests in `24` suites. Resource and localization validation confirms `2336` matching English, German, and Spanish keys for 26.2 and `1898` for each maintained 2.1.1 line. Minecraft was not launched for this targeted audit.
+
 ## 2.3.0
 
 Release date: 2026-09-03

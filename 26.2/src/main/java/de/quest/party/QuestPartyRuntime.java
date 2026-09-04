@@ -115,6 +115,17 @@ final class SharedQuestRuntime {
     void unmarkSynced(UUID memberId) {
         if (memberId != null) syncedMembers.remove(memberId);
     }
+
+    boolean canJoinAfterTurnIn(String consumedFlag, UUID memberId) {
+        return !hasFlag(consumedFlag) || hasSynced(memberId);
+    }
+
+    int removeUnsyncedOffersAfterTurnIn(String consumedFlag, Map<UUID, QuestJoinOffer> offers) {
+        if (!hasFlag(consumedFlag) || offers == null || offers.isEmpty()) return 0;
+        int previousSize = offers.size();
+        offers.keySet().removeIf(memberId -> !hasSynced(memberId));
+        return previousSize - offers.size();
+    }
 }
 
 record ExpiryTarget(UUID partyId, UUID memberId) {}

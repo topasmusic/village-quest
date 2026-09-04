@@ -1,15 +1,15 @@
 # Village Quest
 
-`Village Quest 2.3.0 - Living Village Network` is released for Minecraft `26.2`. The older `26.1.2` and `1.21.11` lines remain on `2.1.1 - Homesteads & Wayfinding` and receive only deliberately scoped maintenance fixes.
+`Village Quest 2.3.1 - Living Village Network Reliability Hotfix` is released for Minecraft `26.2`. The older `26.1.2` and `1.21.11` lines remain on `2.1.1 - Homesteads & Wayfinding` and receive only deliberately scoped maintenance fixes.
 
 This repository currently contains three version folders of `Village Quest`.
 
 Current stable releases:
 
-- `2.3.0 - Living Village Network` for Minecraft `26.2`;
+- `2.3.1 - Living Village Network Reliability Hotfix` for Minecraft `26.2`;
 - `2.1.1 - Homesteads & Wayfinding` for Minecraft `26.1.2` and `1.21.11`.
 
-Version `2.3.0` adds the Living Village Network, mutable village conditions and needs, server-authoritative Notice Board choices, need-aware freight, renewable Wayshrine energy, Adventure Profiles, optional multiplayer guilds, and bounded network prestige. It also contains the complete save-compatible `2.2.1` quality and balance pass. It is a `26.2`-only content release; the two older Minecraft lines remain on their latest stable maintenance build.
+Version `2.3.1` retains the complete 2.3.0 Living Village Network feature set and adds targeted reliability fixes for consumed shared turn-ins, historical village identity beyond eight records, and Notice Board payload bounds. It also contains the complete save-compatible `2.2.1` quality and balance pass. It is a `26.2`-only hotfix; the two older Minecraft lines remain on their latest stable maintenance build.
 
 Release highlights:
 
@@ -18,7 +18,7 @@ Release highlights:
 
 Village Quest `2.1.0` retains the complete `Roads Between Villages` feature set and expands it with `Prosperity & Prestige`.
 
-The published `2.3.0` build passed all `61` Java 25 tests in `22` suites and the resource validator with `2336` matching English, German, and Spanish localization keys. The maintained `2.1.1` baseline previously passed its target-specific Gradle builds and shared `1898`-key resource gate.
+The published `2.3.1` build passes all `73` Java 25 tests in `24` suites and the resource validator with `2336` matching English, German, and Spanish localization keys. The maintained `2.1.1` baseline also passes its shared `1898`-key resource gate.
 
 Local development artifacts use `build_channel=unreleased` plus a positive `unreleased_revision`, so their embedded version and filenames carry a distinct suffix such as `x.y.z-unreleased.1`. Increase the revision for every newly handed-off source state, but keep it unchanged for repeat builds of identical source. The latest published Stable runtime and sources JARs are kept beside the latest numbered Unreleased pair instead of being overwritten or reconstructed from development source.
 
@@ -31,7 +31,7 @@ Port behavior deliberately between lines; do not copy code blindly because mappi
 
 ## Version support
 
-`2.1.1 - Homesteads & Wayfinding` remains the completed shared feature-parity baseline, while Minecraft `26.2` now carries the `2.3.0` content release and remains the single active content-development line. The older builds remain downloadable and may receive separately tested maintenance updates for confirmed bugs, save safety, severe exploits, or meaningful performance improvements, but they do not receive new content, interface redesigns, or balance backports.
+`2.1.1 - Homesteads & Wayfinding` remains the completed shared feature-parity baseline, while Minecraft `26.2` now carries the `2.3.1` hotfix for the 2.3 Living Village Network line and remains the single active content-development line. The older builds remain downloadable and may receive separately tested maintenance updates for confirmed bugs, save safety, severe exploits, or meaningful performance improvements, but they do not receive new content, interface redesigns, or balance backports.
 
 When Village Quest adopts a later stable Minecraft target, that version replaces `26.2` as the single active line instead of adding another permanently maintained branch. See [VERSION_SUPPORT.md](VERSION_SUPPORT.md) for the complete policy.
 

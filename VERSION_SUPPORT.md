@@ -2,9 +2,13 @@
 
 Village Quest uses a single-active-line development policy.
 
+## 2.3.1 current maintenance release
+
+`Village Quest 2.3.1 - Living Village Network Reliability Hotfix` is released exclusively for Minecraft `26.2`. It preserves the complete 2.3.0 content release while fixing shared-turn-in eligibility, historical village identity beyond eight records, and Notice Board payload bounds.
+
 ## 2.3.0 content release
 
-`Village Quest 2.3.0 - Living Village Network` is released exclusively for Minecraft `26.2`. It is the current stable content line, includes the complete save-compatible `2.2.1` quality and balance pass, and is not backported to the two older Minecraft targets.
+`Village Quest 2.3.0 - Living Village Network` introduced the current content line exclusively for Minecraft `26.2`. It includes the complete save-compatible `2.2.1` quality and balance pass and is not backported to the two older Minecraft targets.
 
 ## 2.1.1 parity release
 

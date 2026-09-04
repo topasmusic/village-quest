@@ -65,7 +65,10 @@ public final class VillageBondService {
     private static final String PENDING_CHARGE_Y = "bond_pending_charge_y";
     private static final String PENDING_CHARGE_Z = "bond_pending_charge_z";
     private static final String DECORATION_COUNT = "bond_decoration_count";
-    private static final int MAX_VILLAGES = 8;
+    // Travel/UI capacity is intentionally small; historical bond identities must outlive route changes.
+    static final int MAX_ACTIVE_WAYSHRINES = 8;
+    // Defensive persistence bound: refuse safely instead of ever aliasing an existing village identity.
+    static final int MAX_HISTORICAL_VILLAGES = 1_024;
     private static final int GUEST_TRAVEL_MULTIPLIER = 2;
     private static final int CHARGES_PER_MAGIC_SHARD = 5;
     private static final int MAX_SHRINE_CHARGES = 50;
@@ -97,12 +100,17 @@ public final class VillageBondService {
 
     public static int villageCount(ServerLevel world, UUID playerId) {
         return world == null || playerId == null ? 0
-                : Math.min(MAX_VILLAGES, Math.max(0, data(world, playerId).getTradeRouteInt(VILLAGE_COUNT)));
+                : historicalVillageCount(data(world, playerId));
     }
 
     public static int shrineCount(ServerLevel world, UUID playerId) {
         return world == null || playerId == null ? 0
-                : Math.min(MAX_VILLAGES, Math.max(0, data(world, playerId).getTradeRouteInt(SHRINE_COUNT)));
+                : Math.min(MAX_ACTIVE_WAYSHRINES, Math.max(0, data(world, playerId).getTradeRouteInt(SHRINE_COUNT)));
+    }
+
+    static int historicalVillageCount(PlayerQuestData data) {
+        return data == null ? 0
+                : Math.min(MAX_HISTORICAL_VILLAGES, Math.max(0, data.getTradeRouteInt(VILLAGE_COUNT)));
     }
 
     public static boolean hasSigil(ServerLevel world, UUID playerId) {
@@ -227,17 +235,27 @@ public final class VillageBondService {
         PlayerQuestData data = data(world, playerId);
         int existing = findVillage(data, marker.centerX(), marker.centerZ());
         if (existing >= 0) return existing;
-        int count = Math.min(MAX_VILLAGES, Math.max(0, data.getTradeRouteInt(VILLAGE_COUNT)));
-        if (count >= MAX_VILLAGES) return MAX_VILLAGES - 1;
         VillageBondType type = classify(world, marker, playerId);
-        data.setTradeRouteInt(villageKey(count, "x"), marker.centerX());
-        data.setTradeRouteInt(villageKey(count, "z"), marker.centerZ());
+        int previousCount = historicalVillageCount(data);
+        int index = ensureVillageRecord(data, marker.centerX(), marker.centerZ(), type);
+        if (index < 0 || historicalVillageCount(data) == previousCount) return index;
+        QuestState.get(world.getServer()).setDirty();
+        return index;
+    }
+
+    static int ensureVillageRecord(PlayerQuestData data, int x, int z, VillageBondType type) {
+        if (data == null || type == null) return -1;
+        int existing = findVillage(data, x, z);
+        if (existing >= 0) return existing;
+        int count = historicalVillageCount(data);
+        if (count >= MAX_HISTORICAL_VILLAGES) return -1;
+        data.setTradeRouteInt(villageKey(count, "x"), x);
+        data.setTradeRouteInt(villageKey(count, "z"), z);
         data.setTradeRouteInt(villageKey(count, "type"), type.id() + 1);
         data.setTradeRouteInt(villageKey(count, "level"), VillageBondLevel.KNOWN.id() + 1);
         data.setTradeRouteInt(villageKey(count, "request"),
-                VillageRequestType.forVillage(type, marker.centerX() * 31 + marker.centerZ()).id() + 1);
+                VillageRequestType.forVillage(type, x * 31 + z).id() + 1);
         data.setTradeRouteInt(VILLAGE_COUNT, count + 1);
-        QuestState.get(world.getServer()).setDirty();
         return count;
     }
 
@@ -355,7 +373,7 @@ public final class VillageBondService {
             return -1;
         }
         int count = shrineCount(world, player.getUUID());
-        if (count >= MAX_VILLAGES) return -1;
+        if (count >= MAX_ACTIVE_WAYSHRINES) return -1;
         data.setTradeRouteInt(shrineKey(count, "x"), pos.getX());
         data.setTradeRouteInt(shrineKey(count, "y"), pos.getY());
         data.setTradeRouteInt(shrineKey(count, "z"), pos.getZ());
@@ -830,7 +848,7 @@ public final class VillageBondService {
                 long dz = (long) village.z() - pos.getZ();
                 if (dx * dx + dz * dz <= radiusSquared) return true;
             }
-            int shrineCount = Math.min(MAX_VILLAGES, Math.max(0, ownerData.getTradeRouteInt(SHRINE_COUNT)));
+            int shrineCount = Math.min(MAX_ACTIVE_WAYSHRINES, Math.max(0, ownerData.getTradeRouteInt(SHRINE_COUNT)));
             for (int i = 0; i < shrineCount; i++) {
                 if (shrinePos(ownerData, i).distSqr(pos) <= radiusSquared) return true;
             }
@@ -845,7 +863,7 @@ public final class VillageBondService {
     private static UUID shrineOwner(ServerLevel world, BlockPos pos) {
         for (var entry : QuestState.get(world.getServer()).getPlayersView().entrySet()) {
             PlayerQuestData ownerData = entry.getValue();
-            int count = Math.min(MAX_VILLAGES, Math.max(0, ownerData.getTradeRouteInt(SHRINE_COUNT)));
+            int count = Math.min(MAX_ACTIVE_WAYSHRINES, Math.max(0, ownerData.getTradeRouteInt(SHRINE_COUNT)));
             for (int i = 0; i < count; i++) if (shrinePos(ownerData, i).equals(pos)) return entry.getKey();
         }
         return null;
@@ -856,7 +874,7 @@ public final class VillageBondService {
         for (var entry : QuestState.get(world.getServer()).getPlayersView().entrySet()) {
             if (entry.getKey().equals(excludedOwner)) continue;
             PlayerQuestData ownerData = entry.getValue();
-            int count = Math.min(MAX_VILLAGES, Math.max(0, ownerData.getTradeRouteInt(SHRINE_COUNT)));
+            int count = Math.min(MAX_ACTIVE_WAYSHRINES, Math.max(0, ownerData.getTradeRouteInt(SHRINE_COUNT)));
             for (int i = 0; i < count; i++) {
                 if (shrinePos(ownerData, i).distSqr(pos) <= radiusSquared) return entry.getKey();
             }
@@ -1020,8 +1038,8 @@ public final class VillageBondService {
                 completions, network);
     }
 
-    private static int findVillage(PlayerQuestData data, int x, int z) {
-        int count = Math.min(MAX_VILLAGES, data.getTradeRouteInt(VILLAGE_COUNT));
+    static int findVillage(PlayerQuestData data, int x, int z) {
+        int count = historicalVillageCount(data);
         for (int i = 0; i < count; i++) {
             if (Math.abs(data.getTradeRouteInt(villageKey(i, "x")) - x) <= 8
                     && Math.abs(data.getTradeRouteInt(villageKey(i, "z")) - z) <= 8) return i;

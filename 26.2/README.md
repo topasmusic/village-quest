@@ -2,7 +2,7 @@
 
 `Village Quest` is a Fabric mod built around village progression. Take on daily and weekly work, build reputation, unlock story arcs and village projects, and later deal with the `Pilgrim` and the road beyond the village.
 
-Current stable release: `2.3.0 - Living Village Network`, including the complete save-compatible `2.2.1` quality, balance, and fairness pass.
+Current stable release: `2.3.1 - Living Village Network Reliability Hotfix`, retaining the complete 2.3.0 feature set and the save-compatible `2.2.1` quality, balance, and fairness pass.
 
 Minecraft `26.2` is the active line for future Village Quest content after this final three-version parity release.
 

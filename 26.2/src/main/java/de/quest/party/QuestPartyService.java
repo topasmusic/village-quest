@@ -557,6 +557,8 @@ public final class QuestPartyService {
         if (world == null || session == null || party == null) return;
 
         session.setFlag(DailyQuestKeys.SHARED_TURN_IN_CONSUMED, true);
+        session.removeUnsyncedOffersAfterTurnIn(
+                DailyQuestKeys.SHARED_TURN_IN_CONSUMED, party.dailyOffers());
         long day = TimeUtil.currentDay();
         for (UUID memberId : party.members()) {
             if (!session.hasSynced(memberId)) continue;
@@ -587,6 +589,8 @@ public final class QuestPartyService {
         if (world == null || session == null || party == null) return;
 
         session.setFlag(WeeklyQuestKeys.SHARED_TURN_IN_CONSUMED, true);
+        session.removeUnsyncedOffersAfterTurnIn(
+                WeeklyQuestKeys.SHARED_TURN_IN_CONSUMED, party.weeklyOffers());
         long cycle = TimeUtil.currentWeekCycle();
         for (UUID memberId : party.members()) {
             if (!session.hasSynced(memberId)) continue;
@@ -2482,6 +2486,14 @@ public final class QuestPartyService {
         PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
         long day = TimeUtil.currentDay();
         ServerPlayer player = world.getServer().getPlayerList().getPlayer(memberId);
+        SharedQuestRuntime session = sharedDailySessionForType(world, memberId, type);
+        if (session != null && !session.canJoinAfterTurnIn(DailyQuestKeys.SHARED_TURN_IN_CONSUMED, memberId)) {
+            if (notify && player != null) {
+                player.sendSystemMessage(Component.translatable("message.village-quest.party.offer.daily.expired")
+                        .withStyle(ChatFormatting.RED), false);
+            }
+            return false;
+        }
         if (data.getLastRewardDay() == day) {
             if (notify && player != null) {
                 player.sendSystemMessage(Component.translatable("message.village-quest.party.offer.daily.blocked.completed").withStyle(ChatFormatting.RED), false);
@@ -2504,6 +2516,14 @@ public final class QuestPartyService {
         PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
         long cycle = TimeUtil.currentWeekCycle();
         ServerPlayer player = world.getServer().getPlayerList().getPlayer(memberId);
+        SharedQuestRuntime session = sharedWeeklySessionForType(world, memberId, type);
+        if (session != null && !session.canJoinAfterTurnIn(WeeklyQuestKeys.SHARED_TURN_IN_CONSUMED, memberId)) {
+            if (notify && player != null) {
+                player.sendSystemMessage(Component.translatable("message.village-quest.party.offer.weekly.expired")
+                        .withStyle(ChatFormatting.RED), false);
+            }
+            return false;
+        }
         if (data.getWeeklyRewardCycle() == cycle) {
             if (notify && player != null) {
                 player.sendSystemMessage(Component.translatable("message.village-quest.party.offer.weekly.blocked.completed").withStyle(ChatFormatting.RED), false);

@@ -18,6 +18,50 @@ final class QuestPartyPersistenceTest {
     private static final UUID MEMBER = UUID.fromString("ba518123-f624-4630-883c-b4083d5f9ed4");
 
     @Test
+    void consumedDailyTurnInFreezesEligibilityAndInvalidatesStaleOffer() {
+        SharedQuestRuntime session = new SharedQuestRuntime();
+        session.bind("HARVEST_WHEAT", 41L);
+        session.markSynced(LEADER);
+        Map<UUID, QuestJoinOffer> offers = new HashMap<>();
+        offers.put(MEMBER, new QuestJoinOffer("HARVEST_WHEAT", 41L, LEADER));
+
+        assertTrue(session.canJoinAfterTurnIn(DailyQuestKeys.SHARED_TURN_IN_CONSUMED, MEMBER));
+        session.setFlag(DailyQuestKeys.SHARED_TURN_IN_CONSUMED, true);
+
+        assertTrue(session.canJoinAfterTurnIn(DailyQuestKeys.SHARED_TURN_IN_CONSUMED, LEADER));
+        assertFalse(session.canJoinAfterTurnIn(DailyQuestKeys.SHARED_TURN_IN_CONSUMED, MEMBER));
+        assertEquals(1, session.removeUnsyncedOffersAfterTurnIn(
+                DailyQuestKeys.SHARED_TURN_IN_CONSUMED, offers));
+        assertTrue(offers.isEmpty());
+    }
+
+    @Test
+    void consumedWeeklyTurnInRejectsLateJoinButKeepsSyncedReconnectEligible() {
+        SharedQuestRuntime session = new SharedQuestRuntime();
+        session.bind("MARKET_WEEK", 8L);
+        session.markSynced(LEADER);
+        session.setFlag(WeeklyQuestKeys.SHARED_TURN_IN_CONSUMED, true);
+
+        assertTrue(session.canJoinAfterTurnIn(WeeklyQuestKeys.SHARED_TURN_IN_CONSUMED, LEADER));
+        assertFalse(session.canJoinAfterTurnIn(WeeklyQuestKeys.SHARED_TURN_IN_CONSUMED, MEMBER));
+        session.markSynced(LEADER);
+        assertEquals(1, session.syncedMembers().size());
+    }
+
+    @Test
+    void leavingConsumedSessionDoesNotCreateFreshEligibility() {
+        SharedQuestRuntime session = new SharedQuestRuntime();
+        session.bind("HARVEST_WHEAT", 41L);
+        session.markSynced(MEMBER);
+        session.setFlag(DailyQuestKeys.SHARED_TURN_IN_CONSUMED, true);
+
+        session.unmarkSynced(MEMBER);
+
+        assertFalse(session.canJoinAfterTurnIn(DailyQuestKeys.SHARED_TURN_IN_CONSUMED, MEMBER));
+        assertTrue(session.hasFlag(DailyQuestKeys.SHARED_TURN_IN_CONSUMED));
+    }
+
+    @Test
     void membershipSessionsOffersAndReconnectGraceRoundTrip() {
         PartyRuntime party = new PartyRuntime(PARTY, LEADER);
         party.members().add(LEADER);
@@ -30,6 +74,8 @@ final class QuestPartyPersistenceTest {
         party.weekly().bind("MARKET_WEEK", 8L);
         party.weekly().setFlag(WeeklyQuestKeys.SHARED_TURN_IN_CONSUMED, true);
         party.dailyOffers().put(MEMBER, new QuestJoinOffer("HARVEST_WHEAT", 41L, LEADER));
+        party.daily().removeUnsyncedOffersAfterTurnIn(
+                DailyQuestKeys.SHARED_TURN_IN_CONSUMED, party.dailyOffers());
         party.disconnectDeadlines().put(MEMBER, 9_999L);
 
         Map<UUID, PartyRuntime> parties = new HashMap<>();
@@ -52,9 +98,11 @@ final class QuestPartyPersistenceTest {
         assertTrue(loaded.daily().hasFlag(DailyQuestKeys.SHARED_TURN_IN_CONSUMED));
         assertTrue(loaded.weekly().hasFlag(WeeklyQuestKeys.SHARED_TURN_IN_CONSUMED));
         assertTrue(loaded.daily().hasSynced(LEADER));
-        assertEquals(LEADER, loaded.dailyOffers().get(MEMBER).sourceId());
+        assertTrue(loaded.dailyOffers().isEmpty());
         assertEquals(9_999L, loaded.disconnectDeadlines().get(MEMBER));
         assertEquals(12_345L, loadedInvites.get(MEMBER).expiresAtMillis());
+        assertTrue(loaded.daily().canJoinAfterTurnIn(DailyQuestKeys.SHARED_TURN_IN_CONSUMED, LEADER));
+        assertFalse(loaded.daily().canJoinAfterTurnIn(DailyQuestKeys.SHARED_TURN_IN_CONSUMED, MEMBER));
     }
 
     @Test

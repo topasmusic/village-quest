@@ -14,6 +14,8 @@ import java.util.List;
 
 /** Packets owned by the village-board and Wayshrine domain. */
 public final class VillageNetworkPayloads {
+    public static final int MAX_NOTICE_BOARD_OFFERS = 8;
+
     private VillageNetworkPayloads() {}
 
     public record WayshrinePayload(int currentIndex, List<Payloads.TradeRouteShrineData> destinations,
@@ -114,7 +116,7 @@ public final class VillageNetworkPayloads {
             Component nextPerk = ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf);
             boolean available = buf.readBoolean();
             boolean canDeliver = buf.readBoolean();
-            int offerCount = Math.max(0, Math.min(8, buf.readVarInt()));
+            int offerCount = Math.max(0, Math.min(MAX_NOTICE_BOARD_OFFERS, buf.readVarInt()));
             List<NoticeBoardOfferData> offers = new ArrayList<>(offerCount);
             for (int i = 0; i < offerCount; i++) offers.add(NoticeBoardOfferData.read(buf));
             Component profile = ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf);
@@ -147,8 +149,9 @@ public final class VillageNetworkPayloads {
             buf.writeBoolean(payload.requestAvailable());
             buf.writeBoolean(payload.canDeliver());
             List<NoticeBoardOfferData> offers = payload.offers() == null ? List.of() : payload.offers();
-            buf.writeVarInt(offers.size());
-            for (NoticeBoardOfferData offer : offers) NoticeBoardOfferData.write(buf, offer);
+            int offerCount = Math.min(MAX_NOTICE_BOARD_OFFERS, offers.size());
+            buf.writeVarInt(offerCount);
+            for (int i = 0; i < offerCount; i++) NoticeBoardOfferData.write(buf, offers.get(i));
             ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf,
                     payload.adventureProfile() == null ? Component.empty() : payload.adventureProfile());
         }
