@@ -14,10 +14,6 @@ Release date: 2026-09-04
 - Separated the eight active Wayshrine slots from historical village records. A ninth and later connected village now receives its own coordinates, bond, request, and Living Village Network state instead of silently aliasing village index 7; a defensive limit of 1,024 historical records refuses further registration without changing existing data.
 - Made the Notice Board payload codec symmetric with one shared maximum of eight offers. The server now announces and serializes exactly the same bounded count the client reads, leaving the following profile field aligned even when an oversized internal list is supplied.
 
-### Verification
-
-- The Java 25 test suite passes all `73` tests in `24` suites. Resource and localization validation confirms `2336` matching English, German, and Spanish keys for 26.2 and `1898` for each maintained 2.1.1 line. Minecraft was not launched for this targeted audit.
-
 ## 2.3.0
 
 Release date: 2026-09-03
@@ -37,11 +33,6 @@ Release date: 2026-09-03
 - Hardened server authority and validation around Notice Board item removal, route destinations and energy, guild permissions and offline members, schema migration, bounded request generation, and invalid client payloads.
 - Reduced large resource and UI code surfaces into focused helpers, stabilized map and Journal rendering, and completed a calmer responsive Notice Board and corrected Atlas icon alignment.
 - Removed the obsolete Peace Armor implementation and recipes without deleting unrelated save data, and removed development-only QA fixtures from the Stable command surface.
-
-### Verification
-
-- The final Java 25 build passes all `61` tests in `22` suites. Resource validation confirms `2336` matching English, German, and Spanish localization keys for 26.2 and also passes for both maintained 2.1.1 lines.
-- The maintainer completed the requested solo, multiplayer, reconnect, dedicated-server, and interface gameplay checks successfully before the Stable build.
 
 ## 2.3.0-unreleased.16
 
