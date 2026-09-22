@@ -69,5 +69,6 @@ public abstract class BeehiveBlockMixin {
         StoryQuestService.onBeeNestInteract(world, serverPlayer, state, tool);
         SpecialQuestService.onBeeNestInteract(world, serverPlayer, state, tool);
         PilgrimContractService.onBeeNestInteract(world, serverPlayer, state, tool);
+        de.quest.guildtown.GuildTownService.onHoneyHarvest(world, serverPlayer);
     }
 }

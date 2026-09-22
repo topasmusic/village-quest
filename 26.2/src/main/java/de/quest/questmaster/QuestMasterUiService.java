@@ -11,10 +11,12 @@ import de.quest.entity.QuestMasterEntity;
 import de.quest.network.Payloads;
 import de.quest.party.QuestPartyService;
 import de.quest.party.QuestShareProfiles;
+import de.quest.quest.QuestCompletionMode;
 import de.quest.quest.daily.DailyQuestCompletion;
 import de.quest.quest.daily.DailyQuestDefinition;
 import de.quest.quest.daily.DailyQuestGenerator;
 import de.quest.quest.daily.DailyQuestService;
+import de.quest.quest.daily.FirstDailyChoiceService;
 import de.quest.quest.special.ApiaristSmokerQuestService;
 import de.quest.quest.special.MerchantSealQuestService;
 import de.quest.quest.special.RelicQuestProgressionService;
@@ -59,6 +61,7 @@ public final class QuestMasterUiService {
     private static final String CATEGORY_SPECIAL = "special";
 
     private static final String ENTRY_DAILY_MAIN = "daily_main";
+    private static final String ENTRY_DAILY_FIRST_PREFIX = "daily_first_";
     private static final String ENTRY_DAILY_BONUS = "daily_bonus";
     private static final String ENTRY_WEEKLY = "weekly_main";
     private static final String ENTRY_STORY_PREFIX = "story_";
@@ -87,6 +90,7 @@ public final class QuestMasterUiService {
         }
         OPEN_SESSIONS.put(player.getUUID(), questMaster.getId());
         sendPayload(player, buildPayload(Payloads.QuestMasterPayload.ACTION_OPEN, world, player, questMaster));
+        de.quest.guildtown.GuildTownService.onQuestmasterOpen(world, player);
     }
 
     public static void refreshIfOpen(ServerLevel world, ServerPlayer player) {
@@ -192,6 +196,20 @@ public final class QuestMasterUiService {
         if (payload.entryId().startsWith(GuildArchiveService.ENTRY_PREFIX)) {
             if (payload.action() == Payloads.QuestMasterActionPayload.ACTION_CLAIM) {
                 GuildArchiveService.handleEntryAction(world, player, payload.entryId());
+            }
+            refreshIfOpen(world, player);
+            return;
+        }
+
+        if (payload.entryId().startsWith(ENTRY_DAILY_FIRST_PREFIX)) {
+            String typeName = payload.entryId().substring(ENTRY_DAILY_FIRST_PREFIX.length());
+            try {
+                DailyQuestService.DailyQuestType choice = DailyQuestService.DailyQuestType.valueOf(typeName);
+                if (payload.action() == Payloads.QuestMasterActionPayload.ACTION_ACCEPT) {
+                    FirstDailyChoiceService.accept(world, player, choice);
+                }
+            } catch (IllegalArgumentException ignored) {
+                // Invalid client-provided entry id: ignore it and refresh the authoritative UI.
             }
             refreshIfOpen(world, player);
             return;
@@ -385,6 +403,9 @@ public final class QuestMasterUiService {
         UUID playerId = player.getUUID();
         boolean partyUiEnabled = partyUiEnabled(world);
         PlayerQuestData data = data(world, playerId);
+        if (FirstDailyChoiceService.canChoose(data)) {
+            return buildFirstDailyEntries(world, playerId);
+        }
         DailyQuestService.DailyQuestType normalQuest = DailyQuestService.previewQuestChoice(world, playerId);
         DailyQuestDefinition normalDefinition = DailyQuestGenerator.definition(normalQuest);
         List<Payloads.QuestMasterEntryData> entries = new ArrayList<>();
@@ -406,6 +427,7 @@ public final class QuestMasterUiService {
         boolean normalActive = DailyQuestService.isAcceptedToday(world, playerId) && !DailyQuestService.hasCompletedToday(world, playerId);
         if (normalActive) {
             boolean ready = normalDefinition != null && DailyQuestService.isQuestReady(world, player, false);
+            boolean blockedByItems = !ready && DailyQuestService.claimBlockedMessage(world, player, false) != null;
             status = ready
                     ? Component.translatable("screen.village-quest.questmaster.status.ready").withStyle(ChatFormatting.GOLD)
                     : Component.translatable("screen.village-quest.questmaster.status.active").withStyle(ChatFormatting.GREEN);
@@ -413,9 +435,7 @@ public final class QuestMasterUiService {
             if (questStatus != null) {
                 mainObjectives = List.of(questStatus.progressLine().copy().withStyle(ChatFormatting.GRAY));
             }
-            primary = ready
-                    ? new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_CLAIM, Component.translatable("screen.village-quest.questmaster.action.claim"), true)
-                    : ActionSpec.NONE;
+            primary = activeQuestAction(normalDefinition == null ? QuestCompletionMode.AUTOMATIC : normalDefinition.completionMode(), ready, blockedByItems);
             secondary = new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_CANCEL, Component.translatable("screen.village-quest.questmaster.action.cancel"), true);
         } else if (DailyQuestService.hasCompletedToday(world, playerId)) {
             status = Component.translatable("screen.village-quest.questmaster.status.completed").withStyle(ChatFormatting.AQUA);
@@ -450,6 +470,32 @@ public final class QuestMasterUiService {
         }
 
         return entries;
+    }
+
+    private static List<Payloads.QuestMasterEntryData> buildFirstDailyEntries(ServerLevel world, UUID playerId) {
+        List<Payloads.QuestMasterEntryData> entries = new ArrayList<>();
+        for (DailyQuestService.DailyQuestType choice : FirstDailyChoiceService.choices()) {
+            DailyQuestDefinition definition = DailyQuestGenerator.definition(choice);
+            if (definition == null) continue;
+            entries.add(entry(
+                    ENTRY_DAILY_FIRST_PREFIX + choice.name(),
+                    CATEGORY_DAILY,
+                    definition.title(),
+                    Component.translatable("screen.village-quest.questmaster.subtitle.first_daily"),
+                    Component.translatable("screen.village-quest.questmaster.status.available")
+                            .withStyle(ChatFormatting.YELLOW),
+                    List.of(definition.offerParagraph1(), definition.offerParagraph2()),
+                    List.of(DailyQuestService.previewFirstChoiceProgressLine(world, playerId, choice)
+                            .copy().withStyle(ChatFormatting.GRAY)),
+                    rewardLines(world, playerId,
+                            DailyQuestService.previewFirstChoiceCompletion(world, choice)),
+                    new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_ACCEPT,
+                            Component.translatable("screen.village-quest.questmaster.action.choose"), true),
+                    ActionSpec.NONE,
+                    false
+            ));
+        }
+        return List.copyOf(entries);
     }
 
     private static Payloads.QuestMasterEntryData buildDailyBonusEntry(ServerLevel world,
@@ -507,6 +553,7 @@ public final class QuestMasterUiService {
 
         if (bonusAccepted && !bonusCompleted) {
             boolean ready = bonusDefinition != null && DailyQuestService.isQuestReady(world, player, true);
+            boolean blockedByItems = !ready && DailyQuestService.claimBlockedMessage(world, player, true) != null;
             status = ready
                     ? Component.translatable("screen.village-quest.questmaster.status.ready").withStyle(ChatFormatting.GOLD)
                     : Component.translatable("screen.village-quest.questmaster.status.active").withStyle(ChatFormatting.GREEN);
@@ -514,9 +561,7 @@ public final class QuestMasterUiService {
             if (questStatus != null) {
                 objectives = List.of(questStatus.progressLine().copy().withStyle(ChatFormatting.GRAY));
             }
-            primary = ready
-                    ? new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_CLAIM, Component.translatable("screen.village-quest.questmaster.action.claim"), true)
-                    : ActionSpec.NONE;
+            primary = activeQuestAction(bonusDefinition == null ? QuestCompletionMode.AUTOMATIC : bonusDefinition.completionMode(), ready, blockedByItems);
             secondary = new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_CANCEL, Component.translatable("screen.village-quest.questmaster.action.cancel"), true);
         } else if (bonusCompleted) {
             status = Component.translatable("screen.village-quest.questmaster.status.completed").withStyle(ChatFormatting.AQUA);
@@ -576,12 +621,11 @@ public final class QuestMasterUiService {
 
         if (accepted && !completed) {
             boolean ready = WeeklyQuestService.isQuestReady(world, player);
+            boolean blockedByItems = !ready && WeeklyQuestService.claimBlockedMessage(world, player) != null;
             status = ready
                     ? Component.translatable("screen.village-quest.questmaster.status.ready").withStyle(ChatFormatting.GOLD)
                     : Component.translatable("screen.village-quest.questmaster.status.active").withStyle(ChatFormatting.GREEN);
-            if (ready) {
-                primary = new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_CLAIM, Component.translatable("screen.village-quest.questmaster.action.claim"), true);
-            }
+            primary = activeQuestAction(definition.completionMode(), ready, blockedByItems);
             secondary = new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_CANCEL, Component.translatable("screen.village-quest.questmaster.action.cancel"), true);
         } else if (completed) {
             status = Component.translatable("screen.village-quest.questmaster.status.completed").withStyle(ChatFormatting.AQUA);
@@ -715,16 +759,12 @@ public final class QuestMasterUiService {
         Component partyStatus = partyShareable ? storyPartyStatus(world, playerId, arcType, chapterIndex) : Component.empty();
 
         if (active) {
-            boolean ready = chapter.isComplete(world, player);
+            boolean ready = StoryQuestService.isReadyForClaim(world, player, arcType);
+            boolean blockedByItems = !ready && chapter.claimBlockedMessage(world, player) != null;
             status = ready
                     ? Component.translatable("screen.village-quest.questmaster.status.ready").withStyle(ChatFormatting.GOLD)
                     : Component.translatable("screen.village-quest.questmaster.status.active").withStyle(ChatFormatting.GREEN);
-            if (ready) {
-                primary = new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_CLAIM, Component.translatable("screen.village-quest.questmaster.action.claim"), true);
-            } else {
-                primary = new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_NONE,
-                        Component.translatable("screen.village-quest.pilgrim.contract.action.in_progress"), false);
-            }
+            primary = activeQuestAction(chapter.completionMode(), ready, blockedByItems);
             if (!ready && arcType == StoryArcType.SHRINES_BETWEEN_ROADS && chapterIndex == 1) {
                 secondary = new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_CANCEL,
                         Component.translatable("screen.village-quest.questmaster.action.abandon_trail"), true);
@@ -1584,7 +1624,27 @@ public final class QuestMasterUiService {
                                           UUID playerId,
                                           DailyQuestService.DailyQuestType questType,
                                           boolean bonus) {
-        DailyQuestCompletion completion = DailyQuestService.previewCompletion(world, playerId, questType, bonus);
+        return rewardLines(world, playerId,
+                DailyQuestService.previewCompletion(world, playerId, questType, bonus));
+    }
+
+    private static ActionSpec activeQuestAction(QuestCompletionMode completionMode, boolean ready, boolean blockedByItems) {
+        QuestMasterTurnInPolicy.Decision decision = QuestMasterTurnInPolicy.decide(completionMode, ready, blockedByItems);
+        if (!decision.visible()) {
+            return ActionSpec.NONE;
+        }
+        return new ActionSpec(
+                decision.claimAction()
+                        ? Payloads.QuestMasterActionPayload.ACTION_CLAIM
+                        : Payloads.QuestMasterActionPayload.ACTION_NONE,
+                Component.translatable(decision.labelKey()),
+                decision.enabled()
+        );
+    }
+
+    private static List<Component> rewardLines(ServerLevel world,
+                                               UUID playerId,
+                                               DailyQuestCompletion completion) {
         if (completion == null) {
             return List.of();
         }

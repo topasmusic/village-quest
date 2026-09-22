@@ -1,5 +1,7 @@
 package de.quest.caravan;
 
+import java.util.ArrayList;
+import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -37,6 +39,32 @@ final class TradeRouteSurfaceResolver {
         return best;
     }
 
+    static BlockPos findNearbyRoadSurfaceNearY(ServerLevel world, BlockPos center, int radius,
+                                                int verticalTolerance) {
+        if (world == null || center == null || !world.hasChunkAt(center)) {
+            return null;
+        }
+        BlockPos best = null;
+        double bestDistance = Double.MAX_VALUE;
+        for (int dx = -radius; dx <= radius; dx += 2) {
+            for (int dz = -radius; dz <= radius; dz += 2) {
+                BlockPos surface = safeSurfaceNearY(world, center.getX() + dx, center.getY(),
+                        center.getZ() + dz, verticalTolerance);
+                if (surface == null
+                        || !isStableCaravanSurfaceNearY(world, surface)
+                        || !isRoadBlock(world.getBlockState(surface.below()))) {
+                    continue;
+                }
+                double distance = surface.distSqr(center);
+                if (distance < bestDistance) {
+                    best = surface;
+                    bestDistance = distance;
+                }
+            }
+        }
+        return best;
+    }
+
     static BlockPos safeSurface(ServerLevel world, int x, int z) {
         BlockPos probe = new BlockPos(x, 64, z);
         if (!world.hasChunkAt(probe)) {
@@ -61,6 +89,34 @@ final class TradeRouteSurfaceResolver {
         return feet;
     }
 
+    static BlockPos safeSurfaceNearY(ServerLevel world, int x, int y, int z, int verticalTolerance) {
+        if (world == null) {
+            return null;
+        }
+        BlockPos chunkProbe = new BlockPos(x, y, z);
+        if (!world.hasChunkAt(chunkProbe)) {
+            return null;
+        }
+        for (int candidateY : verticalCandidates(y, verticalTolerance)) {
+            BlockPos feet = new BlockPos(x, candidateY, z);
+            if (isSafeFeetPosition(world, feet)) {
+                return feet;
+            }
+        }
+        return null;
+    }
+
+    static List<Integer> verticalCandidates(int centerY, int tolerance) {
+        int safeTolerance = Math.max(0, tolerance);
+        List<Integer> candidates = new ArrayList<>(safeTolerance * 2 + 1);
+        candidates.add(centerY);
+        for (int offset = 1; offset <= safeTolerance; offset++) {
+            candidates.add(centerY + offset);
+            candidates.add(centerY - offset);
+        }
+        return List.copyOf(candidates);
+    }
+
     static BlockPos findCaravanSurface(ServerLevel world, BlockPos center, int radius) {
         if (world == null || center == null) {
             return null;
@@ -74,6 +130,38 @@ final class TradeRouteSurfaceResolver {
                     }
                     BlockPos candidate = safeSurface(world, center.getX() + dx, center.getZ() + dz);
                     if (candidate == null || !isStableCaravanSurface(world, candidate)) {
+                        continue;
+                    }
+                    if (isRoadBlock(world.getBlockState(candidate.below()))) {
+                        return candidate;
+                    }
+                    if (fallback == null) {
+                        fallback = candidate;
+                    }
+                }
+            }
+            if (fallback != null && ring >= 2) {
+                return fallback;
+            }
+        }
+        return fallback;
+    }
+
+    static BlockPos findCaravanSurfaceNearY(ServerLevel world, BlockPos center, int radius,
+                                             int verticalTolerance) {
+        if (world == null || center == null) {
+            return null;
+        }
+        BlockPos fallback = null;
+        for (int ring = 0; ring <= radius; ring++) {
+            for (int dx = -ring; dx <= ring; dx++) {
+                for (int dz = -ring; dz <= ring; dz++) {
+                    if (ring > 0 && Math.abs(dx) != ring && Math.abs(dz) != ring) {
+                        continue;
+                    }
+                    BlockPos candidate = safeSurfaceNearY(world, center.getX() + dx, center.getY(),
+                            center.getZ() + dz, verticalTolerance);
+                    if (candidate == null || !isStableCaravanSurfaceNearY(world, candidate)) {
                         continue;
                     }
                     if (isRoadBlock(world.getBlockState(candidate.below()))) {
@@ -110,6 +198,26 @@ final class TradeRouteSurfaceResolver {
         return stableNeighbors >= 5;
     }
 
+    static boolean isStableCaravanSurfaceNearY(ServerLevel world, BlockPos center) {
+        if (center == null) {
+            return false;
+        }
+        int stableNeighbors = 0;
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                if (dx == 0 && dz == 0) {
+                    continue;
+                }
+                BlockPos neighbor = safeSurfaceNearY(world, center.getX() + dx, center.getY(),
+                        center.getZ() + dz, 1);
+                if (neighbor != null && Math.abs(neighbor.getY() - center.getY()) <= 1) {
+                    stableNeighbors++;
+                }
+            }
+        }
+        return stableNeighbors >= 5;
+    }
+
     static BlockPos findNearbySafeSurface(ServerLevel world, int x, int z, int radius) {
         BlockPos center = safeSurface(world, x, z);
         if (center != null) {
@@ -122,6 +230,28 @@ final class TradeRouteSurfaceResolver {
                         continue;
                     }
                     BlockPos candidate = safeSurface(world, x + dx, z + dz);
+                    if (candidate != null) {
+                        return candidate;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    static BlockPos findNearbySafeSurfaceNearY(ServerLevel world, int x, int y, int z,
+                                                int radius, int verticalTolerance) {
+        BlockPos center = safeSurfaceNearY(world, x, y, z, verticalTolerance);
+        if (center != null) {
+            return center;
+        }
+        for (int ring = 1; ring <= radius; ring++) {
+            for (int dx = -ring; dx <= ring; dx++) {
+                for (int dz = -ring; dz <= ring; dz++) {
+                    if (Math.abs(dx) != ring && Math.abs(dz) != ring) {
+                        continue;
+                    }
+                    BlockPos candidate = safeSurfaceNearY(world, x + dx, y, z + dz, verticalTolerance);
                     if (candidate != null) {
                         return candidate;
                     }
@@ -150,5 +280,21 @@ final class TradeRouteSurfaceResolver {
                 || state.is(Blocks.CAMPFIRE)
                 || state.is(Blocks.SOUL_CAMPFIRE)
                 || state.is(Blocks.POWDER_SNOW);
+    }
+
+    private static boolean isSafeFeetPosition(ServerLevel world, BlockPos feet) {
+        BlockPos below = feet.below();
+        BlockState feetState = world.getBlockState(feet);
+        BlockState headState = world.getBlockState(feet.above());
+        BlockState belowState = world.getBlockState(below);
+        return feetState.getFluidState().isEmpty()
+                && headState.getFluidState().isEmpty()
+                && feetState.getCollisionShape(world, feet).isEmpty()
+                && headState.getCollisionShape(world, feet.above()).isEmpty()
+                && !belowState.isAir()
+                && belowState.getFluidState().isEmpty()
+                && !belowState.is(BlockTags.LEAVES)
+                && !isDangerousSupport(belowState)
+                && belowState.isFaceSturdy(world, below, Direction.UP);
     }
 }

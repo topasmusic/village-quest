@@ -94,7 +94,7 @@ It updates once per second without pausing the game and automatically stays out 
 
 ## Surveying a Real Road
 
-Every route starts as a direct hub-to-village connection, but it can store up to `48` intermediate waypoints. The home hub and destination village are implicit endpoints and do not need to be marked.
+Every route starts as a direct hub-to-village connection, but it can store up to `48` intermediate waypoints. New surveys record X, Y, and Z so tunnels, bridges, underpasses, switchbacks, and paths sharing the same X/Z at different heights stay distinct. Legacy X/Z routes keep their historical surface behavior and are upgraded only when the player deliberately installs a new survey. The home hub and destination village are implicit endpoints and do not need to be marked.
 
 Recommended workflow:
 

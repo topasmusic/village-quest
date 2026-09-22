@@ -37,6 +37,8 @@ public final class QuestHarvestTracker {
         PENDING_HARVESTS.clear();
     }
 
+    static int pendingCount() { return PENDING_HARVESTS.size(); }
+
     public static void onServerTick(MinecraftServer server) {
         Iterator<PendingHarvest> iterator = PENDING_HARVESTS.iterator();
         while (iterator.hasNext()) {
@@ -139,11 +141,16 @@ public final class QuestHarvestTracker {
                                                        BlockState state) {
         Map<Item, Integer> tracked = new HashMap<>();
         for (ItemStack drop : Block.getDrops(state, world, pos, world.getBlockEntity(pos), player, player.getMainHandItem())) {
-            if (drop.is(Items.WHEAT) || drop.is(Items.POTATO) || drop.is(Items.CARROT)) {
+            if (isTrackedCropDrop(drop)) {
                 tracked.merge(drop.getItem(), drop.getCount(), Integer::sum);
             }
         }
         return Map.copyOf(tracked);
+    }
+
+    static boolean isTrackedCropDrop(ItemStack drop) {
+        return drop != null && (drop.is(Items.WHEAT) || drop.is(Items.WHEAT_SEEDS) || drop.is(Items.POTATO)
+                || drop.is(Items.CARROT) || drop.is(Items.BEETROOT) || drop.is(Items.BEETROOT_SEEDS));
     }
 
     private static void dispatchTrackedCropDrops(ServerLevel world,

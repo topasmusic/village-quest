@@ -11,6 +11,7 @@ import de.quest.network.QuestNetworking;
 import de.quest.quest.QuestService;
 import de.quest.registry.ModBlocks;
 import de.quest.registry.ModBlockEntities;
+import de.quest.registry.ModCreativeTabs;
 import de.quest.registry.ModEntities;
 import de.quest.registry.ModItems;
 import de.quest.registry.ModRecipeBookCategories;
@@ -43,6 +44,7 @@ public class VillageQuest implements ModInitializer {
         ModBlocks.register();
         ModBlockEntities.register();
         ModItems.register();
+        ModCreativeTabs.register();
         ModEntities.register();
         QuestService.registerEvents();
         QuestNetworking.register();

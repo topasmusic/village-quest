@@ -11,6 +11,9 @@ import de.quest.pilgrim.PilgrimContractService;
 import de.quest.party.QuestPartyService;
 import de.quest.quest.QuestBookHelper;
 import de.quest.quest.QuestTrackerService;
+import de.quest.quest.DifficultyObjectiveMode;
+import de.quest.quest.DifficultyObjectiveState;
+import de.quest.quest.daily.DailyQuestService;
 import de.quest.quest.special.SurveyorCompassQuestService;
 import de.quest.quest.story.StoryArcType;
 import de.quest.quest.story.StoryQuestKeys;
@@ -117,6 +120,9 @@ public final class ShadowsTradeRoadEncounterService {
     private static final int WAVE_PULSE_SIZE = 2;
     private static final int COURIER_DESPAWN_TICKS = 20 * 60 * 5;
     private static final int SURVIVOR_DESPAWN_TICKS = 20 * 45;
+    private static final int PEACEFUL_SUPPLY_BREAD = 8;
+    private static final int PEACEFUL_ESCORT_CHECKPOINTS = 3;
+    private static final int PEACEFUL_FINAL_CHECKPOINTS = 4;
     private static final String TAG_CARAVAN = "vq_trade_road_caravan";
     private static final String TAG_TRAITOR = "vq_trade_road_traitor";
     private static final String TAG_HOSTILE = "vq_trade_road_hostile";
@@ -149,10 +155,13 @@ public final class ShadowsTradeRoadEncounterService {
         private final List<UUID> hostileIds = new ArrayList<>();
         private final List<HostileSpawnType> pendingSpawns = new ArrayList<>();
         private final Map<UUID, Integer> aggroTicks = new HashMap<>();
+        private final List<BlockPos> peacefulCheckpoints = new ArrayList<>();
         private int waveIndex;
         private int nextWaveDelayTicks;
         private int wavePulseDelayTicks;
         private int lastHostileMarkDelayTicks = LAST_HOSTILE_MARK_DELAY_TICKS;
+        private int peacefulCheckpointIndex;
+        private boolean peacefulSuppliesDelivered;
 
         private ActiveEncounter(UUID playerId, EncounterSpec spec, BlockPos anchorPos) {
             this.playerId = playerId;
@@ -222,8 +231,8 @@ public final class ShadowsTradeRoadEncounterService {
             if (!entity.isAlive()) {
                 continue;
             }
-            if (entity instanceof CaravanMerchantEntity
-                    || entity instanceof TraitorEntity
+            if (entity.entityTags().contains(TAG_CARAVAN)
+                    || entity.entityTags().contains(TAG_TRAITOR)
                     || entity.entityTags().contains(TAG_HOSTILE)) {
                 targets.add(entity);
             }
@@ -419,10 +428,12 @@ public final class ShadowsTradeRoadEncounterService {
     }
 
     public static void onFirstSignalAccepted(ServerLevel world, ServerPlayer player) {
+        initializeObjectiveMode(world, player);
         scheduleEncounter(world, player, RESCUE_KIND_FIRST_SIGNAL, 0);
     }
 
     public static void onHoldingAccepted(ServerLevel world, ServerPlayer player) {
+        initializeObjectiveMode(world, player);
         scheduleEncounter(world, player, RESCUE_KIND_HOLDING, 0);
     }
 
@@ -431,6 +442,7 @@ public final class ShadowsTradeRoadEncounterService {
     }
 
     public static void onFinalAccepted(ServerLevel world, ServerPlayer player) {
+        initializeObjectiveMode(world, player);
         scheduleEncounter(world, player, RESCUE_KIND_FINAL, 2);
     }
 
@@ -449,6 +461,15 @@ public final class ShadowsTradeRoadEncounterService {
 
         ActiveEncounter encounter = ACTIVE.get(playerId);
         if (encounter != null) {
+            if (encounter.spec.waves().isEmpty()) {
+                lines.add(Component.translatable(
+                        "quest.village-quest.story.shadows_on_the_trade_road.rescue.progress.peaceful",
+                        encounter.peacefulCheckpointIndex,
+                        encounter.peacefulCheckpoints.size(),
+                        encounter.peacefulSuppliesDelivered ? 1 : 0,
+                        1
+                ).withStyle(ChatFormatting.GRAY));
+            }
             List<Mob> hostiles = livingHostiles(world, encounter);
             int remainingHostiles = hostiles.size() + encounter.pendingSpawns.size();
             if (!encounter.spec.waves().isEmpty()) {
@@ -656,6 +677,27 @@ public final class ShadowsTradeRoadEncounterService {
                                           int kind,
                                           int nightsUntilFirstRun) {
         UUID playerId = player.getUUID();
+        DifficultyObjectiveState.Transition modeTransition = DifficultyObjectiveState.transition(
+                StoryQuestService.getQuestInt(world, playerId, StoryQuestKeys.SHADOWS_OBJECTIVE_MODE),
+                world.getDifficulty());
+        if (modeTransition.initialized()) {
+            StoryQuestService.setQuestIntQuietly(world, playerId, StoryQuestKeys.SHADOWS_OBJECTIVE_MODE,
+                    modeTransition.persistedValue());
+        } else if (modeTransition.switched()) {
+            cleanupPlayerRuntime(world, playerId, true);
+            clearScheduledEncounter(world, playerId);
+            StoryQuestService.setQuestIntQuietly(world, playerId, winsKey, 0);
+            StoryQuestService.setQuestIntQuietly(world, playerId, StoryQuestKeys.SHADOWS_OBJECTIVE_MODE,
+                    modeTransition.persistedValue());
+            scheduleEncounter(world, player, kind, nightsUntilFirstRun);
+            player.sendSystemMessage(Component.translatable(
+                    "message.village-quest.difficulty_objective.switched",
+                    Component.translatable(modeTransition.mode() == DifficultyObjectiveMode.PEACEFUL
+                            ? "message.village-quest.difficulty_objective.mode.peaceful"
+                            : "message.village-quest.difficulty_objective.mode.combat")
+            ).withStyle(ChatFormatting.GOLD), false);
+            return;
+        }
         if (StoryQuestService.getQuestInt(world, playerId, winsKey) >= targetWins) {
             cleanupPlayerRuntime(world, playerId, true);
             if (kind != RESCUE_KIND_FINAL) {
@@ -735,6 +777,14 @@ public final class ShadowsTradeRoadEncounterService {
         if (encounter.merchantIds.size() < spec.merchants()) {
             cleanupEncounterEntities(world, encounter, true);
             return null;
+        }
+        if (spec.waves().isEmpty()) {
+            int required = spec.finalConvoy() ? PEACEFUL_FINAL_CHECKPOINTS : PEACEFUL_ESCORT_CHECKPOINTS;
+            encounter.peacefulCheckpoints.addAll(findPeacefulCheckpointPlan(world, anchorPos, required));
+            if (encounter.peacefulCheckpoints.size() < required) {
+                cleanupEncounterEntities(world, encounter, true);
+                return null;
+            }
         }
         if (!spec.waves().isEmpty()) {
             startNextWave(world, encounter);
@@ -821,6 +871,90 @@ public final class ShadowsTradeRoadEncounterService {
         return Math.max(1, present);
     }
 
+    private static void initializeObjectiveMode(ServerLevel world, ServerPlayer player) {
+        if (world == null || player == null) {
+            return;
+        }
+        StoryQuestService.setQuestIntQuietly(
+                world,
+                player.getUUID(),
+                StoryQuestKeys.SHADOWS_OBJECTIVE_MODE,
+                DifficultyObjectiveMode.forDifficulty(world.getDifficulty()).serializedId()
+        );
+    }
+
+    private static List<BlockPos> findPeacefulCheckpointPlan(ServerLevel world,
+                                                              BlockPos anchor,
+                                                              int required) {
+        if (world == null || anchor == null || required <= 0) {
+            return List.of();
+        }
+        int[][] offsets = {
+                {16, 0}, {16, 16}, {0, 16}, {-16, 16},
+                {-16, 0}, {-16, -16}, {0, -16}, {16, -16}
+        };
+        List<BlockPos> plan = new ArrayList<>();
+        for (int[] offset : offsets) {
+            BlockPos checkpoint = safeSurface(world, anchor.getX() + offset[0], anchor.getZ() + offset[1]);
+            if (checkpoint != null && plan.stream().noneMatch(existing -> existing.distSqr(checkpoint) < 64.0D)) {
+                plan.add(checkpoint);
+                if (plan.size() >= required) {
+                    break;
+                }
+            }
+        }
+        return plan;
+    }
+
+    private static void tickPeacefulEscort(ServerLevel world,
+                                           ServerPlayer player,
+                                           ActiveEncounter encounter,
+                                           List<CaravanMerchantEntity> merchants,
+                                           String winsKey,
+                                           int targetWins) {
+        int required = encounter.peacefulCheckpoints.size();
+        if (required <= 0) {
+            failEncounter(world, player, encounter, winsKey, targetWins);
+            return;
+        }
+        if (!encounter.peacefulSuppliesDelivered
+                && player.blockPosition().distSqr(encounter.anchorPos) <= 10.0D * 10.0D
+                && DailyQuestService.countInventoryItem(player, Items.BREAD) >= PEACEFUL_SUPPLY_BREAD
+                && DailyQuestService.consumeInventoryItem(player, Items.BREAD, PEACEFUL_SUPPLY_BREAD)) {
+            encounter.peacefulSuppliesDelivered = true;
+            player.sendSystemMessage(Component.translatable(
+                    "message.village-quest.story.shadows_on_the_trade_road.peaceful.supplies",
+                    PEACEFUL_SUPPLY_BREAD
+            ).withStyle(ChatFormatting.GREEN), false);
+        }
+
+        if (PeacefulEscortProgress.complete(
+                encounter.peacefulCheckpointIndex, required, encounter.peacefulSuppliesDelivered)) {
+            succeedEncounter(world, player, encounter, winsKey, targetWins);
+            return;
+        }
+
+        BlockPos target = encounter.peacefulCheckpoints.get(
+                Math.min(encounter.peacefulCheckpointIndex, required - 1));
+        int arrived = 0;
+        for (CaravanMerchantEntity merchant : merchants) {
+            moveMerchantTo(merchant, target, MERCHANT_RETURN_SPEED);
+            if (merchant.blockPosition().distSqr(target) <= 8.0D * 8.0D) {
+                arrived++;
+            }
+        }
+        encounter.bossBar.setProgress((float) encounter.peacefulCheckpointIndex / (float) required);
+        if (player.blockPosition().distSqr(target) <= 10.0D * 10.0D
+                && arrived >= Math.max(1, (merchants.size() + 1) / 2)) {
+            encounter.peacefulCheckpointIndex++;
+            player.sendSystemMessage(Component.translatable(
+                    "message.village-quest.story.shadows_on_the_trade_road.peaceful.checkpoint",
+                    encounter.peacefulCheckpointIndex,
+                    required
+            ).withStyle(ChatFormatting.GOLD), true);
+        }
+    }
+
     private static void tickActiveEncounter(ServerLevel world,
                                             ServerPlayer player,
                                             ActiveEncounter encounter,
@@ -834,6 +968,10 @@ public final class ShadowsTradeRoadEncounterService {
 
         refreshEncounterMerchants(merchants);
         updateBossBar(world, player, encounter, merchants);
+        if (encounter.spec.waves().isEmpty()) {
+            tickPeacefulEscort(world, player, encounter, merchants, winsKey, targetWins);
+            return;
+        }
         List<Mob> hostiles = livingHostiles(world, encounter);
         if (!encounter.pendingSpawns.isEmpty()) {
             if (encounter.wavePulseDelayTicks > 0) {
@@ -1711,15 +1849,7 @@ public final class ShadowsTradeRoadEncounterService {
     }
 
     private static Entity findEntity(ServerLevel world, UUID entityId) {
-        if (world == null || entityId == null) {
-            return null;
-        }
-        for (Entity entity : world.getAllEntities()) {
-            if (entityId.equals(entity.getUUID())) {
-                return entity;
-            }
-        }
-        return null;
+        return world == null || entityId == null ? null : world.getEntity(entityId);
     }
 
     private static String playerTag(UUID playerId) {

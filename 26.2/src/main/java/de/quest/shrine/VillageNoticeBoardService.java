@@ -1,11 +1,15 @@
 package de.quest.shrine;
 
+import de.quest.caravan.TradeRouteService;
+import de.quest.content.story.ShadowsTradeRoadEncounterService;
 import de.quest.config.VillageQuestServerConfig;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.economy.CurrencyService;
 import de.quest.guild.VillageGuildService;
+import de.quest.guildtown.GuildTownService;
 import de.quest.network.VillageNetworkPayloads;
+import de.quest.quest.daily.FirstDailyChoiceService;
 import de.quest.registry.ModBlocks;
 import de.quest.village.LivingVillageNetworkService;
 import de.quest.village.LivingVillageNetworkState;
@@ -15,6 +19,7 @@ import de.quest.village.VillageRequestOffer;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -40,12 +45,29 @@ final class VillageNoticeBoardService {
         }
         VillageBondService.VillageBondView view = VillageBondService.inspectCurrentVillage(world, player, false);
         if (view == null) {
-            invalid(player);
-            return InteractionResult.FAIL;
+            PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(player.getUUID());
+            if (GuildNoticePostTeaser.shouldUseIntroTeaser(VillageWelcomeService.isCompleted(data))) {
+                sendContextTeaser(world, player, pos);
+                return InteractionResult.SUCCESS;
+            }
+            GuildTownService.NoticePostStoryContext interaction =
+                    GuildTownService.createNoticePostStoryContext(world, player);
+            GuildTownService.NoticePostStoryResolution resolution = use(interaction);
+            if (GuildTownService.presentNoticePostStory(player, interaction, resolution)) {
+                return InteractionResult.SUCCESS;
+            }
+            sendContextTeaser(world, player, pos);
+            return InteractionResult.SUCCESS;
         }
         VillageAtmosphereService.showBoardState(world, pos, view);
         send(world, player, pos, view);
+        de.quest.guildtown.GuildTownService.onNoticePostUse(world, player);
         return InteractionResult.SUCCESS;
+    }
+
+    static GuildTownService.NoticePostStoryResolution use(
+            GuildTownService.NoticePostStoryContext interaction) {
+        return GuildTownService.resolveNoticePostStory(interaction);
     }
 
     static void handleAction(ServerPlayer player, VillageNetworkPayloads.NoticeBoardActionPayload payload) {
@@ -73,6 +95,52 @@ final class VillageNoticeBoardService {
     private static void invalid(ServerPlayer player) {
         player.sendSystemMessage(Component.translatable("message.village-quest.village_bond.notice_invalid")
                 .withStyle(ChatFormatting.RED), false);
+    }
+
+    private static void sendContextTeaser(ServerLevel world, ServerPlayer player, BlockPos pos) {
+        PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(player.getUUID());
+        ShadowsTradeRoadEncounterService.VillageMarker marker =
+                ShadowsTradeRoadEncounterService.currentVillage(world, pos);
+        GuildNoticePostTeaser.Stage stage = GuildNoticePostTeaser.classify(
+                marker != null,
+                TradeRouteService.isNearPlayerYard(world, player.getUUID(), pos, 16),
+                FirstDailyChoiceService.canChoose(data),
+                FirstDailyChoiceService.isActive(data),
+                FirstDailyChoiceService.isCompleted(data),
+                VillageWelcomeService.isActive(data),
+                VillageWelcomeService.isCompleted(data),
+                VillageWelcomeService.isCurrentWelcomeVillage(data, marker));
+
+        Component message = switch (stage) {
+            case FIRST_FAVOR_AVAILABLE -> Component.translatable(
+                    "message.village-quest.guild_notice_post.teaser.first_favor");
+            case FIRST_FAVOR_ACTIVE -> Component.translatable(
+                    "message.village-quest.guild_notice_post.teaser.first_favor_active");
+            case MEET_VILLAGERS -> Component.translatable(
+                    "message.village-quest.guild_notice_post.teaser.meet_villagers",
+                    VillageWelcomeService.GREETING_TARGET);
+            case GREETING_PROGRESS -> Component.translatable(
+                    "message.village-quest.guild_notice_post.teaser.greeting_progress",
+                    VillageWelcomeService.greetingCount(data), VillageWelcomeService.GREETING_TARGET);
+            case WELCOME_ELSEWHERE -> Component.translatable(
+                    "message.village-quest.guild_notice_post.teaser.welcome_elsewhere");
+            case CONNECT_VILLAGE -> Component.translatable(
+                    "message.village-quest.guild_notice_post.teaser.connect_village");
+            case HOMESTEAD -> Component.translatable(
+                    "message.village-quest.guild_notice_post.teaser.homestead");
+            case UNKNOWN -> Component.translatable(
+                    "message.village-quest.guild_notice_post.teaser.unknown");
+        };
+        player.sendSystemMessage(message.copy().withStyle(stage == GuildNoticePostTeaser.Stage.UNKNOWN
+                ? ChatFormatting.GRAY : ChatFormatting.GOLD), false);
+        if (stage == GuildNoticePostTeaser.Stage.FIRST_FAVOR_AVAILABLE
+                || stage == GuildNoticePostTeaser.Stage.FIRST_FAVOR_ACTIVE) {
+            player.sendSystemMessage(Component.translatable(
+                            "message.village-quest.guild_notice_post.teaser.questmaster")
+                    .withStyle(style -> style.withColor(ChatFormatting.AQUA)
+                            .withClickEvent(new ClickEvent.RunCommand("/vq questmaster"))), false);
+        }
+        world.playSound(null, pos, SoundEvents.BOOK_PAGE_TURN, SoundSource.BLOCKS, 0.65f, 1.05f);
     }
 
     private static void send(ServerLevel world, ServerPlayer player, BlockPos pos,

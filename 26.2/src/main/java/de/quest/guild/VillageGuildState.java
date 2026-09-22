@@ -15,7 +15,9 @@ import net.minecraft.world.level.saveddata.SavedDataType;
 
 /** Optional shared guild layer. Personal stories, archives, and unique tools are never stored here. */
 public final class VillageGuildState extends SavedData {
-    static final int CURRENT_SCHEMA_VERSION = 1;
+    static final int CURRENT_SCHEMA_VERSION = 2;
+    static final int MAX_RENOWN = 1_000_000;
+    static final long INVITATION_LIFETIME_MILLIS = 7L * 24 * 60 * 60 * 1000;
     private static final String ID = "village_quest_guilds";
 
     public static final SavedDataType<VillageGuildState> TYPE = new SavedDataType<>(
@@ -24,7 +26,9 @@ public final class VillageGuildState extends SavedData {
 
     private final Map<UUID, MutableGuild> guilds = new HashMap<>();
     private final Map<UUID, UUID> memberGuilds = new HashMap<>();
-    private final Map<UUID, UUID> invitations = new HashMap<>();
+    private final Map<UUID, Invitation> invitations = new HashMap<>();
+
+    private record Invitation(UUID guildId, long createdAt) {}
 
     VillageGuildState() {}
 
@@ -39,7 +43,13 @@ public final class VillageGuildState extends SavedData {
     }
 
     public Optional<UUID> invitationFor(UUID playerId) {
-        return Optional.ofNullable(playerId == null ? null : invitations.get(playerId));
+        return invitationFor(playerId, System.currentTimeMillis());
+    }
+
+    Optional<UUID> invitationFor(UUID playerId, long now) {
+        cleanupExpiredInvitations(now);
+        Invitation invitation = playerId == null ? null : invitations.get(playerId);
+        return Optional.ofNullable(invitation == null ? null : invitation.guildId());
     }
 
     public GuildSnapshot create(UUID leaderId, String name) {
@@ -54,17 +64,28 @@ public final class VillageGuildState extends SavedData {
     }
 
     public boolean invite(UUID actorId, UUID targetId) {
+        return invite(actorId, targetId, System.currentTimeMillis());
+    }
+
+    boolean invite(UUID actorId, UUID targetId, long now) {
+        cleanupExpiredInvitations(now);
         MutableGuild guild = mutableGuildFor(actorId);
         if (guild == null || targetId == null || memberGuilds.containsKey(targetId)
                 || !guild.members.getOrDefault(actorId, VillageGuildRole.MEMBER).canInvite()) return false;
-        invitations.put(targetId, guild.id);
+        invitations.put(targetId, new Invitation(guild.id, now));
         setDirty();
         return true;
     }
 
     public GuildSnapshot accept(UUID playerId) {
+        return accept(playerId, System.currentTimeMillis());
+    }
+
+    GuildSnapshot accept(UUID playerId, long now) {
+        cleanupExpiredInvitations(now);
         if (playerId == null || memberGuilds.containsKey(playerId)) return null;
-        UUID guildId = invitations.remove(playerId);
+        Invitation invitation = invitations.remove(playerId);
+        UUID guildId = invitation == null ? null : invitation.guildId();
         MutableGuild guild = guildId == null ? null : guilds.get(guildId);
         if (guild == null) return null;
         guild.members.put(playerId, VillageGuildRole.MEMBER);
@@ -84,7 +105,7 @@ public final class VillageGuildState extends SavedData {
         invitations.remove(playerId);
         if (guild.members.isEmpty()) {
             guilds.remove(guild.id);
-            invitations.entrySet().removeIf(entry -> entry.getValue().equals(guild.id));
+            invitations.entrySet().removeIf(entry -> entry.getValue().guildId().equals(guild.id));
         } else {
             guild.revision++;
         }
@@ -95,7 +116,8 @@ public final class VillageGuildState extends SavedData {
     public boolean promote(UUID actorId, UUID targetId) {
         MutableGuild guild = mutableGuildFor(actorId);
         if (guild == null || targetId == null || !guild.members.containsKey(targetId)
-                || !guild.members.get(actorId).canPromote() || actorId.equals(targetId)) return false;
+                || !guild.members.getOrDefault(actorId, VillageGuildRole.MEMBER).canPromote()
+                || actorId.equals(targetId)) return false;
         VillageGuildRole targetRole = guild.members.get(targetId);
         if (targetRole == VillageGuildRole.LEADER) return false;
         guild.members.put(targetId, VillageGuildRole.STEWARD);
@@ -132,7 +154,8 @@ public final class VillageGuildState extends SavedData {
     public boolean selectProject(UUID actorId, VillageGuildProject project) {
         MutableGuild guild = mutableGuildFor(actorId);
         if (guild == null || project == null || project == VillageGuildProject.NONE
-                || !guild.members.get(actorId).canChooseProject() || guild.renown < 75) return false;
+                || !guild.members.getOrDefault(actorId, VillageGuildRole.MEMBER).canChooseProject()
+                || guild.renown < 75) return false;
         guild.project = project;
         guild.revision++;
         setDirty();
@@ -142,7 +165,7 @@ public final class VillageGuildState extends SavedData {
     public GuildSnapshot addRenown(UUID memberId, int amount) {
         MutableGuild guild = mutableGuildFor(memberId);
         if (guild == null || amount <= 0) return guild == null ? null : guild.snapshot();
-        guild.renown = Math.min(1_000_000, guild.renown + amount);
+        guild.renown = (int) Math.min(MAX_RENOWN, (long) guild.renown + amount);
         guild.revision++;
         setDirty();
         return guild.snapshot();
@@ -157,7 +180,7 @@ public final class VillageGuildState extends SavedData {
             if (guild != null && guild.members.get(playerId) == VillageGuildRole.LEADER) {
                 for (UUID member : guild.members.keySet()) memberGuilds.remove(member);
                 guilds.remove(guild.id);
-                invitations.entrySet().removeIf(entry -> entry.getValue().equals(guild.id));
+                invitations.entrySet().removeIf(entry -> entry.getValue().guildId().equals(guild.id));
                 setDirty();
                 return 1;
             }
@@ -170,6 +193,21 @@ public final class VillageGuildState extends SavedData {
         guilds.clear(); memberGuilds.clear(); invitations.clear(); setDirty();
     }
 
+    void cleanupExpiredInvitations(long now) {
+        if (invitations.entrySet().removeIf(entry -> !guilds.containsKey(entry.getValue().guildId())
+                || now >= entry.getValue().createdAt()
+                && now - entry.getValue().createdAt() >= INVITATION_LIFETIME_MILLIS)) {
+            setDirty();
+        }
+    }
+
+    /** Sweep persisted invitations even when nobody opens guild UI. */
+    public static void onServerTick(MinecraftServer server) {
+        if (server != null && server.getTickCount() % 1200 == 0) {
+            get(server).cleanupExpiredInvitations(System.currentTimeMillis());
+        }
+    }
+
     private MutableGuild mutableGuildFor(UUID playerId) {
         UUID guildId = playerId == null ? null : memberGuilds.get(playerId);
         return guildId == null ? null : guilds.get(guildId);
@@ -178,11 +216,15 @@ public final class VillageGuildState extends SavedData {
     static VillageGuildState fromNbt(CompoundTag root) {
         VillageGuildState state = new VillageGuildState();
         if (root == null || root.isEmpty()) return state;
+        int schema = root.getIntOr("schemaVersion", 0);
+        if (schema < 0 || schema > CURRENT_SCHEMA_VERSION) return state;
         for (CompoundTag entry : compounds(root.getListOrEmpty("guilds"))) {
             UUID id = parseUuid(entry.getStringOr("id", ""));
-            if (id == null) continue;
+            // First valid occurrence wins. Never populate reverse membership for an entry
+            // which could subsequently be overwritten by a duplicate guild id.
+            if (id == null || state.guilds.containsKey(id)) continue;
             MutableGuild guild = new MutableGuild(id, sanitizeName(entry.getStringOr("name", "Guild")),
-                    Math.max(0, entry.getIntOr("renown", 0)),
+                    Math.max(0, Math.min(MAX_RENOWN, entry.getIntOr("renown", 0))),
                     VillageGuildProject.byId(entry.getIntOr("project", 0)),
                     Math.max(0, entry.getIntOr("revision", 0)));
             for (CompoundTag member : compounds(entry.getListOrEmpty("members"))) {
@@ -190,16 +232,26 @@ public final class VillageGuildState extends SavedData {
                 if (memberId == null || state.memberGuilds.containsKey(memberId)) continue;
                 VillageGuildRole role = VillageGuildRole.byId(member.getIntOr("role", 0));
                 guild.members.put(memberId, role);
-                state.memberGuilds.put(memberId, id);
             }
-            if (!guild.members.isEmpty()) state.guilds.put(id, guild);
+            if (guild.members.isEmpty()) continue;
+            normalizeLeadership(guild);
+            state.guilds.put(id, guild);
+            guild.members.keySet().forEach(memberId -> state.memberGuilds.put(memberId, id));
         }
         for (CompoundTag entry : compounds(root.getListOrEmpty("invitations"))) {
             UUID player = parseUuid(entry.getStringOr("player", ""));
             UUID guild = parseUuid(entry.getStringOr("guild", ""));
+            long createdAt = entry.getLongOr("createdAt", 0);
+            if (createdAt <= 0) {
+                createdAt = System.currentTimeMillis();
+                state.setDirty();
+            }
             if (player != null && guild != null && state.guilds.containsKey(guild)
-                    && !state.memberGuilds.containsKey(player)) state.invitations.put(player, guild);
+                    && !state.memberGuilds.containsKey(player)) {
+                state.invitations.put(player, new Invitation(guild, createdAt));
+            }
         }
+        state.cleanupExpiredInvitations(System.currentTimeMillis());
         return state;
     }
 
@@ -223,9 +275,11 @@ public final class VillageGuildState extends SavedData {
         });
         root.put("guilds", guildEntries);
         ListTag invites = new ListTag();
-        state.invitations.forEach((player, guild) -> {
+        state.invitations.forEach((player, invitation) -> {
             CompoundTag entry = new CompoundTag(); entry.putString("player", player.toString());
-            entry.putString("guild", guild.toString()); invites.add(entry);
+            entry.putString("guild", invitation.guildId().toString());
+            entry.putLong("createdAt", invitation.createdAt());
+            invites.add(entry);
         });
         root.put("invitations", invites);
         return root;
@@ -235,6 +289,17 @@ public final class VillageGuildState extends SavedData {
         java.util.List<CompoundTag> result = new java.util.ArrayList<>(list.size());
         for (int i = 0; i < list.size(); i++) result.add(list.getCompoundOrEmpty(i));
         return result;
+    }
+
+    private static void normalizeLeadership(MutableGuild guild) {
+        java.util.List<UUID> members = guild.members.keySet().stream().sorted().toList();
+        UUID leader = members.stream().filter(id -> guild.members.get(id) == VillageGuildRole.LEADER)
+                .findFirst().orElse(members.get(0));
+        for (UUID member : members) {
+            VillageGuildRole role = guild.members.getOrDefault(member, VillageGuildRole.MEMBER);
+            if (member.equals(leader)) guild.members.put(member, VillageGuildRole.LEADER);
+            else if (role == VillageGuildRole.LEADER) guild.members.put(member, VillageGuildRole.STEWARD);
+        }
     }
 
     static String sanitizeName(String raw) {

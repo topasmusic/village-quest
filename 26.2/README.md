@@ -2,7 +2,7 @@
 
 `Village Quest` is a Fabric mod built around village progression. Take on daily and weekly work, build reputation, unlock story arcs and village projects, and later deal with the `Pilgrim` and the road beyond the village.
 
-Current stable release: `2.3.1 - Living Village Network Reliability Hotfix`, retaining the complete 2.3.0 feature set and the save-compatible `2.2.1` quality, balance, and fairness pass.
+Current stable release: `2.4.0 - The Guild Comes to Town`, retaining the complete 2.3 Living Village Network and save-compatible 2.2.1 improvements.
 
 Minecraft `26.2` is the active line for future Village Quest content after this final three-version parity release.
 
@@ -21,6 +21,8 @@ Minecraft `26.2` is the active line for future Village Quest content after this 
 4. Start the game with Java `25`.
 
 ## Highlights
+
+- A first-day quest choice, personal Village Contact, welcome assignment, and authored Guild Corners lead into five local village stories, ten identity-pair commissions, shared guild projects, a personal Chronicle, and `The Bells of Concord`
 
 - Daily and weekly quests through the `Questmaster`
 - Level-scaled experience rewards that advance the same number of bars at vanilla level `10` or `200+`
@@ -49,6 +51,7 @@ Minecraft `26.2` is the active line for future Village Quest content after this 
 - Daily freight contracts, six route specializations, and six permanent route investments
 - Length-aware route income, daily network limits, and an offline trade-office escrow
 - Persistent route surveys with up to 48 waypoints, so real player-built detours guide the simulation, map, and visible caravans
+- New surveys retain X/Y/Z anchors for tunnels, bridges, underpasses, stacked paths, and elevated Homesteads; legacy X/Z surveys remain compatible until deliberately re-surveyed
 - Ocean-only ferry legs with explicit safe-land boarding anchors, a dedicated boat marker, dashed sea lanes, arrival timers, and virtual shore-to-shore travel; observed merchants gather at the dock before departure, while inland lakes and rivers remain land-route obstacles
 - Visible traveling merchant caravans with varied medieval outfits that favor player-built roads without permanently loading chunks
 - Caravan recovery that avoids hazardous ledges, regroups scattered merchants, and safely returns persistently blocked groups to background simulation
@@ -62,6 +65,7 @@ Minecraft `26.2` is the active line for future Village Quest content after this 
 - The traveling `Pilgrim` trader with rotating wares
 - `Shadows on the Trade Road`, a late `Questmaster` follow-up arc after `Watch Bell` plus `3` completed `Pilgrim` combat rumors
 - Difficulty- and present-party-scaled nighttime caravan defenses with `Caravan Merchant` survivors and elite `Traitor` bandits; Peaceful uses a no-hostile escort-success path instead of impossible kills
+- `Night Bells`, Pilgrim combat expeditions, Empty Caravan defenses, and route emergencies also use explicit Peaceful objectives, while switching difficulty discards only incompatible partial objective progress
 - Story-linked `Wayfinder's Compass` modes for `Caravan Distress` and `Guild Convoy`
 - Contextual villager dialogue for talk-based `Market Rounds`, `Market Road Troubles`, and `Shadows` objectives
 - `Magic Shards`, special quests, and relic rewards

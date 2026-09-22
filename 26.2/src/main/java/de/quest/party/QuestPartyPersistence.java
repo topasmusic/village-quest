@@ -1,6 +1,7 @@
 package de.quest.party;
 
 import java.util.Map;
+import java.util.LinkedHashSet;
 import java.util.UUID;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -19,17 +20,18 @@ final class QuestPartyPersistence {
             CompoundTag partyNbt = parties.getCompoundOrEmpty(i);
             UUID partyId = parseUuid(partyNbt.getStringOr("id", ""));
             UUID leaderId = parseUuid(partyNbt.getStringOr("leader", ""));
-            if (partyId == null || leaderId == null) continue;
+            if (partyId == null || leaderId == null || partiesById.containsKey(partyId)) continue;
 
             PartyRuntime party = new PartyRuntime(partyId, leaderId);
+            LinkedHashSet<UUID> acceptedMembers = new LinkedHashSet<>();
             ListTag members = partyNbt.getListOrEmpty("members");
             for (int memberIndex = 0; memberIndex < members.size(); memberIndex++) {
                 UUID memberId = parseUuid(members.getCompoundOrEmpty(memberIndex).getStringOr("id", ""));
-                if (memberId == null || party.members().contains(memberId)) continue;
-                party.members().add(memberId);
-                partyByMember.put(memberId, partyId);
+                if (memberId == null || partyByMember.containsKey(memberId)) continue;
+                acceptedMembers.add(memberId);
             }
-            if (party.members().isEmpty()) continue;
+            if (acceptedMembers.isEmpty()) continue;
+            party.members().addAll(acceptedMembers);
             if (!party.members().contains(leaderId)) party.setLeaderId(party.members().iterator().next());
 
             readSharedSession(partyNbt.getCompoundOrEmpty("daily"), party.daily());
@@ -41,7 +43,9 @@ final class QuestPartyPersistence {
             readOfferMap(partyNbt.getListOrEmpty("storyOffers"), party.storyOffers());
             readOfferMap(partyNbt.getListOrEmpty("pilgrimOffers"), party.pilgrimOffers());
             readDisconnectMap(partyNbt.getListOrEmpty("disconnects"), party.disconnectDeadlines());
+            sanitizePartyRuntime(party);
             partiesById.put(partyId, party);
+            acceptedMembers.forEach(memberId -> partyByMember.put(memberId, partyId));
         }
 
         ListTag invites = root.getListOrEmpty("invites");
@@ -51,10 +55,24 @@ final class QuestPartyPersistence {
             UUID partyId = parseUuid(inviteNbt.getStringOr("party", ""));
             UUID inviterId = parseUuid(inviteNbt.getStringOr("inviter", ""));
             long expiresAt = inviteNbt.getLongOr("expiresAt", 0L);
-            if (targetId != null && partyId != null && inviterId != null && expiresAt > 0L) {
+            if (targetId != null && partyId != null && inviterId != null && expiresAt > 0L
+                    && partiesById.containsKey(partyId) && partyId.equals(partyByMember.get(inviterId))
+                    && !partyByMember.containsKey(targetId)) {
                 invitesByTarget.put(targetId, new PartyInvite(partyId, inviterId, expiresAt));
             }
         }
+    }
+
+    private static void sanitizePartyRuntime(PartyRuntime party) {
+        party.daily().syncedMembers().retainAll(party.members());
+        party.weekly().syncedMembers().retainAll(party.members());
+        party.story().syncedMembers().retainAll(party.members());
+        party.pilgrim().syncedMembers().retainAll(party.members());
+        party.dailyOffers().keySet().retainAll(party.members());
+        party.weeklyOffers().keySet().retainAll(party.members());
+        party.storyOffers().keySet().retainAll(party.members());
+        party.pilgrimOffers().keySet().retainAll(party.members());
+        party.disconnectDeadlines().keySet().retainAll(party.members());
     }
 
     static CompoundTag write(Map<UUID, PartyRuntime> partiesById,

@@ -71,6 +71,7 @@ public final class TradeRouteMapScreen extends CompatScreen {
     private double centerZ;
     private boolean centerInitialized;
     private boolean closeNotified;
+    private int heartbeatTicks;
     private boolean mapDragging;
     private int pendingRemovalRoute = -1;
     private long removalConfirmUntil;
@@ -103,6 +104,15 @@ public final class TradeRouteMapScreen extends CompatScreen {
         pendingRemovalRoute = -1;
         if (!centerInitialized) {
             resetMapCenter(false);
+        }
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        if (++heartbeatTicks >= 100) {
+            heartbeatTicks = 0;
+            sendAction(Payloads.TradeRouteActionPayload.ACTION_MAP_HEARTBEAT, -1);
         }
     }
 

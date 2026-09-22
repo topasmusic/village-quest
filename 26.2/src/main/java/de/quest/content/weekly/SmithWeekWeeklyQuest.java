@@ -109,8 +109,8 @@ public final class SmithWeekWeeklyQuest implements WeeklyQuestDefinition {
                 world,
                 player,
                 Map.of(
-                        Items.RAW_IRON, WeeklyQuestService.smithOreTarget(),
-                        Items.RAW_GOLD, WeeklyQuestService.smithGoldOreTarget(),
+                        Items.RAW_IRON, WeeklyQuestService.smithOreDeliveryTarget(),
+                        Items.RAW_GOLD, WeeklyQuestService.smithGoldOreDeliveryTarget(),
                         Items.IRON_INGOT, WeeklyQuestService.smithIronTarget(),
                         Items.GOLD_INGOT, WeeklyQuestService.smithGoldTarget()
                 )
@@ -125,6 +125,8 @@ public final class SmithWeekWeeklyQuest implements WeeklyQuestDefinition {
         UUID playerId = player.getUUID();
         int oreTarget = WeeklyQuestService.smithOreTarget();
         int goldOreTarget = WeeklyQuestService.smithGoldOreTarget();
+        int oreDeliveryTarget = WeeklyQuestService.smithOreDeliveryTarget();
+        int goldOreDeliveryTarget = WeeklyQuestService.smithGoldOreDeliveryTarget();
         int ironTarget = WeeklyQuestService.smithIronTarget();
         int goldTarget = WeeklyQuestService.smithGoldTarget();
         if (WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.SMITH_ORE) < oreTarget
@@ -137,10 +139,10 @@ public final class SmithWeekWeeklyQuest implements WeeklyQuestDefinition {
         return Texts.turnInMissing(
                 Items.RAW_IRON.getDefaultInstance().getDisplayName(),
                 WeeklyQuestService.countCompletionItem(world, player, Items.RAW_IRON),
-                oreTarget,
+                oreDeliveryTarget,
                 Items.RAW_GOLD.getDefaultInstance().getDisplayName(),
                 WeeklyQuestService.countCompletionItem(world, player, Items.RAW_GOLD),
-                goldOreTarget,
+                goldOreDeliveryTarget,
                 Items.IRON_INGOT.getDefaultInstance().getDisplayName(),
                 WeeklyQuestService.countCompletionItem(world, player, Items.IRON_INGOT),
                 ironTarget,
@@ -188,8 +190,8 @@ public final class SmithWeekWeeklyQuest implements WeeklyQuestDefinition {
 
     private boolean hasTurnInItems(ServerPlayer player) {
         ServerLevel world = (ServerLevel) player.level();
-        return WeeklyQuestService.countCompletionItem(world, player, Items.RAW_IRON) >= WeeklyQuestService.smithOreTarget()
-                && WeeklyQuestService.countCompletionItem(world, player, Items.RAW_GOLD) >= WeeklyQuestService.smithGoldOreTarget()
+        return WeeklyQuestService.countCompletionItem(world, player, Items.RAW_IRON) >= WeeklyQuestService.smithOreDeliveryTarget()
+                && WeeklyQuestService.countCompletionItem(world, player, Items.RAW_GOLD) >= WeeklyQuestService.smithGoldOreDeliveryTarget()
                 && WeeklyQuestService.countCompletionItem(world, player, Items.IRON_INGOT) >= WeeklyQuestService.smithIronTarget()
                 && WeeklyQuestService.countCompletionItem(world, player, Items.GOLD_INGOT) >= WeeklyQuestService.smithGoldTarget();
     }

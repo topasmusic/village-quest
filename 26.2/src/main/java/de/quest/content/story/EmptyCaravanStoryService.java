@@ -3,6 +3,9 @@ package de.quest.content.story;
 import de.quest.entity.CaravanMerchantEntity;
 import de.quest.entity.QuestMasterEntity;
 import de.quest.entity.TraitorEntity;
+import de.quest.quest.DifficultyObjectiveMode;
+import de.quest.quest.DifficultyObjectiveState;
+import de.quest.quest.daily.DailyQuestService;
 import de.quest.quest.story.StoryArcType;
 import de.quest.quest.story.StoryQuestKeys;
 import de.quest.quest.story.StoryQuestService;
@@ -34,6 +37,7 @@ public final class EmptyCaravanStoryService {
     public static final int BAIT_SCHEDULED = 1;
     public static final int BAIT_ACTIVE = 2;
     public static final int BAIT_WON = 3;
+    public static final int PEACEFUL_CHECKPOINT_TARGET = 3;
 
     private static final int MIN_TARGET_DISTANCE = 88;
     private static final int MAX_TARGET_DISTANCE = 150;
@@ -113,6 +117,8 @@ public final class EmptyCaravanStoryService {
             return false;
         }
         UUID playerId = player.getUUID();
+        StoryQuestService.setQuestIntQuietly(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_OBJECTIVE_MODE,
+                DifficultyObjectiveMode.forDifficulty(world.getDifficulty()).serializedId());
         StoryQuestService.setStoryFlag(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_CHOICE_AMNESTY, amnesty);
         StoryQuestService.setStoryFlag(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_CHOICE_JUSTICE, justice);
         StoryQuestService.setQuestInt(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_BAIT_STATE, BAIT_SCHEDULED);
@@ -195,8 +201,36 @@ public final class EmptyCaravanStoryService {
 
     private static void tickBait(ServerLevel world, ServerPlayer player) {
         UUID playerId = player.getUUID();
+        DifficultyObjectiveState.Transition transition = DifficultyObjectiveState.transition(
+                StoryQuestService.getQuestInt(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_OBJECTIVE_MODE),
+                world.getDifficulty());
+        if (transition.initialized()) {
+            StoryQuestService.setQuestIntQuietly(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_OBJECTIVE_MODE,
+                    transition.persistedValue());
+        } else if (transition.switched()) {
+            cleanupPlayer(world, playerId);
+            StoryQuestService.setQuestIntQuietly(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_BAIT_STATE, 0);
+            StoryQuestService.setQuestIntQuietly(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_PEACEFUL_CHECKPOINTS, 0);
+            StoryQuestService.setStoryFlag(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_PEACEFUL_SUPPLIES, false);
+            StoryQuestService.setStoryFlag(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_CHOICE_AMNESTY, false);
+            StoryQuestService.setStoryFlag(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_CHOICE_JUSTICE, false);
+            clearTarget(world, playerId);
+            StoryQuestService.setQuestIntQuietly(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_OBJECTIVE_MODE,
+                    transition.persistedValue());
+            player.sendSystemMessage(Component.translatable(
+                    "message.village-quest.difficulty_objective.switched",
+                    Component.translatable(transition.mode() == DifficultyObjectiveMode.PEACEFUL
+                            ? "message.village-quest.difficulty_objective.mode.peaceful"
+                            : "message.village-quest.difficulty_objective.mode.combat")
+            ).withStyle(ChatFormatting.GOLD), false);
+            return;
+        }
         int state = StoryQuestService.getQuestInt(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_BAIT_STATE);
         if (state == BAIT_WON || state == 0) {
+            return;
+        }
+        if (transition.mode() == DifficultyObjectiveMode.PEACEFUL) {
+            tickPeacefulBait(world, player, state);
             return;
         }
         if (state == BAIT_ACTIVE && !ACTIVE_BAITS.containsKey(playerId)) {
@@ -232,6 +266,56 @@ public final class EmptyCaravanStoryService {
                     .withStyle(ChatFormatting.GREEN), false);
             StoryQuestService.completeIfEligible(world, player);
         }
+    }
+
+    private static void tickPeacefulBait(ServerLevel world, ServerPlayer player, int state) {
+        UUID playerId = player.getUUID();
+        if (state != BAIT_SCHEDULED) {
+            StoryQuestService.setQuestInt(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_BAIT_STATE, BAIT_SCHEDULED);
+        }
+        ensureTarget(world, player, "message.village-quest.story.the_empty_caravan.target.bait");
+        BlockPos target = currentTarget(world, playerId);
+        if (!isNear(player, target, 12)) {
+            return;
+        }
+        boolean supplies = StoryQuestService.hasStoryFlag(
+                world, playerId, StoryQuestKeys.EMPTY_CARAVAN_PEACEFUL_SUPPLIES);
+        if (!supplies) {
+            if (DailyQuestService.countInventoryItem(player, Items.BREAD) < 12
+                    || DailyQuestService.countInventoryItem(player, Items.OAK_PLANKS) < 16) {
+                player.sendSystemMessage(Component.translatable(
+                        "message.village-quest.story.the_empty_caravan.peaceful.supplies_required",
+                        12,
+                        16
+                ).withStyle(ChatFormatting.YELLOW), true);
+                return;
+            }
+            if (!DailyQuestService.consumeInventoryItem(player, Items.BREAD, 12)
+                    || !DailyQuestService.consumeInventoryItem(player, Items.OAK_PLANKS, 16)) {
+                return;
+            }
+            supplies = true;
+            StoryQuestService.setStoryFlag(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_PEACEFUL_SUPPLIES, true);
+        }
+        int checkpoints = Math.min(
+                PEACEFUL_CHECKPOINT_TARGET,
+                StoryQuestService.getQuestInt(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_PEACEFUL_CHECKPOINTS) + 1);
+        StoryQuestService.setQuestInt(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_PEACEFUL_CHECKPOINTS, checkpoints);
+        if (PeacefulEscortProgress.complete(checkpoints, PEACEFUL_CHECKPOINT_TARGET, supplies)) {
+            StoryQuestService.setQuestInt(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_BAIT_STATE, BAIT_WON);
+            clearTarget(world, playerId);
+            player.sendSystemMessage(Component.translatable(
+                    "message.village-quest.story.the_empty_caravan.peaceful.completed"
+            ).withStyle(ChatFormatting.GREEN), false);
+            StoryQuestService.completeIfEligible(world, player);
+            return;
+        }
+        scheduleTarget(world, player, "message.village-quest.story.the_empty_caravan.target.bait");
+        player.sendSystemMessage(Component.translatable(
+                "message.village-quest.story.the_empty_caravan.peaceful.checkpoint",
+                checkpoints,
+                PEACEFUL_CHECKPOINT_TARGET
+        ).withStyle(ChatFormatting.GOLD), false);
     }
 
     private static BaitRuntime spawnBait(ServerLevel world, ServerPlayer player, BlockPos target) {
@@ -292,6 +376,11 @@ public final class EmptyCaravanStoryService {
         player.sendSystemMessage(Component.translatable(messageKey).withStyle(ChatFormatting.YELLOW), false);
     }
 
+    private static void clearTarget(ServerLevel world, UUID playerId) {
+        StoryQuestService.setQuestIntQuietly(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_TARGET_X, 0);
+        StoryQuestService.setQuestIntQuietly(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_TARGET_Z, 0);
+    }
+
     private static BlockPos findTarget(ServerLevel world, BlockPos origin) {
         for (int attempt = 0; attempt < 20; attempt++) {
             double angle = world.getRandom().nextDouble() * Math.PI * 2.0;
@@ -345,12 +434,7 @@ public final class EmptyCaravanStoryService {
     }
 
     private static Entity findEntity(ServerLevel world, UUID entityId) {
-        for (Entity entity : world.getAllEntities()) {
-            if (entityId.equals(entity.getUUID())) {
-                return entity;
-            }
-        }
-        return null;
+        return world == null || entityId == null ? null : world.getEntity(entityId);
     }
 
     private static List<Entity> allEntities(ServerLevel world) {

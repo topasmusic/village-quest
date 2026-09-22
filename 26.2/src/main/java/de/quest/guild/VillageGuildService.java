@@ -1,5 +1,6 @@
 package de.quest.guild;
 
+import de.quest.guildtown.GuildTownSharedState;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -80,8 +81,13 @@ public final class VillageGuildService {
     }
 
     public static int leave(ServerLevel world, ServerPlayer player) {
-        if (!VillageGuildState.get(world.getServer()).leave(player.getUUID())) {
+        VillageGuildState state = VillageGuildState.get(world.getServer());
+        VillageGuildState.GuildSnapshot before = state.guildFor(player.getUUID()).orElse(null);
+        if (!state.leave(player.getUUID())) {
             return fail(player, "command.village-quest.guild.leave_failed");
+        }
+        if (before != null && before.members().size() == 1) {
+            GuildTownSharedState.get(world.getServer()).removeGuild(before.id());
         }
         player.sendSystemMessage(Component.translatable("command.village-quest.guild.left")
                 .withStyle(ChatFormatting.GRAY), false);

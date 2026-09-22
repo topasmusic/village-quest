@@ -14,8 +14,10 @@ import de.quest.quest.daily.DailyQuestDefinition;
 import de.quest.quest.daily.DailyQuestGenerator;
 import de.quest.quest.daily.DailyQuestKeys;
 import de.quest.quest.daily.DailyQuestService;
+import de.quest.quest.daily.FirstDailyChoiceService;
 import de.quest.quest.story.StoryArcType;
 import de.quest.quest.story.StoryChapterDefinition;
+import de.quest.quest.story.StoryQuestKeys;
 import de.quest.quest.story.StoryQuestService;
 import de.quest.quest.weekly.WeeklyQuestDefinition;
 import de.quest.quest.weekly.WeeklyQuestGenerator;
@@ -78,6 +80,7 @@ public final class QuestPartyService {
 
         loaded = true;
         cleanupInvalidState(server);
+        migrateNightBellsVillageBindings(server);
         storePersistentState(server);
     }
 
@@ -347,7 +350,8 @@ public final class QuestPartyService {
                                                                             DailyQuestService.DailyQuestType fallback) {
         ensureLoaded(world == null ? null : world.getServer());
         PartyRuntime party = partyFor(playerId);
-        if (world == null || party == null) {
+        if (world == null || party == null || !FirstDailyChoiceService.canUseSharedDaily(
+                QuestState.get(world.getServer()).getPlayerData(playerId))) {
             return fallback;
         }
         DailyQuestService.DailyQuestType sessionType = activeDailyType(party);
@@ -371,7 +375,9 @@ public final class QuestPartyService {
                                             DailyQuestService.DailyQuestType type,
                                             DailyQuestDefinition definition) {
         ensureLoaded(world == null ? null : world.getServer());
-        if (world == null || player == null || type == null || !QuestShareProfiles.isDailyShareable(type)) {
+        if (world == null || player == null || type == null || !QuestShareProfiles.isDailyShareable(type)
+                || !FirstDailyChoiceService.canUseSharedDaily(
+                        QuestState.get(world.getServer()).getPlayerData(player.getUUID()))) {
             return;
         }
         PartyRuntime party = partyFor(player.getUUID());
@@ -671,6 +677,10 @@ public final class QuestPartyService {
         SharedQuestRuntime session = sharedStorySession(world, playerId, arcType, chapterIndex);
         if (session != null) {
             session.setInt(key, value);
+            if (arcType == StoryArcType.NIGHT_BELLS
+                    && StoryQuestKeys.NIGHT_BELLS_VILLAGE_BOUND.equals(key) && value != 0) {
+                storePersistentState(world.getServer());
+            }
         }
     }
 
@@ -693,6 +703,40 @@ public final class QuestPartyService {
         if (session != null) {
             session.setFlag(key, enabled);
         }
+    }
+
+    public static boolean storyTurnInRequirementsConsumed(ServerLevel world,
+                                                          UUID playerId,
+                                                          StoryArcType arcType,
+                                                          int chapterIndex) {
+        SharedQuestRuntime session = sharedStorySession(world, playerId, arcType, chapterIndex);
+        if (session != null && session.hasFlag(StoryQuestKeys.SHARED_TURN_IN_CONSUMED)) return true;
+        return world != null && playerId != null && arcType != null && chapterIndex >= 0
+                && QuestState.get(world.getServer()).getPlayerData(playerId).hasStoryFlag(
+                        StoryQuestKeys.sharedTurnInConsumed(arcType, chapterIndex));
+    }
+
+    public static void markStoryTurnInRequirementsConsumed(ServerLevel world,
+                                                           UUID playerId,
+                                                           StoryArcType arcType,
+                                                           int chapterIndex) {
+        SharedQuestRuntime session = sharedStorySession(world, playerId, arcType, chapterIndex);
+        PartyRuntime party = partyFor(playerId);
+        if (world == null || session == null || party == null) return;
+
+        session.setFlag(StoryQuestKeys.SHARED_TURN_IN_CONSUMED, true);
+        session.removeUnsyncedOffersAfterTurnIn(
+                StoryQuestKeys.SHARED_TURN_IN_CONSUMED, party.storyOffers());
+        for (UUID memberId : party.members()) {
+            if (!session.hasSynced(memberId)) continue;
+            PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
+            if (data.getActiveStoryArc() == arcType
+                    && data.getStoryChapterProgress(arcType.id()) == chapterIndex) {
+                data.setStoryFlag(StoryQuestKeys.sharedTurnInConsumed(arcType, chapterIndex), true);
+            }
+        }
+        QuestState.get(world.getServer()).setDirty();
+        storePersistentState(world.getServer());
     }
 
     public static List<UUID> activeStoryMembers(ServerLevel world,
@@ -1689,6 +1733,10 @@ public final class QuestPartyService {
                                         DailyQuestDefinition definition,
                                         UUID sourceId) {
         PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(member.getUUID());
+        if (!FirstDailyChoiceService.canUseSharedDaily(data)) {
+            clearDailyOffer(party, member.getUUID());
+            return;
+        }
         long day = TimeUtil.currentDay();
         SharedQuestRuntime session = ensureDailySession(party, type);
         if (session == null) {
@@ -1935,7 +1983,13 @@ public final class QuestPartyService {
         if (profile == null) {
             return;
         }
+        if (arcType == StoryArcType.NIGHT_BELLS) {
+            mergeNightBellsVillageBinding(data, session);
+        }
         for (String key : profile.intKeys()) {
+            if (arcType == StoryArcType.NIGHT_BELLS && isNightBellsVillageKey(key)) {
+                continue;
+            }
             int value = data.getStoryInt(key);
             if (value > 0) {
                 session.addInt(key, value);
@@ -1947,6 +2001,44 @@ public final class QuestPartyService {
             }
         }
         session.markSynced(memberId);
+    }
+
+    private static void migrateNightBellsVillageBindings(MinecraftServer server) {
+        for (PartyRuntime party : PARTIES.values()) {
+            if (QuestPartySessions.activeStoryType(party) != StoryArcType.NIGHT_BELLS
+                    || party.story().getInt(StoryQuestKeys.NIGHT_BELLS_VILLAGE_BOUND) != 0) {
+                continue;
+            }
+            UUID leaderId = party.leaderId();
+            if (party.story().hasSynced(leaderId)) {
+                mergeNightBellsVillageBinding(QuestState.get(server).getPlayerData(leaderId), party.story());
+            }
+            for (UUID memberId : party.members()) {
+                if (party.story().getInt(StoryQuestKeys.NIGHT_BELLS_VILLAGE_BOUND) != 0) break;
+                if (party.story().hasSynced(memberId)) {
+                    mergeNightBellsVillageBinding(QuestState.get(server).getPlayerData(memberId), party.story());
+                }
+            }
+        }
+    }
+
+    static void mergeNightBellsVillageBinding(PlayerQuestData data, SharedQuestRuntime session) {
+        if (data == null || session == null
+                || session.getInt(StoryQuestKeys.NIGHT_BELLS_VILLAGE_BOUND) != 0
+                || data.getStoryInt(StoryQuestKeys.NIGHT_BELLS_VILLAGE_BOUND) == 0) {
+            return;
+        }
+        session.setInt(StoryQuestKeys.NIGHT_BELLS_VILLAGE_X,
+                data.getStoryInt(StoryQuestKeys.NIGHT_BELLS_VILLAGE_X));
+        session.setInt(StoryQuestKeys.NIGHT_BELLS_VILLAGE_Z,
+                data.getStoryInt(StoryQuestKeys.NIGHT_BELLS_VILLAGE_Z));
+        session.setInt(StoryQuestKeys.NIGHT_BELLS_VILLAGE_BOUND, 1);
+    }
+
+    private static boolean isNightBellsVillageKey(String key) {
+        return StoryQuestKeys.NIGHT_BELLS_VILLAGE_BOUND.equals(key)
+                || StoryQuestKeys.NIGHT_BELLS_VILLAGE_X.equals(key)
+                || StoryQuestKeys.NIGHT_BELLS_VILLAGE_Z.equals(key);
     }
 
     private static void mergePilgrimProgressIntoSession(ServerLevel world,
@@ -2486,6 +2578,9 @@ public final class QuestPartyService {
         PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
         long day = TimeUtil.currentDay();
         ServerPlayer player = world.getServer().getPlayerList().getPlayer(memberId);
+        if (!FirstDailyChoiceService.canUseSharedDaily(data)) {
+            return false;
+        }
         SharedQuestRuntime session = sharedDailySessionForType(world, memberId, type);
         if (session != null && !session.canJoinAfterTurnIn(DailyQuestKeys.SHARED_TURN_IN_CONSUMED, memberId)) {
             if (notify && player != null) {
@@ -2549,6 +2644,15 @@ public final class QuestPartyService {
         }
         PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
         ServerPlayer player = world.getServer().getPlayerList().getPlayer(memberId);
+        SharedQuestRuntime session = sharedStorySessionForType(world, memberId, arcType, chapterIndex);
+        if (session != null && !session.canJoinAfterTurnIn(
+                StoryQuestKeys.SHARED_TURN_IN_CONSUMED, memberId)) {
+            if (notify && player != null) {
+                player.sendSystemMessage(Component.translatable("message.village-quest.party.offer.story.expired")
+                        .withStyle(ChatFormatting.RED), false);
+            }
+            return false;
+        }
         if (data.hasStoryCompleted(arcType.id())) {
             if (notify && player != null) {
                 player.sendSystemMessage(Component.translatable("message.village-quest.party.offer.story.blocked.completed").withStyle(ChatFormatting.RED), false);

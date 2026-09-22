@@ -10,6 +10,7 @@ import de.quest.quest.weekly.WeeklyQuestService;
 
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -290,64 +291,93 @@ public final class QuestShareProfiles {
         ));
 
         STORY.put(storyKey(StoryArcType.NIGHT_BELLS, 0), profile(
-                Set.of(StoryQuestKeys.NIGHT_BELLS_ZOMBIES),
+                nightBellsInts(StoryQuestKeys.NIGHT_BELLS_ZOMBIES,
+                        StoryQuestKeys.NIGHT_BELLS_PEACEFUL_BELL,
+                        "night_bells_peaceful_marker_0_0", "night_bells_peaceful_marker_0_1",
+                        "night_bells_peaceful_marker_0_2", "night_bells_peaceful_marker_0_3"),
                 Set.of(),
                 Set.of()
         ));
         STORY.put(storyKey(StoryArcType.NIGHT_BELLS, 1), profile(
-                Set.of(StoryQuestKeys.NIGHT_BELLS_SKELETONS, StoryQuestKeys.NIGHT_BELLS_SPIDERS),
+                nightBellsInts(StoryQuestKeys.NIGHT_BELLS_SKELETONS, StoryQuestKeys.NIGHT_BELLS_SPIDERS,
+                        "night_bells_peaceful_marker_1_0", "night_bells_peaceful_marker_1_1",
+                        "night_bells_peaceful_marker_1_2", "night_bells_peaceful_marker_1_3"),
                 Set.of(),
                 Set.of()
         ));
         STORY.put(storyKey(StoryArcType.NIGHT_BELLS, 2), profile(
-                Set.of(StoryQuestKeys.NIGHT_BELLS_CREEPERS, StoryQuestKeys.NIGHT_BELLS_HOSTILES),
+                nightBellsInts(StoryQuestKeys.NIGHT_BELLS_CREEPERS, StoryQuestKeys.NIGHT_BELLS_HOSTILES,
+                        "night_bells_peaceful_marker_2_0", "night_bells_peaceful_marker_2_1",
+                        "night_bells_peaceful_marker_2_2", "night_bells_peaceful_marker_2_3"),
                 Set.of(),
                 Set.of()
         ));
         STORY.put(storyKey(StoryArcType.NIGHT_BELLS, 3), profile(
-                Set.of(StoryQuestKeys.NIGHT_BELLS_RAID_WON),
-                Set.of(StoryQuestKeys.NIGHT_BELLS_RAID_WAIT_FOR_FRESH),
+                nightBellsInts(StoryQuestKeys.NIGHT_BELLS_RAID_WON,
+                        StoryQuestKeys.NIGHT_BELLS_PEACEFUL_BELL,
+                        "night_bells_peaceful_marker_3_0", "night_bells_peaceful_marker_3_1",
+                        "night_bells_peaceful_marker_3_2", "night_bells_peaceful_marker_3_3"),
+                Set.of(StoryQuestKeys.NIGHT_BELLS_RAID_WAIT_FOR_FRESH,
+                        StoryQuestKeys.NIGHT_BELLS_PEACEFUL_GUARDIAN,
+                        StoryQuestKeys.NIGHT_BELLS_PEACEFUL_CONFIRMED),
                 Set.of()
         ));
 
         PILGRIM.put(PilgrimContractType.QUENCH_FOR_THE_HALL, profile(
-                Set.of("pilgrim_lantern_skeletons"),
+                pilgrimInts("pilgrim_lantern_skeletons"),
                 Set.of(),
                 Set.of()
         ));
         PILGRIM.put(PilgrimContractType.WOOL_BEFORE_RAIN, profile(
-                Set.of("pilgrim_smoke_creepers"),
+                pilgrimInts("pilgrim_smoke_creepers"),
                 Set.of(),
                 Set.of()
         ));
         PILGRIM.put(PilgrimContractType.TRACKS_IN_THE_DARK, profile(
-                Set.of("pilgrim_tracks_zombies"),
+                pilgrimInts("pilgrim_tracks_zombies"),
                 Set.of(),
                 Set.of()
         ));
         PILGRIM.put(PilgrimContractType.FANGS_BY_THE_HEDGEROW, profile(
-                Set.of("pilgrim_fangs_spiders"),
+                pilgrimInts("pilgrim_fangs_spiders"),
                 Set.of(),
                 Set.of()
         ));
         PILGRIM.put(PilgrimContractType.ASH_ON_THE_PASS, profile(
-                Set.of("pilgrim_ash_blazes", "pilgrim_ash_wither_skeletons"),
+                pilgrimInts("pilgrim_ash_blazes", "pilgrim_ash_wither_skeletons"),
                 Set.of(),
                 Set.of()
         ));
         PILGRIM.put(PilgrimContractType.SMOKE_OVER_BLACKSTONE, profile(
-                Set.of("pilgrim_blackstone_magma_cubes", "pilgrim_blackstone_ghasts"),
+                pilgrimInts("pilgrim_blackstone_magma_cubes", "pilgrim_blackstone_ghasts"),
                 Set.of(),
                 Set.of()
         ));
         PILGRIM.put(PilgrimContractType.STILLNESS_BEYOND_THE_GATE, profile(
-                Set.of("pilgrim_stillness_endermen", "pilgrim_stillness_shulkers"),
+                pilgrimInts("pilgrim_stillness_endermen", "pilgrim_stillness_shulkers"),
                 Set.of(),
                 Set.of()
         ));
     }
 
     private QuestShareProfiles() {}
+
+    private static Set<String> nightBellsInts(String... progressKeys) {
+        Set<String> keys = new HashSet<>(Set.of(progressKeys));
+        keys.add(StoryQuestKeys.NIGHT_BELLS_VILLAGE_BOUND);
+        keys.add(StoryQuestKeys.NIGHT_BELLS_VILLAGE_X);
+        keys.add(StoryQuestKeys.NIGHT_BELLS_VILLAGE_Z);
+        return Set.copyOf(keys);
+    }
+
+    private static Set<String> pilgrimInts(String... combatKeys) {
+        Set<String> keys = new HashSet<>(Set.of(combatKeys));
+        keys.add("pilgrim_expedition_entered");
+        keys.add("pilgrim_expedition_distance");
+        keys.add("pilgrim_expedition_checkpoints");
+        keys.add("pilgrim_expedition_returned");
+        return Set.copyOf(keys);
+    }
 
     public static boolean isDailyShareable(DailyQuestService.DailyQuestType type) {
         return type != null && DAILY.containsKey(type);

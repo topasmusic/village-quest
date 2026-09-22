@@ -1,7 +1,9 @@
 package de.quest.data;
 
+import de.quest.guildtown.GuildTownProgress;
 import de.quest.quest.daily.DailyQuestKeys;
 import de.quest.quest.daily.DailyQuestService;
+import de.quest.quest.daily.FirstDailyChoiceService;
 import de.quest.quest.repeatable.RepeatableTargetProfile;
 import de.quest.quest.special.RelicQuestStage;
 import de.quest.quest.special.ShardRelicQuestStage;
@@ -18,18 +20,21 @@ import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
 import java.util.Map;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.UUID;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 
 public final class QuestState extends SavedData {
     private static final String ID = "village_quest_state";
+    /** Former .6 FIFO boundary, retained for migration/boundary regression coverage. */
+    static final int MAX_MODIFIED_TERRAIN_CHUNKS = 32_768;
     public static final SavedDataType<QuestState> TYPE =
             new SavedDataType<>(Identifier.withDefaultNamespace(ID), QuestState::new, CompoundTag.CODEC.xmap(QuestState::fromNbt, QuestState::toNbt), DataFixTypes.LEVEL);
 
     private final Map<UUID, PlayerQuestData> players = new ConcurrentHashMap<>();
-    private final Set<Long> modifiedTerrainChunks = ConcurrentHashMap.newKeySet();
+    /** Exact, durable 32x32-chunk region bitmaps; old safety marks are never evicted. */
+    private final Map<Long, long[]> modifiedTerrainRegions = Collections.synchronizedMap(new HashMap<>());
     private long pilgrimNaturalSpawnCooldownUntil;
     private CompoundTag questPartyState = new CompoundTag();
 
@@ -71,7 +76,7 @@ public final class QuestState extends SavedData {
 
     public void resetAllProgress() {
         players.clear();
-        modifiedTerrainChunks.clear();
+        modifiedTerrainRegions.clear();
         pilgrimNaturalSpawnCooldownUntil = 0L;
         questPartyState = new CompoundTag();
         setDirty();
@@ -82,7 +87,7 @@ public final class QuestState extends SavedData {
 
     private void readFromNbt(CompoundTag root) {
         players.clear();
-        modifiedTerrainChunks.clear();
+        modifiedTerrainRegions.clear();
         questPartyState = new CompoundTag();
         if (root == null || root.isEmpty()) {
             return;
@@ -103,10 +108,28 @@ public final class QuestState extends SavedData {
 
     private void readDailyQuestData(CompoundTag root) {
         this.pilgrimNaturalSpawnCooldownUntil = Math.max(0L, root.getLongOr("pilgrimNaturalSpawnCooldownUntil", 0L));
+        ListTag modifiedRegions = root.getListOrEmpty("modifiedTerrainRegions");
+        for (int i = 0; i < modifiedRegions.size(); i++) {
+            CompoundTag item = modifiedRegions.getCompoundOrEmpty(i);
+            if (!item.contains("x") || !item.contains("z")) continue;
+            int regionX = item.getIntOr("x", 0);
+            int regionZ = item.getIntOr("z", 0);
+            long[] loadedMasks = new long[16];
+            boolean nonEmpty = false;
+            for (int word = 0; word < loadedMasks.length; word++) {
+                loadedMasks[word] = item.getLongOr("m" + word, 0L);
+                nonEmpty |= loadedMasks[word] != 0L;
+            }
+            if (!nonEmpty) continue;
+            long[] masks = modifiedTerrainRegions.computeIfAbsent(packChunk(regionX, regionZ), ignored -> new long[16]);
+            for (int word = 0; word < masks.length; word++) masks[word] |= loadedMasks[word];
+        }
+        // Legacy .6 and earlier saves stored one compound per chunk. Reading remains lossless;
+        // the next save compacts them into region bitmaps.
         ListTag modifiedChunks = root.getListOrEmpty("modifiedTerrainChunks");
         for (int i = 0; i < modifiedChunks.size(); i++) {
             CompoundTag item = modifiedChunks.getCompoundOrEmpty(i);
-            modifiedTerrainChunks.add(item.getLongOr("chunk", 0L));
+            if (item.contains("chunk")) addModifiedTerrainChunk(item.getLongOr("chunk", 0L));
         }
         readUuidLongMap(root, "currencyBalance", (id, value) -> getPlayerData(id).setCurrencyBalance(value));
         readUuidLongMap(root, "lastRewardDay", (id, value) -> getPlayerData(id).setLastRewardDay(value));
@@ -181,18 +204,64 @@ public final class QuestState extends SavedData {
         readUuidNamedSet(root, "dailyProgressFlags", (id, stateKey) -> getPlayerData(id).setDailyFlag(stateKey, true));
         readUuidNamedIntMap(root, "weeklyProgressInts", (id, stateKey, value) -> getPlayerData(id).setWeeklyInt(stateKey, value));
         readUuidNamedSet(root, "weeklyProgressFlags", (id, stateKey) -> getPlayerData(id).setWeeklyFlag(stateKey, true));
+        boolean onboardingMigrated = players.values().stream()
+                .map(FirstDailyChoiceService::migratePre24Progress)
+                .reduce(false, (left, right) -> left || right);
+        boolean sanitized = players.values().stream()
+                .map(QuestState::sanitizeLoadedPlayerData)
+                .reduce(false, (left, right) -> left || right);
+        if (onboardingMigrated || sanitized) {
+            setDirty();
+        }
+    }
+
+    static boolean sanitizeLoadedPlayerData(PlayerQuestData data) {
+        if (data == null) return false;
+        boolean changed = GuildTownProgress.sanitizeActiveState(data);
+        StoryArcType active = data.getActiveStoryArc();
+        for (Map.Entry<String, Integer> entry : Map.copyOf(data.getStoryChapterProgressState()).entrySet()) {
+            StoryArcType type = StoryArcType.fromId(entry.getKey());
+            if (type == null) {
+                data.setStoryChapterProgress(entry.getKey(), 0);
+                changed = true;
+                continue;
+            }
+            int chapterCount = type.chapterCount();
+            boolean completed = data.hasStoryCompleted(type.id());
+            boolean malformed = entry.getValue() > chapterCount
+                    || entry.getValue() == chapterCount && !completed;
+            if (!malformed) continue;
+            data.setStoryChapterProgress(type.id(), completed ? chapterCount : 0);
+            if (active == type) {
+                data.setActiveStoryArc(null);
+                active = null;
+            }
+            changed = true;
+        }
+        if (active != null && data.hasStoryCompleted(active.id())) {
+            data.setActiveStoryArc(null);
+            changed = true;
+        }
+        return changed;
     }
 
     private CompoundTag writeDailyQuestData() {
         CompoundTag root = new CompoundTag();
         root.putLong("pilgrimNaturalSpawnCooldownUntil", this.pilgrimNaturalSpawnCooldownUntil);
-        ListTag modifiedChunks = new ListTag();
-        for (long chunk : modifiedTerrainChunks) {
-            CompoundTag item = new CompoundTag();
-            item.putLong("chunk", chunk);
-            modifiedChunks.add(item);
+        ListTag modifiedRegions = new ListTag();
+        synchronized (modifiedTerrainRegions) {
+            modifiedTerrainRegions.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(region -> {
+                CompoundTag item = new CompoundTag();
+                item.putInt("x", (int) (long) region.getKey());
+                item.putInt("z", (int) (region.getKey() >> 32));
+                for (int word = 0; word < region.getValue().length; word++) {
+                    long mask = region.getValue()[word];
+                    if (mask != 0L) item.putLong("m" + word, mask);
+                }
+                modifiedRegions.add(item);
+            });
         }
-        root.put("modifiedTerrainChunks", modifiedChunks);
+        root.put("modifiedTerrainRegions", modifiedRegions);
         ListTag currencyBalance = new ListTag();
         ListTag lastRewardDay = new ListTag();
         ListTag bonusRewardDay = new ListTag();
@@ -545,7 +614,7 @@ public final class QuestState extends SavedData {
     }
 
     public void markTerrainModified(BlockPos pos) {
-        if (pos != null && modifiedTerrainChunks.add(packChunk(pos.getX() >> 4, pos.getZ() >> 4))) {
+        if (pos != null && addModifiedTerrainChunk(packChunk(pos.getX() >> 4, pos.getZ() >> 4))) {
             setDirty();
         }
     }
@@ -557,14 +626,47 @@ public final class QuestState extends SavedData {
         int centerX = pos.getX() >> 4;
         int centerZ = pos.getZ() >> 4;
         int radius = Math.max(0, chunkRadius);
-        for (int x = centerX - radius; x <= centerX + radius; x++) {
-            for (int z = centerZ - radius; z <= centerZ + radius; z++) {
-                if (modifiedTerrainChunks.contains(packChunk(x, z))) {
-                    return true;
+        synchronized (modifiedTerrainRegions) {
+            for (int x = centerX - radius; x <= centerX + radius; x++) {
+                for (int z = centerZ - radius; z <= centerZ + radius; z++) {
+                    if (containsModifiedTerrainChunk(x, z)) return true;
                 }
             }
         }
         return false;
+    }
+
+    private boolean addModifiedTerrainChunk(long packed) {
+        int chunkX = (int) packed;
+        int chunkZ = (int) (packed >> 32);
+        int local = Math.floorMod(chunkZ, 32) * 32 + Math.floorMod(chunkX, 32);
+        synchronized (modifiedTerrainRegions) {
+            long[] masks = modifiedTerrainRegions.computeIfAbsent(
+                    packChunk(Math.floorDiv(chunkX, 32), Math.floorDiv(chunkZ, 32)), ignored -> new long[16]);
+            long bit = 1L << (local & 63);
+            int word = local >> 6;
+            if ((masks[word] & bit) != 0L) return false;
+            masks[word] |= bit;
+            return true;
+        }
+    }
+
+    private boolean containsModifiedTerrainChunk(int chunkX, int chunkZ) {
+        long[] masks = modifiedTerrainRegions.get(packChunk(
+                Math.floorDiv(chunkX, 32), Math.floorDiv(chunkZ, 32)));
+        if (masks == null) return false;
+        int local = Math.floorMod(chunkZ, 32) * 32 + Math.floorMod(chunkX, 32);
+        return (masks[local >> 6] & 1L << (local & 63)) != 0L;
+    }
+
+    int modifiedTerrainChunkCount() {
+        long count = 0L;
+        synchronized (modifiedTerrainRegions) {
+            for (long[] masks : modifiedTerrainRegions.values()) {
+                for (long mask : masks) count += Long.bitCount(mask);
+            }
+        }
+        return (int) Math.min(Integer.MAX_VALUE, count);
     }
 
     private static long packChunk(int x, int z) {

@@ -8,6 +8,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import de.quest.quest.daily.DailyQuestKeys;
+import de.quest.quest.story.StoryArcType;
+import de.quest.quest.story.StoryQuestKeys;
 import de.quest.quest.weekly.WeeklyQuestKeys;
 import net.minecraft.nbt.CompoundTag;
 import org.junit.jupiter.api.Test;
@@ -16,6 +18,7 @@ final class QuestPartyPersistenceTest {
     private static final UUID PARTY = UUID.fromString("22fe2c9d-8d56-4a1b-9fef-91fdfafc5bc1");
     private static final UUID LEADER = UUID.fromString("995a88d3-e47f-4aae-828f-e386b40f13a7");
     private static final UUID MEMBER = UUID.fromString("ba518123-f624-4630-883c-b4083d5f9ed4");
+    private static final UUID INVITED = UUID.fromString("377e5c49-5082-48a9-a851-e5a2fb9f8356");
 
     @Test
     void consumedDailyTurnInFreezesEligibilityAndInvalidatesStaleOffer() {
@@ -81,7 +84,7 @@ final class QuestPartyPersistenceTest {
         Map<UUID, PartyRuntime> parties = new HashMap<>();
         parties.put(PARTY, party);
         Map<UUID, PartyInvite> invites = new HashMap<>();
-        invites.put(MEMBER, new PartyInvite(PARTY, LEADER, 12_345L));
+        invites.put(INVITED, new PartyInvite(PARTY, LEADER, 12_345L));
 
         CompoundTag encoded = QuestPartyPersistence.write(parties, invites);
         Map<UUID, PartyRuntime> loadedParties = new HashMap<>();
@@ -100,7 +103,7 @@ final class QuestPartyPersistenceTest {
         assertTrue(loaded.daily().hasSynced(LEADER));
         assertTrue(loaded.dailyOffers().isEmpty());
         assertEquals(9_999L, loaded.disconnectDeadlines().get(MEMBER));
-        assertEquals(12_345L, loadedInvites.get(MEMBER).expiresAtMillis());
+        assertEquals(12_345L, loadedInvites.get(INVITED).expiresAtMillis());
         assertTrue(loaded.daily().canJoinAfterTurnIn(DailyQuestKeys.SHARED_TURN_IN_CONSUMED, LEADER));
         assertFalse(loaded.daily().canJoinAfterTurnIn(DailyQuestKeys.SHARED_TURN_IN_CONSUMED, MEMBER));
     }
@@ -118,5 +121,65 @@ final class QuestPartyPersistenceTest {
         assertTrue(parties.isEmpty());
         assertTrue(memberships.isEmpty());
         assertFalse(invites.containsKey(MEMBER));
+    }
+
+    @Test
+    void contradictoryMembershipIsRebuiltAsExactlyOneCanonicalParty() {
+        UUID secondPartyId = UUID.fromString("63785529-cc22-4240-8790-e0d4a267351a");
+        UUID secondLeader = UUID.fromString("2fa68a32-bf1e-4ea0-b057-8c9e2471447b");
+        PartyRuntime first = new PartyRuntime(PARTY, LEADER);
+        first.members().add(LEADER);
+        first.members().add(MEMBER);
+        PartyRuntime second = new PartyRuntime(secondPartyId, secondLeader);
+        second.members().add(secondLeader);
+        second.members().add(MEMBER);
+        Map<UUID, PartyRuntime> corrupt = new java.util.LinkedHashMap<>();
+        corrupt.put(PARTY, first);
+        corrupt.put(secondPartyId, second);
+
+        Map<UUID, PartyRuntime> loadedParties = new HashMap<>();
+        Map<UUID, UUID> loadedMemberships = new HashMap<>();
+        QuestPartyPersistence.read(QuestPartyPersistence.write(corrupt, Map.of()),
+                loadedParties, loadedMemberships, new HashMap<>());
+
+        long containingParties = loadedParties.values().stream().filter(party -> party.members().contains(MEMBER)).count();
+        assertEquals(1L, containingParties);
+        UUID canonical = loadedMemberships.get(MEMBER);
+        assertTrue(canonical != null && loadedParties.get(canonical).members().contains(MEMBER));
+        assertEquals(loadedParties.values().stream().mapToInt(party -> party.members().size()).sum(),
+                loadedMemberships.size());
+    }
+
+    @Test
+    void storyTurnInReceiptSurvivesReloadFreezesEligibilityAndClearsForNextChapter() {
+        PartyRuntime party = new PartyRuntime(PARTY, LEADER);
+        party.members().add(LEADER);
+        party.members().add(MEMBER);
+        party.members().add(INVITED);
+        String chapter = StoryArcType.FAILING_HARVEST.id() + "#2";
+        party.story().bind(chapter, 2L);
+        party.story().markSynced(LEADER);
+        party.story().markSynced(MEMBER);
+        party.storyOffers().put(INVITED, new QuestJoinOffer(chapter, 2L, LEADER));
+        party.story().setFlag(StoryQuestKeys.SHARED_TURN_IN_CONSUMED, true);
+        assertEquals(1, party.story().removeUnsyncedOffersAfterTurnIn(
+                StoryQuestKeys.SHARED_TURN_IN_CONSUMED, party.storyOffers()));
+
+        Map<UUID, PartyRuntime> parties = new HashMap<>();
+        parties.put(PARTY, party);
+        CompoundTag encoded = QuestPartyPersistence.write(parties, Map.of());
+        Map<UUID, PartyRuntime> loadedParties = new HashMap<>();
+        QuestPartyPersistence.read(encoded, loadedParties, new HashMap<>(), new HashMap<>());
+
+        SharedQuestRuntime restored = loadedParties.get(PARTY).story();
+        assertTrue(restored.hasFlag(StoryQuestKeys.SHARED_TURN_IN_CONSUMED));
+        assertTrue(restored.canJoinAfterTurnIn(StoryQuestKeys.SHARED_TURN_IN_CONSUMED, LEADER));
+        assertTrue(restored.canJoinAfterTurnIn(StoryQuestKeys.SHARED_TURN_IN_CONSUMED, MEMBER));
+        assertFalse(restored.canJoinAfterTurnIn(StoryQuestKeys.SHARED_TURN_IN_CONSUMED, INVITED));
+        assertTrue(loadedParties.get(PARTY).storyOffers().isEmpty());
+
+        restored.bind(StoryArcType.FAILING_HARVEST.id() + "#3", 3L);
+        assertFalse(restored.hasFlag(StoryQuestKeys.SHARED_TURN_IN_CONSUMED));
+        assertTrue(restored.syncedMembers().isEmpty());
     }
 }

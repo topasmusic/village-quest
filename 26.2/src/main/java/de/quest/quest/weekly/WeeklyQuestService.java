@@ -182,6 +182,18 @@ public final class WeeklyQuestService {
         return withTargetProfile(data, () -> definition.isComplete(world, player));
     }
 
+    public static Component claimBlockedMessage(ServerLevel world, ServerPlayer player) {
+        if (world == null || player == null) {
+            return null;
+        }
+        PlayerQuestData data = data(world, player.getUUID());
+        WeeklyQuestDefinition definition = activeDefinition(world, player.getUUID());
+        if (definition == null) {
+            return null;
+        }
+        return withTargetProfile(data, () -> definition.claimBlockedMessage(world, player));
+    }
+
     private static void ensureCurrentProgressCycle(PlayerQuestData data) {
         long cycle = currentCycle();
         if (data.getWeeklyProgressCycle() != cycle) {
@@ -505,10 +517,12 @@ public final class WeeklyQuestService {
             return false;
         }
 
+        WeeklyQuestType cancelledType = activeQuestType(world, playerId);
         PlayerQuestData data = data(world, playerId);
         clearProgress(data);
         data.setWeeklyAcceptedCycle(PlayerQuestData.UNSET_DAY);
         setDirty(world);
+        QuestPartyService.clearWeeklySessionIfFinished(world, playerId, cancelledType);
         refreshQuestUi(world, playerId);
         return true;
     }
@@ -779,15 +793,18 @@ public final class WeeklyQuestService {
         return withTargetProfile(data(world, playerId), definition::buildCompletion);
     }
 
-    public static int harvestWheatTarget() { return tunedTarget(HARVEST_WHEAT_TARGET, "weekly.harvest.wheat"); }
+    public static int harvestWheatDeliveryTarget() { return tunedTarget(HARVEST_WHEAT_TARGET, "weekly.harvest.wheat"); }
+    public static int harvestWheatTarget() { return harvestWheatDeliveryTarget() + harvestBreadTarget() * 3; }
     public static int harvestCarrotTarget() { return tunedTarget(HARVEST_CARROT_TARGET, "weekly.harvest.carrot"); }
     public static int harvestPotatoTarget() { return tunedTarget(HARVEST_POTATO_TARGET, "weekly.harvest.potato"); }
     public static int harvestBreadTarget() { return tunedTarget(HARVEST_BREAD_TARGET, "weekly.harvest.bread"); }
     public static int bakehouseBreadTarget() { return tunedTarget(BAKEHOUSE_BREAD_TARGET, "weekly.bakehouse.bread"); }
     public static int bakehousePieTarget() { return tunedTarget(BAKEHOUSE_PIE_TARGET, "weekly.bakehouse.pie"); }
     public static int bakehousePotatoTarget() { return tunedTarget(BAKEHOUSE_POTATO_TARGET, "weekly.bakehouse.potato"); }
-    public static int smithOreTarget() { return tunedTarget(SMITH_ORE_TARGET, "weekly.smith.ore"); }
-    public static int smithGoldOreTarget() { return tunedTarget(SMITH_GOLD_ORE_TARGET, "weekly.smith.gold_ore"); }
+    public static int smithOreDeliveryTarget() { return tunedTarget(SMITH_ORE_TARGET, "weekly.smith.ore"); }
+    public static int smithGoldOreDeliveryTarget() { return tunedTarget(SMITH_GOLD_ORE_TARGET, "weekly.smith.gold_ore"); }
+    public static int smithOreTarget() { return smithOreDeliveryTarget() + smithIronTarget(); }
+    public static int smithGoldOreTarget() { return smithGoldOreDeliveryTarget() + smithGoldTarget(); }
     public static int smithIronTarget() { return tunedTarget(SMITH_IRON_TARGET, "weekly.smith.iron"); }
     public static int smithGoldTarget() { return tunedTarget(SMITH_GOLD_TARGET, "weekly.smith.gold"); }
     public static int pastureBreedTarget() { return tunedTarget(PASTURE_BREED_TARGET, "weekly.pasture.breed"); }

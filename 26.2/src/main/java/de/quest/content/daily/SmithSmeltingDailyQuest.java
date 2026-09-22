@@ -102,7 +102,7 @@ public final class SmithSmeltingDailyQuest implements DailyQuestDefinition {
                 world,
                 player,
                 Map.of(
-                        Items.RAW_IRON, DailyQuestService.smithSmeltOreTarget(),
+                        Items.RAW_IRON, DailyQuestService.smithSmeltRawDeliveryTarget(),
                         Items.IRON_INGOT, DailyQuestService.smithSmeltIngotTarget()
                 )
         );
@@ -115,6 +115,7 @@ public final class SmithSmeltingDailyQuest implements DailyQuestDefinition {
         }
         UUID playerId = player.getUUID();
         int oreTarget = DailyQuestService.smithSmeltOreTarget();
+        int rawDeliveryTarget = DailyQuestService.smithSmeltRawDeliveryTarget();
         int ingotTarget = DailyQuestService.smithSmeltIngotTarget();
         if (DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.SMITH_SMELT_ORE_PROGRESS) < oreTarget
                 || DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.SMITH_SMELT_INGOT_PROGRESS) < ingotTarget
@@ -124,7 +125,7 @@ public final class SmithSmeltingDailyQuest implements DailyQuestDefinition {
         return Texts.turnInMissing(
                 Items.RAW_IRON.getDefaultInstance().getDisplayName(),
                 DailyQuestService.countCompletionItem(world, player, Items.RAW_IRON),
-                oreTarget,
+                rawDeliveryTarget,
                 Items.IRON_INGOT.getDefaultInstance().getDisplayName(),
                 DailyQuestService.countCompletionItem(world, player, Items.IRON_INGOT),
                 ingotTarget
@@ -169,7 +170,7 @@ public final class SmithSmeltingDailyQuest implements DailyQuestDefinition {
 
     private boolean hasTurnInItems(ServerPlayer player) {
         ServerLevel world = (ServerLevel) player.level();
-        return DailyQuestService.countCompletionItem(world, player, Items.RAW_IRON) >= DailyQuestService.smithSmeltOreTarget()
+        return DailyQuestService.countCompletionItem(world, player, Items.RAW_IRON) >= DailyQuestService.smithSmeltRawDeliveryTarget()
                 && DailyQuestService.countCompletionItem(world, player, Items.IRON_INGOT) >= DailyQuestService.smithSmeltIngotTarget();
     }
 }

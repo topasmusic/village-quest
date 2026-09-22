@@ -2,7 +2,11 @@
 
 Village Quest uses a single-active-line development policy.
 
-## 2.3.1 current maintenance release
+## 2.4.0 current content release
+
+`Village Quest 2.4.0 - The Guild Comes to Town` is released exclusively for Minecraft `26.2`. It adds Village Contacts, Guild Corners, local stories, identity-pair commissions, shared projects, and the Chronicle while preserving 2.3.1 saves. The older Minecraft targets remain on their existing maintenance releases.
+
+## 2.3.1 maintenance release
 
 `Village Quest 2.3.1 - Living Village Network Reliability Hotfix` is released exclusively for Minecraft `26.2`. It preserves the complete 2.3.0 content release while fixing shared-turn-in eligibility, historical village identity beyond eight records, and Notice Board payload bounds.
 

@@ -3,6 +3,7 @@ package de.quest.questmaster;
 import de.quest.caravan.TradeRouteService;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
+import de.quest.guildtown.GuildTownProgress;
 import de.quest.network.Payloads;
 import de.quest.quest.special.RelicQuestStage;
 import de.quest.quest.special.ShardRelicQuestStage;
@@ -10,6 +11,7 @@ import de.quest.quest.story.StoryArcType;
 import de.quest.quest.story.StoryQuestService;
 import de.quest.registry.ModItems;
 import de.quest.shrine.VillageBondService;
+import de.quest.shrine.VillageWelcomeService;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -35,8 +37,10 @@ final class GuildPathPayloadBuilder {
         boolean lensInstalled = shrineStoryComplete || shrineChapter > 0;
         boolean sigil = VillageBondService.hasSigil(world, playerId);
         boolean shrine = VillageBondService.shrineCount(world, playerId) > 0;
-        boolean board = VillageBondService.villages(world, playerId).stream()
+        boolean legacyBoardProgress = VillageBondService.villages(world, playerId).stream()
                 .anyMatch(village -> village.completions() > 0);
+        int boardStage = noticeBoardStage(VillageWelcomeService.isCompleted(data),
+                GuildTownProgress.completedCommissionCount(data), legacyBoardProgress);
 
         return List.of(
                 node("ledger", ModItems.CARAVAN_LEDGER,
@@ -56,7 +60,7 @@ final class GuildPathPayloadBuilder {
                         emptyCaravan && TradeRouteService.routeCount(world, playerId) >= 2),
                 node("sigil", ModItems.WAYFARERS_SIGIL, sigil, lensInstalled),
                 node("wayshrine", ModItems.GUILD_WAYSHRINE, shrine, sigil),
-                node("notice_board", ModItems.GUILD_NOTICE_POST, board, shrine),
+                node("notice_board", ModItems.GUILD_NOTICE_POST, boardStage == 2, boardStage >= 1),
                 node("courier_satchel", ModItems.GUILD_COURIERS_SATCHEL,
                         shrineStoryComplete, shrineStoryActive && shrineChapter >= 5));
     }
@@ -67,6 +71,13 @@ final class GuildPathPayloadBuilder {
                 Component.translatable("screen.village-quest.guild_path.node." + id + ".ability"),
                 Component.translatable("screen.village-quest.guild_path.node." + id + ".requirement"),
                 complete ? 2 : unlocked ? 1 : 0);
+    }
+
+    static int noticeBoardStage(boolean welcomeCompleted, int completedCommissions,
+                                boolean legacyBoardProgress) {
+        if (legacyBoardProgress) return 2;
+        if (!welcomeCompleted) return 0;
+        return completedCommissions > 0 ? 2 : 1;
     }
 
     private static boolean hasItem(ServerPlayer player, Item item) {

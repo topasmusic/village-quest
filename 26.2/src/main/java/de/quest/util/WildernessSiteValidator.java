@@ -46,7 +46,7 @@ public final class WildernessSiteValidator {
                 int topY = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
                 if (topY <= world.getMinY()) return null;
                 BlockPos surface = new BlockPos(x, topY - 1, z);
-                if (!isNaturalSurface(world.getBlockState(surface))) return null;
+                if (!NaturalSurfacePolicy.isSafeNaturalSupport(world, surface)) return null;
                 minOuter = Math.min(minOuter, topY);
                 maxOuter = Math.max(maxOuter, topY);
                 if (Math.abs(xOffset) <= innerRadius && Math.abs(zOffset) <= innerRadius) {
@@ -101,15 +101,6 @@ public final class WildernessSiteValidator {
             }
         }
         return false;
-    }
-
-    private static boolean isNaturalSurface(BlockState state) {
-        if (!state.getFluidState().isEmpty()) return false;
-        return state.is(Blocks.GRASS_BLOCK) || state.is(Blocks.DIRT) || state.is(Blocks.COARSE_DIRT)
-                || state.is(Blocks.PODZOL) || state.is(Blocks.ROOTED_DIRT) || state.is(Blocks.MOSS_BLOCK)
-                || state.is(Blocks.MUD) || state.is(Blocks.SAND) || state.is(Blocks.RED_SAND)
-                || state.is(Blocks.GRAVEL) || state.is(Blocks.STONE) || state.is(Blocks.SNOW_BLOCK)
-                || state.is(Blocks.DEEPSLATE) || state.is(Blocks.TERRACOTTA);
     }
 
     private static boolean isHumanTrace(BlockState state) {

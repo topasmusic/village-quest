@@ -75,7 +75,7 @@ public final class TradeGuildService {
                     route + 1,
                     TradeRouteService.specialization(world, playerId, route).label(),
                     TradeRouteService.routeQuality(world, playerId, route),
-                    TradeRouteService.routeDistanceBlocks(world, playerId, route),
+                    TradeRouteService.routeEconomyDistanceBlocks(world, playerId, route),
                     TradeRouteService.routeSuccesses(world, playerId, route)).withStyle(ChatFormatting.GRAY));
         }
         lines.add(currentContractLine(world, playerId));
@@ -258,7 +258,7 @@ public final class TradeGuildService {
             return;
         }
         if (!data.hasTradeRouteFlag(CONTRACT_SUPPLIED) || data.getTradeRouteInt(CONTRACT_ROUTE) != routeIndex + 1) return;
-        double multiplier = 1.0 + Math.min(0.35, TradeRouteService.routeDistanceBlocks(world, ownerId, routeIndex) / 2000.0);
+        double multiplier = distanceRewardMultiplier(TradeRouteService.routeEconomyDistanceBlocks(world, ownerId, routeIndex));
         if (TradeRouteService.specialization(world, ownerId, routeIndex) == type.specialization()) multiplier += 0.25;
         if (TradeRouteService.hasUpgrade(world, ownerId, routeIndex, TradeRouteUpgrade.TRADE_OFFICE)) multiplier += 0.25;
         long reward = ProsperityService.applyCeremonyBonus(world, ownerId,
@@ -295,6 +295,10 @@ public final class TradeGuildService {
             data.setTradeRouteInt(CONTRACT_ROUTE, assigned);
         }
         QuestState.get(world.getServer()).setDirty();
+    }
+
+    static double distanceRewardMultiplier(int economyDistanceBlocks) {
+        return 1.0 + Math.min(0.35, Math.max(0, economyDistanceBlocks) / 2000.0);
     }
 
     private static Component currentContractLine(ServerLevel world, UUID playerId) {

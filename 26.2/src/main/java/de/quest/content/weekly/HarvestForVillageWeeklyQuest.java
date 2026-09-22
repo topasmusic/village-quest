@@ -114,7 +114,7 @@ public final class HarvestForVillageWeeklyQuest implements WeeklyQuestDefinition
                 world,
                 player,
                 Map.of(
-                        Items.WHEAT, WeeklyQuestService.harvestWheatTarget(),
+                        Items.WHEAT, WeeklyQuestService.harvestWheatDeliveryTarget(),
                         Items.CARROT, WeeklyQuestService.harvestCarrotTarget(),
                         Items.POTATO, WeeklyQuestService.harvestPotatoTarget(),
                         Items.BREAD, WeeklyQuestService.harvestBreadTarget()
@@ -129,6 +129,7 @@ public final class HarvestForVillageWeeklyQuest implements WeeklyQuestDefinition
         }
         UUID playerId = player.getUUID();
         int wheatTarget = WeeklyQuestService.harvestWheatTarget();
+        int wheatDeliveryTarget = WeeklyQuestService.harvestWheatDeliveryTarget();
         int carrotTarget = WeeklyQuestService.harvestCarrotTarget();
         int potatoTarget = WeeklyQuestService.harvestPotatoTarget();
         int breadTarget = WeeklyQuestService.harvestBreadTarget();
@@ -142,7 +143,7 @@ public final class HarvestForVillageWeeklyQuest implements WeeklyQuestDefinition
         return Texts.turnInMissing(
                 Items.WHEAT.getDefaultInstance().getDisplayName(),
                 WeeklyQuestService.countCompletionItem(world, player, Items.WHEAT),
-                wheatTarget,
+                wheatDeliveryTarget,
                 Items.CARROT.getDefaultInstance().getDisplayName(),
                 WeeklyQuestService.countCompletionItem(world, player, Items.CARROT),
                 carrotTarget,
@@ -211,7 +212,7 @@ public final class HarvestForVillageWeeklyQuest implements WeeklyQuestDefinition
 
     private boolean hasTurnInItems(ServerPlayer player) {
         ServerLevel world = (ServerLevel) player.level();
-        return WeeklyQuestService.countCompletionItem(world, player, Items.WHEAT) >= WeeklyQuestService.harvestWheatTarget()
+        return WeeklyQuestService.countCompletionItem(world, player, Items.WHEAT) >= WeeklyQuestService.harvestWheatDeliveryTarget()
                 && WeeklyQuestService.countCompletionItem(world, player, Items.CARROT) >= WeeklyQuestService.harvestCarrotTarget()
                 && WeeklyQuestService.countCompletionItem(world, player, Items.POTATO) >= WeeklyQuestService.harvestPotatoTarget()
                 && WeeklyQuestService.countCompletionItem(world, player, Items.BREAD) >= WeeklyQuestService.harvestBreadTarget();

@@ -6,7 +6,10 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import de.quest.data.PlayerQuestData;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
@@ -122,5 +125,76 @@ final class VillageBondServiceTest {
                 VillageBondService.historicalVillageCount(data));
         assertEquals(lastX, data.getTradeRouteInt(VillageBondService.villageKey(last, "x")));
         assertEquals(lastZ, data.getTradeRouteInt(VillageBondService.villageKey(last, "z")));
+    }
+
+    @Test
+    void sameCoordinatesInDifferentDimensionsRemainDistinct() {
+        PlayerQuestData data = new PlayerQuestData();
+        String key = "bond_shrine_0_dimension";
+        data.setTradeRouteString(key, "minecraft:the_nether");
+
+        assertTrue(VillageBondService.matchesStoredDimension(data, key, "minecraft:the_nether"));
+        assertFalse(VillageBondService.matchesStoredDimension(data, key, "minecraft:overworld"));
+    }
+
+    @Test
+    void legacyDimensionlessSpatialRecordsBelongOnlyToOverworld() {
+        PlayerQuestData data = new PlayerQuestData();
+        String key = "bond_decoration_0_dimension";
+
+        assertTrue(VillageBondService.matchesStoredDimension(data, key, "minecraft:overworld"));
+        assertFalse(VillageBondService.matchesStoredDimension(data, key, "minecraft:the_nether"));
+    }
+
+    @Test
+    void sameXyzOwnerLookupSelectsTheShrineInTheCurrentDimension() {
+        BlockPos pos = new BlockPos(40, 70, -30);
+        UUID overworldOwner = UUID.randomUUID();
+        UUID netherOwner = UUID.randomUUID();
+        Map<UUID, PlayerQuestData> players = new LinkedHashMap<>();
+        players.put(overworldOwner, shrineAt(pos, "minecraft:overworld"));
+        players.put(netherOwner, shrineAt(pos, "minecraft:the_nether"));
+
+        assertEquals(overworldOwner, VillageBondService.nearbyNetworkOwner(
+                players, "minecraft:overworld", pos, 0, ignored -> true));
+        assertEquals(netherOwner, VillageBondService.nearbyNetworkOwner(
+                players, "minecraft:the_nether", pos, 0, ignored -> true));
+    }
+
+    @Test
+    void renameIdentityDoesNotMatchSameXyzInAnotherDimension() {
+        BlockPos pos = new BlockPos(40, 70, -30);
+        PlayerQuestData overworldShrine = shrineAt(pos, "minecraft:overworld");
+
+        assertTrue(VillageBondService.matchesShrine(overworldShrine, 0, "minecraft:overworld", pos));
+        assertFalse(VillageBondService.matchesShrine(overworldShrine, 0, "minecraft:the_nether", pos));
+        assertFalse(VillageBondService.matchesShrine(overworldShrine, 1, "minecraft:overworld", pos));
+    }
+
+    @Test
+    void pendingChargeCannotConfirmSameXyzShrineInAnotherDimensionOrNetwork() {
+        BlockPos pos = new BlockPos(40, 70, -30);
+        PlayerQuestData traveler = new PlayerQuestData();
+        UUID owner = UUID.randomUUID();
+        VillageBondService.rememberPendingCharge(traveler, 100, "minecraft:overworld", pos, owner, 0);
+
+        assertTrue(VillageBondService.pendingChargeMatches(
+                traveler, 101, "minecraft:overworld", pos, owner, 0));
+        assertFalse(VillageBondService.pendingChargeMatches(
+                traveler, 101, "minecraft:the_nether", pos, owner, 0));
+        assertFalse(VillageBondService.pendingChargeMatches(
+                traveler, 101, "minecraft:overworld", pos, UUID.randomUUID(), 0));
+        assertFalse(VillageBondService.pendingChargeMatches(
+                traveler, 101, "minecraft:overworld", pos, owner, 1));
+    }
+
+    private static PlayerQuestData shrineAt(BlockPos pos, String dimension) {
+        PlayerQuestData data = new PlayerQuestData();
+        data.setTradeRouteInt("bond_shrine_count", 1);
+        data.setTradeRouteInt("bond_shrine_0_x", pos.getX());
+        data.setTradeRouteInt("bond_shrine_0_y", pos.getY());
+        data.setTradeRouteInt("bond_shrine_0_z", pos.getZ());
+        data.setTradeRouteString("bond_shrine_0_dimension", dimension);
+        return data;
     }
 }

@@ -27,6 +27,16 @@ public final class QuestSoundFeedback {
     private QuestSoundFeedback() {
     }
 
+    public static void handleDisconnect(UUID playerId) {
+        if (playerId != null) LAST_FEEDBACK.remove(playerId);
+    }
+
+    public static void resetRuntimeState() {
+        LAST_FEEDBACK.clear();
+    }
+
+    static int trackedPlayerCount() { return LAST_FEEDBACK.size(); }
+
     public static void playProgressChange(ServerLevel world,
                                           ServerPlayer player,
                                           List<Component> beforeLines,

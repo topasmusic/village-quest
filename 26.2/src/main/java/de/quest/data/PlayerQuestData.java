@@ -17,6 +17,11 @@ import java.util.Set;
 public final class PlayerQuestData {
     public static final long UNSET_DAY = -1L;
 
+    private static final String GUILD_TOWN_PREFIX = "guild_town.";
+    private static final String PILGRIM_CONTRACT_PROGRESS_PREFIX = "pilgrim_";
+    private static final String PILGRIM_READY = "pilgrim_contract_ready";
+    private static final String PILGRIM_SUPPRESS_OFFER = "pilgrim_contract_suppress_offer";
+
     private long currencyBalance;
     private long lastRewardDay = UNSET_DAY;
     private long bonusRewardDay = UNSET_DAY;
@@ -391,9 +396,9 @@ public final class PlayerQuestData {
     }
 
     public void clearTradeRoutes() {
-        tradeRouteIntState.clear();
-        tradeRouteStringState.clear();
-        tradeRouteFlags.clear();
+        tradeRouteIntState.keySet().removeIf(PlayerQuestData::isTradeRouteOwnedKey);
+        tradeRouteStringState.keySet().removeIf(PlayerQuestData::isTradeRouteOwnedKey);
+        tradeRouteFlags.removeIf(PlayerQuestData::isTradeRouteOwnedKey);
     }
 
     public boolean hasPilgrimFlag(String key) {
@@ -480,13 +485,40 @@ public final class PlayerQuestData {
     }
 
     public void clearStoryProgress() {
-        storyIntState.clear();
-        storyFlags.clear();
+        storyIntState.keySet().removeIf(key -> !key.startsWith(GUILD_TOWN_PREFIX));
+        storyFlags.removeIf(key -> !key.startsWith(GUILD_TOWN_PREFIX));
     }
 
     public void clearPilgrimProgress() {
-        pilgrimIntState.clear();
-        pilgrimFlags.clear();
+        pilgrimIntState.keySet().removeIf(key -> key.startsWith(PILGRIM_CONTRACT_PROGRESS_PREFIX));
+        pilgrimFlags.remove(PILGRIM_READY);
+        pilgrimFlags.remove(PILGRIM_SUPPRESS_OFFER);
+    }
+
+    private static boolean isTradeRouteOwnedKey(String key) {
+        if (key == null || key.isEmpty()) {
+            return false;
+        }
+        return key.equals("home_x")
+                || key.equals("home_z")
+                || key.equals("home_bound")
+                || key.equals("home_player_yard")
+                || key.equals("route_count")
+                || key.startsWith("route_")
+                || key.equals("survey_route")
+                || key.equals("survey_point_count")
+                || key.startsWith("survey_point_")
+                || key.equals("survey_was_stopped")
+                || key.equals("network_income_day")
+                || key.equals("network_income_today")
+                || key.equals("network_escrow")
+                || key.equals("network_tutorial_event_seen")
+                || key.equals("network_warden_charges")
+                || key.equals("network_warden_use_day")
+                || key.equals("guild_contract_type")
+                || key.equals("guild_contract_route")
+                || key.equals("guild_contract_due_day")
+                || key.equals("guild_contract_supplied");
     }
 
     public long getProgressDay() {

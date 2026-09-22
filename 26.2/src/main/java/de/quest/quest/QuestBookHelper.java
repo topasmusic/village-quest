@@ -17,10 +17,12 @@ import de.quest.quest.weekly.WeeklyQuestStatus;
 import de.quest.questmaster.QuestMasterUiService;
 import de.quest.reputation.ReputationService;
 import de.quest.shrine.VillageBondService;
+import de.quest.shrine.VillageWelcomeService;
 import de.quest.village.LivingVillageNetworkState;
 import de.quest.village.LivingVillageNetworkService;
 import de.quest.config.VillageQuestServerConfig;
 import de.quest.guild.VillageGuildService;
+import de.quest.guildtown.GuildTownService;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
@@ -135,11 +137,17 @@ public final class QuestBookHelper {
         List<Component> networkGuildLines = VillageGuildService.statusLines(world, pid);
         VillageBondService.VillageBondView priorityVillage = networkVillages.stream()
                 .min(Comparator.comparingInt(village -> village.network().support())).orElse(null);
-        Component networkNextAction = priorityVillage == null
-                ? Component.translatable("screen.village-quest.journal.network.next.discover")
-                : Component.translatable("screen.village-quest.journal.network.next.supply",
-                priorityVillage.type().label(), priorityVillage.network().need().label(),
-                priorityVillage.network().support(), 100);
+        Component introductionNextAction = VillageWelcomeService.journalNextAction(world, pid);
+        Component guildTownNextAction = GuildTownService.journalNextAction(world, pid);
+        Component networkNextAction = !introductionNextAction.getString().isBlank()
+                ? introductionNextAction
+                : !guildTownNextAction.getString().isBlank()
+                        ? guildTownNextAction
+                : priorityVillage == null
+                        ? Component.translatable("screen.village-quest.journal.network.next.discover")
+                        : Component.translatable("screen.village-quest.journal.network.next.supply",
+                        priorityVillage.type().label(), priorityVillage.network().need().label(),
+                        priorityVillage.network().support(), 100);
 
         return new JournalPayload(
                 action,

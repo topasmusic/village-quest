@@ -8,6 +8,8 @@ import de.quest.economy.CurrencyService;
 import de.quest.economy.ProsperityService;
 import de.quest.economy.QuestExperienceService;
 import de.quest.party.QuestPartyService;
+import de.quest.quest.DifficultyObjectiveMode;
+import de.quest.quest.DifficultyObjectiveState;
 import de.quest.quest.QuestBookHelper;
 import de.quest.quest.QuestTrackerService;
 import de.quest.quest.daily.DailyQuestService;
@@ -51,6 +53,17 @@ public final class PilgrimContractService {
     private static final String FLAG_READY = "pilgrim_contract_ready";
     private static final String FLAG_SUPPRESS_OFFER = "pilgrim_contract_suppress_offer";
     private static final String FLAG_COMPLETED_PREFIX = "pilgrim_contract_completed.";
+    private static final String KEY_OBJECTIVE_MODE = "pilgrim_objective_mode";
+    private static final String KEY_EXPEDITION_ENTERED = "pilgrim_expedition_entered";
+    private static final String KEY_EXPEDITION_ORIGIN_SET = "pilgrim_expedition_origin_set";
+    private static final String KEY_EXPEDITION_ORIGIN_X = "pilgrim_expedition_origin_x";
+    private static final String KEY_EXPEDITION_ORIGIN_Z = "pilgrim_expedition_origin_z";
+    private static final String KEY_EXPEDITION_LAST_SET = "pilgrim_expedition_last_set";
+    private static final String KEY_EXPEDITION_LAST_X = "pilgrim_expedition_last_x";
+    private static final String KEY_EXPEDITION_LAST_Z = "pilgrim_expedition_last_z";
+    private static final String KEY_EXPEDITION_DISTANCE = "pilgrim_expedition_distance";
+    private static final String KEY_EXPEDITION_CHECKPOINTS = "pilgrim_expedition_checkpoints";
+    private static final String KEY_EXPEDITION_RETURNED = "pilgrim_expedition_returned";
 
     private static final String KEY_LANTERN_SKELETONS = "pilgrim_lantern_skeletons";
     private static final String KEY_SMOKE_CREEPERS = "pilgrim_smoke_creepers";
@@ -144,6 +157,8 @@ public final class PilgrimContractService {
         default void onFurnaceOutput(ServerLevel world, ServerPlayer player, ItemStack stack) {}
 
         default void onMonsterKill(ServerLevel world, ServerPlayer player, Entity killedEntity) {}
+
+        default void onServerTick(ServerLevel world, ServerPlayer player) {}
     }
 
     public static List<PilgrimContractView> buildViews(ServerLevel world, ServerPlayer player) {
@@ -329,6 +344,14 @@ public final class PilgrimContractService {
         }
         ServerLevel world = server.overworld();
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            PilgrimContractType type = activeType(data(world, player.getUUID()));
+            if (type != null && isCombatContract(type)) {
+                ensureObjectiveMode(world, player, type, true);
+                PilgrimContractDefinition definition = definition(type);
+                if (definition != null) {
+                    definition.onServerTick((ServerLevel) player.level(), player);
+                }
+            }
             maybeUpdateReadyState(world, player);
         }
     }
@@ -598,11 +621,33 @@ public final class PilgrimContractService {
 
             @Override
             public List<Component> progressLines(ServerLevel world, ServerPlayer player) {
+                if (objectiveMode(world, player.getUUID()) == DifficultyObjectiveMode.PEACEFUL) {
+                    PilgrimExpeditionProgress.State state = readExpeditionState(world, player.getUUID());
+                    int resources = Math.min(expeditionResourceAmount(type),
+                            DailyQuestService.countInventoryItem(player, expeditionResource(type)));
+                    return List.of(Component.translatable(
+                            "quest.village-quest.pilgrim.contract.expedition.progress",
+                            state.entered() ? 1 : 0,
+                            1,
+                            state.maxDistance(),
+                            PilgrimExpeditionProgress.REQUIRED_DISTANCE,
+                            state.checkpoints(),
+                            3,
+                            resources,
+                            expeditionResourceAmount(type),
+                            state.returned() ? 1 : 0,
+                            1
+                    ).withStyle(ChatFormatting.GRAY));
+                }
                 return List.of(progressLine(type, world, player.getUUID(), ChatFormatting.GRAY, objectives));
             }
 
             @Override
             public boolean isComplete(ServerLevel world, ServerPlayer player) {
+                if (objectiveMode(world, player.getUUID()) == DifficultyObjectiveMode.PEACEFUL) {
+                    return PilgrimExpeditionProgress.complete(
+                            readExpeditionState(world, player.getUUID()), expeditionResourceReady(player, type));
+                }
                 UUID playerId = player.getUUID();
                 for (KillObjective objective : objectives) {
                     if (pilgrimInt(world, playerId, objective.progressKey()) < objectiveTarget(world, playerId, type, objective)) {
@@ -635,8 +680,28 @@ public final class PilgrimContractService {
             }
 
             @Override
+            public boolean consumeCompletionRequirements(ServerLevel world, ServerPlayer player) {
+                if (objectiveMode(world, player.getUUID()) != DifficultyObjectiveMode.PEACEFUL) {
+                    return true;
+                }
+                return DailyQuestService.consumeInventoryItem(
+                        player, expeditionResource(type), expeditionResourceAmount(type));
+            }
+
+            @Override
+            public void onServerTick(ServerLevel currentWorld, ServerPlayer player) {
+                if (objectiveMode(currentWorld, player.getUUID()) != DifficultyObjectiveMode.PEACEFUL) {
+                    return;
+                }
+                tickExpedition(currentWorld, player, type);
+            }
+
+            @Override
             public void onMonsterKill(ServerLevel world, ServerPlayer player, Entity killedEntity) {
                 if (world == null || player == null || killedEntity == null) {
+                    return;
+                }
+                if (objectiveMode(world, player.getUUID()) != DifficultyObjectiveMode.COMBAT) {
                     return;
                 }
                 UUID playerId = player.getUUID();
@@ -843,6 +908,10 @@ public final class PilgrimContractService {
         data.setOfferedPilgrimContractAltId(null);
         data.setOfferedPilgrimContractAltTargetProfile(RepeatableTargetProfile.NORMAL);
         data.setPilgrimOfferDay(TimeUtil.currentDay());
+        if (isCombatContract(type)) {
+            data.setPilgrimInt(KEY_OBJECTIVE_MODE,
+                    DifficultyObjectiveMode.forDifficulty(world.getDifficulty()).serializedId());
+        }
         PilgrimContractDefinition definition = definition(type);
         if (definition != null) {
             definition.onAccepted(world, player);
@@ -1140,6 +1209,153 @@ public final class PilgrimContractService {
                 || type == PilgrimContractType.WOOL_BEFORE_RAIN
                 || type == PilgrimContractType.TRACKS_IN_THE_DARK
                 || type == PilgrimContractType.FANGS_BY_THE_HEDGEROW;
+    }
+
+    private static DifficultyObjectiveMode objectiveMode(ServerLevel world, UUID playerId) {
+        if (world == null || playerId == null) {
+            return DifficultyObjectiveMode.COMBAT;
+        }
+        DifficultyObjectiveMode stored = DifficultyObjectiveMode.fromSerializedId(
+                data(world, playerId).getPilgrimInt(KEY_OBJECTIVE_MODE));
+        return stored == null ? DifficultyObjectiveMode.forDifficulty(world.getDifficulty()) : stored;
+    }
+
+    private static DifficultyObjectiveMode ensureObjectiveMode(ServerLevel world,
+                                                               ServerPlayer player,
+                                                               PilgrimContractType type,
+                                                               boolean notifySwitch) {
+        PlayerQuestData data = data(world, player.getUUID());
+        DifficultyObjectiveState.Transition transition = DifficultyObjectiveState.transition(
+                data.getPilgrimInt(KEY_OBJECTIVE_MODE), world.getDifficulty());
+        if (transition.switched()) {
+            clearActiveObjectiveProgress(world, player.getUUID(), type);
+            data.clearPilgrimProgress();
+        }
+        if (transition.initialized() || transition.switched()) {
+            data.setPilgrimInt(KEY_OBJECTIVE_MODE, transition.persistedValue());
+            data.setPilgrimFlag(FLAG_READY, false);
+            setDirty(world);
+        }
+        if (transition.switched() && notifySwitch) {
+            player.sendSystemMessage(Component.translatable(
+                    "message.village-quest.difficulty_objective.switched",
+                    Component.translatable(transition.mode() == DifficultyObjectiveMode.PEACEFUL
+                            ? "message.village-quest.difficulty_objective.mode.peaceful"
+                            : "message.village-quest.difficulty_objective.mode.combat")
+            ).withStyle(ChatFormatting.GOLD), false);
+        }
+        return transition.mode();
+    }
+
+    private static void clearActiveObjectiveProgress(ServerLevel world, UUID playerId, PilgrimContractType type) {
+        for (String key : combatProgressKeys(type)) {
+            setPilgrimInt(world, playerId, key, 0);
+        }
+        setPilgrimInt(world, playerId, KEY_EXPEDITION_ENTERED, 0);
+        setPilgrimInt(world, playerId, KEY_EXPEDITION_DISTANCE, 0);
+        setPilgrimInt(world, playerId, KEY_EXPEDITION_CHECKPOINTS, 0);
+        setPilgrimInt(world, playerId, KEY_EXPEDITION_RETURNED, 0);
+    }
+
+    private static List<String> combatProgressKeys(PilgrimContractType type) {
+        return switch (type) {
+            case QUENCH_FOR_THE_HALL -> List.of(KEY_LANTERN_SKELETONS);
+            case WOOL_BEFORE_RAIN -> List.of(KEY_SMOKE_CREEPERS);
+            case TRACKS_IN_THE_DARK -> List.of(KEY_TRACKS_ZOMBIES);
+            case FANGS_BY_THE_HEDGEROW -> List.of(KEY_FANGS_SPIDERS);
+            case ASH_ON_THE_PASS -> List.of(KEY_ASH_BLAZES, KEY_ASH_WITHER_SKELETONS);
+            case SMOKE_OVER_BLACKSTONE -> List.of(KEY_BLACKSTONE_MAGMA_CUBES, KEY_BLACKSTONE_GHASTS);
+            case STILLNESS_BEYOND_THE_GATE -> List.of(KEY_STILLNESS_ENDERMEN, KEY_STILLNESS_SHULKERS);
+            default -> List.of();
+        };
+    }
+
+    private static void tickExpedition(ServerLevel currentWorld,
+                                       ServerPlayer player,
+                                       PilgrimContractType type) {
+        UUID playerId = player.getUUID();
+        boolean overworldTarget = isOverworldContract(type);
+        boolean inTarget = currentWorld.dimension() == expeditionDimension(type);
+        boolean inOverworld = currentWorld.dimension() == Level.OVERWORLD;
+        PilgrimExpeditionProgress.State before = readExpeditionState(currentWorld, playerId);
+        PilgrimExpeditionProgress.State after = PilgrimExpeditionProgress.tick(
+                before,
+                inTarget,
+                inOverworld,
+                player.getBlockX(),
+                player.getBlockZ(),
+                expeditionResourceReady(player, type),
+                overworldTarget
+        );
+        if (after.equals(before)) {
+            return;
+        }
+        writeExpeditionState(currentWorld, playerId, after);
+        setDirty(currentWorld);
+    }
+
+    private static PilgrimExpeditionProgress.State readExpeditionState(ServerLevel world, UUID playerId) {
+        return new PilgrimExpeditionProgress.State(
+                pilgrimInt(world, playerId, KEY_EXPEDITION_ENTERED) != 0,
+                pilgrimInt(world, playerId, KEY_EXPEDITION_ORIGIN_SET) != 0,
+                pilgrimInt(world, playerId, KEY_EXPEDITION_ORIGIN_X),
+                pilgrimInt(world, playerId, KEY_EXPEDITION_ORIGIN_Z),
+                pilgrimInt(world, playerId, KEY_EXPEDITION_LAST_SET) != 0,
+                pilgrimInt(world, playerId, KEY_EXPEDITION_LAST_X),
+                pilgrimInt(world, playerId, KEY_EXPEDITION_LAST_Z),
+                pilgrimInt(world, playerId, KEY_EXPEDITION_DISTANCE),
+                pilgrimInt(world, playerId, KEY_EXPEDITION_CHECKPOINTS),
+                pilgrimInt(world, playerId, KEY_EXPEDITION_RETURNED) != 0
+        );
+    }
+
+    private static void writeExpeditionState(ServerLevel world,
+                                             UUID playerId,
+                                             PilgrimExpeditionProgress.State state) {
+        setPilgrimInt(world, playerId, KEY_EXPEDITION_ENTERED, state.entered() ? 1 : 0);
+        setPilgrimInt(world, playerId, KEY_EXPEDITION_ORIGIN_SET, state.originSet() ? 1 : 0);
+        setPilgrimInt(world, playerId, KEY_EXPEDITION_ORIGIN_X, state.originX());
+        setPilgrimInt(world, playerId, KEY_EXPEDITION_ORIGIN_Z, state.originZ());
+        setPilgrimInt(world, playerId, KEY_EXPEDITION_LAST_SET, state.lastSet() ? 1 : 0);
+        setPilgrimInt(world, playerId, KEY_EXPEDITION_LAST_X, state.lastX());
+        setPilgrimInt(world, playerId, KEY_EXPEDITION_LAST_Z, state.lastZ());
+        setPilgrimInt(world, playerId, KEY_EXPEDITION_DISTANCE, state.maxDistance());
+        setPilgrimInt(world, playerId, KEY_EXPEDITION_CHECKPOINTS, state.checkpoints());
+        setPilgrimInt(world, playerId, KEY_EXPEDITION_RETURNED, state.returned() ? 1 : 0);
+    }
+
+    private static net.minecraft.resources.ResourceKey<Level> expeditionDimension(PilgrimContractType type) {
+        return switch (type) {
+            case ASH_ON_THE_PASS, SMOKE_OVER_BLACKSTONE -> Level.NETHER;
+            case STILLNESS_BEYOND_THE_GATE -> Level.END;
+            default -> Level.OVERWORLD;
+        };
+    }
+
+    private static Item expeditionResource(PilgrimContractType type) {
+        return switch (type) {
+            case QUENCH_FOR_THE_HALL -> Items.IRON_INGOT;
+            case WOOL_BEFORE_RAIN -> Items.WOOL.white();
+            case TRACKS_IN_THE_DARK -> Items.REDSTONE;
+            case FANGS_BY_THE_HEDGEROW -> Items.STRING;
+            case ASH_ON_THE_PASS -> Items.NETHER_WART;
+            case SMOKE_OVER_BLACKSTONE -> Items.BLACKSTONE;
+            case STILLNESS_BEYOND_THE_GATE -> Items.CHORUS_FRUIT;
+            default -> Items.PAPER;
+        };
+    }
+
+    private static int expeditionResourceAmount(PilgrimContractType type) {
+        return switch (type) {
+            case SMOKE_OVER_BLACKSTONE -> 32;
+            case WOOL_BEFORE_RAIN -> 16;
+            default -> 12;
+        };
+    }
+
+    private static boolean expeditionResourceReady(ServerPlayer player, PilgrimContractType type) {
+        return DailyQuestService.countInventoryItem(player, expeditionResource(type))
+                >= expeditionResourceAmount(type);
     }
 
     private static void normalizeOfferState(PlayerQuestData data) {

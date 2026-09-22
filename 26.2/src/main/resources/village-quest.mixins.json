@@ -7,6 +7,7 @@
     "AnvilScreenHandlerMixin",
     "AnimalEntityMixin",
     "BeehiveBlockMixin",
+    "BlockItemMixin",
     "BlockDropMixin",
     "BrewedPotionCriterionMixin",
     "CraftingRecipeMixin",
@@ -28,6 +29,7 @@
     "HandledScreenAccessor",
     "HandledScreenMixin",
     "InventoryScreenMixin",
+    "LocalPlayerMixin",
     "RecipeBookTabButtonMixin"
   ],
   "injectors": {

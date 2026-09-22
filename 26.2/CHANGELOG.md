@@ -1,5 +1,506 @@
 # Changelog
 
+## 2.4.0
+
+Release date: 2026-09-22
+
+### New features
+
+- Introduced a simple first-day quest choice, a personal Village Contact that does not consume a Trade Route slot, and a welcome assignment for the first village.
+- Added two authored Guild Corner styles for villages, with careful placement in new villages and a local retrofit path for established ones. The Guild Notice Post guides players toward the next available village task.
+- Added five village-identity stories, ten identity-pair commissions, personal Chronicle memories, shared guild projects, and the optional `The Bells of Concord` finale. The stories and commissions give each village a distinct role without requiring every optional pairing for the finale.
+- Expanded `/vq town`, Questmaster, Journal, and Notice Post guidance in English, German, and Spanish.
+
+### Bug fixes and improvements
+
+- Made land-route navigation follow surveyed height changes while preserving the horizontal distance used for trade income and Guild rewards. Legacy routes and ferry travel retain their established behavior.
+- Added Peaceful alternatives for combat-dependent stories and roadside encounters. Night Bells keeps its intended Story Village across difficulty changes and shares that village consistently with party members.
+- Hardened caravan incident timing, owner-only completion, Route Map actions, dimension checks, and Wayshrine identity across dimensions.
+- Improved large-village detection without force-loading distant districts and limited long-lived Guild invitations to seven days.
+- Preserved existing saves, earned rewards, and personal village history when upgrading from 2.3.1.
+
+
+## 2.4.0-unreleased.25
+
+Build date: 2026-09-22
+
+### Focused audit stabilization
+
+- Separated physical 3D traversal distance from horizontal economy distance. Trade Guild route displays and contract reward multipliers now use economy distance; navigation retains traversal distance.
+- Kept Night Bells Story Village identity across difficulty changes. Party members use one persistent shared village binding, including on join and reconnect; existing personal `.24` bindings migrate to the party session on load.
+- Increased the full Route Map mutation debounce to ten server ticks, limiting repeated Pause/Resume cleanup work while retaining the separate four-tick minimap control.
+- Added focused regressions for vertical route rewards, mode-switch identity, shared party persistence and Route Map packet spam. Real Minecraft and two-player QA remain required before the final RC audit.
+
+### Verification
+
+- Fresh Java 25 `--no-parallel clean test build sourcesJar --rerun-tasks`: 306 tests in 77 suites, no failures, errors or skips. Both resource validators confirm 2535 matching EN/DE/ES keys; `git diff --check` reports no content errors.
+- Runtime (`8,579,874` bytes, SHA-256 `0B74670F79AC47D7F3E983846C85CE1DF69FA84785DAACB1F626947C2AF0DA07`) and Sources (`7,482,688` bytes, SHA-256 `3F5AB7A79E4FBBA24BCF4EB1803E1F9C0FCF32A8C0A7BA57E58B5C5892E1935F`) embed `2.4.0-unreleased.25`, both required licenses and exactly two Guild Corner presets.
+- Interactive Minecraft, difficulty, route-geometry and two-player QA were not run. The candidate remains `NOT READY FOR FINAL RC AUDIT` until those checks pass.
+
+
+## 2.4.0-unreleased.24
+
+Build date: 2026-09-22
+
+### Final audit stabilization
+
+- Bound mutating Route Map actions to a live server-side map session and limited repeated actions. Stale map viewers are removed; regular minimap controls remain available with their own short debounce.
+- Applied physical 3D traversal distance to Route Geometry v2 land segments, progress, lookahead and survey sampling while retaining horizontal legacy, ferry and economy distances.
+- Closed same-coordinate cross-dimension Wayshrine owner, rename and charge-confirmation aliases by checking dimension, coordinates and shrine identity.
+- Bound Peaceful Night Bells actions and final completion to a persistent Story Village and its full structure footprint, including large or irregular village districts.
+- Treated villages with unloaded districts and no currently visible Villager as unknown and retryable, rather than definitively abandoned, without loading extra chunks.
+- Added persisted seven-day Guild invite expiry and periodic stale-invite cleanup. Existing timestamp-free invitations receive a full grace period on migration; accepted users still join as Members.
+- Added focused regressions for the changed session, geometry, village, shrine, story and invitation decisions. Real Minecraft and two-player QA remain required before the final RC audit.
+
+### Verification
+
+- Fresh Java 25 `clean test build sourcesJar --rerun-tasks`: 301 tests in 75 suites, no failures, errors or skips. Both resource validators confirm 2535 matching EN/DE/ES keys; `git diff --check` reports no content errors.
+- Runtime (`8,578,496` bytes, SHA-256 `38E7EB9CD7C4E69BAC24A47EF02B110092D2FB1FDB1D24193D9F47F2E006E0E4`) and Sources (`7,481,928` bytes, SHA-256 `914DE376AC5DF92A15BCE8CC045A15F5FF036B86233693AFDEBBF2D67C49BC7F`) embed `2.4.0-unreleased.24`, both required licenses and exactly two Guild Corner presets.
+- Interactive Minecraft, difficulty, route-geometry and two-player QA were not run. The candidate is not ready for the final RC audit or Stable until those checks pass.
+
+
+## 2.4.0-unreleased.23
+
+Build date: 2026-09-21
+
+### RC blocker fixes
+
+- Replaced world-day incident expiry with a persisted two-playable-day owner-online clock. Disconnects and other dimensions pause the clock, including across save/reload; timeout still fails an unresolved incident while the owner is playing in the Overworld.
+- False Distress combat remains owner-qualified. Helpers can fight attackers, but a helper's final kill leaves a persisted cleared state that only the owner can finish by interacting with the caravan. A Peaceful progress value of two does not count as combat clearance.
+- Routed map actions through the canonical Overworld and rejected route/survey/cleanup mutations when the actor is in another dimension. Finishing a survey after using a portal now preserves its draft; registration cannot reinterpret Nether or End coordinates as an Overworld village.
+- Added regression coverage for incident timing, owner-only ambush resolution, route clock/index persistence, and the authoritative-world decision. Real Minecraft and two-player runtime QA remain required before RC audit or Stable.
+
+### Verification
+
+- Fresh Java 25 `clean test build sourcesJar --rerun-tasks`: 278 tests in 73 suites, no failures, errors, or skips. Both resource validators confirm 2534 matching EN/DE/ES keys; `git diff --check` reports no content errors.
+- Runtime (`8,568,580` bytes, SHA-256 `EF57FF2598407FC49D604A667FBBD660FB76F01FF1D3937A6A1038123439B2C8`) and Sources (`7,477,704` bytes, SHA-256 `0335DEB9B272714056159957428FFB15BE086038FBD0B1DBA245C2EFED565BD7`) embed `2.4.0-unreleased.23`, both required licenses and exactly two Guild Corner presets.
+- Runtime QA was not run. This is not ready for RC audit or Stable until real-world and two-player checks pass.
+
+## 2.4.0-unreleased.22
+
+Build date: 2026-09-17
+
+### Combat preservation and Peaceful progression
+
+- Preserved the authored Combat objectives and counts while adding explicit, persistent Peaceful alternatives for `Night Bells`, Pilgrim combat expeditions, `Shadows on the Trade Road`, `The Empty Caravan`, and route False Distress emergencies. Difficulty changes reset only incompatible in-progress objective state and party sharing follows the active objective mode.
+- Added restart-safe encounter cleanup, direct UUID entity lookup, shared Daily/Weekly cancellation cleanup, explicit GuildTown Commission abandonment, and defensive sanitization for malformed story and Commission state.
+
+### Caravan route geometry v2
+
+- New surveys store bounded three-dimensional route anchors and a physical Homestead elevation while legacy X/Z routes remain readable and upgrade only through re-survey.
+- Materialization, navigation, recovery, incidents, road checks, map/Wayfinder targets, local lookahead, narrow-road formation, and endpoint handling now share the Y-aware route geometry. Observed stuck caravans pause virtual drift; offline incidents do not start or fail unseen, and event progress/rewards remain owner-only.
+- Offline route work is bounded and round-robin, paused cleanup is transition-based, and orphan sweeps use a reduced cadence without weakening crash recovery.
+
+### Spatial, placement, and economy hardening
+
+- Village bonds, Wayshrines, decorations, Contacts, removal, ownership, travel, and network views distinguish dimensions; legacy dimensionless state remains Overworld-compatible. Questmaster spawning uses the player's current server level.
+- Guild Corner and wilderness placement share a generic sturdy-surface policy. Large or sparse villages validate only bounded loaded candidate footprints and retry naturally without force-loading the complete village.
+- Festival and Guild Ceremony minimum bonuses remain below their purchase prices across all three guaranteed charges, restoring their intended currency-sink invariant.
+
+### Verification
+
+- The fresh Java 25 `clean test build sourcesJar --rerun-tasks` passes with `273` tests in `72` suites and no failures, errors, or skipped tests. Both resource validators confirm `2534` matching EN/DE/ES keys with placeholder parity, and `git diff --check` reports no content errors.
+- Runtime (`8,567,232` bytes, SHA-256 `E9390C7A9331A0B22E5FDC604175FB6CE93F47B18A51B64B5562DA8A1D17B945`) and Sources (`7,476,721` bytes, SHA-256 `BA7151D151B4710672DA861BC97AA15D0027D7CEB5E641D9EEB17BF37865AB07`) embed `2.4.0-unreleased.22`, all required license files, and exactly the two intentional Guild Corner presets.
+- Interactive Minecraft, real CTOV, tunnel/bridge/underpass/switchback, and two-client runtime acceptance remain explicit Before Stable checks; this build is an audit candidate, not a Stable promotion.
+
+## 2.4.0-unreleased.21
+
+Build date: 2026-09-16
+
+### Final RC hardening
+
+- Corrected the active release documentation to the intentional, complete two-preset Guild Corner strategy. `generic.nbt` serves Generic, Plains, Savanna, Taiga, Snowy, Jungle, Swamp and Cherry; `desert.nbt` serves Desert and Badlands. Seven additional biome-specific files are neither expected nor a Stable blocker.
+- Raised the Contact-only Notice Post regression to a server-free public block boundary. The executable path now starts at `GuildNoticePostBlock.useWithoutItem(...)`, traverses `VillageBondService`, `VillageNoticeBoardService`, `GuildTownService` and the production resolver, and verifies that Welcome plus a Contact-only village reaches the local story without route, freight, slot or network-owned player-state mutation. The live Contact-only interaction uses the same decision seam.
+- Added route-index compaction coverage for active Commissions. Removing route index `0` from two routes compacts the survivor to index `0`, pauses the Commission through the production revalidation/progress path, preserves progress and both owner-qualified Village identities, and cannot retarget or recreate route/freight/slot state.
+
+### Verification
+
+- The frozen source contains `228` `@Test` methods in `58` test classes. The fresh Java 25 `test build --rerun-tasks` reports `228` tests in `58` suites with no failures, errors or skipped tests.
+- Both the repository-root and self-contained 26.2 resource validators confirm `2511` matching EN/DE/ES keys with placeholder parity. `git diff --check` reports no content errors.
+- Runtime (`8,526,758` bytes, SHA-256 `F19A5E8C347DE944ED88CA05B51E01B8FDB3889F6A58B6C431264AD5C138A8D9`) and Sources (`7,455,397` bytes, SHA-256 `DE687E6E1D3E21725024C2A23FEB13CBFB1394CA6788B70EA819D1742E334883`) embed `2.4.0-unreleased.21`. Minecraft was not started.
+
+## 2.4.0-unreleased.20
+
+Build date: 2026-09-16
+
+### RC hardening
+
+- Corrected the Guild Corner outer fallback for the real `7 x 4 x 6` presets. Candidate centers are now derived from the lower and upper extents of the rotated horizontal footprint, guaranteeing exactly one untouched block between the village bounds and the Corner on north, east, south and west sides, including even-sized axes.
+- Replaced the Notice Post source-string chain assertion with an executable production-decision regression. Welcome plus a Contact-only village reaches the correct local GuildTown story while the complete route/freight/slot/network-owned player state remains unchanged; registered destinations remain route-authoritative and cannot silently downgrade to a Contact.
+- Extracted the persistent route-removal operation used by the live server action and routed Commission progress through a deterministic revalidation core. Removing either required route now pauses the Commission on its next real progress attempt without losing progress or owner-qualified identities, creating or retargeting routes, or mutating surviving freight/slot state; restoring the same connection resumes from the retained progress.
+- Made Homestead Trade Post proximity dimension-aware. A stored Overworld yard can no longer trigger the Homestead Notice Post teaser at matching X/Z coordinates in the Nether or another dimension.
+- Added a self-contained `tools/validate_resources.py` to the 26.2 source/audit package. It retains the documented `--line 26.2` invocation and validates JSON, duplicate keys, EN/DE/ES key parity, placeholder parity and statically referenced translation keys without relying on repository-parent files.
+
+### Verification
+
+- The source contains `227` `@Test` methods in `58` test classes. The fresh Java 25 `test build --rerun-tasks` reports `227` tests in `58` suites with no failures, errors or skipped tests.
+- Both the repository-root and self-contained 26.2 resource validators confirm `2511` matching EN/DE/ES keys with placeholder parity. `git diff --check` reports no content errors.
+- Runtime (`8,524,643` bytes, SHA-256 `48F519041603BED79A25C5AF0BD453176F45966AAEDB3B18019A327240C6BBBB`) and Sources (`7,454,998` bytes, SHA-256 `23905FFD0F2DDFDABE8F488FAEFEA8DC73F83DECC764C715B7DA780D6BE50CEB`) embed `2.4.0-unreleased.20`. Minecraft was not started.
+
+## 2.4.0-unreleased.19
+
+Build date: 2026-09-16
+
+### Village-integrated Guild Corner placement
+
+- Changed Guild Corner site ordering to a bounded hybrid search: up to 25 evenly distributed interior village positions are validated center-out first; only when none is safe does placement try the existing 28-position outer ring.
+- Moved the outer fallback from four blocks to one block beyond the detected village footprint, keeping a small separation while placing the Corner as close as possible.
+- Rotated all authored preset placements by 180 degrees relative to the previous candidate directions. The complete Corner now presents its visible front toward the village from north, east, south and west sites instead of facing away.
+- Preserved every existing terrain, structure, block-entity, human-trace, world-border, build-height, network-anchor, loaded-chunk and rollback guard. Interior placement cannot overwrite a house or force an unsafe site merely because it is preferred.
+- Added deterministic regressions for interior-first ordering, bounded candidate count, nearest outside fallback, all four corrected outer directions and inward-facing interior candidates.
+
+### Verification
+
+- The fresh Java 25 `test build --rerun-tasks` passes with `208` tests in `53` suites and no failures, errors or skipped tests. The 26.2 resource validator confirms `2502` matching EN/DE/ES keys with placeholder parity, and `git diff --check` reports no content errors.
+- Runtime (`8,511,891` bytes, SHA-256 `A530E9BD627960BAF4D4DE3FB433ABD6196FC5EA0E2DB9BD5B39961173A15D59`) and Sources (`7,450,116` bytes, SHA-256 `18B7A511B4AA2BCD10D98E1760925A33C086B4E7DDDFADA4ED0D89A1AD0ABE07`) embed `2.4.0-unreleased.19`. Existing generated or deliberately removed Corners remain untouched; final in-world interior/fallback placement and four-direction visual acceptance remain maintainer QA.
+
+## 2.4.0-unreleased.18
+
+Build date: 2026-09-16
+
+### Guild Corner presets and authoritative Notice Post targeting
+
+- Integrated the maintainer-authored `generic.nbt` and `desert.nbt` Guild Corner structures. Desert/Badlands villages use the Desert resource; every other classified biome style shares Generic while retaining its own persisted style identity for future authored variants.
+- Locked Guild Corner local layer `Y=0` to the highest natural surface block (`HeightmapTop - 1`), matching the sunk Wayshrine-ruin convention instead of raising the build one block above terrain. Missing or invalid required presets still fail before reservation or world mutation.
+- Moved the virtual `3 x 2` Notice Post pick correction to the authoritative `LocalPlayer.raycastHitResult()` return path. It now uses the exact camera entity and partial-tick ray Vanilla used before Minecraft derives F3, outline, interaction and breaking targets.
+- Added regressions for the reported north-facing corner ray, the client raycast hook, Generic/Desert resource routing, exact release-preset contents, NBT contract validation and surface-replacement height including negative world coordinates.
+
+### Verification
+
+- The fresh Java 25 `test build --rerun-tasks` passes with `206` tests in `53` suites and no failures, errors or skipped tests. The 26.2 resource validator confirms `2502` matching EN/DE/ES keys with placeholder parity, and `git diff --check` reports no content errors.
+- Runtime (`8,509,080` bytes, SHA-256 `93DEA3C25A73D51D4A64D9F159CA0FBE0537FD02E8538DD28B8D1BDF74A96ABB`) and Sources (`7,449,280` bytes, SHA-256 `27008A0C36E0A02850DB769EF3F3A99C3B1B972D89FDE36C01DB4A1D82C361AF`) embed `2.4.0-unreleased.18`; the Runtime contains both authored Guild Corner presets and the authoritative LocalPlayer pick mixin. Final in-world edge targeting, rotation and terrain placement remain maintainer QA.
+
+## 2.4.0-unreleased.17
+
+Build date: 2026-09-16
+
+### Full Guild Notice Post targeting
+
+- Corrected Minecraft's single-cell ray picking for the virtual `3 x 2` Guild Notice Post. Looking at any visible side or upper section now resolves to the authoritative center root, so the complete board receives the block outline, F3 block information, interaction and breaking target instead of exposing blocks behind its overhang.
+- Kept the existing one-block save representation, six-cell placement protection, blockstate rotations and Guild Corner structure contract unchanged. No helper blocks, migration or additional saved state were introduced.
+- Preserved normal foreground priority: a genuinely closer Vanilla block or entity remains targeted. Corrected overhang hits use the real visual distance for priority and a root-local packet position for server-safe interaction.
+- Added regressions covering all six visual cells in every horizontal orientation, server-safe overhang hit coordinates and closer-background/foreground priority.
+
+### Verification
+
+- The fresh Java 25 `test build --rerun-tasks` passes with `200` tests in `53` suites and no failures, errors or skipped tests. The 26.2 resource validator confirms `2502` matching EN/DE/ES keys with placeholder parity, and `git diff --check` reports no content errors.
+- Runtime (`8,505,348` bytes, SHA-256 `63C9BD438E42A4F8268360FC89A29273BB1BC1E9E9DECD3C7B35FF6DCB489F86`) and Sources (`7,446,129` bytes, SHA-256 `A254AD1058AFBD383CFC1AFD1D33A7B911B2D91C4E03316F779B5C5D73528437`) embed `2.4.0-unreleased.17` and contain the targeting helper plus client pick mixin. Minecraft was not started; final in-world edge-target acceptance remains maintainer QA.
+
+## 2.4.0-unreleased.16
+
+Build date: 2026-09-16
+
+### Guild Notice Post cohesive Vanilla-village redesign
+
+- Removed the Guild Notice Post's copper/metal material slot entirely. Outer posts now use Vanilla Stripped Dark Oak Log with matching end grain, the backing and projecting upper/lower caps use Vanilla Dark Oak Planks, and the two low feet use Vanilla Stone Bricks for a grounded village-built base.
+- Retained the established compact `3 x 2` silhouette and four-notice composition while replacing the front artwork's metallic perimeter with a restrained dark-oak frame. The replacement remains fully opaque at `192 x 128`; no additional texture file, block, item, variant, model parent or gameplay system was added.
+- Updated the material regression to require the exact Dark Oak/Stone Brick palette and reject the former metal slot. Existing footprint, placement protection, interaction logic and blockstate rotations remain unchanged.
+
+### Verification
+
+- The fresh Java 25 `test build --rerun-tasks` passes with `198` tests in `53` suites and no failures, errors or skipped tests. The 26.2 resource validator confirms `2502` matching EN/DE/ES keys with placeholder parity, and `git diff --check` reports no content errors.
+- Runtime (`8,500,366` bytes, SHA-256 `5975B141F778C8B75DB32B356813169EBC06A2B03E43415DB0769C1488D2C3BA`) and Sources (`7,444,077` bytes, SHA-256 `9D654E47BB5AF8D1186D9B5C080D0F4482428274EBBADD1C1883CEA8E3491A14`) embed `2.4.0-unreleased.16`; `.15` and Stable artifacts remain unchanged. Minecraft was not started; final in-world visual acceptance remains maintainer QA.
+
+## 2.4.0-unreleased.15
+
+Build date: 2026-09-16
+
+### Guild Notice Post exposed-copper trim
+
+- Changed the Guild Notice Post's metal surfaces from Vanilla Weathered Copper to Vanilla Exposed Copper. The fully opaque parchment front, spruce construction, `3 x 2` geometry, UV density and placement protection remain unchanged.
+- Updated the structural material regression to require the selected Exposed Copper texture.
+
+### Verification
+
+- The fresh Java 25 `test build --rerun-tasks` passes with `198` tests in `53` suites and no failures, errors or skipped tests. The 26.2 resource validator confirms `2502` matching EN/DE/ES keys with placeholder parity, and `git diff --check` reports no content errors.
+- Runtime (`8,509,500` bytes, SHA-256 `27598835F7AD8D16EC9AC8853D0B43612911E51C79525893F5EE39C4A53669E8`) and Sources (`7,453,212` bytes, SHA-256 `7607D472FB83217FFF1E56D05E760D5E9EBF1C8AF0410FE2F3C105E44C798293`) embed `2.4.0-unreleased.15`; `.14` and Stable artifacts remain unchanged. Minecraft was not started; final in-world visual acceptance remains maintainer QA.
+
+## 2.4.0-unreleased.14
+
+Build date: 2026-09-16
+
+### Guild Notice Post opacity and trim correction
+
+- Flattened the generated `192 x 128` notice-board face to fully opaque ARGB. All `24,576` pixels now use alpha `255`, so the board can no longer expose the world through its timber or parchment artwork.
+- Replaced the visually dominant Vanilla gold-block trim with the more restrained Vanilla weathered-copper texture. Spruce structure, parchment layout, `3 x 2` geometry, UV density, placement protection and interaction behavior remain unchanged.
+- Added an image-level regression that scans every front-texture pixel for full opacity and updated the structural material contract to require weathered copper.
+
+### Verification
+
+- The fresh Java 25 `test build --rerun-tasks` passes with `198` tests in `53` suites and no failures, errors or skipped tests. The 26.2 resource validator confirms `2502` matching EN/DE/ES keys with placeholder parity, and `git diff --check` reports no content errors.
+- Runtime (`8,509,503` bytes, SHA-256 `C723DEBFA2F9850AEB327E90E89900AF3E0E9058AB91DF3ADC94E6BB248F096E`) and Sources (`7,453,214` bytes, SHA-256 `912110CCF6DACA98CC2CD0868DE7DC7B079384DD44A94B5C9B20463F64FB0477`) embed `2.4.0-unreleased.14`; `.13` and Stable artifacts remain unchanged. Minecraft was not started; final in-world visual acceptance remains maintainer QA.
+
+## 2.4.0-unreleased.13
+
+Build date: 2026-09-16
+
+### Guild Notice Post vanilla-material pass
+
+- Rebuilt the structural material mapping around Vanilla Minecraft textures: spruce logs and proper spruce end grain for the posts, spruce planks for timber surfaces, and restrained gold-block metal on exposed trim surfaces. The custom shrine-brass texture is no longer used by this block.
+- Split the oversized rear panel, posts, and horizontal rails into texture-sized model sections. Every structural face now keeps one Vanilla texture pixel per model unit instead of stretching one `16 x 16` tile over surfaces as large as `44 x 23`.
+- Replaced the crowded front collage with a cleaner `192 x 128` pixel-art board face: exactly four simple parchment notices, generous dark-spruce negative space, sparse abstract ink marks, and no readable text or central route map.
+- Added model regressions that require the intended Vanilla material references and verify one-to-one UV density for every structural face. The existing `3 x 2` footprint, protected overhang, collision shape, interaction path, and front-texture dimensions remain unchanged.
+
+### Verification
+
+- The fresh Java 25 `test build --rerun-tasks` passes with `197` tests in `53` suites and no failures, errors or skipped tests. The 26.2 resource validator confirms `2502` matching EN/DE/ES keys with placeholder parity, and `git diff --check` reports no content errors.
+- Runtime (`8,520,059` bytes, SHA-256 `9BEA36AD92BDF5722862DB0965D98CD25F15544D65BC9F7845C3C9189A78738D`) and Sources (`7,463,771` bytes, SHA-256 `4A462265046F57906CC38BC76DD4A099263BB9A367D1B49FEA0A91133028B8A2`) embed `2.4.0-unreleased.13`; `.12` and Stable artifacts remain unchanged. Minecraft was not started; final in-world visual acceptance remains maintainer QA.
+
+## 2.4.0-unreleased.12
+
+Build date: 2026-09-16
+
+### Guild Notice Post footprint and presentation fix
+
+- The Guild Notice Post is now a deliberate `3 x 2` world model anchored in the lower center cell. Placement validates all six visual cells, and the shared `BlockItem.place` entrypoint rejects later block placement anywhere inside the five overhanging cells. Existing placed boards gain the protection without a save migration, and pistons can no longer move the single authoritative root away from its virtual footprint.
+- Replaced the square board face with a purpose-built `192 x 128` three-to-two pixel-art texture that retains the parchment, route-map, wax-seal, dark timber and brass visual language while using the wider surface intentionally instead of stretching the old square art.
+- Added regressions for every orientation's exact six-cell footprint, overhang rejection, the placement-entrypoint hook, and the texture's exact `3:2` dimensions. The Guild Corner authoring guide now records the required open `3 x 2` volume around its single Notice Post root.
+
+### Verification
+
+- The fresh Java 25 `test build --rerun-tasks` passes with `195` tests in `53` suites and no failures, errors or skipped tests. The 26.2 resource validator confirms `2502` matching EN/DE/ES keys with placeholder parity, and `git diff --check` reports no content errors.
+- Runtime (`8,519,423` bytes, SHA-256 `B20940C67FF8E272CFBC32089CE0AD2DB68493E72DC207ECC66F534EC006315D`) and Sources (`7,463,135` bytes, SHA-256 `50ABEB6FD72FD03ECE38345716FCF787F0E3E9A18A49E8BC99175EB72D6AF5A0`) embed `2.4.0-unreleased.12`; `.11` and Stable artifacts remain unchanged. Minecraft was not started; final visual placement acceptance remains maintainer QA.
+
+## 2.4.0-unreleased.11
+
+Build date: 2026-09-15
+
+### Release hardening and regression coverage
+
+- GuildTown Story delivery now captures the validated owner-qualified active village before completing the Story. Chronicle completion never reconstructs a missing legacy village key as village `0`; an invalid active identity aborts before item consumption or state completion.
+- Added top-level Notice Post call-chain coverage from `GuildNoticePostBlock.useWithoutItem()` through the Bond/Board services into the Contact-aware GuildTown resolver, plus a no-mutation state assertion for contact-only villages.
+- Added Commission route-loss lifecycle coverage: authoritative route loss pauses the Commission without changing its owner-qualified identities or accumulated progress, Save→Reload preserves that state, and restoring the correct connection can resume the same Commission without creating route, freight or slot state.
+- Added a hand-authored 2.3.1-format QuestState NBT fixture spanning Daily, Weekly, classic Story, Pilgrim and route/bond data. It verifies one-shot First-Daily migration, preservation of legacy progress, passive initialization of 2.4 state, Contact/Route separation and a second Save→Reload.
+- No final Guild Corner preset exists in the working tree. The exact nine expected paths are documented in `GUILD_CORNER_PRESET_GUIDE.md`; missing/invalid presets still exit before landmark reservation or world mutation. No placeholder structure was created.
+
+### Verification
+
+- The fresh Java 25 `test build --rerun-tasks` passes with `191` tests in `52` suites and no failures, errors or skipped tests. The 26.2 resource validator confirms `2502` matching EN/DE/ES keys with placeholder parity, and `git diff --check` reports no content errors.
+- Runtime (`8,487,926` bytes, SHA-256 `1A99A720D80FC153B47559E9272E639B9B54D090A4D7AC9ADFF6D33C083DBF62`) and Sources (`7,432,372` bytes, SHA-256 `D5014DC948C120B3F083CFEBC9F1D045C9125BC8DDD786D415BED97889083EBB`) embed `2.4.0-unreleased.11`; `.10` and Stable artifacts remain unchanged. Minecraft and GUI control were not started. The NBT fixture covers the authoritative QuestState payload but not an actual world DataStorage/player file or server-join lifecycle; real block interaction/two-client QA and final authored Guild Corner preset integration remain maintainer work.
+
+## 2.4.0-unreleased.10
+
+Build date: 2026-09-15
+
+### Targeted stability, state-ownership and turn-in UX fix pass
+
+- Normal Questmaster Story clears now remove only classic Story scratch and preserve every `guild_town.*` story value. Active/completed GuildTown stories, progress and completion data therefore survive normal accept, finish and shared-sync lifecycles without a save-format migration.
+- Pilgrim lifecycle clears now remove only contract objective counters plus the ready/suppression scratch flags. Prosperity ranks, collection ownership, festival/ceremony charges, statistics/timing, completed-contract history and Daily reroll usage remain owned by their respective systems.
+- First-Daily migration now writes a persistent one-shot marker before evaluating a curated set of real pre-2.4 progress indicators. Generic milestone/currency state can no longer misclassify a fresh 2.4 profile after reconnect; legacy migration remains idempotent and still creates no Daily, reward or Welcome completion.
+- The real Guild Notice Post path now falls back to the local GuildTown Contact resolver when no registered route exists. Contact-only villages produce dormant/available/local-story feedback without creating route or Living Network state, while registered destinations retain the existing Notice Board delivery UI and route-only action validation.
+- Every serverbound Prosperity action is now gated by the authoritative server-side unlock check before dispatch. Route reset now removes only home/route/survey/route-network and active route-contract state, preserving Contacts, Welcome, GuildTown Chronicle/commission data, Prosperity pending data, archive state and permanent Trade Guild completion history; reversing the synthetic shrine fixture still explicitly removes its injected contract count.
+- Processing quests now distinguish work targets from their smaller final delivery amounts. Daily Smithing, Smith's Week, Harvest for the Village, Market Road Troubles chapter 2 and Apiarist's Smoker all count the raw material consumed by required ingots, bread, books or honey blocks up front, so following the displayed stages leaves exactly the advertised delivery bundle instead of forcing a hidden repeat grind.
+- Accepted Daily, Weekly and Story hand-ins no longer lose their primary Questmaster action while final inventory items are missing. They show an enabled, explicitly labelled Turn In action once work objectives are complete (allowing the existing authoritative server rejection message), or a disabled In Progress action while work remains; shared Story receipts are also reflected when determining UI readiness.
+- The earlier Commission identity recovery, guild-disband entitlement retention, joint player/animal Long Drive distance, shared Story receipt, Shared Daily gate, Creative visibility, historical village aliases, Notice Board codec symmetry and furnace/anvil deduplication fixes remain covered and unchanged. The final Guild Corner preset set is still absent; only the unrelated `broken_heartstone_ruin.nbt` is bundled.
+
+### Verification
+
+- Added cross-system state-clear/reset, route-reset ownership, Save→Reload, fresh reconnect/legacy migration, Contact Notice Post state, serverbound Prosperity authorization, five natural processing-flow arithmetic and Questmaster hand-in presentation regressions.
+- The fresh Java 25 `test build --rerun-tasks` passes with `184` tests in `51` suites and no failures, errors or skipped tests. The 26.2 resource validator confirms `2502` matching EN/DE/ES keys, and `git diff --check` reports no content errors.
+- Runtime (`8,487,845` bytes, SHA-256 `9C13264E908A731FF19140C25BCDAC6482332D6E03B7463D39758F35BF1EB13F`) and Sources (`7,432,266` bytes, SHA-256 `15266AB4F261F3AA4413D0783EA573C4342BAAD36FC79F11A29CD19D1A149A58`) embed `2.4.0-unreleased.10`; `.9` and Stable artifacts remain unchanged. Minecraft and GUI control were not started. Real two-client/reconnect/Notice-Post/turn-in gameplay QA and final authored Guild Corner preset integration remain maintainer work.
+
+## 2.4.0-unreleased.9
+
+Build date: 2026-09-14
+
+### Targeted external-audit fix pass
+
+- Local GuildTown stories now resolve either a real connected Trade Route or a personal Village Contact through a dedicated historical-story resolver. Contact-only villages can start, progress, finish, and write Chronicle history without entering the connected-network resolver or creating route, freight, income, caravan, or slot state; connected routes retain their live recovery/preventive condition.
+- Clearly established pre-2.4 profiles now idempotently migrate past only the new First-Daily gate during load/join. The migration creates no Daily, reward, or Welcome completion, while genuinely fresh/intro-active players remain on the curated choice and cannot inherit or join a party Shared Daily until that first step is complete.
+- Shared Story item turn-ins now freeze the synchronized participant set when requirements are first consumed. A chapter-scoped receipt persists in both the party session and each eligible player's story state, bypasses both repeated item-completeness and consume gates after reconnect, rejects late/stale offers, and clears with normal chapter progress.
+- The `.7` Commission identity recovery, guild-disband personal entitlement retention, and joint player/animal Long Drive distance rules remain intact. The required final Guild Corner style presets are still absent; only the unrelated `broken_heartstone_ruin.nbt` is bundled, so no placeholder content was invented.
+
+### Verification
+
+- Added resolver, onboarding migration/load/idempotence/shared-gate, connected-route preservation, Story receipt eligibility/stale-offer/chapter-scope/save-reload, and lifecycle cleanup regressions.
+- The fresh Java 25 `test build --rerun-tasks` passes with `167` tests in `45` suites and no failures, errors, or skipped tests. The resource validator confirms `2500` matching EN/DE/ES keys, and `git diff --check` reports no content errors.
+- Runtime (`8,481,742` bytes, SHA-256 `6C4B8B2965A9D01D67C8CEBD1959479C9D4D47636AD74A5084CB8575BF616439`) and Sources (`7,429,878` bytes, SHA-256 `3D6EE3DCA9CE9B06141752A814292BEF3706A12F4111C596E87622ECE517FC26`) embed `2.4.0-unreleased.9`; `.8` and Stable artifacts remain unchanged. Minecraft and GUI control were not started. Real two-client reconnect/gameplay QA and final authored Guild Corner preset integration remain maintainer work.
+
+## 2.4.0-unreleased.8
+
+Build date: 2026-09-14
+
+### External audit correction
+
+- Commission identities now require both complete, explicitly present and world-bounded coordinate pairs. Runtime validation resolves both identities against the named owner's actual registered villages and expected village types; malformed data may recover only through its real stored legacy indices, otherwise active progress pauses instead of retargeting `(0,0)` or another village.
+- Disbanding a guild now removes only its active shared project and guild Chronicle. Already earned shared-project rewards remain personal, persistent exactly-once entitlements and can still be claimed after the guild no longer exists; only complete admin reset removes them.
+- `The Long Drive` now persists player start/last baselines alongside each selected animal and accumulates only `min(animal segment, player segment)` while the player remains nearby. Animal movement without matching player travel therefore grants no escort distance, including across save/reload.
+- The missing Guild Corner preset set remains an explicit release-content task rather than a code regression: the placement engine intentionally stays passive without `data/village-quest/structure/guild_corner/<style>.nbt`; `broken_heartstone_ruin.nbt` belongs to the separate shrine story.
+
+### Verification
+
+- Added regression coverage for missing/out-of-range identity coordinates, zero-coordinate presence, disband-to-save/reload claim retention, complete-reset entitlement removal, and joint player/animal escort distance.
+- The fresh Java 25 `test build --rerun-tasks` passes with `159` tests in `44` suites and no failures, errors, or skipped tests. The resource validator confirms `2500` matching EN/DE/ES keys, and `git diff --check` reports no content errors.
+- Runtime (`8,476,483` bytes, SHA-256 `94D799A8043619F3521C006DF4DE37BDB6E3482449F2F21F7EED8DEB22492B22`) and Sources (`7,427,713` bytes, SHA-256 `172964EDBE86821A8F347C2345C2A6699A4F15363491FA57340B43627D87B082`) embed `2.4.0-unreleased.8`; `.7` and Stable artifacts remain unchanged. The final static pass found no further confirmed defect in the three affected lifecycle paths. Minecraft and GUI control were not started; real gameplay QA and final authored Guild Corner preset integration remain maintainer work.
+
+## 2.4.0-unreleased.7
+
+Build date: 2026-09-11
+
+### External audit follow-up
+
+- Furnace shift-click tracking now measures the output-slot delta and dispatches only the amount actually transferred, including partial inventory transfers; the normal result-slot hook and fallback remain exactly-once.
+- Completed shared-project rewards are visible in `/vq town` with their pending count and a clickable claim action. Entitlements no longer have a lossy 64-entry cap, and all rewards—including the 65th—survive save/reload until claimed.
+- `The Long Drive` now persists each selected animal's start position, last observed position, sample time, proximity state, and accumulated escorted distance. Only continuous, nearby player-and-animal movement counts; disconnect gaps, out-of-range movement, and teleport-sized jumps rebase without granting distance.
+- Guest commission access is revalidated for every progress hook, animal contact, route arrival, resume, and delivery. Lost same-guild access pauses active work and cannot use or complete the former owner's network; rejoining permits an explicit resume.
+- New commissions persist both stable owner-qualified village identities and the real owner-side legacy indices. Identity-only data uses no invented `0/1` fallback, so malformed identity data fails safely instead of retargeting arbitrary villages.
+- Guild Corner validation now rejects palette block states whose block type owns a block entity even when the structure contains no `nbt` tag. Structure Voids preserve the matching local surface column across an allowed one-block slope, including Dirt Paths.
+- Modified-terrain safety history no longer evicts the oldest chunk at the former 32,768-entry boundary. Exact marks migrate losslessly into compact persistent `32 x 32` chunk-region bitmaps and remain authoritative for future automatic Guild Corner placement.
+
+### Verification
+
+- Added focused regression coverage for partial furnace transfers, visible clickable pending claims, the 64-to-65 entitlement boundary, Long Drive distance/proximity/reload/disconnect recovery, block-entity palette states without NBT, sloped Structure Void path preservation, post-accept guest access, identity/legacy-index fallback, and durable compact terrain-history migration.
+- The fresh Java 25 `test build --rerun-tasks` passes with `157` tests in `44` suites and no failures, errors, or skipped tests. The resource validator confirms `2500` matching EN/DE/ES keys, and `git diff --check` reports no content errors.
+- Runtime (`8,474,821` bytes, SHA-256 `A36C24C494CFBCE396E7955A6629D4D636F2FF6E1A363CCE486AEC345E6DC018`) and Sources (`7,426,451` bytes, SHA-256 `95A3A51415E286399BD6F88520CC3E35C7E9BFC2B2F06B14921777A0BAE18455`) embed `2.4.0-unreleased.7`; `.6` and Stable artifacts remain unchanged. The final static audit found no further confirmed defect in the nine affected paths. Minecraft and GUI control were not started; real gameplay QA and final preset integration remain maintainer work.
+
+## 2.4.0-unreleased.6
+
+Build date: 2026-09-11
+
+### 2.4 state, ownership and lifecycle audit closure
+
+- Complete reset now clears delayed harvest verification, quest-sound cooldowns, and every Guild Town shared project, claim entitlement, and shared Chronicle entry. Disbanding a final-member guild also removes its shared state.
+- Shared-project completion immediately releases the guild's active slot and creates separate persistent exactly-once reward entitlements for recorded contributors. Schema-1 completed projects migrate into those detached claims, while malformed and future schemas fail safely.
+- Guild and party NBT loaders now rebuild one canonical membership graph, reject duplicate guild/party IDs and cross-memberships, normalize leadership, sanitize secondary party session maps, and never dereference a missing role. Guild and Living Village renown loads clamp to the supported maximum and additions saturate through `long` arithmetic.
+- Guest commissions persist owner-qualified village coordinates instead of interpreting another player's raw village indices. Actions and delivery require the selected Overworld village pair, while route arrivals carry their exact destination and advance only a matching pair; `.5` active commissions lazily migrate from the owner's legacy indices.
+- `The Long Drive` now selects two or three persistent animal UUIDs near the pasture and completes when at least two remain close to the player across a 32-block escort. Selection survives save/reload and disconnect, `/vq town story recover` safely restarts a lost escort, and all temporary animal state is removed at READY.
+- The personal Chronicle now stores ordered sequence/time records with stable owner-qualified village identities and is readable through `/vq town chronicle`. Historical story/commission milestones use a separate permanent category from the twelve-entry ambient cap, and `.5` flag-only history remains visible as legacy entries.
+- Concord and full-pairing rewards are visible in town status, and a claimed Concord finale no longer renders a READY claim link. Furnace normal-take and shift-click hooks now share a transaction guard so each physical output dispatches progress exactly once.
+- Harvest replacement tracking now includes Wheat Seeds, Beetroot, and Beetroot Seeds consistently with accepted Guild Town targets. Feedback cooldowns clean up on disconnect/reset, and modified-terrain history uses bounded FIFO retention.
+
+### Guild Corner runtime safety
+
+- Every bundled or datapack-overridden template is runtime-validated for `1..16` dimensions, a single north-authored Notice Post, valid palette/coordinates, zero entities, and zero block-entity NBT.
+- Structure Void cells may deliberately preserve paths or other existing surface blocks without the surrounding terrain validator rejecting them; hidden block entities remain forbidden.
+- Placement checks the complete bounding box against build height and all four world-border corners. The complete footprint is snapshotted immediately before placement and restored whenever placement or final Notice-Post validation fails.
+
+### Verification
+
+- Added regression coverage for detached project entitlements and migration, complete shared reset/disband cleanup, duplicate guild IDs, cross-party memberships, future-schema fallback, saturating renown/progress, stable guest village identities, exact route matching, ordered milestone Chronicle retention, Long Drive reload/recovery/terminal cleanup, bounded terrain history, Guild Corner runtime contract/build bounds/Structure Void/rollback, harvest parity, sound cleanup, and exactly-once furnace normal/shift-click dispatch.
+- The fresh Java 25 `test build --rerun-tasks` passes with `147` tests in `43` suites and no failures, errors, or skipped tests. The resource validator confirms `2499` matching EN/DE/ES keys, and `git diff --check` reports no content errors.
+- Runtime (`8,467,122` bytes, SHA-256 `CB7844FCB431C81D8987C6C252FCEC8B8B2E8C8D3DE0DF6B7A668A41B94AD261`) and Sources (`7,423,095` bytes, SHA-256 `1F995E96698EDC894BD55D97BEC8AE733418D73B3F0328165B202693EC9FDFE6`) embed `2.4.0-unreleased.6`; `.5` and Stable artifacts remain unchanged.
+- The independent post-fix audit found no remaining code-level release blocker in the 2.4 scope. Minecraft was not launched; real two-client/reconnect gameplay QA and final authored Guild Corner preset integration remain maintainer acceptance work, and the build stays Unreleased.
+
+## 2.4.0-unreleased.5
+
+Build date: 2026-09-10
+
+### Complete preset-independent Guild Town progression
+
+- Added all five identity-specific local stories: `The Shared Table`, `Sparks for the Road`, `The Long Drive`, `Lanterns in Bloom`, and `Ink Between Villages`. Each stores its preventive or recovery variant, remains personal and reconnect-safe, supports lossless pause/resume, requires local action near its assigned village, and awards a distinct placeable memory without adding power creep.
+- Added all ten unordered identity-pair commissions with distinct two-mechanic recipes, explicit final deliveries, named network owners, same-guild guest pairings, unchanged route slots, persistent pause/resume, offline-safe owner route-arrival credit, atomic completion, and exactly-once seals and milestone rewards.
+- Added a bounded personal Chronicle per village and a separate versioned guild Chronicle/project SavedData. Shared projects require Leader/Steward acceptance, consume only the available required delivery once, record actual contributors, and let each contributor claim exactly once even after leaving the guild.
+- Added `The Bells of Concord` at the exact three-stories, three-commissions, three-connected-villages gate. The five identities and ten pairings remain optional mastery, while the Concord Plaque, Guild Standard, Waymarker, Atlas illustration, title flags, story memories, and commission seals stay visible rather than power-increasing rewards.
+- Added concise `/vq town` status, story, commission, shared-project, Concord, and manual retrofit flows. Questmaster, Notice Post, Journal, dormant states, story objectives, commission mechanics, final deliveries, and recovery outcomes now state the next concrete action in EN, DE, and ES.
+
+### Guild Corner and safety closure
+
+- Bound conservative automatic placement to throttled online-player village presence without background scanning or chunk loading. The initial Contact and every later registered Trade Route destination can host its personal local story while the physical Corner remains world-global.
+- Added an explicit local retrofit/recovery command for edited existing villages. Generated and player-removed Corners remain terminal, reserved retry sites never relocate, and absent or invalid presets still create no reservation, partial build, crash, or world mutation.
+- Added the exact preset authoring and validation guide plus a dynamic contract test for every later supplied NBT: supported style name, `1..16` on every axis, no entities or block entities, and exactly one north-authored Guild Notice Post.
+- Counted plant objectives only after a successful `BlockItem.place` result, preventing canceled or invalid clicks from creating terrain history or quest progress.
+
+### Verification
+
+- The fresh Java 25 `test build --rerun-tasks` passes with `123` tests in `38` suites and no failures, errors, or skipped tests. Coverage includes save/reload and reconnect-facing persistence, malformed and absent NBT, terminal/idempotent transitions, multiplayer participant ownership, duplicate delivery/reward protection, Peaceful-safe mechanics, CTOV/equivalent placement policy, existing-world/manual retrofit, removed Corners, paused stories and commissions, exact finale gates, Chronicle separation, and resource integrity.
+- The resource validator confirms `2487` matching EN/DE/ES keys, and `git diff --check` reports no content errors. Runtime (`8,445,442` bytes, SHA-256 `FCFF7D298BFAFB736B80C4CF286632FACE0A51DB1811809E5A206D860FF5AB1C`) and Sources (`7,413,917` bytes, SHA-256 `7C0A8D85A1A5732404CD7B0DD2C7690127287BC081D732AD9493F5499ABBDEF3`) contain the representative Guild Town, placement, successful-block hook, language, mixin, and license entries and embed `2.4.0-unreleased.5`.
+- No Guild Corner NBT is bundled yet by design. Earlier `.1`–`.4`, `2.3.2-unreleased.1`, and Stable `2.3.0`/`2.3.1` artifact pairs remain intact. Minecraft was not launched; final preset integration and maintainer Ingame QA remain open, and the build stays Unreleased.
+
+## 2.4.0-unreleased.4
+
+Build date: 2026-09-09
+
+### Preset-ready Guild Corner placement
+
+- Added a deterministic local-visit candidate search around all four sides of a loaded village footprint. Candidates face the village, account for rotated rectangular presets, and are evaluated without loading remote chunks.
+- Added conservative live-world validation for natural surfaces, slope, replaceable build volume, block entities, construction traces, recorded terrain edits, network anchors, village-bond decorations, world-border bounds, and old inhabited village chunks. Edited or established villages remain manual-only instead of being overwritten.
+- Connected successful candidates to the world-global reservation lifecycle. Placement is reserved before mutation, verifies that the authored structure contains and places exactly one Guild Notice Post, and then becomes generated; unsafe or incompatible pending records remain recoverable without relocating or duplicating the landmark.
+- Preserved bounded delayed retry behavior for reserved footprints whose chunks are temporarily unavailable. Failed or changed sites become explicit manual-recovery records rather than automatic repair plans.
+- Added the biome-style preset contract for `generic`, `plains`, `desert`, `savanna`, `taiga`, `snowy`, `jungle`, `swamp`, and `cherry`. Missing presets intentionally create no reservation or terrain changes, so the first Plains prototype can be integrated independently.
+
+### Development scope
+
+- This revision delivers the preset-independent candidate and placement engine for roadmap step 3. No Guild Corner NBT is bundled yet, so actual world generation begins only after the maintainer supplies the first conforming preset. `The Shared Table` remains the next gameplay implementation after that prototype is available.
+
+### Verification
+
+- The fresh Java 25 test/build passes with `108` tests in `34` suites and no failures or skipped tests. The resource validator confirms `2356` matching EN/DE/ES keys. Runtime (`8,386,664` bytes, SHA-256 `5777B94AF40896B25CE6EF15B694DA9FB78B8A8AC8CB368665E1B62ACD41F874`) and Sources (`7,386,335` bytes, SHA-256 `B0415669964FF7BC5ABD514910BF3EBAAB0F4BA43C02DE7ECE6425FEF14C9B58`) plus embedded metadata carry `2.4.0-unreleased.4`; earlier numbered candidates and Stable artifacts remain intact. Minecraft was not launched.
+
+## 2.4.0-unreleased.3
+
+Build date: 2026-09-09
+
+### First-day choice and Village Contact gameplay
+
+- Replaced the first random Daily offer for genuinely new players with three explicit low-friction paths: a shortened wheat-and-bread favor, a shortened wood-and-coal favor, or four sheep greetings with shears. The selected favor remains the same across a missed daily reset, regular players keep the established Daily rotation, and older profiles are not forced back through onboarding.
+- Made the Questmaster GUI and compact chat fallback both expose the authoritative three-choice selection. Invalid or stale client entry IDs cannot choose a quest outside the curated introduction.
+- Completing that first favor now points the player toward a suitable village with at least three living villagers. Greeting the first resident establishes the persistent personal Village Contact, and greeting three distinct residents completes a short welcome assignment; repeatedly clicking the same villager never advances it.
+- Added a personalized, inventory-safe Village Welcome Note keepsake and identity-aware villager reactions without introducing a new currency, route, income source, freight, caravan, or route slot.
+- Added step-by-step Journal guidance from the initial choice through the first contact and a preview of the later permanent village landmark. Standalone Contacts are excluded from Living Village Network views until the same village becomes a real registered route destination.
+- Kept incomplete first favors and welcome progress save-safe and idempotent, including distinct-villager history, the selected village, and a terminal welcome-completed state.
+
+### Development scope
+
+- This revision completes roadmap step 2: first Daily choice, Journal guidance, gameplay Contact activation, and the welcome assignment. Guild Corner candidate search/world placement and the Granary story remain in the next development step.
+
+### Verification
+
+- The fresh Java 25 test/build passes with `103` tests in `32` suites and no failures or skipped tests. The resource validator confirms `2356` matching EN/DE/ES keys; Runtime and Sources plus embedded metadata carry `2.4.0-unreleased.3`, while Unreleased 1–2 and the Stable artifacts remain intact. Minecraft was not launched.
+
+## 2.4.0-unreleased.2
+
+Build date: 2026-09-09
+
+### World-global Guild Corner foundation
+
+- Added a dedicated versioned SavedData layer for world-global Guild Corner landmarks. Each village anchor can own exactly one persistent corner position, facing, biome style, bounded historical footprint, lifecycle status, retry state, and revision without storing any player or guild identity.
+- Kept personal Village Contacts independent from the shared landmark. Multiple players can therefore see the same physical corner while retaining separate personal contact, story, bond, and later Chronicle progress.
+- Made `pending -> generated -> removedByPlayer` the one-way landmark lifecycle. Revisits cannot move an existing reservation, and generated or deliberately removed corners are never treated as blueprints for automatic repair or regeneration.
+- Added bounded delayed placement retries for partially loaded areas. Exhausted automatic attempts remain pending and explicitly recoverable through later manual placement instead of becoming a hidden permanent failure.
+- Added a pure local-visit placement policy: safe untouched new villages may be placed automatically, edited/existing villages require explicit placement, unloaded areas wait, and CTOV uses the same loaded footprint-aware safety decision as vanilla villages without background or startup scans.
+- Connected player destruction of a recorded generated Guild Notice Post to the terminal `removedByPlayer` landmark state. Ordinary player-built posts remain unaffected because they have no generated landmark record.
+
+### Development scope
+
+- This revision completes the Contact/Ownership/Landmark data contracts and placement decisions. It does not yet search for candidates, place a Guild Corner in the world, activate Contacts through gameplay, or add the welcome quest and Journal UI.
+
+### Verification
+
+- The fresh Java 25 test/build passes with `95` tests in `29` suites and no failures. The resource validator confirms `2337` matching EN/DE/ES keys; Runtime and Sources plus embedded metadata carry `2.4.0-unreleased.2`, while the separate Unreleased 1 artifact pair remains intact. Minecraft was not launched.
+
+## 2.4.0-unreleased.1
+
+Build date: 2026-09-07
+
+### The Guild Comes to Town foundation
+
+- Added the persistent personal Village Contact foundation. A contact remembers an existing village identity at Known bond level without creating income, freight, caravans, route upgrades, or consuming one of the five Trade Route slots.
+- Reused the permanent historical village record so a later Trade Route can inherit the same identity instead of creating parallel village data.
+- Added idempotency, save/reload, existing-record promotion, route-isolation, and historical-cap regression coverage.
+
+### Development scope
+
+- Recorded the complete 2.4 player journey, Guild Corner ownership rules, five local stories, ten identity-pair commissions, Chronicle boundaries, multiplayer rules, finale, and Granary vertical-slice release gate in the internal roadmap.
+- This first revision provides the data contract only. It does not yet expose Village Contacts in gameplay or alter the existing quest, route, Guild Notice Board, or cooldown behavior.
+
+### Verification
+
+- The fresh Java 25 test/build passes with `80` tests in `27` suites and no failures. The resource validator confirms `2337` matching EN/DE/ES keys; both archives and the embedded metadata carry `2.4.0-unreleased.1`. Minecraft was not launched for this foundation pass.
+
+## 2.3.2-unreleased.1
+
+Build date: 2026-09-07
+
+### Bug fixes and improvements
+
+- Added a dedicated `Village Quest` Creative Mode tab containing every current currency, tool, reward, plaque, and construction block. It reuses the existing inventory Journal-book artwork as its icon and also makes those registered items available to recipe viewers such as JEI, which build their default ingredient list from Creative-tab contents.
+- Kept the retired Copper Penny, Roadmender's Mallet, Dormant Waystone, and Attuned Waystone compatibility registrations out of the tab and normal recipe-viewer results.
+- Added a focused regression test that locks the active tab contents while proving all four compatibility-only items remain excluded.
+
+### Verification
+
+- The fresh Java 25 test/build passes with `75` tests in `25` suites and no failures or skipped tests. The resource validator confirms `2337` matching EN/DE/ES keys; both archives embed `2.3.2-unreleased.1`, and the Runtime contains the creative-tab class plus its reused Journal icon model and texture. Minecraft was not launched for this pass.
+
 ## 2.3.1
 
 Release date: 2026-09-04

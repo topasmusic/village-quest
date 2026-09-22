@@ -26,6 +26,7 @@ import de.quest.quest.story.VillageProjectService;
 import de.quest.questmaster.QuestMasterProgressionService;
 import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.registry.ModItems;
+import de.quest.shrine.VillageWelcomeService;
 import de.quest.util.Texts;
 import de.quest.util.TimeUtil;
 import net.minecraft.world.entity.Entity;
@@ -135,7 +136,7 @@ public final class DailyQuestService {
         BONUS
     }
 
-    private record TargetProfileContext(RepeatableTargetProfile profile) {}
+    private record TargetProfileContext(RepeatableTargetProfile profile, boolean introductory) {}
 
     private record QuestStatusSnapshot(Component title, Component progressLine) {}
 
@@ -327,11 +328,13 @@ public final class DailyQuestService {
         if (!isAcceptedToday(world, playerId)) {
             return false;
         }
+        DailyQuestType cancelledType = activeQuestType(world, playerId);
         PlayerQuestData data = data(world, playerId);
         resetProgressFor(data);
         data.setAcceptedDay(PlayerQuestData.UNSET_DAY);
         clearPendingOffers(data);
         setDirty(world);
+        QuestPartyService.clearDailySessionIfFinished(world, playerId, cancelledType);
         refreshQuestUi(world, playerId);
         return true;
     }
@@ -426,6 +429,15 @@ public final class DailyQuestService {
         long day = currentDay();
         long chosenDay = data.getDailyChoiceDay();
         DailyQuestType choice = data.getDailyChoice();
+        if (FirstDailyChoiceService.isActive(data) && choice != null) {
+            if (chosenDay != day) {
+                data.setDailyChoiceDay(day);
+                data.setDailyTargetProfile(RepeatableTargetProfile.LIGHT);
+                resetProgressFor(data);
+                setDirty(world);
+            }
+            return choice;
+        }
         if (choice == null || chosenDay != day) {
             DailyQuestType excludedType = chosenDay == day - 1 ? choice : null;
             DailyQuestCategory excludedCategory = excludedType == null ? null : excludedType.category();
@@ -478,6 +490,10 @@ public final class DailyQuestService {
 
     public static void acceptQuest(ServerLevel world, ServerPlayer player) {
         UUID playerId = player.getUUID();
+        if (FirstDailyChoiceService.canChoose(world, playerId)) {
+            showQuestOfferCompact(world, player);
+            return;
+        }
         markDailyDiscovered(world, playerId);
         PlayerQuestData data = data(world, playerId);
         clearPendingOffers(data);
@@ -819,7 +835,9 @@ public final class DailyQuestService {
 
     private static <T> T withTargetProfile(PlayerQuestData data, ActiveQuestSlot slot, Supplier<T> supplier) {
         TargetProfileContext previous = TARGET_PROFILE_CONTEXT.get();
-        TARGET_PROFILE_CONTEXT.set(new TargetProfileContext(profileForSlot(data, slot)));
+        TARGET_PROFILE_CONTEXT.set(new TargetProfileContext(
+                profileForSlot(data, slot),
+                slot == ActiveQuestSlot.NORMAL && FirstDailyChoiceService.isActive(data)));
         try {
             return supplier.get();
         } finally {
@@ -839,7 +857,44 @@ public final class DailyQuestService {
     }
 
     private static int tunedTarget(int baseTarget, String salt) {
+        TargetProfileContext context = TARGET_PROFILE_CONTEXT.get();
+        if (context != null && context.introductory()) {
+            return FirstDailyChoiceService.introductoryTarget(salt, baseTarget);
+        }
         return RepeatableTargetTuning.adjust(baseTarget, contextTargetProfile(), salt);
+    }
+
+    public static Component previewFirstChoiceProgressLine(ServerLevel world, UUID playerId,
+                                                           DailyQuestType questType) {
+        DailyQuestDefinition definition = definitionFor(questType);
+        if (world == null || playerId == null || definition == null
+                || !FirstDailyChoiceService.choices().contains(questType)) {
+            return Component.empty();
+        }
+        TargetProfileContext previous = TARGET_PROFILE_CONTEXT.get();
+        TARGET_PROFILE_CONTEXT.set(new TargetProfileContext(RepeatableTargetProfile.LIGHT, true));
+        try {
+            return definition.progressLine(world, playerId);
+        } finally {
+            if (previous == null) TARGET_PROFILE_CONTEXT.remove();
+            else TARGET_PROFILE_CONTEXT.set(previous);
+        }
+    }
+
+    public static DailyQuestCompletion previewFirstChoiceCompletion(ServerLevel world,
+                                                                     DailyQuestType questType) {
+        DailyQuestDefinition definition = definitionFor(questType);
+        if (world == null || definition == null || !FirstDailyChoiceService.choices().contains(questType)) {
+            return null;
+        }
+        TargetProfileContext previous = TARGET_PROFILE_CONTEXT.get();
+        TARGET_PROFILE_CONTEXT.set(new TargetProfileContext(RepeatableTargetProfile.LIGHT, true));
+        try {
+            return definition.buildCompletion(world);
+        } finally {
+            if (previous == null) TARGET_PROFILE_CONTEXT.remove();
+            else TARGET_PROFILE_CONTEXT.set(previous);
+        }
     }
 
     private static ItemStack tunedRewardStack(ItemStack reward) {
@@ -887,6 +942,23 @@ public final class DailyQuestService {
         }
         return withTargetProfile(data, bonus ? ActiveQuestSlot.BONUS : ActiveQuestSlot.NORMAL,
                 () -> definition.isComplete(world, player));
+    }
+
+    public static Component claimBlockedMessage(ServerLevel world, ServerPlayer player, boolean bonus) {
+        if (world == null || player == null) {
+            return null;
+        }
+        UUID playerId = player.getUUID();
+        PlayerQuestData data = data(world, playerId);
+        DailyQuestType choice = bonus && data.getBonusChoiceDay() == currentDay()
+                ? data.getBonusChoice()
+                : activeQuestChoice(world, playerId);
+        DailyQuestDefinition definition = definitionFor(choice);
+        if (definition == null) {
+            return null;
+        }
+        return withTargetProfile(data, bonus ? ActiveQuestSlot.BONUS : ActiveQuestSlot.NORMAL,
+                () -> definition.claimBlockedMessage(world, player));
     }
 
     public static boolean setQuestChoiceForToday(ServerLevel world, UUID playerId, DailyQuestType quest) {
@@ -1210,6 +1282,10 @@ public final class DailyQuestService {
 
     public static void showQuestOfferCompact(ServerLevel world, ServerPlayer player) {
         UUID playerId = player.getUUID();
+        if (FirstDailyChoiceService.canChoose(world, playerId)) {
+            showFirstDailyChoicesCompact(player);
+            return;
+        }
         markDailyDiscovered(world, playerId);
         if (hasCompletedToday(world, playerId) || isAcceptedToday(world, playerId)) {
             return;
@@ -1243,6 +1319,35 @@ public final class DailyQuestService {
                 .append(Component.literal("\n"))
                 .append(divider.copy());
         player.sendSystemMessage(questBody, false);
+    }
+
+    private static void showFirstDailyChoicesCompact(ServerPlayer player) {
+        Component divider = Component.literal("------------------------------").withStyle(ChatFormatting.GRAY);
+        net.minecraft.network.chat.MutableComponent body = Component.empty()
+                .append(divider.copy()).append(Component.literal("\n"))
+                .append(Component.translatable("message.village-quest.guild_intro.daily_choices.title")
+                        .withStyle(ChatFormatting.GOLD))
+                .append(Component.literal("\n\n"))
+                .append(Component.translatable("message.village-quest.guild_intro.daily_choices.body")
+                        .withStyle(ChatFormatting.GRAY));
+        for (DailyQuestType choice : FirstDailyChoiceService.choices()) {
+            DailyQuestDefinition definition = definitionFor(choice);
+            if (definition == null) continue;
+            String commandKey = switch (choice) {
+                case WHEAT_HARVEST -> "bakery";
+                case WOODCUTTING -> "workshop";
+                case WOOL_WEAVING -> "wool";
+                default -> "";
+            };
+            body.append(Component.literal("\n\n"))
+                    .append(Component.literal("• ").withStyle(ChatFormatting.DARK_GRAY))
+                    .append(definition.title().copy().withStyle(style -> style
+                            .withColor(ChatFormatting.GREEN)
+                            .withClickEvent(new net.minecraft.network.chat.ClickEvent.RunCommand(
+                                    "/vq daily choose " + commandKey))));
+        }
+        body.append(Component.literal("\n")).append(divider.copy());
+        player.sendSystemMessage(body, false);
     }
 
     private static void showShardPrompt(ServerLevel world, ServerPlayer player) {
@@ -1398,6 +1503,7 @@ public final class DailyQuestService {
         WeeklyQuestService.onTrackedItemPickup(world, player, stack, count);
         StoryQuestService.onTrackedItemPickup(world, player, stack, count);
         SpecialQuestService.onTrackedItemPickup(world, player, stack, count);
+        de.quest.guildtown.GuildTownService.onTrackedItemPickup(world, player, stack, count);
     }
 
     public static void onFurnaceOutput(ServerLevel world, ServerPlayer player, ItemStack stack) {
@@ -1409,6 +1515,7 @@ public final class DailyQuestService {
         WeeklyQuestService.onFurnaceOutput(world, player, stack);
         SpecialQuestService.onFurnaceOutput(world, player, stack);
         PilgrimContractService.onFurnaceOutput(world, player, stack);
+        de.quest.guildtown.GuildTownService.onFurnaceOutput(world, player, stack);
     }
 
     public static void onVillagerTrade(ServerLevel world, ServerPlayer player, ItemStack stack) {
@@ -1420,6 +1527,7 @@ public final class DailyQuestService {
         WeeklyQuestService.onVillagerTrade(world, player, stack);
         SpecialQuestService.onVillagerTrade(world, player, stack);
         PilgrimContractService.onVillagerTrade(world, player, stack);
+        de.quest.guildtown.GuildTownService.onVillagerTrade(world, player);
     }
 
     public static void onAnimalLove(ServerLevel world, ServerPlayer player, Animal animal) {
@@ -1431,6 +1539,7 @@ public final class DailyQuestService {
         WeeklyQuestService.onAnimalLove(world, player, animal);
         SpecialQuestService.onAnimalLove(world, player, animal);
         PilgrimContractService.onAnimalLove(world, player, animal);
+        de.quest.guildtown.GuildTownService.onAnimalLove(world, player, animal);
     }
 
     public static void onMonsterKill(ServerLevel world, ServerPlayer player, Entity killedEntity) {
@@ -1492,6 +1601,9 @@ public final class DailyQuestService {
                 boolean storyWasUnlocked = QuestMasterProgressionService.isStoryCategoryUnlocked(world, recipient.getUUID());
                 deliverCompletion(world, recipient, questType, completion, true);
                 markCompletedToday(world, recipient.getUUID());
+                if (FirstDailyChoiceService.complete(data(world, recipient.getUUID()))) {
+                    VillageWelcomeService.unlockAfterFirstDaily(world, recipient);
+                }
                 QuestMasterProgressionService.onNormalDailyCompleted(world, recipient, storyWasUnlocked);
                 refreshQuestUi(world, recipient.getUUID());
             }
@@ -1504,6 +1616,9 @@ public final class DailyQuestService {
             markBonusCompletedToday(world, playerId);
         } else {
             markCompletedToday(world, playerId);
+            if (FirstDailyChoiceService.complete(data)) {
+                VillageWelcomeService.unlockAfterFirstDaily(world, player);
+            }
             QuestMasterProgressionService.onNormalDailyCompleted(world, player, storyWasUnlocked);
         }
         refreshQuestUi(world, playerId);
@@ -1535,6 +1650,9 @@ public final class DailyQuestService {
                 boolean storyWasUnlocked = QuestMasterProgressionService.isStoryCategoryUnlocked(world, recipient.getUUID());
                 deliverCompletion(world, recipient, questType, completion, allowMagicShardDrop);
                 markCompletedToday(world, recipient.getUUID());
+                if (FirstDailyChoiceService.complete(data(world, recipient.getUUID()))) {
+                    VillageWelcomeService.unlockAfterFirstDaily(world, recipient);
+                }
                 QuestMasterProgressionService.onNormalDailyCompleted(world, recipient, storyWasUnlocked);
                 refreshQuestUi(world, recipient.getUUID());
             }
@@ -1547,6 +1665,9 @@ public final class DailyQuestService {
             markBonusCompletedToday(world, playerId);
         } else {
             markCompletedToday(world, playerId);
+            if (FirstDailyChoiceService.complete(data(world, playerId))) {
+                VillageWelcomeService.unlockAfterFirstDaily(world, player);
+            }
             QuestMasterProgressionService.onNormalDailyCompleted(world, player, storyWasUnlocked);
         }
         refreshQuestUi(world, playerId);
@@ -1917,8 +2038,13 @@ public final class DailyQuestService {
         return tunedTarget(AUTUMN_MELON_TARGET, "daily.autumn.melon");
     }
 
-    public static int smithSmeltOreTarget() {
+    public static int smithSmeltRawDeliveryTarget() {
         return tunedTarget(SMITH_SMELT_ORE_TARGET, "daily.smelting.ore");
+    }
+
+    /** Includes the raw iron consumed while making the required ingots. */
+    public static int smithSmeltOreTarget() {
+        return smithSmeltRawDeliveryTarget() + smithSmeltIngotTarget();
     }
 
     public static int smithSmeltIngotTarget() {

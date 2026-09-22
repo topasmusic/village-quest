@@ -12,6 +12,7 @@ import de.quest.painting.PaintingNameService;
 import de.quest.pilgrim.PilgrimContractService;
 import de.quest.pilgrim.PilgrimService;
 import de.quest.quest.daily.DailyQuestService;
+import de.quest.quest.daily.FirstDailyChoiceService;
 import de.quest.quest.special.MerchantSealQuestService;
 import de.quest.quest.special.SpecialQuestService;
 import de.quest.quest.special.SurveyorCompassQuestService;
@@ -20,6 +21,9 @@ import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.questmaster.QuestMasterUiService;
 import de.quest.reputation.ReputationService;
 import de.quest.recipe.VillageQuestRecipeBookService;
+import de.quest.village.GuildCornerPlacementService;
+import de.quest.guildtown.GuildTownService;
+import de.quest.guild.VillageGuildState;
 import net.fabricmc.fabric.api.entity.event.v1.ServerEntityCombatEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -31,7 +35,6 @@ import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.item.BlockItem;
 
 public final class QuestService {
     private QuestService() {}
@@ -39,12 +42,14 @@ public final class QuestService {
     public static void registerEvents() {
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             resetTransientRuntimeState();
+            ShadowsTradeRoadEncounterService.despawnAll(server.overworld());
             TradeRouteService.despawnAll(server.overworld());
             EmptyCaravanStoryService.despawnAll(server.overworld());
             QuestState.get(server).applyToRuntime();
             QuestPartyService.loadPersistentState(server);
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
+            ShadowsTradeRoadEncounterService.despawnAll(server.overworld());
             TradeRouteService.despawnAll(server.overworld());
             EmptyCaravanStoryService.despawnAll(server.overworld());
             QuestPartyService.persistRuntimeState(server);
@@ -70,9 +75,17 @@ public final class QuestService {
         ServerTickEvents.END_SERVER_TICK.register(PilgrimService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(VillageQuestRecipeBookService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(GuildArchiveService::onServerTick);
+        ServerTickEvents.END_SERVER_TICK.register(GuildCornerPlacementService::onServerTick);
+        ServerTickEvents.END_SERVER_TICK.register(GuildTownService::onServerTick);
+        ServerTickEvents.END_SERVER_TICK.register(VillageGuildState::onServerTick);
 
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
                 server.execute(() -> {
+                    QuestState state = QuestState.get(server);
+                    if (FirstDailyChoiceService.migratePre24Progress(
+                            state.getPlayerData(handler.player.getUUID()))) {
+                        state.setDirty();
+                    }
                     QuestPartyService.handleJoin(handler.player);
                     TradeRouteService.backfillUnlockedLedger(server.overworld(), handler.player);
                     ReputationService.backfillRoadwardenHorn(server.overworld(), handler.player);
@@ -91,11 +104,6 @@ public final class QuestService {
                 var pos = hit.getBlockPos();
                 var state = world.getBlockState(pos);
                 var stack = player.getItemInHand(hand);
-                if (stack.getItem() instanceof BlockItem) {
-                    QuestState stateData = QuestState.get(sw.getServer());
-                    stateData.markTerrainModified(pos);
-                    stateData.markTerrainModified(pos.relative(hit.getDirection()));
-                }
                 QuestHarvestTracker.onUseBlock(sw, sp, pos, state);
                 StoryQuestService.onUseBlock(sw, sp, pos, state, stack);
             }
@@ -151,7 +159,9 @@ public final class QuestService {
                 DailyQuestService.onEntityUse(sw, sp, entity, stack);
                 StoryQuestService.onEntityUse(sw, sp, entity, stack);
                 PilgrimContractService.onEntityUse(sw, sp, entity, stack);
+                de.quest.guildtown.GuildTownService.onUseEntity(sw, sp, entity, stack);
                 if (entity instanceof net.minecraft.world.entity.npc.villager.Villager villager) {
+                    de.quest.shrine.VillageWelcomeService.onVillagerContact(sw, sp, villager);
                     de.quest.shrine.VillageBondService.onVillagerContact(sw, sp, villager);
                 }
             }
@@ -182,12 +192,16 @@ public final class QuestService {
         SurveyorCompassQuestService.handleDisconnect(playerId);
         TradeRouteService.handleDisconnect(playerId);
         ClientPreferenceService.handleDisconnect(playerId);
+        GuildCornerPlacementService.handleDisconnect(playerId);
+        GuildTownService.handleDisconnect((ServerLevel) player.level(), playerId);
+        QuestSoundFeedback.handleDisconnect(playerId);
         QuestPartyService.handleDisconnect(player);
     }
 
     private static void resetTransientRuntimeState() {
         QuestDropTracker.clear();
         QuestHarvestTracker.clear();
+        QuestSoundFeedback.resetRuntimeState();
         QuestBookHelper.resetAllSessions();
         QuestTrackerService.resetAllRuntimeState();
         QuestMasterUiService.resetAllSessions();
@@ -198,5 +212,6 @@ public final class QuestService {
         TradeRouteService.resetRuntimeState();
         GuildArchiveService.resetTransientState();
         ClientPreferenceService.reset();
+        GuildCornerPlacementService.resetRuntimeState();
     }
 }

@@ -246,20 +246,28 @@ public final class StoryQuestService {
         if (chapter == null) {
             return false;
         }
-        if (!chapter.isComplete(world, player)) {
+        int chapterIndex = chapterIndex(world, player.getUUID(), arcType);
+        boolean shared = QuestPartyService.isSharedStoryMember(
+                world, player.getUUID(), arcType, chapterIndex);
+        boolean requirementsConsumed = QuestPartyService.storyTurnInRequirementsConsumed(
+                world, player.getUUID(), arcType, chapterIndex);
+        if (!requirementsConsumed && !chapter.isComplete(world, player)) {
             Component blocked = chapter.claimBlockedMessage(world, player);
             if (blocked != null) {
                 player.sendSystemMessage(blocked, false);
             }
             return false;
         }
-        if (!chapter.consumeCompletionRequirements(world, player)) {
+        if (!requirementsConsumed && !chapter.consumeCompletionRequirements(world, player)) {
             return false;
+        }
+        if (!requirementsConsumed && shared) {
+            QuestPartyService.markStoryTurnInRequirementsConsumed(
+                    world, player.getUUID(), arcType, chapterIndex);
         }
 
         StoryChapterCompletion completion = chapter.buildCompletion();
-        int chapterIndex = chapterIndex(world, player.getUUID(), arcType);
-        if (QuestPartyService.isSharedStoryMember(world, player.getUUID(), arcType, chapterIndex)) {
+        if (shared) {
             List<UUID> recipients = QuestPartyService.activeStoryMembers(world, player.getUUID(), arcType, chapterIndex);
             for (UUID recipientId : recipients) {
                 ServerPlayer recipient = world.getServer().getPlayerList().getPlayer(recipientId);
@@ -279,6 +287,19 @@ public final class StoryQuestService {
         return true;
     }
 
+    public static boolean isReadyForClaim(ServerLevel world, ServerPlayer player, StoryArcType arcType) {
+        if (world == null || player == null || arcType == null || !isActive(world, player.getUUID(), arcType)) {
+            return false;
+        }
+        StoryChapterDefinition chapter = currentChapter(world, player.getUUID());
+        if (chapter == null) {
+            return false;
+        }
+        int chapterIndex = chapterIndex(world, player.getUUID(), arcType);
+        return QuestPartyService.storyTurnInRequirementsConsumed(world, player.getUUID(), arcType, chapterIndex)
+                || chapter.isComplete(world, player);
+    }
+
     public static boolean completeIfEligible(ServerLevel world, ServerPlayer player) {
         if (world == null || player == null) {
             return false;
@@ -288,10 +309,15 @@ public final class StoryQuestService {
             return false;
         }
         StoryChapterDefinition chapter = currentChapter(world, player.getUUID());
-        if (chapter == null || !chapter.isComplete(world, player)) {
+        if (chapter == null) {
             return false;
         }
         int chapterIndex = chapterIndex(world, player.getUUID(), activeArc);
+        boolean requirementsConsumed = QuestPartyService.storyTurnInRequirementsConsumed(
+                world, player.getUUID(), activeArc, chapterIndex);
+        if (!requirementsConsumed && !chapter.isComplete(world, player)) {
+            return false;
+        }
         PlayerQuestData data = data(world, player.getUUID());
         String readyFlag = readyFlagKey(activeArc, chapterIndex);
         if (!data.hasStoryFlag(readyFlag)) {

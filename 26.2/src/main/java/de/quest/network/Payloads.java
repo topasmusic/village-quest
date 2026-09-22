@@ -1471,6 +1471,7 @@ public final class Payloads {
         public static final int ACTION_SURVEY_CANCEL = 4;
         public static final int ACTION_REMOVE = 5;
         public static final int ACTION_MINIMAP_TOGGLE = 6;
+        public static final int ACTION_MAP_HEARTBEAT = 7;
 
         public static final CustomPacketPayload.Type<TradeRouteActionPayload> ID =
                 new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "trade_route_action"));

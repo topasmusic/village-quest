@@ -2,6 +2,7 @@ package de.quest.content.story;
 
 import de.quest.caravan.TradeRouteService;
 import de.quest.economy.CurrencyService;
+import de.quest.quest.DifficultyObjectiveMode;
 import de.quest.quest.story.StoryArcDefinition;
 import de.quest.quest.story.StoryArcType;
 import de.quest.quest.story.StoryChapterCompletion;
@@ -284,12 +285,23 @@ public final class TheEmptyCaravanStoryArc implements StoryArcDefinition {
             boolean choiceMade = StoryQuestService.hasStoryFlag(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_CHOICE_AMNESTY)
                     || StoryQuestService.hasStoryFlag(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_CHOICE_JUSTICE);
             int bait = progress(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_BAIT_STATE);
-            return List.of(
+            List<Component> lines = new java.util.ArrayList<>(List.of(
                     Component.translatable("quest.village-quest.story.the_empty_caravan.chapter_5.progress.choice", choiceMade ? 1 : 0, 1)
                             .withStyle(ChatFormatting.GRAY),
                     Component.translatable("quest.village-quest.story.the_empty_caravan.chapter_5.progress.bait",
                             bait >= EmptyCaravanStoryService.BAIT_WON ? 1 : 0, 1).withStyle(ChatFormatting.GRAY)
-            );
+            ));
+            if (DifficultyObjectiveMode.fromSerializedId(progress(
+                    world, playerId, StoryQuestKeys.EMPTY_CARAVAN_OBJECTIVE_MODE)) == DifficultyObjectiveMode.PEACEFUL) {
+                lines.add(Component.translatable(
+                        "quest.village-quest.story.the_empty_caravan.chapter_5.progress.peaceful",
+                        progress(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_PEACEFUL_CHECKPOINTS),
+                        EmptyCaravanStoryService.PEACEFUL_CHECKPOINT_TARGET,
+                        StoryQuestService.hasStoryFlag(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_PEACEFUL_SUPPLIES) ? 1 : 0,
+                        1
+                ).withStyle(ChatFormatting.GRAY));
+            }
+            return lines;
         }
 
         @Override

@@ -49,7 +49,7 @@ public final class ModBlocks {
                 MapColor.STONE, SoundType.STONE, 25.0f, 1200.0f, state ->
                         state.getValue(GuildWayshrineBlock.ACTIVE) ? 12 : 0, PushReaction.BLOCK);
         GUILD_NOTICE_POST = registerFunctional("guild_notice_post", GuildNoticePostBlock::new,
-                MapColor.WOOD, SoundType.WOOD, 2.0f, state -> 0);
+                MapColor.WOOD, SoundType.WOOD, 2.0f, 2.0f, state -> 0, PushReaction.BLOCK);
         EMBERGLASS_LANTERN = registerFunctional("emberglass_lantern", EmberglassLanternBlock::new,
                 MapColor.METAL, SoundType.LANTERN, 2.5f, state -> 13);
         GUILD_MILESTONE = registerFunctional("guild_milestone", GuildMilestoneBlock::new,

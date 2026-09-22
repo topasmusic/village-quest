@@ -1,12 +1,12 @@
 # Village Quest Wiki
 
-This wiki covers the published `Village Quest 2.3.0 - Living Village Network` content release for Minecraft `26.2` and the maintained `2.1.1 - Homesteads & Wayfinding` baseline on the two older targets.
+This wiki covers the published `Village Quest 2.4.0 - The Guild Comes to Town` content release for Minecraft `26.2` and the maintained `2.1.1 - Homesteads & Wayfinding` baseline on the two older targets.
 
 The 2.3 release joins versioned village conditions, three-choice local requests, need-aware freight, repairable route consequences, renewable Wayshrine energy, Adventure Profiles, an optional multiplayer guild, Journal network guidance, and bounded prestige. It includes the complete save-compatible 2.2.1 quality and balance pass.
 
 Current stable release:
 
-- `2.3.0 - Living Village Network` for Minecraft `26.2`;
+- `2.4.0 - The Guild Comes to Town` for Minecraft `26.2`;
 - `2.1.1 - Homesteads & Wayfinding` for Minecraft `26.1.2` and `1.21.11`;
 - Minecraft `26.1.2` and `1.21.11` remain maintenance lines for confirmed bug, save-safety, exploit, and meaningful performance fixes rather than receiving content-parity builds.
 

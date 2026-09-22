@@ -1,6 +1,12 @@
 package de.quest.quest.story;
 
 public final class StoryQuestKeys {
+    public static final String SHARED_TURN_IN_CONSUMED = "shared_story_turn_in_consumed";
+
+    public static String sharedTurnInConsumed(StoryArcType arcType, int chapterIndex) {
+        return SHARED_TURN_IN_CONSUMED + "." + (arcType == null ? "invalid" : arcType.id())
+                + "." + Math.max(0, chapterIndex);
+    }
     public static final String FAILING_HARVEST_WHEAT = "failing_harvest_wheat";
     public static final String FAILING_HARVEST_POTATO = "failing_harvest_potato";
     public static final String FAILING_HARVEST_HONEY = "failing_harvest_honey";
@@ -72,6 +78,14 @@ public final class StoryQuestKeys {
     public static final String NIGHT_BELLS_CREEPERS = "night_bells_creepers";
     public static final String NIGHT_BELLS_RAID_WON = "night_bells_raid_won";
     public static final String NIGHT_BELLS_RAID_WAIT_FOR_FRESH = "night_bells_raid_wait_for_fresh";
+    public static final String NIGHT_BELLS_MODE_PREFIX = "night_bells_mode_";
+    public static final String NIGHT_BELLS_PEACEFUL_BELL = "night_bells_peaceful_bell";
+    public static final String NIGHT_BELLS_PEACEFUL_MARKER_PREFIX = "night_bells_peaceful_marker_";
+    public static final String NIGHT_BELLS_PEACEFUL_GUARDIAN = "night_bells_peaceful_guardian";
+    public static final String NIGHT_BELLS_PEACEFUL_CONFIRMED = "night_bells_peaceful_confirmed";
+    public static final String NIGHT_BELLS_VILLAGE_BOUND = "night_bells_peaceful_village_bound";
+    public static final String NIGHT_BELLS_VILLAGE_X = "night_bells_peaceful_village_x";
+    public static final String NIGHT_BELLS_VILLAGE_Z = "night_bells_peaceful_village_z";
     public static final String SHADOWS_HOME_VILLAGERS = "shadows_home_villagers";
     public static final String SHADOWS_HOME_VILLAGE_X = "shadows_home_village_x";
     public static final String SHADOWS_HOME_VILLAGE_Z = "shadows_home_village_z";
@@ -90,6 +104,7 @@ public final class StoryQuestKeys {
     public static final String SHADOWS_LETTER_RECEIVED = "shadows_letter_received";
     public static final String SHADOWS_FINAL_TARGET_DAY = "shadows_final_target_day";
     public static final String SHADOWS_FINAL_WON = "shadows_final_won";
+    public static final String SHADOWS_OBJECTIVE_MODE = "shadows_objective_mode";
     public static final String EMPTY_CARAVAN_TARGET_X = "empty_caravan_target_x";
     public static final String EMPTY_CARAVAN_TARGET_Z = "empty_caravan_target_z";
     public static final String EMPTY_CARAVAN_SITE_FOUND = "empty_caravan_site_found";
@@ -99,6 +114,9 @@ public final class StoryQuestKeys {
     public static final String EMPTY_CARAVAN_CHOICE_AMNESTY = "empty_caravan_choice_amnesty";
     public static final String EMPTY_CARAVAN_CHOICE_JUSTICE = "empty_caravan_choice_justice";
     public static final String EMPTY_CARAVAN_BAIT_STATE = "empty_caravan_bait_state";
+    public static final String EMPTY_CARAVAN_OBJECTIVE_MODE = "empty_caravan_objective_mode";
+    public static final String EMPTY_CARAVAN_PEACEFUL_CHECKPOINTS = "empty_caravan_peaceful_checkpoints";
+    public static final String EMPTY_CARAVAN_PEACEFUL_SUPPLIES = "empty_caravan_peaceful_supplies";
     public static final String SHRINES_VILLAGES_INSPECTED = "shrines_villages_inspected";
     public static final String SHRINES_INSPECTED_PREFIX = "shrines_inspected_";
     public static final String SHRINES_CORE_RECOVERED = "shrines_core_recovered";

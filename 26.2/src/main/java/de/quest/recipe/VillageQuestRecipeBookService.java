@@ -45,7 +45,7 @@ public final class VillageQuestRecipeBookService {
                 recipe("guild_milestone",
                         item(Items.GOLD_NUGGET, 1)),
                 recipe("guild_notice_post",
-                        item(Items.PAPER, 1)),
+                        item(ModItems.MARKET_CHARTER_PLAQUE, 1)),
                 recipe("guild_wayshrine",
                         item(ModItems.RESTORED_SHRINE_CORE, 1))
         );

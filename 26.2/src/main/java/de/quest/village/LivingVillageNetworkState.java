@@ -19,6 +19,7 @@ import net.minecraft.world.level.saveddata.SavedDataType;
  * mutable network conditions independent from the compatible 2.2 trust data.
  */
 public final class LivingVillageNetworkState extends SavedData {
+    private static final int MAX_RENOWN = 1_000_000;
     static final int CURRENT_SCHEMA_VERSION = 2;
     private static final int DEFAULT_SUPPORT = 50;
     private static final int SUPPORT_CYCLE_TARGET = 100;
@@ -125,7 +126,7 @@ public final class LivingVillageNetworkState extends SavedData {
         village.revision++;
         MutableNetwork network = networks.computeIfAbsent(
                 ownerId, ignored -> new MutableNetwork(0, NetworkSpecialization.NONE, 0));
-        network.renown = Math.min(1_000_000, network.renown + Math.max(1, applied / 4) + (advanced ? 5 : 0));
+        network.renown = saturatingRenownAdd(network.renown, Math.max(1, applied / 4) + (advanced ? 5 : 0));
         network.revision++;
         setDirty();
         return new SupportResult(village.snapshot(index), advanced, applied);
@@ -159,7 +160,7 @@ public final class LivingVillageNetworkState extends SavedData {
         SupportResult supportResult = addSupport(ownerId, index, Math.max(0, support), interactionDay);
         MutableNetwork network = networks.computeIfAbsent(
                 ownerId, ignored -> new MutableNetwork(0, NetworkSpecialization.NONE, 0));
-        network.renown = Math.min(1_000_000, network.renown + 2 + Math.max(0, support / 6));
+        network.renown = saturatingRenownAdd(network.renown, 2 + Math.max(0, support / 6));
         network.revision++;
         setDirty();
         return new RouteResult(supportResult.village(), earnedCharges, supportResult.needAdvanced());
@@ -199,7 +200,7 @@ public final class LivingVillageNetworkState extends SavedData {
         if (ownerId == null) return network(null);
         MutableNetwork network = networks.computeIfAbsent(
                 ownerId, ignored -> new MutableNetwork(0, NetworkSpecialization.NONE, 0));
-        network.renown = Math.max(0, Math.min(1_000_000, renown));
+        network.renown = Math.max(0, Math.min(MAX_RENOWN, renown));
         network.specialization = NetworkSpecialization.NONE;
         network.revision++;
         setDirty();
@@ -261,7 +262,7 @@ public final class LivingVillageNetworkState extends SavedData {
             UUID ownerId = parseUuid(entry.getStringOr("owner", ""));
             if (ownerId == null) continue;
             state.networks.put(ownerId, new MutableNetwork(
-                    Math.max(0, entry.getIntOr("renown", 0)),
+                    Math.max(0, Math.min(MAX_RENOWN, entry.getIntOr("renown", 0))),
                     NetworkSpecialization.byId(entry.getIntOr("specialization", 0)),
                     Math.max(0, entry.getIntOr("revision", 0))));
         }
@@ -311,6 +312,10 @@ public final class LivingVillageNetworkState extends SavedData {
                 });
         root.put("networks", networkEntries);
         return root;
+    }
+
+    private static int saturatingRenownAdd(int current, int amount) {
+        return (int) Math.min(MAX_RENOWN, Math.max(0L, (long) current) + Math.max(0L, (long) amount));
     }
 
     private static int initialNeedSeed(UUID ownerId, int index, int x, int z) {

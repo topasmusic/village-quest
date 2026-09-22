@@ -50,8 +50,8 @@ public final class ProsperityService {
     private static final String STAT_SERVICES = "prosperity.stat.services";
     private static final String STAT_INVESTMENTS = "prosperity.stat.investments";
     private static final String STAT_COLLECTIONS = "prosperity.stat.collections";
-    static final long FESTIVAL_MINIMUM_BONUS = CurrencyService.SILVERMARK * 4L;
-    static final long CEREMONY_MINIMUM_BONUS = CurrencyService.SILVERMARK * 8L;
+    static final long FESTIVAL_MINIMUM_BONUS = CurrencyService.SILVERMARK * 3L;
+    static final long CEREMONY_MINIMUM_BONUS = CurrencyService.SILVERMARK * 6L;
 
     private ProsperityService() {}
 
@@ -477,6 +477,7 @@ public final class ProsperityService {
     public static void handleAction(ServerPlayer player, Payloads.EconomyActionPayload payload) {
         if (player == null || payload == null || payload.actionId() == null) return;
         ServerLevel world = (ServerLevel) player.level();
+        if (!isActionAuthorized(hasAccess(world, player.getUUID()), payload.actionId())) return;
         String[] parts = payload.actionId().split(":", 4);
         boolean changed = false;
         if (parts.length >= 2 && parts[0].equals("prosperity")) {
@@ -491,6 +492,10 @@ public final class ProsperityService {
             changed = buyOrApplyCollection(world, player, parts[1], route);
         }
         if (changed) refresh(world, player);
+    }
+
+    static boolean isActionAuthorized(boolean hasAccess, String actionId) {
+        return hasAccess && actionId != null && !actionId.isBlank();
     }
 
     private static int parseRoute(String value) {

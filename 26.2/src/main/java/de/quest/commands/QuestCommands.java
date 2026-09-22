@@ -19,11 +19,14 @@ import de.quest.party.QuestPartyService;
 import de.quest.pilgrim.PilgrimContractService;
 import de.quest.pilgrim.PilgrimService;
 import de.quest.quest.QuestDropTracker;
+import de.quest.quest.QuestHarvestTracker;
+import de.quest.quest.QuestSoundFeedback;
 import de.quest.quest.QuestTrackerService;
 import de.quest.questmaster.QuestMasterService;
 import de.quest.questmaster.QuestMasterUiService;
 import de.quest.quest.QuestBookHelper;
 import de.quest.quest.daily.DailyQuestService;
+import de.quest.quest.daily.FirstDailyChoiceService;
 import de.quest.quest.special.AdminCoreTestQuestService;
 import de.quest.quest.special.MerchantSealQuestService;
 import de.quest.quest.special.ShardRelicQuestService;
@@ -40,6 +43,7 @@ import de.quest.shrine.VillageBondService;
 import de.quest.shrine.VillageBondLevel;
 import de.quest.village.LivingVillageNetworkState;
 import de.quest.guild.VillageGuildState;
+import de.quest.guildtown.GuildTownSharedState;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
@@ -450,6 +454,11 @@ public final class QuestCommands {
 
             LiteralArgumentBuilder<CommandSourceStack> dailyQuestCommand = literal("daily")
                     .then(literal("accept").executes(ctx -> acceptQuest(ctx.getSource())))
+                    .then(literal("choose")
+                            .then(argument("quest", StringArgumentType.word())
+                                    .executes(ctx -> chooseFirstDaily(
+                                            ctx.getSource(),
+                                            StringArgumentType.getString(ctx, "quest")))))
                     .then(literal("reroll").executes(ctx -> rerollDailyQuest(ctx.getSource())));
 
             LiteralArgumentBuilder<CommandSourceStack> partyCommand = literal("party")
@@ -552,6 +561,7 @@ public final class QuestCommands {
                     .then(walletCommand)
                     .then(reputationCommand)
                     .then(routesCommand)
+                    .then(VillageNetworkCommands.townCommand())
                     .then(VillageNetworkCommands.networkCommand())
                     .then(VillageNetworkCommands.guildCommand()));
             dispatcher.register(literal("vq").redirect(villageQuestCommand));
@@ -673,6 +683,13 @@ public final class QuestCommands {
             }
         }
         return 1;
+    }
+
+    private static int chooseFirstDaily(CommandSourceStack source, String choiceKey) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) return 0;
+        DailyQuestService.DailyQuestType choice = DailyQuestService.questFromString(choiceKey);
+        return FirstDailyChoiceService.accept(source.getServer().overworld(), player, choice) ? 1 : 0;
     }
 
     private static int resetDailyForPlayer(CommandSourceStack source, ServerPlayer target) {
@@ -1277,7 +1294,7 @@ public final class QuestCommands {
             return 0;
         }
 
-        var world = source.getServer().overworld();
+        ServerLevel world = (ServerLevel) player.level();
         long summonCooldown = QuestMasterService.getPlayerSummonCooldownRemainingTicks(world, player.getUUID());
         if (summonCooldown > 0L) {
             source.sendSuccess(() -> Component.translatable(
@@ -1601,6 +1618,8 @@ public final class QuestCommands {
         QuestTrackerService.resetAllRuntimeState();
         QuestMasterUiService.resetAllSessions();
         QuestDropTracker.clear();
+        QuestHarvestTracker.clear();
+        QuestSoundFeedback.resetRuntimeState();
         QuestPartyService.resetRuntimeState();
         MerchantSealQuestService.resetRuntimeState();
         SurveyorCompassQuestService.resetRuntimeState();
@@ -1613,6 +1632,7 @@ public final class QuestCommands {
         QuestState.get(server).resetAllProgress();
         LivingVillageNetworkState.get(server).resetAllProgress();
         VillageGuildState.get(server).resetAllProgress();
+        GuildTownSharedState.get(server).resetAllProgress();
 
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             player.sendSystemMessage(Component.translatable("command.village-quest.questadmin.reset.complete.notify").withStyle(ChatFormatting.GRAY), false);

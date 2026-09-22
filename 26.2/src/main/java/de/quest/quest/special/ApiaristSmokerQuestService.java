@@ -36,10 +36,15 @@ import net.minecraft.world.phys.AABB;
 
 public final class ApiaristSmokerQuestService {
     public static final int REQUIRED_FARMING_REPUTATION = 200;
-    private static final int HONEY_TARGET = 10;
+    private static final int HONEY_DELIVERY_TARGET = 10;
     private static final int COMB_TARGET = 10;
     private static final int BEE_BREED_TARGET = 4;
     private static final int HONEY_BLOCK_TARGET = 5;
+    private static final int HONEY_WORK_TARGET = HONEY_DELIVERY_TARGET + HONEY_BLOCK_TARGET * 4;
+
+    static int honeyDeliveryTarget() { return HONEY_DELIVERY_TARGET; }
+    static int honeyBlockTarget() { return HONEY_BLOCK_TARGET; }
+    static int honeyWorkTarget() { return HONEY_WORK_TARGET; }
     private static final int MAX_DAILY_USES = 10;
 
     private ApiaristSmokerQuestService() {}
@@ -200,7 +205,7 @@ public final class ApiaristSmokerQuestService {
         int beforeBeeBreed = data.getApiaristSmokerBeeBreedProgress();
         int beforeHoneyBlocks = data.getApiaristSmokerHoneyBlockProgress();
         if (inHand.is(Items.GLASS_BOTTLE)) {
-            data.setApiaristSmokerHoneyProgress(Math.min(HONEY_TARGET, beforeHoney + 1));
+            data.setApiaristSmokerHoneyProgress(Math.min(HONEY_WORK_TARGET, beforeHoney + 1));
         } else if (inHand.is(Items.SHEARS)) {
             data.setApiaristSmokerCombProgress(Math.min(COMB_TARGET, beforeComb + 1));
         } else {
@@ -328,7 +333,7 @@ public final class ApiaristSmokerQuestService {
     }
 
     private static List<Component> progressLines(PlayerQuestData data, ServerPlayer player) {
-        Component honey = Component.translatable("quest.village-quest.special.apiarist_smoker.progress.honey", data.getApiaristSmokerHoneyProgress(), HONEY_TARGET).withStyle(ChatFormatting.GRAY);
+        Component honey = Component.translatable("quest.village-quest.special.apiarist_smoker.progress.honey", data.getApiaristSmokerHoneyProgress(), HONEY_WORK_TARGET).withStyle(ChatFormatting.GRAY);
         Component comb = Component.translatable("quest.village-quest.special.apiarist_smoker.progress.comb", data.getApiaristSmokerCombProgress(), COMB_TARGET).withStyle(ChatFormatting.GRAY);
         Component bees = Component.translatable("quest.village-quest.special.apiarist_smoker.progress.bees", data.getApiaristSmokerBeeBreedProgress(), BEE_BREED_TARGET).withStyle(ChatFormatting.GRAY);
         Component honeyBlocks = Component.translatable("quest.village-quest.special.apiarist_smoker.progress.honey_blocks", data.getApiaristSmokerHoneyBlockProgress(), HONEY_BLOCK_TARGET).withStyle(ChatFormatting.GRAY);
@@ -343,7 +348,7 @@ public final class ApiaristSmokerQuestService {
         return Texts.turnInMissing(
                 Items.HONEY_BOTTLE.getDefaultInstance().getHoverName(),
                 DailyQuestService.countInventoryItem(player, Items.HONEY_BOTTLE),
-                HONEY_TARGET,
+                HONEY_DELIVERY_TARGET,
                 Items.HONEYCOMB.getDefaultInstance().getHoverName(),
                 DailyQuestService.countInventoryItem(player, Items.HONEYCOMB),
                 COMB_TARGET,
@@ -355,13 +360,13 @@ public final class ApiaristSmokerQuestService {
 
     private static boolean hasTurnInItems(ServerPlayer player) {
         return player != null
-                && DailyQuestService.countInventoryItem(player, Items.HONEY_BOTTLE) >= HONEY_TARGET
+                && DailyQuestService.countInventoryItem(player, Items.HONEY_BOTTLE) >= HONEY_DELIVERY_TARGET
                 && DailyQuestService.countInventoryItem(player, Items.HONEYCOMB) >= COMB_TARGET
                 && DailyQuestService.countInventoryItem(player, Items.HONEY_BLOCK) >= HONEY_BLOCK_TARGET;
     }
 
     private static boolean isComplete(PlayerQuestData data) {
-        return data.getApiaristSmokerHoneyProgress() >= HONEY_TARGET
+        return data.getApiaristSmokerHoneyProgress() >= HONEY_WORK_TARGET
                 && data.getApiaristSmokerCombProgress() >= COMB_TARGET
                 && data.getApiaristSmokerBeeBreedProgress() >= BEE_BREED_TARGET
                 && data.getApiaristSmokerHoneyBlockProgress() >= HONEY_BLOCK_TARGET;
@@ -377,8 +382,8 @@ public final class ApiaristSmokerQuestService {
         Component actionbar = null;
         boolean completedStep = false;
         if (beforeHoney != data.getApiaristSmokerHoneyProgress()) {
-            actionbar = Component.translatable("quest.village-quest.special.apiarist_smoker.progress.honey", data.getApiaristSmokerHoneyProgress(), HONEY_TARGET).withStyle(ChatFormatting.GREEN);
-            if (beforeHoney < HONEY_TARGET && data.getApiaristSmokerHoneyProgress() >= HONEY_TARGET) {
+            actionbar = Component.translatable("quest.village-quest.special.apiarist_smoker.progress.honey", data.getApiaristSmokerHoneyProgress(), HONEY_WORK_TARGET).withStyle(ChatFormatting.GREEN);
+            if (beforeHoney < HONEY_WORK_TARGET && data.getApiaristSmokerHoneyProgress() >= HONEY_WORK_TARGET) {
                 player.sendSystemMessage(Component.translatable("message.village-quest.quest.progress.step_complete", actionbar.copy()).withStyle(ChatFormatting.GREEN), false);
                 completedStep = true;
             }
@@ -428,7 +433,7 @@ public final class ApiaristSmokerQuestService {
             refreshQuestUi(world, player);
             return;
         }
-        if (!DailyQuestService.consumeInventoryItem(player, Items.HONEY_BOTTLE, HONEY_TARGET)
+        if (!DailyQuestService.consumeInventoryItem(player, Items.HONEY_BOTTLE, HONEY_DELIVERY_TARGET)
                 || !DailyQuestService.consumeInventoryItem(player, Items.HONEYCOMB, COMB_TARGET)
                 || !DailyQuestService.consumeInventoryItem(player, Items.HONEY_BLOCK, HONEY_BLOCK_TARGET)) {
             refreshQuestUi(world, player);
@@ -439,7 +444,7 @@ public final class ApiaristSmokerQuestService {
                 new ItemStack(ModItems.APIARISTS_SMOKER)));
         data.setPendingSpecialOfferKind(null);
         data.setApiaristSmokerQuestStage(RelicQuestStage.COMPLETED);
-        data.setApiaristSmokerHoneyProgress(HONEY_TARGET);
+        data.setApiaristSmokerHoneyProgress(HONEY_WORK_TARGET);
         data.setApiaristSmokerCombProgress(COMB_TARGET);
         data.setApiaristSmokerBeeBreedProgress(BEE_BREED_TARGET);
         data.setApiaristSmokerHoneyBlockProgress(HONEY_BLOCK_TARGET);

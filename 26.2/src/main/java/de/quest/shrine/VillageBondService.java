@@ -12,6 +12,7 @@ import de.quest.economy.ProsperityService;
 import de.quest.config.VillageQuestServerConfig;
 import de.quest.config.ClientPreferenceService;
 import de.quest.guild.VillageGuildService;
+import de.quest.guildtown.GuildTownService;
 import de.quest.quest.story.StoryArcType;
 import de.quest.quest.story.StoryQuestKeys;
 import de.quest.quest.story.StoryQuestService;
@@ -31,7 +32,9 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Predicate;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
@@ -52,6 +55,7 @@ import net.minecraft.world.phys.AABB;
 
 /** Persistent village identities, local requests, and player-owned wayshrines. */
 public final class VillageBondService {
+    private static final String OVERWORLD_DIMENSION = "minecraft:overworld";
     private static final String VILLAGE_COUNT = "bond_village_count";
     private static final String SHRINE_COUNT = "bond_shrine_count";
     private static final String SIGIL_GRANTED = "bond_sigil_granted";
@@ -64,6 +68,9 @@ public final class VillageBondService {
     private static final String PENDING_CHARGE_X = "bond_pending_charge_x";
     private static final String PENDING_CHARGE_Y = "bond_pending_charge_y";
     private static final String PENDING_CHARGE_Z = "bond_pending_charge_z";
+    private static final String PENDING_CHARGE_DIMENSION = "bond_pending_charge_dimension";
+    private static final String PENDING_CHARGE_OWNER = "bond_pending_charge_owner";
+    private static final String PENDING_CHARGE_INDEX = "bond_pending_charge_index";
     private static final String DECORATION_COUNT = "bond_decoration_count";
     // Travel/UI capacity is intentionally small; historical bond identities must outlive route changes.
     static final int MAX_ACTIVE_WAYSHRINES = 8;
@@ -96,6 +103,16 @@ public final class VillageBondService {
 
     private static String decorationKey(int index, String suffix) {
         return "bond_decoration_" + index + "_" + suffix;
+    }
+
+    static String dimensionKey(ServerLevel world) {
+        return world == null ? OVERWORLD_DIMENSION : world.dimension().identifier().toString();
+    }
+
+    static boolean matchesStoredDimension(PlayerQuestData data, String key, String dimension) {
+        if (data == null || key == null || dimension == null) return false;
+        String stored = data.getTradeRouteString(key);
+        return (stored.isBlank() ? OVERWORLD_DIMENSION : stored).equals(dimension);
     }
 
     public static int villageCount(ServerLevel world, UUID playerId) {
@@ -233,24 +250,30 @@ public final class VillageBondService {
     private static int ensureVillage(ServerLevel world, UUID playerId,
                                      ShadowsTradeRoadEncounterService.VillageMarker marker) {
         PlayerQuestData data = data(world, playerId);
-        int existing = findVillage(data, marker.centerX(), marker.centerZ());
+        String dimension = dimensionKey(world);
+        int existing = findVillage(data, dimension, marker.centerX(), marker.centerZ());
         if (existing >= 0) return existing;
         VillageBondType type = classify(world, marker, playerId);
         int previousCount = historicalVillageCount(data);
-        int index = ensureVillageRecord(data, marker.centerX(), marker.centerZ(), type);
+        int index = ensureVillageRecord(data, dimension, marker.centerX(), marker.centerZ(), type);
         if (index < 0 || historicalVillageCount(data) == previousCount) return index;
         QuestState.get(world.getServer()).setDirty();
         return index;
     }
 
     static int ensureVillageRecord(PlayerQuestData data, int x, int z, VillageBondType type) {
+        return ensureVillageRecord(data, OVERWORLD_DIMENSION, x, z, type);
+    }
+
+    static int ensureVillageRecord(PlayerQuestData data, String dimension, int x, int z, VillageBondType type) {
         if (data == null || type == null) return -1;
-        int existing = findVillage(data, x, z);
+        int existing = findVillage(data, dimension, x, z);
         if (existing >= 0) return existing;
         int count = historicalVillageCount(data);
         if (count >= MAX_HISTORICAL_VILLAGES) return -1;
         data.setTradeRouteInt(villageKey(count, "x"), x);
         data.setTradeRouteInt(villageKey(count, "z"), z);
+        data.setTradeRouteString(villageKey(count, "dimension"), dimension);
         data.setTradeRouteInt(villageKey(count, "type"), type.id() + 1);
         data.setTradeRouteInt(villageKey(count, "level"), VillageBondLevel.KNOWN.id() + 1);
         data.setTradeRouteInt(villageKey(count, "request"),
@@ -259,9 +282,9 @@ public final class VillageBondService {
         return count;
     }
 
-    private static VillageBondType classify(ServerLevel world,
-                                            ShadowsTradeRoadEncounterService.VillageMarker marker,
-                                            UUID playerId) {
+    static VillageBondType classify(ServerLevel world,
+                                    ShadowsTradeRoadEncounterService.VillageMarker marker,
+                                    UUID playerId) {
         AABB area = new AABB(marker.minX() - 8.0, world.getMinY(), marker.minZ() - 8.0,
                 marker.maxX() + 9.0, world.getMaxY(), marker.maxZ() + 9.0);
         int farmers = 0, smiths = 0, shepherds = 0, archives = 0;
@@ -287,6 +310,11 @@ public final class VillageBondService {
 
     public static InteractionResult useNoticePost(ServerLevel world, ServerPlayer player, BlockPos pos) {
         return VillageNoticeBoardService.use(world, player, pos);
+    }
+
+    public static GuildTownService.NoticePostStoryResolution useNoticePost(
+            GuildTownService.NoticePostStoryContext interaction) {
+        return VillageNoticeBoardService.use(interaction);
     }
 
     public static void handleNoticeBoardAction(ServerPlayer player, VillageNetworkPayloads.NoticeBoardActionPayload payload) {
@@ -377,6 +405,7 @@ public final class VillageBondService {
         data.setTradeRouteInt(shrineKey(count, "x"), pos.getX());
         data.setTradeRouteInt(shrineKey(count, "y"), pos.getY());
         data.setTradeRouteInt(shrineKey(count, "z"), pos.getZ());
+        data.setTradeRouteString(shrineKey(count, "dimension"), dimensionKey(world));
         data.setTradeRouteInt(shrineKey(count, "village"), village + 1);
         data.setTradeRouteString(shrineKey(count, "name"), "");
         data.setTradeRouteInt(shrineKey(count, "charges"), 0);
@@ -398,6 +427,9 @@ public final class VillageBondService {
         if (current < 0 || target < 0 || current >= count || target >= count || current == target) return;
         PlayerQuestData data = data(world, networkOwner);
         BlockPos currentPos = shrinePos(data, current);
+        if (!matchesStoredDimension(data, shrineKey(current, "dimension"), dimensionKey(world))) {
+            return;
+        }
         if (player.blockPosition().distSqr(currentPos) > 36.0
                 || !world.getBlockState(currentPos).is(ModBlocks.GUILD_WAYSHRINE)) return;
         travel(world, player, networkOwner, current, target, payload.useCharge());
@@ -421,17 +453,9 @@ public final class VillageBondService {
         }
         PlayerQuestData travelerData = data(world, player.getUUID());
         long now = world.getGameTime();
-        long pendingAt = Integer.toUnsignedLong(travelerData.getTradeRouteInt(PENDING_CHARGE_TIME));
-        boolean sameShrine = travelerData.getTradeRouteInt(PENDING_CHARGE_X) == pos.getX()
-                && travelerData.getTradeRouteInt(PENDING_CHARGE_Y) == pos.getY()
-                && travelerData.getTradeRouteInt(PENDING_CHARGE_Z) == pos.getZ();
-        boolean confirmed = pendingAt > 0 && sameShrine && now >= pendingAt
-                && now - pendingAt <= CHARGE_CONFIRM_TICKS;
+        boolean confirmed = pendingChargeMatches(travelerData, now, dimensionKey(world), pos, networkOwner, shrine);
         if (!confirmed) {
-            travelerData.setTradeRouteInt(PENDING_CHARGE_TIME, (int) now);
-            travelerData.setTradeRouteInt(PENDING_CHARGE_X, pos.getX());
-            travelerData.setTradeRouteInt(PENDING_CHARGE_Y, pos.getY());
-            travelerData.setTradeRouteInt(PENDING_CHARGE_Z, pos.getZ());
+            rememberPendingCharge(travelerData, now, dimensionKey(world), pos, networkOwner, shrine);
             QuestState.get(world.getServer()).setDirty();
             world.playSound(null, pos, SoundEvents.AMETHYST_BLOCK_HIT, SoundSource.BLOCKS, 0.7f, 1.1f);
             player.sendSystemMessage(Component.translatable("message.village-quest.wayshrine.charge_confirm",
@@ -454,6 +478,32 @@ public final class VillageBondService {
         data.setTradeRouteInt(PENDING_CHARGE_X, 0);
         data.setTradeRouteInt(PENDING_CHARGE_Y, 0);
         data.setTradeRouteInt(PENDING_CHARGE_Z, 0);
+        data.setTradeRouteString(PENDING_CHARGE_DIMENSION, "");
+        data.setTradeRouteString(PENDING_CHARGE_OWNER, "");
+        data.setTradeRouteInt(PENDING_CHARGE_INDEX, 0);
+    }
+
+    static void rememberPendingCharge(PlayerQuestData data, long now, String dimension,
+                                      BlockPos pos, UUID owner, int index) {
+        data.setTradeRouteInt(PENDING_CHARGE_TIME, (int) now);
+        data.setTradeRouteInt(PENDING_CHARGE_X, pos.getX());
+        data.setTradeRouteInt(PENDING_CHARGE_Y, pos.getY());
+        data.setTradeRouteInt(PENDING_CHARGE_Z, pos.getZ());
+        data.setTradeRouteString(PENDING_CHARGE_DIMENSION, dimension);
+        data.setTradeRouteString(PENDING_CHARGE_OWNER, owner.toString());
+        data.setTradeRouteInt(PENDING_CHARGE_INDEX, index);
+    }
+
+    static boolean pendingChargeMatches(PlayerQuestData data, long now, String dimension,
+                                        BlockPos pos, UUID owner, int index) {
+        long pendingAt = Integer.toUnsignedLong(data.getTradeRouteInt(PENDING_CHARGE_TIME));
+        return pendingAt > 0 && now >= pendingAt && now - pendingAt <= CHARGE_CONFIRM_TICKS
+                && data.getTradeRouteString(PENDING_CHARGE_DIMENSION).equals(dimension)
+                && data.getTradeRouteString(PENDING_CHARGE_OWNER).equals(owner.toString())
+                && data.getTradeRouteInt(PENDING_CHARGE_INDEX) == index
+                && data.getTradeRouteInt(PENDING_CHARGE_X) == pos.getX()
+                && data.getTradeRouteInt(PENDING_CHARGE_Y) == pos.getY()
+                && data.getTradeRouteInt(PENDING_CHARGE_Z) == pos.getZ();
     }
 
     public static void handleRename(ServerPlayer player, VillageNetworkPayloads.WayshrineRenamePayload payload) {
@@ -463,7 +513,9 @@ public final class VillageBondService {
         if (index < 0 || index >= count) return;
         PlayerQuestData data = data(world, player.getUUID());
         BlockPos pos = shrinePos(data, index);
-        if (player.blockPosition().distSqr(pos) > 36.0 || !world.getBlockState(pos).is(ModBlocks.GUILD_WAYSHRINE)) return;
+        if (!matchesShrine(data, index, dimensionKey(world), pos)
+                || player.blockPosition().distSqr(pos) > 36.0
+                || !world.getBlockState(pos).is(ModBlocks.GUILD_WAYSHRINE)) return;
         String name = sanitizeShrineName(payload.name());
         data.setTradeRouteString(shrineKey(index, "name"), name);
         QuestState.get(world.getServer()).setDirty();
@@ -500,7 +552,10 @@ public final class VillageBondService {
         }
         BlockPos from = shrinePos(networkData, current);
         BlockPos destination = shrinePos(networkData, target);
-        if (!world.getBlockState(destination).is(ModBlocks.GUILD_WAYSHRINE)
+        String currentDimension = dimensionKey(world);
+        if (!matchesStoredDimension(networkData, shrineKey(current, "dimension"), currentDimension)
+                || !matchesStoredDimension(networkData, shrineKey(target, "dimension"), currentDimension)
+                || !world.getBlockState(destination).is(ModBlocks.GUILD_WAYSHRINE)
                 || !world.getBlockState(destination).getValue(de.quest.content.block.GuildWayshrineBlock.ACTIVE)) {
             player.sendSystemMessage(Component.translatable("message.village-quest.wayshrine.destination_invalid")
                     .withStyle(ChatFormatting.RED), false);
@@ -575,16 +630,30 @@ public final class VillageBondService {
     }
 
     private static UUID nearbyNetworkOwner(ServerLevel world, ServerPlayer player, int current) {
+        return nearbyNetworkOwner(QuestState.get(world.getServer()).getPlayersView(),
+                dimensionKey(world), player.blockPosition(), current,
+                pos -> world.getBlockState(pos).is(ModBlocks.GUILD_WAYSHRINE));
+    }
+
+    static UUID nearbyNetworkOwner(Map<UUID, PlayerQuestData> players, String dimension,
+                                   BlockPos playerPos, int current, Predicate<BlockPos> isShrineBlock) {
         if (current < 0) return null;
-        for (var entry : QuestState.get(world.getServer()).getPlayersView().entrySet()) {
-            int count = shrineCount(world, entry.getKey());
-            if (current >= count) continue;
-            BlockPos pos = shrinePos(entry.getValue(), current);
-            if (player.blockPosition().distSqr(pos) <= 36.0 && world.getBlockState(pos).is(ModBlocks.GUILD_WAYSHRINE)) {
-                return entry.getKey();
-            }
+        for (var entry : players.entrySet()) {
+            PlayerQuestData ownerData = entry.getValue();
+            if (current >= Math.min(MAX_ACTIVE_WAYSHRINES,
+                    Math.max(0, ownerData.getTradeRouteInt(SHRINE_COUNT)))) continue;
+            BlockPos pos = shrinePos(ownerData, current);
+            if (matchesShrine(ownerData, current, dimension, pos)
+                    && playerPos.distSqr(pos) <= 36.0 && isShrineBlock.test(pos)) return entry.getKey();
         }
         return null;
+    }
+
+    static boolean matchesShrine(PlayerQuestData data, int index, String dimension, BlockPos pos) {
+        return data != null && index >= 0
+                && index < Math.min(MAX_ACTIVE_WAYSHRINES, Math.max(0, data.getTradeRouteInt(SHRINE_COUNT)))
+                && matchesStoredDimension(data, shrineKey(index, "dimension"), dimension)
+                && shrinePos(data, index).equals(pos);
     }
 
     public static InteractionResult useLens(ServerLevel world, ServerPlayer player) {
@@ -651,7 +720,8 @@ public final class VillageBondService {
         int count = shrineCount(world, playerId);
         int found = -1;
         for (int i = 0; i < count; i++) {
-            if (shrinePos(data, i).equals(pos)) { found = i; break; }
+            if (matchesStoredDimension(data, shrineKey(i, "dimension"), dimensionKey(world))
+                    && shrinePos(data, i).equals(pos)) { found = i; break; }
         }
         if (found < 0) return;
         for (int i = found; i < count - 1; i++) {
@@ -659,16 +729,30 @@ public final class VillageBondService {
                 data.setTradeRouteInt(shrineKey(i, suffix), data.getTradeRouteInt(shrineKey(i + 1, suffix)));
             }
             data.setTradeRouteString(shrineKey(i, "name"), data.getTradeRouteString(shrineKey(i + 1, "name")));
+            data.setTradeRouteString(shrineKey(i, "dimension"),
+                    data.getTradeRouteString(shrineKey(i + 1, "dimension")));
         }
         for (String suffix : List.of("x", "y", "z", "village", "charges")) data.setTradeRouteInt(shrineKey(count - 1, suffix), 0);
         data.setTradeRouteString(shrineKey(count - 1, "name"), "");
+        data.setTradeRouteString(shrineKey(count - 1, "dimension"), "");
         data.setTradeRouteInt(SHRINE_COUNT, count - 1);
         QuestState.get(world.getServer()).setDirty();
     }
 
     public static List<VillageBondView> villages(ServerLevel world, UUID playerId) {
+        if (world == null || playerId == null) return List.of();
         List<VillageBondView> result = new ArrayList<>();
+        PlayerQuestData playerData = data(world, playerId);
         for (int i = 0; i < villageCount(world, playerId); i++) {
+            if (!matchesStoredDimension(playerData, villageKey(i, "dimension"), dimensionKey(world))) {
+                continue;
+            }
+            int x = playerData.getTradeRouteInt(villageKey(i, "x"));
+            int z = playerData.getTradeRouteInt(villageKey(i, "z"));
+            boolean registeredDestination = TradeRouteService.isRegisteredDestination(world, playerId, x, z);
+            if (!VillageContactService.shouldExposeInConnectedNetwork(playerData, i, registeredDestination)) {
+                continue;
+            }
             VillageBondView view = view(world, playerId, i);
             if (view != null) result.add(view);
         }
@@ -701,6 +785,7 @@ public final class VillageBondService {
         LivingVillageNetworkState.RouteResult result = LivingVillageNetworkService.recordRouteArrival(
                 world, ownerId, villageIndex, cargo, suppliedFreight, supportBonus, energyBonus, energyEnabled);
         VillageGuildService.recordRouteArrival(world, ownerId, suppliedFreight);
+        de.quest.guildtown.GuildTownService.onRouteArrival(world, ownerId, destinationX, destinationZ);
         int charged = result.earnedCharges() <= 0 ? 0
                 : addWayshrineChargesForVillage(world, ownerId, villageIndex, result.earnedCharges());
         ServerPlayer owner = world.getServer().getPlayerList().getPlayer(ownerId);
@@ -763,6 +848,7 @@ public final class VillageBondService {
         BlockPos from = current >= 0 && current < shrineCount(world, playerId) ? shrinePos(data, current) : null;
         List<Payloads.TradeRouteShrineData> result = new ArrayList<>();
         for (int i = 0; i < shrineCount(world, playerId); i++) {
+            if (!matchesStoredDimension(data, shrineKey(i, "dimension"), dimensionKey(world))) continue;
             BlockPos pos = shrinePos(data, i);
             int village = data.getTradeRouteInt(shrineKey(i, "village")) - 1;
             String customName = sanitizeShrineName(data.getTradeRouteString(shrineKey(i, "name")));
@@ -797,13 +883,15 @@ public final class VillageBondService {
         PlayerQuestData data = data(world, player.getUUID());
         int count = Math.min(MAX_DECORATIONS, Math.max(0, data.getTradeRouteInt(DECORATION_COUNT)));
         for (int i = 0; i < count; i++) {
-            if (decorationPos(data, i).equals(pos)) return;
+            if (matchesStoredDimension(data, decorationKey(i, "dimension"), dimensionKey(world))
+                    && decorationPos(data, i).equals(pos)) return;
         }
         if (count >= MAX_DECORATIONS) return;
         data.setTradeRouteInt(decorationKey(count, "type"), type + 1);
         data.setTradeRouteInt(decorationKey(count, "x"), pos.getX());
         data.setTradeRouteInt(decorationKey(count, "y"), pos.getY());
         data.setTradeRouteInt(decorationKey(count, "z"), pos.getZ());
+        data.setTradeRouteString(decorationKey(count, "dimension"), dimensionKey(world));
         data.setTradeRouteInt(DECORATION_COUNT, count + 1);
         QuestState.get(world.getServer()).setDirty();
     }
@@ -814,9 +902,11 @@ public final class VillageBondService {
             PlayerQuestData data = entry.getValue();
             int count = Math.min(MAX_DECORATIONS, Math.max(0, data.getTradeRouteInt(DECORATION_COUNT)));
             for (int found = count - 1; found >= 0; found--) {
-                if (!decorationPos(data, found).equals(pos)) continue;
+                if (!matchesStoredDimension(data, decorationKey(found, "dimension"), dimensionKey(world))
+                        || !decorationPos(data, found).equals(pos)) continue;
                 for (int i = found; i < count - 1; i++) copyDecoration(data, i + 1, i);
                 for (String suffix : List.of("type", "x", "y", "z")) data.setTradeRouteInt(decorationKey(count - 1, suffix), 0);
+                data.setTradeRouteString(decorationKey(count - 1, "dimension"), "");
                 data.setTradeRouteInt(DECORATION_COUNT, count - 1);
                 QuestState.get(world.getServer()).setDirty();
                 break;
@@ -829,6 +919,7 @@ public final class VillageBondService {
         int count = Math.min(MAX_DECORATIONS, Math.max(0, data.getTradeRouteInt(DECORATION_COUNT)));
         List<Payloads.TradeRouteDecorationData> result = new ArrayList<>();
         for (int i = 0; i < count; i++) {
+            if (!matchesStoredDimension(data, decorationKey(i, "dimension"), dimensionKey(world))) continue;
             BlockPos pos = decorationPos(data, i);
             result.add(new Payloads.TradeRouteDecorationData(
                     Math.max(0, data.getTradeRouteInt(decorationKey(i, "type")) - 1),
@@ -850,11 +941,13 @@ public final class VillageBondService {
             }
             int shrineCount = Math.min(MAX_ACTIVE_WAYSHRINES, Math.max(0, ownerData.getTradeRouteInt(SHRINE_COUNT)));
             for (int i = 0; i < shrineCount; i++) {
-                if (shrinePos(ownerData, i).distSqr(pos) <= radiusSquared) return true;
+                if (matchesStoredDimension(ownerData, shrineKey(i, "dimension"), dimensionKey(world))
+                        && shrinePos(ownerData, i).distSqr(pos) <= radiusSquared) return true;
             }
             int decorationCount = Math.min(MAX_DECORATIONS, Math.max(0, ownerData.getTradeRouteInt(DECORATION_COUNT)));
             for (int i = 0; i < decorationCount; i++) {
-                if (decorationPos(ownerData, i).distSqr(pos) <= radiusSquared) return true;
+                if (matchesStoredDimension(ownerData, decorationKey(i, "dimension"), dimensionKey(world))
+                        && decorationPos(ownerData, i).distSqr(pos) <= radiusSquared) return true;
             }
         }
         return false;
@@ -864,7 +957,9 @@ public final class VillageBondService {
         for (var entry : QuestState.get(world.getServer()).getPlayersView().entrySet()) {
             PlayerQuestData ownerData = entry.getValue();
             int count = Math.min(MAX_ACTIVE_WAYSHRINES, Math.max(0, ownerData.getTradeRouteInt(SHRINE_COUNT)));
-            for (int i = 0; i < count; i++) if (shrinePos(ownerData, i).equals(pos)) return entry.getKey();
+            for (int i = 0; i < count; i++) if (matchesStoredDimension(ownerData,
+                    shrineKey(i, "dimension"), dimensionKey(world))
+                    && shrinePos(ownerData, i).equals(pos)) return entry.getKey();
         }
         return null;
     }
@@ -876,7 +971,8 @@ public final class VillageBondService {
             PlayerQuestData ownerData = entry.getValue();
             int count = Math.min(MAX_ACTIVE_WAYSHRINES, Math.max(0, ownerData.getTradeRouteInt(SHRINE_COUNT)));
             for (int i = 0; i < count; i++) {
-                if (shrinePos(ownerData, i).distSqr(pos) <= radiusSquared) return entry.getKey();
+                if (matchesStoredDimension(ownerData, shrineKey(i, "dimension"), dimensionKey(world))
+                        && shrinePos(ownerData, i).distSqr(pos) <= radiusSquared) return entry.getKey();
             }
         }
         return null;
@@ -891,6 +987,8 @@ public final class VillageBondService {
         for (String suffix : List.of("type", "x", "y", "z")) {
             data.setTradeRouteInt(decorationKey(to, suffix), data.getTradeRouteInt(decorationKey(from, suffix)));
         }
+        data.setTradeRouteString(decorationKey(to, "dimension"),
+                data.getTradeRouteString(decorationKey(from, "dimension")));
     }
 
     public static void adminTestSetup(ServerLevel world, ServerPlayer player) {
@@ -1024,6 +1122,7 @@ public final class VillageBondService {
     private static VillageBondView view(ServerLevel world, UUID playerId, int index) {
         if (index < 0 || index >= villageCount(world, playerId)) return null;
         PlayerQuestData data = data(world, playerId);
+        if (!matchesStoredDimension(data, villageKey(index, "dimension"), dimensionKey(world))) return null;
         VillageBondType type = VillageBondType.byId(Math.max(0, data.getTradeRouteInt(villageKey(index, "type")) - 1));
         int completions = Math.max(0, data.getTradeRouteInt(villageKey(index, "completions")));
         VillageBondLevel level = levelForCompletions(completions);
@@ -1039,9 +1138,14 @@ public final class VillageBondService {
     }
 
     static int findVillage(PlayerQuestData data, int x, int z) {
+        return findVillage(data, OVERWORLD_DIMENSION, x, z);
+    }
+
+    static int findVillage(PlayerQuestData data, String dimension, int x, int z) {
         int count = historicalVillageCount(data);
         for (int i = 0; i < count; i++) {
-            if (Math.abs(data.getTradeRouteInt(villageKey(i, "x")) - x) <= 8
+            if (matchesStoredDimension(data, villageKey(i, "dimension"), dimension)
+                    && Math.abs(data.getTradeRouteInt(villageKey(i, "x")) - x) <= 8
                     && Math.abs(data.getTradeRouteInt(villageKey(i, "z")) - z) <= 8) return i;
         }
         return -1;
@@ -1060,7 +1164,8 @@ public final class VillageBondService {
     private static int shrineAt(ServerLevel world, UUID playerId, BlockPos pos) {
         PlayerQuestData data = data(world, playerId);
         for (int i = 0; i < shrineCount(world, playerId); i++) {
-            if (shrinePos(data, i).equals(pos)) return i;
+            if (matchesStoredDimension(data, shrineKey(i, "dimension"), dimensionKey(world))
+                    && shrinePos(data, i).equals(pos)) return i;
         }
         return -1;
     }

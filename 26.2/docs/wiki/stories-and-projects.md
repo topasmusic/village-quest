@@ -36,7 +36,7 @@ Beginning with the `2.0.0` release, completing it opens one more solo follow-up:
 
 That arc turns the road-defense storyline into the persistent `Caravan Yard` trade-route system.
 
-`Night Bells` still exists in code as older combat-side story content, but it is no longer part of the visible Questmaster story flow.
+`Night Bells` remains a visible four-chapter Questmaster arc. Its Combat path keeps the original hostile and raid objectives; Peaceful replaces only those impossible objectives with bell, patrol, distinct-location, guardian, and confirmation steps. Changing difficulty clears incompatible partial objective progress instead of converting one mode's progress into the other.
 
 ## Story Arc Overview
 

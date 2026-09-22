@@ -9,12 +9,14 @@ import java.util.List;
 
 /** Persistence adapter for route waypoints and in-progress survey drafts. */
 final class TradeRouteSurveyData {
+    private static final int GEOMETRY_VERSION_3D = 2;
     private static final String HOME_X = "home_x";
     private static final String HOME_Z = "home_z";
     private static final String SURVEY_ROUTE = "survey_route";
     private static final String SURVEY_POINT_COUNT = "survey_point_count";
     private static final String SURVEY_POINT_PREFIX = "survey_point_";
     private static final String SURVEY_WAS_STOPPED = "survey_was_stopped";
+    private static final String SURVEY_GEOMETRY_VERSION = "survey_geometry_version";
 
     private TradeRouteSurveyData() {}
 
@@ -28,9 +30,12 @@ final class TradeRouteSurveyData {
                 Math.max(0, routeInt(data, routeIndex, "waypoint_count")));
         List<RouteSurveyPoint> points = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
-            points.add(new RouteSurveyPoint(new RoutePoint(
-                    routeInt(data, routeIndex, "waypoint_" + i + "_x"),
-                    routeInt(data, routeIndex, "waypoint_" + i + "_z")),
+            int x = routeInt(data, routeIndex, "waypoint_" + i + "_x");
+            int z = routeInt(data, routeIndex, "waypoint_" + i + "_z");
+            RoutePoint point = hasV2Geometry(data, routeIndex)
+                    ? new RoutePoint(x, routeInt(data, routeIndex, "waypoint_" + i + "_y"), z)
+                    : new RoutePoint(x, z);
+            points.add(new RouteSurveyPoint(point,
                     data.hasTradeRouteFlag(routeKey(routeIndex, "waypoint_" + i + "_ocean"))));
         }
         return List.copyOf(points);
@@ -59,10 +64,16 @@ final class TradeRouteSurveyData {
             }
         }
         int count = Math.min(TradeRouteService.MAX_WAYPOINTS, points == null ? 0 : points.size());
+        boolean geometryV2 = count > 0 && points.subList(0, count).stream()
+                .allMatch(point -> point.point().hasElevation());
+        setRouteInt(data, routeIndex, "geometry_version", geometryV2 ? GEOMETRY_VERSION_3D : 0);
         setRouteInt(data, routeIndex, "waypoint_count", count);
         for (int i = 0; i < count; i++) {
             RouteSurveyPoint routed = points.get(i);
             setRouteInt(data, routeIndex, "waypoint_" + i + "_x", routed.point().x());
+            if (geometryV2) {
+                setRouteInt(data, routeIndex, "waypoint_" + i + "_y", routed.point().y());
+            }
             setRouteInt(data, routeIndex, "waypoint_" + i + "_z", routed.point().z());
             data.setTradeRouteFlag(routeKey(routeIndex, "waypoint_" + i + "_ocean"), routed.ocean());
         }
@@ -83,9 +94,12 @@ final class TradeRouteSurveyData {
     }
 
     static RouteSurveyPoint surveyPointWithMode(PlayerQuestData data, int pointIndex) {
-        return new RouteSurveyPoint(new RoutePoint(
-                data.getTradeRouteInt(SURVEY_POINT_PREFIX + pointIndex + "_x"),
-                data.getTradeRouteInt(SURVEY_POINT_PREFIX + pointIndex + "_z")),
+        int x = data.getTradeRouteInt(SURVEY_POINT_PREFIX + pointIndex + "_x");
+        int z = data.getTradeRouteInt(SURVEY_POINT_PREFIX + pointIndex + "_z");
+        RoutePoint point = data.getTradeRouteInt(SURVEY_GEOMETRY_VERSION) >= GEOMETRY_VERSION_3D
+                ? new RoutePoint(x, data.getTradeRouteInt(SURVEY_POINT_PREFIX + pointIndex + "_y"), z)
+                : new RoutePoint(x, z);
+        return new RouteSurveyPoint(point,
                 data.hasTradeRouteFlag(SURVEY_POINT_PREFIX + pointIndex + "_ocean"));
     }
 
@@ -95,6 +109,10 @@ final class TradeRouteSurveyData {
 
     static void setSurveyPoint(PlayerQuestData data, int pointIndex, RoutePoint point, boolean ocean) {
         data.setTradeRouteInt(SURVEY_POINT_PREFIX + pointIndex + "_x", point.x());
+        if (point.hasElevation()) {
+            data.setTradeRouteInt(SURVEY_POINT_PREFIX + pointIndex + "_y", point.y());
+            data.setTradeRouteInt(SURVEY_GEOMETRY_VERSION, GEOMETRY_VERSION_3D);
+        }
         data.setTradeRouteInt(SURVEY_POINT_PREFIX + pointIndex + "_z", point.z());
         data.setTradeRouteFlag(SURVEY_POINT_PREFIX + pointIndex + "_ocean", ocean);
     }
@@ -105,13 +123,13 @@ final class TradeRouteSurveyData {
         List<RouteSurveyPoint> normalized = new ArrayList<>();
         RoutePoint previous = home;
         for (RouteSurveyPoint routed : surveyPointsWithModes(data)) {
-            if (previous.distanceSquared(routed.point()) < 16.0) {
+            if (previous.spatialDistanceSquared(routed.point()) < 16.0) {
                 continue;
             }
             normalized.add(routed);
             previous = routed.point();
         }
-        if (!normalized.isEmpty() && normalized.getLast().point().distanceSquared(destination) < 16.0) {
+        if (!normalized.isEmpty() && normalized.getLast().point().spatialDistanceSquared(destination) < 16.0) {
             normalized.removeLast();
         }
         return List.copyOf(normalized);
@@ -123,7 +141,8 @@ final class TradeRouteSurveyData {
 
     static void clearSurveyDraft(PlayerQuestData data) {
         for (String key : List.copyOf(data.getTradeRouteIntState().keySet())) {
-            if (key.equals(SURVEY_ROUTE) || key.equals(SURVEY_POINT_COUNT) || key.startsWith(SURVEY_POINT_PREFIX)) {
+            if (key.equals(SURVEY_ROUTE) || key.equals(SURVEY_POINT_COUNT)
+                    || key.equals(SURVEY_GEOMETRY_VERSION) || key.startsWith(SURVEY_POINT_PREFIX)) {
                 data.setTradeRouteInt(key, 0);
             }
         }
@@ -137,6 +156,24 @@ final class TradeRouteSurveyData {
 
     private static int routeInt(PlayerQuestData data, int routeIndex, String suffix) {
         return data.getTradeRouteInt(routeKey(routeIndex, suffix));
+    }
+
+    static boolean hasV2Geometry(PlayerQuestData data, int routeIndex) {
+        return data != null && routeInt(data, routeIndex, "geometry_version") >= GEOMETRY_VERSION_3D;
+    }
+
+    static void markRouteGeometryV2(PlayerQuestData data, int routeIndex, int homeY, int destinationY) {
+        setRouteInt(data, routeIndex, "geometry_version", GEOMETRY_VERSION_3D);
+        setRouteInt(data, routeIndex, "home_y", homeY);
+        setRouteInt(data, routeIndex, "destination_y", destinationY);
+    }
+
+    static int routeHomeElevation(PlayerQuestData data, int routeIndex) {
+        return routeInt(data, routeIndex, "home_y");
+    }
+
+    static int routeDestinationElevation(PlayerQuestData data, int routeIndex) {
+        return routeInt(data, routeIndex, "destination_y");
     }
 
     private static void setRouteInt(PlayerQuestData data, int routeIndex, String suffix, int value) {

@@ -33,8 +33,13 @@ import java.util.UUID;
 
 public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
     private static final int SHUTTERED_STALLS_EMERALD_TARGET = 64;
-    private static final int LEDGER_PAPER_TARGET = 48;
+    private static final int LEDGER_PAPER_DELIVERY_TARGET = 48;
     private static final int LEDGER_BOOK_TARGET = 16;
+    private static final int LEDGER_PAPER_WORK_TARGET = LEDGER_PAPER_DELIVERY_TARGET + LEDGER_BOOK_TARGET * 3;
+
+    static int ledgerPaperDeliveryTarget() { return LEDGER_PAPER_DELIVERY_TARGET; }
+    static int ledgerBookTarget() { return LEDGER_BOOK_TARGET; }
+    static int ledgerPaperWorkTarget() { return LEDGER_PAPER_WORK_TARGET; }
     private static final int GOODS_MUST_FLOW_TRADE_TARGET = 24;
     private static final int GOODS_MUST_FLOW_PROFESSION_TARGET = 6;
     private static final int MARKET_DAY_RETURNS_VILLAGER_TARGET = 12;
@@ -241,8 +246,8 @@ public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
         @Override
         public void onServerTick(ServerLevel world, ServerPlayer player) {
             UUID playerId = player.getUUID();
-            boolean paperWasComplete = progress(world, playerId, StoryQuestKeys.MARKET_ROAD_PAPER_CRAFTED) >= LEDGER_PAPER_TARGET;
-            updateCraftProgress(world, player, StoryQuestKeys.MARKET_ROAD_PAPER_BASELINE, StoryQuestKeys.MARKET_ROAD_PAPER_CRAFTED, Items.PAPER, LEDGER_PAPER_TARGET);
+            boolean paperWasComplete = progress(world, playerId, StoryQuestKeys.MARKET_ROAD_PAPER_CRAFTED) >= LEDGER_PAPER_WORK_TARGET;
+            updateCraftProgress(world, player, StoryQuestKeys.MARKET_ROAD_PAPER_BASELINE, StoryQuestKeys.MARKET_ROAD_PAPER_CRAFTED, Items.PAPER, LEDGER_PAPER_WORK_TARGET);
             if (paperWasComplete) {
                 updateCraftProgress(world, player, StoryQuestKeys.MARKET_ROAD_BOOK_BASELINE, StoryQuestKeys.MARKET_ROAD_BOOK_CRAFTED, Items.BOOK, LEDGER_BOOK_TARGET);
             } else {
@@ -259,11 +264,11 @@ public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
         @Override
         public List<Component> progressLines(ServerLevel world, UUID playerId) {
             int paperProgress = progress(world, playerId, StoryQuestKeys.MARKET_ROAD_PAPER_CRAFTED);
-            if (paperProgress < LEDGER_PAPER_TARGET) {
+            if (paperProgress < LEDGER_PAPER_WORK_TARGET) {
                 return List.of(Component.translatable(
                         "quest.village-quest.story.market_road_troubles.chapter_2.stage.1",
                         paperProgress,
-                        LEDGER_PAPER_TARGET
+                        LEDGER_PAPER_WORK_TARGET
                 ).withStyle(ChatFormatting.GRAY));
             }
 
@@ -286,9 +291,9 @@ public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
         @Override
         public boolean isComplete(ServerLevel world, ServerPlayer player) {
             UUID playerId = player.getUUID();
-            return progress(world, playerId, StoryQuestKeys.MARKET_ROAD_PAPER_CRAFTED) >= LEDGER_PAPER_TARGET
+            return progress(world, playerId, StoryQuestKeys.MARKET_ROAD_PAPER_CRAFTED) >= LEDGER_PAPER_WORK_TARGET
                     && progress(world, playerId, StoryQuestKeys.MARKET_ROAD_BOOK_CRAFTED) >= LEDGER_BOOK_TARGET
-                    && hasItem(world, player, Items.PAPER, LEDGER_PAPER_TARGET)
+                    && hasItem(world, player, Items.PAPER, LEDGER_PAPER_DELIVERY_TARGET)
                     && hasItem(world, player, Items.BOOK, LEDGER_BOOK_TARGET);
         }
 
@@ -301,7 +306,7 @@ public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
                     world,
                     player.getUUID(),
                     Map.of(
-                            Items.PAPER, LEDGER_PAPER_TARGET,
+                            Items.PAPER, LEDGER_PAPER_DELIVERY_TARGET,
                             Items.BOOK, LEDGER_BOOK_TARGET
                     )
             );
@@ -313,15 +318,15 @@ public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
                 return null;
             }
             UUID playerId = player.getUUID();
-            if (progress(world, playerId, StoryQuestKeys.MARKET_ROAD_PAPER_CRAFTED) < LEDGER_PAPER_TARGET
+            if (progress(world, playerId, StoryQuestKeys.MARKET_ROAD_PAPER_CRAFTED) < LEDGER_PAPER_WORK_TARGET
                     || progress(world, playerId, StoryQuestKeys.MARKET_ROAD_BOOK_CRAFTED) < LEDGER_BOOK_TARGET
-                    || (hasItem(world, player, Items.PAPER, LEDGER_PAPER_TARGET) && hasItem(world, player, Items.BOOK, LEDGER_BOOK_TARGET))) {
+                    || (hasItem(world, player, Items.PAPER, LEDGER_PAPER_DELIVERY_TARGET) && hasItem(world, player, Items.BOOK, LEDGER_BOOK_TARGET))) {
                 return null;
             }
             return Texts.turnInMissing(
                     Items.PAPER.getDefaultInstance().getDisplayName(),
                     StoryQuestService.countCompletionItem(world, playerId, Items.PAPER),
-                    LEDGER_PAPER_TARGET,
+                    LEDGER_PAPER_DELIVERY_TARGET,
                     Items.BOOK.getDefaultInstance().getDisplayName(),
                     StoryQuestService.countCompletionItem(world, playerId, Items.BOOK),
                     LEDGER_BOOK_TARGET
