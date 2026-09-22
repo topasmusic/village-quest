@@ -4,20 +4,35 @@
 
 Release date: 2026-09-22
 
+Village Quest 2.4 turns the Living Village Network into a longer-term village and guild adventure: meet villages personally, help them develop their own identity, connect them through commissions and projects, record their history, and eventually bring the network together through The Bells of Concord.
+
 ### New features
 
-- Introduced a simple first-day quest choice, a personal Village Contact that does not consume a Trade Route slot, and a welcome assignment for the first village.
-- Added two authored Guild Corner styles for villages, with careful placement in new villages and a local retrofit path for established ones. The Guild Notice Post guides players toward the next available village task.
-- Added five village-identity stories, ten identity-pair commissions, personal Chronicle memories, shared guild projects, and the optional `The Bells of Concord` finale. The stories and commissions give each village a distinct role without requiring every optional pairing for the finale.
-- Expanded `/vq town`, Questmaster, Journal, and Notice Post guidance in English, German, and Spanish.
+- Added a smoother new-player journey with a simple first-day quest choice, a welcome assignment, and Village Contacts. A village can now become personally known without immediately consuming one of your Trade Route slots.
+- Added physical Guild Corners to villages, including Generic and Desert styles. Their Guild Notice Posts provide local guidance and lead players toward available village work. Existing developed villages can also be retrofitted.
+- Added five new village-identity stories:
+    - The Shared Table – Granary
+    - Sparks for the Road – Forge
+    - The Long Drive – Pasture
+    - Lanterns in Bloom – Apiary
+    - Ink Between Villages – Archive
+- Added 10 Cross-Village Commissions, covering every pairing of the five village identities. Each pairing has its own objective instead of using the same generic delivery format.
+- Added Guest Commissions for guild play. Eligible commissions can temporarily use matching villages from another guild member’s network without creating a permanent extra Trade Route or consuming another route slot.
+- Expanded the Chronicle, keeping personal village history separate from guild-wide accomplishments.
+- Added shared Guild Projects, allowing guild members to contribute together while preserving personal, exactly-once rewards for participating players.
+- Added the new 2.4 finale, The Bells of Concord. It becomes available after completing three local stories, three Cross-Village Commissions, and connecting three villages. Completing every village identity and all ten pairings remains optional mastery.
+- Added new visible prestige rewards including Story Memories, Commission Seals, the Guild Waymarker, Atlas Illustration, titles, the Concord Plaque, and Guild Standard. These rewards focus on history and prestige rather than power creep.
+- Expanded `/vq town`, Questmaster, Journal, Guild Notice Post, and progression guidance in English, German, and Spanish.
 
 ### Bug fixes and improvements
 
-- Made land-route navigation follow surveyed height changes while preserving the horizontal distance used for trade income and Guild rewards. Legacy routes and ferry travel retain their established behavior.
-- Added Peaceful alternatives for combat-dependent stories and roadside encounters. Night Bells keeps its intended Story Village across difficulty changes and shares that village consistently with party members.
-- Hardened caravan incident timing, owner-only completion, Route Map actions, dimension checks, and Wayshrine identity across dimensions.
-- Improved large-village detection without force-loading distant districts and limited long-lived Guild invitations to seven days.
-- Preserved existing saves, earned rewards, and personal village history when upgrading from 2.3.1.
+- Reworked land-route navigation to follow surveyed X/Y/Z elevation, allowing caravans to better follow tunnels, bridges, underpasses, stairs, and elevated player-built routes while keeping horizontal distance for trade income and Guild rewards. Existing legacy routes and ferry travel remain compatible.
+- Added explicit Peaceful alternatives for combat-dependent stories, Pilgrim work, and caravan encounters. Changing difficulty only resets incompatible current objective progress instead of completed chapters.
+- Improved Night Bells so its threatened Story Village remains consistent across difficulty changes and shared party progression.
+- Hardened caravan incidents, owner-only event completion, Route Map actions, route world/dimension handling, and Wayshrine identity across dimensions.
+- Improved support for large and modded villages without force-loading distant chunks.
+- Guild invitations now expire after seven days, including safe migration for existing invitations.
+- Existing 2.3.1 saves, village history, earned rewards, routes, and progression remain compatible with 2.4.0.
 
 
 ## 2.4.0-unreleased.25
