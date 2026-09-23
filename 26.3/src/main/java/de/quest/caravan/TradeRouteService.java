@@ -65,6 +65,7 @@ import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.BiomeTags;
 import net.minecraft.tags.FluidTags;
@@ -795,7 +796,7 @@ public final class TradeRouteService {
         List<RouteSurveyPoint> rawDraft = surveyPointsWithModes(data);
         int homeY = surveyHomeElevation(world, data, rawDraft);
         int destinationY = surveyDestinationElevation(world, player, data, routeIndex, rawDraft);
-        List<RouteSurveyPoint> draft = normalizedSurveyPoints(data, routeIndex);
+        List<RouteSurveyPoint> draft = normalizedSurveyPoints(data, routeIndex, homeY, destinationY);
         Component validationError = validateSurveyPath(
                 world, data, routeIndex, draft, homeY, destinationY);
         if (validationError != null) {
@@ -1814,8 +1815,13 @@ public final class TradeRouteService {
                                                 ServerPlayer observer) {
         CaravanRuntime runtime = new CaravanRuntime();
         TradeRouteEventType event = event(data, key.routeIndex());
-        BlockPos anchor = resolveRouteSurface(
-                world, data, key.routeIndex(), expected, CARAVAN_SPAWN_SEARCH_RADIUS);
+        boolean ferryDock = hasV2Geometry(data, key.routeIndex())
+                && ferryBoardingAtProgress(data, key.routeIndex(),
+                        clampProgress(routeInt(data, key.routeIndex(), "progress")),
+                        routeInt(data, key.routeIndex(), "direction") < 0 ? -1 : 1) != null;
+        BlockPos anchor = ferryDock
+                ? findCaravanSurfaceNearY(world, expected, FERRY_DOCK_SEARCH_RADIUS, 3)
+                : resolveRouteSurface(world, data, key.routeIndex(), expected, CARAVAN_SPAWN_SEARCH_RADIUS);
         if (anchor == null && event != null && observer != null
                 && !hasV2Geometry(data, key.routeIndex())) {
             anchor = findCaravanSurface(world, observer.blockPosition(), 12);
@@ -1860,19 +1866,27 @@ public final class TradeRouteService {
             }
         } else {
             clearFerryDock(runtime);
-            int lookAhead = TradeRouteNavigationPolicy.lookaheadProgressForTraversal(
-                    routePathWithModes(data, routeIndex), progress, direction);
+            List<RouteSurveyPoint> recordedPath = routePathWithModes(data, routeIndex);
+            int lookAhead = hasV2Geometry(data, routeIndex)
+                    ? TradeRouteNavigationPolicy.lookaheadProgressForTraversal(
+                            recordedPath, progress, direction)
+                    : TradeRouteNavigationPolicy.lookaheadProgress(
+                            recordedPath.stream().map(RouteSurveyPoint::point).toList(),
+                            progress, direction);
             int targetProgress = clampProgress(progress + direction * lookAhead);
             target = routePosition(world, data, routeIndex, targetProgress);
             BlockPos roadTarget = hasV2Geometry(data, routeIndex)
-                    ? findNearbyRoadSurfaceNearY(world, target, 8, 3)
+                    ? findNearbyRoadSurfaceNearY(world, target, 4, 2)
                     : findNearbyRoadSurface(world, target, 8);
             if (roadTarget != null) {
                 target = roadTarget;
             } else {
-                BlockPos terrainTarget = resolveRouteSurface(world, data, routeIndex, target, 5);
+                BlockPos terrainTarget = resolveRouteSurface(world, data, routeIndex, target, 3);
                 if (terrainTarget != null) {
                     target = terrainTarget;
+                } else if (hasV2Geometry(data, routeIndex)) {
+                    holdCaravanAtUnsafeTarget(world, runtime);
+                    return true;
                 }
             }
         }
@@ -1914,6 +1928,19 @@ public final class TradeRouteService {
         CaravanMerchantEntity leader = merchants.getFirst();
         BlockPos leaderPosition = leader.blockPosition();
         runtime.lastActual = leaderPosition;
+        List<RouteSurveyPoint> surveyPath = hasV2Geometry(data, routeIndex)
+                ? routePathWithModes(data, routeIndex) : List.of();
+        if (!surveyPath.isEmpty() && !TradeRouteNavigationPolicy.withinSurveyCorridor(
+                surveyPath, new RoutePoint(leaderPosition.getX(), leaderPosition.getY(),
+                        leaderPosition.getZ()))) {
+            holdCaravanAtUnsafeTarget(world, runtime);
+            if (!isRecoveryVisible(observer, leader)
+                    && !recoverCaravan(world, key, runtime, data, observer, false)) {
+                suspendPhysicalCaravan(world, key);
+                return false;
+            }
+            return true;
+        }
         double targetDistance = leaderPosition.distSqr(target);
         boolean groupReadyToBoard = boarding != null && targetDistance <= FERRY_BOARDING_DISTANCE_SQR;
         if (groupReadyToBoard) {
@@ -1935,6 +1962,11 @@ public final class TradeRouteService {
         if (targetDistance > 3.0 * 3.0) {
             pathRequested = leader.getNavigation().moveTo(
                     target.getX() + 0.5, target.getY(), target.getZ() + 0.5, 0.88);
+            if (pathRequested && !surveyPath.isEmpty()
+                    && !navigationPathFollowsSurvey(world, leader.getNavigation().getPath(), surveyPath)) {
+                leader.getNavigation().stop();
+                pathRequested = false;
+            }
         } else {
             leader.getNavigation().stop();
         }
@@ -1966,9 +1998,7 @@ public final class TradeRouteService {
             if (followSurface != null) {
                 merchant.getNavigation().moveTo(followSurface.getX() + 0.5,
                         followSurface.getY(), followSurface.getZ() + 0.5, 0.92);
-            } else if (merchant.distanceToSqr(leader) > 2.15 * 2.15) {
-                // Do not make every follower target the leader's exact feet. On narrow or
-                // obstructed roads that old fallback visibly stacked the group into one NPC.
+            } else if (surveyPath.isEmpty() && merchant.distanceToSqr(leader) > 2.15 * 2.15) {
                 merchant.getNavigation().moveTo(followX, leader.getY(), followZ, 0.82);
             } else {
                 merchant.getNavigation().stop();
@@ -1995,6 +2025,10 @@ public final class TradeRouteService {
                         teleportMerchant(merchant, regroup);
                     }
                 }
+            }
+            if (!surveyPath.isEmpty() && merchant.getNavigation().getPath() != null
+                    && !navigationPathFollowsSurvey(world, merchant.getNavigation().getPath(), surveyPath)) {
+                merchant.getNavigation().stop();
             }
         }
 
@@ -3045,8 +3079,35 @@ public final class TradeRouteService {
                                                 BlockPos center,
                                                 int radius) {
         return hasV2Geometry(data, routeIndex)
-                ? findCaravanSurfaceNearY(world, center, radius, 3)
+                ? findCaravanSurfaceNearY(world, center, Math.min(radius, 5), 3)
                 : findCaravanSurface(world, center, radius);
+    }
+
+    private static boolean navigationPathFollowsSurvey(ServerLevel world,
+                                                        Path navigationPath,
+                                                        List<RouteSurveyPoint> surveyPath) {
+        if (navigationPath == null) {
+            return false;
+        }
+        for (int i = 0; i < navigationPath.getNodeCount(); i++) {
+            var node = navigationPath.getNode(i);
+            if (!TradeRouteNavigationPolicy.withinSurveyCorridor(surveyPath,
+                    new RoutePoint(node.x, node.y, node.z))
+                    || safeSurfaceNearY(world, node.x, node.y, node.z, 1) == null) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static void holdCaravanAtUnsafeTarget(ServerLevel world, CaravanRuntime runtime) {
+        runtime.stuckSeconds = Math.max(runtime.stuckSeconds, 5);
+        for (UUID merchantId : runtime.merchantIds) {
+            Entity entity = findEntity(world, merchantId);
+            if (entity instanceof CaravanMerchantEntity merchant) {
+                merchant.getNavigation().stop();
+            }
+        }
     }
 
     private static FerryState ferryState(PlayerQuestData data,
@@ -3116,8 +3177,9 @@ public final class TradeRouteService {
             return runtime.boardingAnchor;
         }
         BlockPos routeDock = routePosition(world, data, routeIndex, boarding.progress());
-        BlockPos safeDock = resolveRouteSurface(
-                world, data, routeIndex, routeDock, FERRY_DOCK_SEARCH_RADIUS);
+        BlockPos safeDock = hasV2Geometry(data, routeIndex)
+                ? findCaravanSurfaceNearY(world, routeDock, FERRY_DOCK_SEARCH_RADIUS, 3)
+                : resolveRouteSurface(world, data, routeIndex, routeDock, FERRY_DOCK_SEARCH_RADIUS);
         if (safeDock == null) {
             clearFerryDock(runtime);
             return null;
@@ -3256,6 +3318,29 @@ public final class TradeRouteService {
             boolean ferrySegment = from.ocean() || to.ocean();
             double distance = TradeRouteGeometry.segmentTraversalDistance(from, to);
             int samples = Math.max(1, (int) Math.ceil(distance / 8.0));
+            if (!ferrySegment && from.point().hasElevation() && to.point().hasElevation()) {
+                boolean loaded = true;
+                for (int sample = 0; sample <= samples; sample++) {
+                    double t = sample / (double) samples;
+                    int x = (int) Math.round(from.point().x()
+                            + (to.point().x() - from.point().x()) * t);
+                    int y = (int) Math.round(from.point().y()
+                            + (to.point().y() - from.point().y()) * t);
+                    int z = (int) Math.round(from.point().z()
+                            + (to.point().z() - from.point().z()) * t);
+                    if (!world.hasChunkAt(new BlockPos(x, y, z))) {
+                        loaded = false;
+                        break;
+                    }
+                }
+                if (loaded && !TradeRouteSurveyPathPolicy.hasSafeLandSegment(
+                        from.point(), to.point(),
+                        (x, y, z) -> safeSurfaceNearY(world, x, y, z, 0) != null)) {
+                    return Component.translatable("message.village-quest.trade_route.survey.unsafe_land",
+                            from.point().x(), from.point().y(), from.point().z(),
+                            to.point().x(), to.point().y(), to.point().z());
+                }
+            }
             for (int sample = 0; sample <= samples; sample++) {
                 double t = sample / (double) samples;
                 int x = (int) Math.round(from.point().x() + (to.point().x() - from.point().x()) * t);
@@ -3268,9 +3353,6 @@ public final class TradeRouteService {
                     continue;
                 }
                 if (!ferrySegment && from.point().hasElevation() && to.point().hasElevation()) {
-                    if (safeSurfaceNearY(world, x, y, z, 2) == null) {
-                        return Component.translatable("message.village-quest.trade_route.survey.unsafe_land");
-                    }
                     continue;
                 }
                 int topY = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);

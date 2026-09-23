@@ -1592,7 +1592,7 @@
     "message.village-quest.trade_route.survey.inland_water": "Only ocean biomes support ferries. Lakes and rivers must be bypassed on land or crossed on a player-built bridge.",
     "message.village-quest.trade_route.survey.ocean_unmarked": "This path crosses an ocean. Mark at least one waypoint from the ocean water so the guild can schedule a ferry.",
     "message.village-quest.trade_route.survey.unsafe_dock": "This ferry shore has no broad, safe boarding ground nearby. Move its land waypoint away from cliffs, water, leaves, and narrow ledges.",
-    "message.village-quest.trade_route.survey.unsafe_land": "This surveyed land segment has no continuous safe route near its recorded elevation.",
+    "message.village-quest.trade_route.survey.unsafe_land": "No continuous walkable road near [%s, %s, %s] to [%s, %s, %s]. Mark tunnel turns and stair landings, and check the floor for gaps.",
     "message.village-quest.trade_route.survey.ferry_installed": "Ferry service installed through %s ocean waypoints. The last safe land points become its docks.",
     "message.village-quest.trade_route.survey.finished": "%s now follows its surveyed path through %s waypoints.",
     "message.village-quest.trade_route.survey.cancelled": "The unfinished survey for %s was cancelled; its previous path is unchanged.",

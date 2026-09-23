@@ -1592,7 +1592,7 @@
     "message.village-quest.trade_route.survey.inland_water": "Fähren sind nur in Ozeanbiomen möglich. Seen und Flüsse müssen an Land umgangen oder über eine selbst gebaute Brücke überquert werden.",
     "message.village-quest.trade_route.survey.ocean_unmarked": "Dieser Weg kreuzt einen Ozean. Setze mindestens einen Wegpunkt direkt auf dem Meer, damit die Gilde eine Fähre einplanen kann.",
     "message.village-quest.trade_route.survey.unsafe_dock": "An diesem Ufer fehlt eine breite, sichere Fläche für den Fähranleger. Verschiebe den Land-Wegpunkt weg von Klippen, Wasser, Laub und schmalen Vorsprüngen.",
-    "message.village-quest.trade_route.survey.unsafe_land": "Dieses vermessene Landsegment hat nahe seiner aufgezeichneten Höhe keinen durchgehend sicheren Weg.",
+    "message.village-quest.trade_route.survey.unsafe_land": "Kein durchgehend begehbarer Weg nahe [%s, %s, %s] bis [%s, %s, %s]. Markiere Tunnelkurven und Treppenabsätze und prüfe den Boden auf Lücken.",
     "message.village-quest.trade_route.survey.ferry_installed": "Fährdienst über %s Ozean-Wegpunkte eingerichtet. Die letzten sicheren Landpunkte werden zu Fähranlegern.",
     "message.village-quest.trade_route.survey.finished": "%s folgt nun dem vermessenen Weg über %s Wegpunkte.",
     "message.village-quest.trade_route.survey.cancelled": "Die offene Vermessung für %s wurde verworfen; der bisherige Weg bleibt erhalten.",

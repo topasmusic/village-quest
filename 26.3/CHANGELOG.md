@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.4.2
+
+Release date: 2026-09-23
+
+### New features
+
+- None. This hotfix focuses on caravan route reliability.
+
+### Bug fixes and improvements
+
+- Surveyed land routes now recognize connected passages through tunnels and stairways, including walkable stairs and slabs beside the straight line between recorded points. Stair markers near route endpoints retain their recorded height.
+- Visible caravans follow shorter sections of the recorded route and avoid unsafe shortcuts over fences or toward higher terrain. Followers stay with the route; ferry docks and previously recorded routes remain compatible.
+- If a segment is genuinely blocked, the survey error now names its two recorded endpoints and suggests where to check the road.
+
 ## 2.4.1
 
 Release date: 2026-09-23

@@ -118,8 +118,24 @@ final class TradeRouteSurveyData {
     }
 
     static List<RouteSurveyPoint> normalizedSurveyPoints(PlayerQuestData data, int routeIndex) {
-        RoutePoint home = new RoutePoint(data.getTradeRouteInt(HOME_X), data.getTradeRouteInt(HOME_Z));
-        RoutePoint destination = new RoutePoint(routeInt(data, routeIndex, "x"), routeInt(data, routeIndex, "z"));
+        return normalizedSurveyPoints(data, routeIndex, null, null);
+    }
+
+    static List<RouteSurveyPoint> normalizedSurveyPoints(PlayerQuestData data, int routeIndex,
+                                                         int homeY, int destinationY) {
+        return normalizedSurveyPoints(data, routeIndex, Integer.valueOf(homeY),
+                Integer.valueOf(destinationY));
+    }
+
+    private static List<RouteSurveyPoint> normalizedSurveyPoints(PlayerQuestData data, int routeIndex,
+                                                                  Integer homeY, Integer destinationY) {
+        RoutePoint home = homeY == null
+                ? new RoutePoint(data.getTradeRouteInt(HOME_X), data.getTradeRouteInt(HOME_Z))
+                : new RoutePoint(data.getTradeRouteInt(HOME_X), homeY, data.getTradeRouteInt(HOME_Z));
+        RoutePoint destination = destinationY == null
+                ? new RoutePoint(routeInt(data, routeIndex, "x"), routeInt(data, routeIndex, "z"))
+                : new RoutePoint(routeInt(data, routeIndex, "x"), destinationY,
+                        routeInt(data, routeIndex, "z"));
         List<RouteSurveyPoint> normalized = new ArrayList<>();
         RoutePoint previous = home;
         for (RouteSurveyPoint routed : surveyPointsWithModes(data)) {

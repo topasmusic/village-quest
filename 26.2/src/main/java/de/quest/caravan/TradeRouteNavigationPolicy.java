@@ -34,8 +34,67 @@ final class TradeRouteNavigationPolicy {
         List<RoutePoint> points = path.stream().map(RouteSurveyPoint::point).toList();
         double traveled = total * Math.max(0, Math.min(TradeRouteService.PROGRESS_MAX, progress))
                 / TradeRouteService.PROGRESS_MAX;
-        double desired = localLookaheadBlocks(points, traveled, direction, path);
+        double desired = Math.min(4.0, localLookaheadBlocks(points, traveled, direction, path));
+        double cursor = 0.0;
+        if (direction >= 0) {
+            for (int i = 1; i < path.size(); i++) {
+                cursor += TradeRouteGeometry.segmentTraversalDistance(path.get(i - 1), path.get(i));
+                if (cursor > traveled + 0.001) {
+                    desired = Math.min(desired, cursor - traveled);
+                    break;
+                }
+            }
+        } else {
+            for (int i = 1; i < path.size(); i++) {
+                double next = cursor + TradeRouteGeometry.segmentTraversalDistance(path.get(i - 1), path.get(i));
+                if (next >= traveled - 0.001) {
+                    desired = Math.min(desired, traveled - cursor);
+                    break;
+                }
+                cursor = next;
+            }
+        }
         return Math.max(1, (int) Math.round(desired * TradeRouteService.PROGRESS_MAX / total));
+    }
+
+    static boolean withinSurveyCorridor(List<RouteSurveyPoint> path, RoutePoint actual) {
+        if (path == null || actual == null || !actual.hasElevation()) {
+            return false;
+        }
+        for (int i = 0; i < path.size(); i++) {
+            RouteSurveyPoint point = path.get(i);
+            boolean dock = i > 0 && TradeRouteGeometry.isFerrySegment(path.get(i - 1), point)
+                    || i < path.size() - 1 && TradeRouteGeometry.isFerrySegment(point, path.get(i + 1));
+            if (!point.ocean() && point.point().hasElevation()
+                    && Math.hypot(actual.x() - point.point().x(),
+                            actual.z() - point.point().z()) <= (dock ? 8.0 : 5.0)
+                    && Math.abs(actual.y() - point.point().y()) <= 3.0) {
+                return true;
+            }
+        }
+        for (int i = 1; i < path.size(); i++) {
+            RouteSurveyPoint from = path.get(i - 1);
+            RouteSurveyPoint to = path.get(i);
+            if (from.ocean() || to.ocean()
+                    || !from.point().hasElevation() || !to.point().hasElevation()) {
+                continue;
+            }
+            double dx = to.point().x() - from.point().x();
+            double dy = to.point().y() - from.point().y();
+            double dz = to.point().z() - from.point().z();
+            double lengthSquared = dx * dx + dy * dy + dz * dz;
+            double t = lengthSquared <= 0.0 ? 0.0 : Math.max(0.0, Math.min(1.0,
+                    ((actual.x() - from.point().x()) * dx
+                            + (actual.y() - from.point().y()) * dy
+                            + (actual.z() - from.point().z()) * dz) / lengthSquared));
+            double horizontal = Math.hypot(actual.x() - (from.point().x() + t * dx),
+                    actual.z() - (from.point().z() + t * dz));
+            double vertical = Math.abs(actual.y() - (from.point().y() + t * dy));
+            if (horizontal <= 5.0 && vertical <= 3.0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     static boolean holdVirtualProgress(boolean observed, double driftBlocks, int stuckSeconds) {

@@ -52,4 +52,44 @@ final class TradeRouteNavigationPolicyTest {
         assertTrue(TradeRouteNavigationPolicy.lookaheadProgressForTraversal(steep, 1_000, 1)
                 < TradeRouteNavigationPolicy.lookaheadProgressForTraversal(flat, 1_000, 1));
     }
+
+    @Test
+    void tunnelTurnTargetStopsAtTheRecordedCorner() {
+        List<RouteSurveyPoint> route = List.of(
+                new RouteSurveyPoint(new RoutePoint(0, 30, 0), false),
+                new RouteSurveyPoint(new RoutePoint(10, 30, 0), false),
+                new RouteSurveyPoint(new RoutePoint(10, 30, 40), false));
+        assertTrue(TradeRouteNavigationPolicy.lookaheadProgressForTraversal(route, 1_800, 1)
+                <= 200);
+    }
+
+    @Test
+    void detourOntoMountainIsOutsideRecordedTunnelCorridor() {
+        List<RouteSurveyPoint> route = List.of(
+                new RouteSurveyPoint(new RoutePoint(0, 30, 0), false),
+                new RouteSurveyPoint(new RoutePoint(40, 30, 0), false));
+        assertTrue(TradeRouteNavigationPolicy.withinSurveyCorridor(route,
+                new RoutePoint(20, 30, 2)));
+        assertFalse(TradeRouteNavigationPolicy.withinSurveyCorridor(route,
+                new RoutePoint(20, 80, 2)));
+        assertFalse(TradeRouteNavigationPolicy.withinSurveyCorridor(route,
+                new RoutePoint(20, 30, 8)));
+    }
+
+    @Test
+    void dryFerryDockRemainsValidWhenItsAdjacentSegmentIsOcean() {
+        List<RouteSurveyPoint> route = List.of(
+                new RouteSurveyPoint(new RoutePoint(0, 30, 0), false),
+                new RouteSurveyPoint(new RoutePoint(20, 30, 0), true),
+                new RouteSurveyPoint(new RoutePoint(80, 30, 0), true),
+                new RouteSurveyPoint(new RoutePoint(100, 30, 0), false));
+        assertTrue(TradeRouteNavigationPolicy.withinSurveyCorridor(route,
+                new RoutePoint(2, 30, 1)));
+        assertTrue(TradeRouteNavigationPolicy.withinSurveyCorridor(route,
+                new RoutePoint(98, 30, 1)));
+        assertTrue(TradeRouteNavigationPolicy.withinSurveyCorridor(route,
+                new RoutePoint(0, 30, 7)));
+        assertFalse(TradeRouteNavigationPolicy.withinSurveyCorridor(route,
+                new RoutePoint(50, 30, 0)));
+    }
 }

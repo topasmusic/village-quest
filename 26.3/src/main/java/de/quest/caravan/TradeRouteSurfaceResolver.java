@@ -9,6 +9,7 @@ import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
 /** Chunk-safe surface selection for route surveys, ferries, and physical caravans. */
 final class TradeRouteSurfaceResolver {
@@ -46,8 +47,8 @@ final class TradeRouteSurfaceResolver {
         }
         BlockPos best = null;
         double bestDistance = Double.MAX_VALUE;
-        for (int dx = -radius; dx <= radius; dx += 2) {
-            for (int dz = -radius; dz <= radius; dz += 2) {
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
                 BlockPos surface = safeSurfaceNearY(world, center.getX() + dx, center.getY(),
                         center.getZ() + dz, verticalTolerance);
                 if (surface == null
@@ -83,7 +84,7 @@ final class TradeRouteSurfaceResolver {
                 || !belowState.getFluidState().isEmpty()
                 || belowState.is(BlockTags.LEAVES)
                 || isDangerousSupport(belowState)
-                || !belowState.isFaceSturdy(world, below, Direction.UP)) {
+                || !supportsFooting(belowState.getCollisionShape(world, below))) {
             return null;
         }
         return feet;
@@ -271,7 +272,8 @@ final class TradeRouteSurfaceResolver {
                 || state.is(Blocks.STONE_SLAB)
                 || state.is(Blocks.COBBLESTONE_SLAB)
                 || state.is(Blocks.OAK_SLAB)
-                || state.is(Blocks.SPRUCE_SLAB);
+                || state.is(Blocks.SPRUCE_SLAB)
+                || state.is(BlockTags.STAIRS);
     }
 
     private static boolean isDangerousSupport(BlockState state) {
@@ -280,6 +282,16 @@ final class TradeRouteSurfaceResolver {
                 || state.is(Blocks.CAMPFIRE)
                 || state.is(Blocks.SOUL_CAMPFIRE)
                 || state.is(Blocks.POWDER_SNOW);
+    }
+
+    static boolean supportsFooting(VoxelShape shape) {
+        if (shape == null || shape.isEmpty()) {
+            return false;
+        }
+        double top = shape.max(Direction.Axis.Y);
+        return top >= 0.45 && top <= 1.0
+                && shape.max(Direction.Axis.X) - shape.min(Direction.Axis.X) >= 0.6
+                && shape.max(Direction.Axis.Z) - shape.min(Direction.Axis.Z) >= 0.6;
     }
 
     private static boolean isSafeFeetPosition(ServerLevel world, BlockPos feet) {
@@ -295,6 +307,6 @@ final class TradeRouteSurfaceResolver {
                 && belowState.getFluidState().isEmpty()
                 && !belowState.is(BlockTags.LEAVES)
                 && !isDangerousSupport(belowState)
-                && belowState.isFaceSturdy(world, below, Direction.UP);
+                && supportsFooting(belowState.getCollisionShape(world, below));
     }
 }

@@ -1592,7 +1592,7 @@
     "message.village-quest.trade_route.survey.inland_water": "Los ferris solo funcionan en biomas oceánicos. Los lagos y ríos deben rodearse por tierra o cruzarse con un puente construido por el jugador.",
     "message.village-quest.trade_route.survey.ocean_unmarked": "Esta ruta cruza un océano. Marca al menos un punto desde el agua del océano para que el gremio programe un ferry.",
     "message.village-quest.trade_route.survey.unsafe_dock": "Esta costa no tiene una zona amplia y segura para el muelle. Aleja el punto terrestre de acantilados, agua, hojas y salientes estrechos.",
-    "message.village-quest.trade_route.survey.unsafe_land": "Este tramo terrestre no tiene una ruta segura y continua cerca de la altura registrada.",
+    "message.village-quest.trade_route.survey.unsafe_land": "No hay un camino transitable continuo cerca de [%s, %s, %s] a [%s, %s, %s]. Marca los giros del túnel y los descansillos de las escaleras, y revisa si hay huecos.",
     "message.village-quest.trade_route.survey.ferry_installed": "Servicio de ferry instalado a través de %s puntos oceánicos. Los últimos puntos seguros de tierra se convierten en muelles.",
     "message.village-quest.trade_route.survey.finished": "%s ahora sigue su trazado medido por %s puntos.",
     "message.village-quest.trade_route.survey.cancelled": "Se canceló la medición abierta de %s; su trazado anterior no cambia.",

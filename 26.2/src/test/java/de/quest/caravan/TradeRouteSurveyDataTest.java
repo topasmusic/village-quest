@@ -118,6 +118,23 @@ final class TradeRouteSurveyDataTest {
     }
 
     @Test
+    void normalizationKeepsStairMarkerNearEndpointWhenItsElevationDiffers() {
+        PlayerQuestData data = new PlayerQuestData();
+        data.setTradeRouteInt("home_x", 0);
+        data.setTradeRouteInt("home_z", 0);
+        data.setTradeRouteInt("route_0_x", 20);
+        data.setTradeRouteInt("route_0_z", 0);
+        data.setTradeRouteInt("survey_point_count", 2);
+        TradeRouteSurveyData.setSurveyPoint(data, 0, new RoutePoint(2, 36, 0), false);
+        TradeRouteSurveyData.setSurveyPoint(data, 1, new RoutePoint(18, 36, 0), false);
+
+        assertEquals(List.of(
+                new RouteSurveyPoint(new RoutePoint(2, 36, 0), false),
+                new RouteSurveyPoint(new RoutePoint(18, 36, 0), false)),
+                TradeRouteSurveyData.normalizedSurveyPoints(data, 0, 30, 30));
+    }
+
+    @Test
     void completedV2SurveyPersistsBothPhysicalEndpointElevations() {
         PlayerQuestData data = new PlayerQuestData();
 
