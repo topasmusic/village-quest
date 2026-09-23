@@ -55,8 +55,9 @@ jobs:
         uses: Kira-NT/mc-publish@52307b03863581dec6b652b83e597aec02ebb075 # v3.3.1
         with:
           files: dist/${{ steps.release.outputs.jar }}
-          name: ${{ github.event.release.name }}
-          version: ${{ steps.release.outputs.version }}-mc${{ steps.release.outputs.minecraft }}
+          name: Village Quest ${{ steps.release.outputs.version }}
+          version: ${{ steps.release.outputs.version }}
+          curseforge-name: ${{ steps.release.outputs.jar }}
           version-type: release
           changelog: ${{ github.event.release.body }}
           loaders: fabric
