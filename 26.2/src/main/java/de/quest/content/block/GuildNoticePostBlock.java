@@ -107,7 +107,7 @@ public final class GuildNoticePostBlock extends HorizontalDirectionalBlock {
     }
     @Override protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
         if (level instanceof net.minecraft.server.level.ServerLevel world && player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) return VillageBondService.useNoticePost(world, serverPlayer, pos);
-        return InteractionResult.SUCCESS;
+        return InteractionResult.CONSUME;
     }
 
     static GuildTownService.NoticePostStoryResolution useWithoutItem(

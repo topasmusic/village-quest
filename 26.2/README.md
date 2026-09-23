@@ -2,9 +2,9 @@
 
 `Village Quest` is a Fabric mod built around village progression. Take on daily and weekly work, build reputation, unlock story arcs and village projects, and later deal with the `Pilgrim` and the road beyond the village.
 
-Current stable release: `2.4.0 - The Guild Comes to Town`, retaining the complete 2.3 Living Village Network and save-compatible 2.2.1 improvements.
+Current stable release: `2.4.1 - The Guild Comes to Town`, retaining the complete 2.3 Living Village Network and save-compatible 2.2.1 improvements.
 
-Minecraft `26.2` is the active line for future Village Quest content after this final three-version parity release.
+Minecraft `26.2` is the previous maintenance line. Minecraft `26.3` is the active line for future Village Quest content.
 
 ## Requirements
 
@@ -23,6 +23,7 @@ Minecraft `26.2` is the active line for future Village Quest content after this 
 ## Highlights
 
 - A first-day quest choice, personal Village Contact, welcome assignment, and authored Guild Corners lead into five local village stories, ten identity-pair commissions, shared guild projects, a personal Chronicle, and `The Bells of Concord`
+- Guild Notice Posts guide village welcome, local story acceptance and progress, Shared Table choices, and delivery through a dedicated interface, with a request tab for connected villages
 
 - Daily and weekly quests through the `Questmaster`
 - Level-scaled experience rewards that advance the same number of bars at vanilla level `10` or `200+`

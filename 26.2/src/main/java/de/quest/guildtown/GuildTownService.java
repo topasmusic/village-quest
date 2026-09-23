@@ -262,6 +262,10 @@ public final class GuildTownService {
     public record NoticePostStoryResolution(GuildTownStoryVillageResolver.StoryVillage village,
                                             GuildTownStory story,
                                             NoticePostStoryState state) {
+        public int villageIndex() {
+            return village.index();
+        }
+
         public int villageX() {
             return village.x();
         }
@@ -274,6 +278,43 @@ public final class GuildTownService {
             return village.connectedRoute();
         }
     }
+
+    /** Read-only presentation data for the Notice Post; gameplay remains in the existing story methods. */
+    public static NoticePostUiState noticePostUiState(PlayerQuestData data, NoticePostStoryResolution resolution) {
+        GuildTownStory story = resolution.story();
+        if (resolution.state() != NoticePostStoryState.ACTIVE) {
+            return new NoticePostUiState(story.title(), Component.empty(), resolution.state().name(),
+                    0, 0, 0, 0, ItemStack.EMPTY, 0, false);
+        }
+        GuildTownStory active = storyById(GuildTownProgress.activeStoryId(data));
+        if (active == null) active = story;
+        int firstTarget = switch (active) {
+            case SHARED_TABLE -> GRANARY_TARGET;
+            case SPARKS_FOR_THE_ROAD -> FORGE_TARGET;
+            case LONG_DRIVE -> PASTURE_ESCORT_SELECTION_TARGET;
+            case LANTERNS_IN_BLOOM -> APIARY_HONEY_TARGET;
+            case INK_BETWEEN_VILLAGES -> ARCHIVE_TRADE_TARGET;
+        };
+        int secondTarget = switch (active) {
+            case SHARED_TABLE -> 1;
+            case SPARKS_FOR_THE_ROAD -> 6;
+            case LONG_DRIVE -> PASTURE_ESCORT_DISTANCE_TARGET;
+            case LANTERNS_IN_BLOOM -> APIARY_LIGHT_TARGET;
+            case INK_BETWEEN_VILLAGES -> ARCHIVE_SUPPLY_TARGET;
+        };
+        int state = GuildTownProgress.storyState(data, active);
+        Delivery delivery = state == GuildTownProgress.READY ? storyDelivery(data, active) : null;
+        return new NoticePostUiState(active.title(), storyProgressLine(data, active),
+                state == GuildTownProgress.READY ? "READY" : state == GuildTownProgress.PAUSED ? "PAUSED" : "ACTIVE",
+                GuildTownProgress.storyProgress(data, active, 1), firstTarget,
+                GuildTownProgress.storyProgress(data, active, 2), secondTarget,
+                delivery == null ? ItemStack.EMPTY : new ItemStack(delivery.item()),
+                delivery == null ? 0 : delivery.amount(), active == GuildTownStory.SHARED_TABLE);
+    }
+
+    public record NoticePostUiState(Component title, Component detail, String state,
+                                    int first, int firstTarget, int second, int secondTarget,
+                                    ItemStack delivery, int deliveryCount, boolean sharedTable) {}
 
     public static void onQuestmasterOpen(ServerLevel world, ServerPlayer player) {
         if (world == null || player == null || !VillageWelcomeService.isCompleted(data(world, player.getUUID()))) return;

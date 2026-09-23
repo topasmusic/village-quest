@@ -23,11 +23,42 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import net.minecraft.SharedConstants;
+import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.server.Bootstrap;
+import net.minecraft.world.item.Items;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 final class GuildTownServiceInvariantTest {
+    @Test
+    void noticePostStorySnapshotTracksSavedSharedTableProgressAndDelivery() {
+        PlayerQuestData data = new PlayerQuestData();
+        GuildTownStory story = GuildTownStory.SHARED_TABLE;
+        var village = new GuildTownStoryVillageResolver.StoryVillage(
+                3, 100, 200, VillageBondType.GRANARY, null, false);
+        var resolution = new GuildTownService.NoticePostStoryResolution(
+                village, story, GuildTownService.NoticePostStoryState.ACTIVE);
+        assertTrue(GuildTownProgress.beginStory(data, story, 3, GuildTownProgress.PREVENTIVE));
+        GuildTownProgress.addStoryProgress(data, story, 1, 12, 24);
+
+        var active = GuildTownService.noticePostUiState(data, resolution);
+        assertEquals("ACTIVE", active.state());
+        assertEquals(12, active.first());
+        assertEquals(24, active.firstTarget());
+        assertTrue(active.sharedTable());
+        assertEquals(0, active.deliveryCount());
+
+        GuildTownProgress.addStoryProgress(data, story, 1, 12, 24);
+        data.setStoryInt("guild_town.story.shared_table.p2", 1);
+        assertTrue(GuildTownProgress.markStoryReady(data, story));
+        var ready = GuildTownService.noticePostUiState(data, resolution);
+        assertEquals("READY", ready.state());
+        assertEquals(24, ready.first());
+        assertEquals(1, ready.second());
+        assertEquals(net.minecraft.world.item.Items.HAY_BLOCK, ready.delivery().getItem());
+        assertEquals(4, ready.deliveryCount());
+    }
+
     private static final UUID OWNER = UUID.fromString("f16859a5-5aaa-472d-bd46-25fc58664e72");
     private static final UUID GUEST = UUID.fromString("dd65ea8d-a004-48b4-a1fb-5c3bb7ce7bb2");
     private static final UUID GUILD = UUID.fromString("b696826d-bc1f-4c4b-8204-52f87979a8fd");
@@ -36,6 +67,7 @@ final class GuildTownServiceInvariantTest {
     static void bootstrapMinecraftRegistries() {
         SharedConstants.tryDetectVersion();
         Bootstrap.bootStrap();
+        Items.HAY_BLOCK.builtInRegistryHolder().bindComponents(DataComponentMap.EMPTY);
     }
 
     @Test

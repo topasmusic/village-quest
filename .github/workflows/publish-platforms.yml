@@ -1,0 +1,70 @@
+name: Publish Village Quest to Modrinth and CurseForge
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    if: ${{ !github.event.release.draft && !github.event.release.prerelease }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Resolve stable release identity
+        id: release
+        shell: bash
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          if [[ ! "$TAG" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)-mc([0-9]+(\.[0-9]+)*)$ ]]; then
+            echo "Expected a stable release tag such as v2.4.1-mc26.2" >&2
+            exit 1
+          fi
+          version="${BASH_REMATCH[1]}"
+          minecraft="${BASH_REMATCH[2]}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "minecraft=$minecraft" >> "$GITHUB_OUTPUT"
+          echo "jar=village-quest-${version}-mc${minecraft}.jar" >> "$GITHUB_OUTPUT"
+
+      - name: Download the published runtime JAR
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+          JAR: ${{ steps.release.outputs.jar }}
+        run: |
+          mkdir -p dist
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$JAR" --dir dist
+          test -s "dist/$JAR"
+
+      - name: Verify the embedded mod version and Minecraft line
+        shell: bash
+        env:
+          JAR: ${{ steps.release.outputs.jar }}
+          VERSION: ${{ steps.release.outputs.version }}
+          MINECRAFT: ${{ steps.release.outputs.minecraft }}
+        run: |
+          unzip -p "dist/$JAR" fabric.mod.json | jq -e \
+            --arg version "$VERSION" \
+            --arg minecraft "$MINECRAFT" \
+            '.id == "village-quest" and .version == $version and .depends.minecraft == ("~" + $minecraft)'
+
+      - name: Publish to Modrinth and CurseForge
+        uses: Kira-NT/mc-publish@52307b03863581dec6b652b83e597aec02ebb075 # v3.3.1
+        with:
+          files: dist/${{ steps.release.outputs.jar }}
+          name: ${{ github.event.release.name }}
+          version: ${{ steps.release.outputs.version }}-mc${{ steps.release.outputs.minecraft }}
+          version-type: release
+          changelog: ${{ github.event.release.body }}
+          loaders: fabric
+          environment: client | server
+          game-versions: ${{ steps.release.outputs.minecraft }}
+          game-version-filter: none
+          dependencies: fabric-api(required){modrinth:P7dR8mSH}{curseforge:306612}
+          modrinth-id: eJsPPGy9
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          curseforge-id: '1492864'
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}

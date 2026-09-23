@@ -2,9 +2,13 @@
 
 Village Quest uses a single-active-line development policy.
 
-## 2.4.0 current content release
+## 2.4.1 current release
 
-`Village Quest 2.4.0 - The Guild Comes to Town` is released exclusively for Minecraft `26.2`. It adds Village Contacts, Guild Corners, local stories, identity-pair commissions, shared projects, and the Chronicle while preserving 2.3.1 saves. The older Minecraft targets remain on their existing maintenance releases.
+`Village Quest 2.4.1 - The Guild Comes to Town` is released for Minecraft `26.3` and `26.2` with the same gameplay content and guided Guild Notice Post journey. Minecraft `26.3` is the active content-development line. Minecraft `26.2` is the previous maintenance line.
+
+## 2.4.0 content release
+
+`Village Quest 2.4.0 - The Guild Comes to Town` was released for Minecraft `26.2`. It added Village Contacts, Guild Corners, local stories, identity-pair commissions, shared projects, and the Chronicle while preserving 2.3.1 saves.
 
 ## 2.3.1 maintenance release
 
@@ -26,14 +30,15 @@ The release contains the same intended features, fixes, documentation, and resou
 
 ## Current support policy
 
-- Minecraft `26.2` becomes the only active content-development line.
-- New quests, systems, items, interfaces, balancing passes, visual redesigns, and other content updates are not backported to `26.1.2` or `1.21.11`.
+- Minecraft `26.3` is the only active content-development line.
+- Minecraft `26.2` remains available as the previous maintenance line with the same 2.4.1 gameplay content.
+- New quests, systems, items, interfaces, balancing passes, visual redesigns, and other content updates are not automatically backported to previous lines.
 - The released `2.1.x` builds for older Minecraft versions remain available for download.
 - Older lines may receive deliberately scoped maintenance releases for confirmed bug fixes, crash prevention, save-safety fixes, severe exploits, and meaningful performance improvements.
 - Every maintenance change is ported against the target line's own mappings and APIs, tested independently, and released separately from the active content line.
 - Compatibility improvements, presentation changes, balance adjustments, and new content do not by themselves create a backport commitment.
-- A new `26.2` content release does not require empty parity releases for the two maintenance lines. They remain on their latest stable build until a real maintenance batch is worth publishing.
+- A new `26.3` content release does not require empty parity releases for maintenance lines. They remain on their latest stable build until a real maintenance batch is worth publishing.
 
-When a later stable Minecraft version becomes the chosen Village Quest development target, it replaces `26.2` as the single active line. The previous line then moves to the same maintenance/archive status rather than creating another permanently active branch.
+When a later stable Minecraft version becomes the chosen Village Quest development target, it replaces `26.3` as the single active line. The previous line then moves to maintenance/archive status rather than creating another permanently active branch.
 
 Exceptions require an explicit maintainer decision. Community demand and a very low-risk port may be considered, but neither guarantees a backport.

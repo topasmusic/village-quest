@@ -12,7 +12,7 @@ import sys
 
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION_LINES = ("26.2", "26.1.2", "1.21.11")
+VERSION_LINES = ("26.3", "26.2", "26.1.2", "1.21.11")
 LANGUAGES = ("en_us", "de_de", "es_es")
 PLACEHOLDER = re.compile(r"%(?:\d+\$)?[a-zA-Z]")
 TRANSLATABLE = re.compile(r'(?:Component|Text)\.translatable\(\s*"([^"]+)"')

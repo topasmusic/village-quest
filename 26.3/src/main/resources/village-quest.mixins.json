@@ -1,0 +1,38 @@
+{
+  "required": true,
+  "package": "de.quest.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "AbstractFurnaceScreenHandlerMixin",
+    "AnvilScreenHandlerMixin",
+    "AnimalEntityMixin",
+    "BeehiveBlockMixin",
+    "BlockItemMixin",
+    "BlockDropMixin",
+    "BrewedPotionCriterionMixin",
+    "CraftingRecipeMixin",
+    "CatMixin",
+    "FurnaceOutputSlotMixin",
+    "ForgingScreenHandlerAccessor",
+    "ForgingScreenHandlerMixin",
+    "ItemEntityMixin",
+    "MerchantEntityAccessor",
+    "PaintingEntityMixin",
+    "SheepMixin",
+    "TamableAnimalMixin",
+    "TradeOutputSlotMixin",
+    "WanderingTraderEntityInvoker",
+    "WolfMixin"
+  ],
+  "client": [
+    "CraftingRecipeBookComponentMixin",
+    "HandledScreenAccessor",
+    "HandledScreenMixin",
+    "InventoryScreenMixin",
+    "LocalPlayerMixin",
+    "RecipeBookTabButtonMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

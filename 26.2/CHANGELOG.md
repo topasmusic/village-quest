@@ -1,5 +1,33 @@
 # Changelog
 
+## 2.4.1
+
+Release date: 2026-09-23
+
+### New features
+
+- Guild Notice Posts now guide your first village favor, introductions, local stories, and Shared Table choices in a dedicated village journey interface. Once a village is connected, its request page remains available from the same board.
+
+### Bug fixes and improvements
+
+- Quest Tracker and Journal welcome hints now describe the tracker’s configurable screen position correctly; the default is top-left.
+- Opening a Guild Notice Post no longer leaves an unnecessary hand-swing animation when its interface closes.
+- Admins can preview the board’s journey stages with `/vq admin uitest noticejourney` without changing quest or world progress.
+
+## 2.4.1-unreleased.3 (Minecraft 26.2 Notice Board parity candidate)
+
+- Added the same guided Guild Notice Post journey UI as the 26.3 candidate for the first village favor, welcome, local stories, Shared Table decisions, delivery, and the connected request page. Gameplay requirements and saved progress remain unchanged.
+- Added the read-only `/vq admin uitest noticejourney` previews, including all five local story layouts and the connected request tab. Preview actions do not change saves.
+- Kept Minecraft 26.2 input handling while matching the 26.3 layout, payload, server-authoritative actions, and English/German/Spanish text.
+
+## 2.4.1-unreleased.2 (Minecraft 26.2)
+
+- The Guild Notice Post consumes its opening click without a hand swing, so the animation no longer appears after closing its UI.
+
+## 2.4.1-unreleased.1 (Minecraft 26.2)
+
+- Corrected the Quest Tracker welcome and Journal hints in English, German, and Spanish to describe its configurable screen position. The default remains top-left.
+
 ## 2.4.0
 
 Release date: 2026-09-22

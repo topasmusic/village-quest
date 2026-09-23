@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "village-quest:block/forge_charter_plaque", "y": 180 },
+    "facing=south": { "model": "village-quest:block/forge_charter_plaque" },
+    "facing=west": { "model": "village-quest:block/forge_charter_plaque", "y": 90 },
+    "facing=east": { "model": "village-quest:block/forge_charter_plaque", "y": 270 }
+  }
+}

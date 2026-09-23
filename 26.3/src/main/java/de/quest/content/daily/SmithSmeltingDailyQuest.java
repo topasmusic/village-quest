@@ -1,0 +1,176 @@
+package de.quest.content.daily;
+
+import de.quest.quest.QuestCompletionMode;
+import de.quest.quest.daily.DailyQuestCompletion;
+import de.quest.quest.daily.DailyQuestDefinition;
+import de.quest.quest.daily.DailyQuestKeys;
+import de.quest.quest.daily.DailyQuestService;
+import de.quest.util.Texts;
+import java.util.Map;
+import java.util.UUID;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+
+public final class SmithSmeltingDailyQuest implements DailyQuestDefinition {
+    @Override
+    public QuestCompletionMode completionMode() {
+        return QuestCompletionMode.QUESTMASTER_TURN_IN;
+    }
+
+    @Override
+    public DailyQuestService.DailyQuestType type() {
+        return DailyQuestService.DailyQuestType.SMITH_SMELTING;
+    }
+
+    @Override
+    public Component title() {
+        return Component.translatable("quest.village-quest.daily.smelt.title");
+    }
+
+    @Override
+    public Component offerParagraph1() {
+        return Component.translatable("quest.village-quest.daily.smelt.offer.1").withStyle(ChatFormatting.GRAY);
+    }
+
+    @Override
+    public Component offerParagraph2() {
+        return Component.translatable("quest.village-quest.daily.smelt.offer.2").withStyle(ChatFormatting.GRAY);
+    }
+
+    @Override
+    public Component progressLine(ServerLevel world, UUID playerId) {
+        int oreProgress = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.SMITH_SMELT_ORE_PROGRESS);
+        if (oreProgress < DailyQuestService.smithSmeltOreTarget()) {
+            return Component.translatable(
+                    "quest.village-quest.daily.smelt.stage.1",
+                    oreProgress,
+                    DailyQuestService.smithSmeltOreTarget()
+            ).withStyle(ChatFormatting.GRAY);
+        }
+
+        int ingotProgress = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.SMITH_SMELT_INGOT_PROGRESS);
+        if (ingotProgress < DailyQuestService.smithSmeltIngotTarget()) {
+            return Component.translatable(
+                    "quest.village-quest.daily.smelt.stage.2",
+                    ingotProgress,
+                    DailyQuestService.smithSmeltIngotTarget()
+            ).withStyle(ChatFormatting.GRAY);
+        }
+
+        ServerPlayer player = world == null ? null : world.getServer().getPlayerList().getPlayer(playerId);
+        if (player != null) {
+            Component blocked = claimBlockedMessage(world, player);
+            if (blocked != null) {
+                return blocked;
+            }
+        }
+
+        return Component.translatable("quest.village-quest.daily.smelt.stage.3").withStyle(ChatFormatting.GRAY);
+    }
+
+    @Override
+    public boolean isComplete(ServerLevel world, ServerPlayer player) {
+        UUID playerId = player.getUUID();
+        return DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.SMITH_SMELT_ORE_PROGRESS) >= DailyQuestService.smithSmeltOreTarget()
+                && DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.SMITH_SMELT_INGOT_PROGRESS) >= DailyQuestService.smithSmeltIngotTarget()
+                && hasTurnInItems(player);
+    }
+
+    @Override
+    public DailyQuestCompletion buildCompletion(ServerLevel world) {
+        return DailyQuestService.buildCompletion(
+                type(),
+                title(),
+                Component.translatable("quest.village-quest.daily.smelt.completion.1").withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.daily.smelt.completion.2").withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.daily.smelt.completion.3").withStyle(ChatFormatting.GRAY),
+                ItemStack.EMPTY,
+                ItemStack.EMPTY
+        );
+    }
+
+    @Override
+    public boolean consumeCompletionRequirements(ServerLevel world, ServerPlayer player) {
+        if (!hasTurnInItems(player)) {
+            return false;
+        }
+        return DailyQuestService.consumeCompletionItemRequirements(
+                world,
+                player,
+                Map.of(
+                        Items.RAW_IRON, DailyQuestService.smithSmeltRawDeliveryTarget(),
+                        Items.IRON_INGOT, DailyQuestService.smithSmeltIngotTarget()
+                )
+        );
+    }
+
+    @Override
+    public Component claimBlockedMessage(ServerLevel world, ServerPlayer player) {
+        if (player == null || world == null) {
+            return null;
+        }
+        UUID playerId = player.getUUID();
+        int oreTarget = DailyQuestService.smithSmeltOreTarget();
+        int rawDeliveryTarget = DailyQuestService.smithSmeltRawDeliveryTarget();
+        int ingotTarget = DailyQuestService.smithSmeltIngotTarget();
+        if (DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.SMITH_SMELT_ORE_PROGRESS) < oreTarget
+                || DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.SMITH_SMELT_INGOT_PROGRESS) < ingotTarget
+                || hasTurnInItems(player)) {
+            return null;
+        }
+        return Texts.turnInMissing(
+                Items.RAW_IRON.getDefaultInstance().getDisplayName(),
+                DailyQuestService.countCompletionItem(world, player, Items.RAW_IRON),
+                rawDeliveryTarget,
+                Items.IRON_INGOT.getDefaultInstance().getDisplayName(),
+                DailyQuestService.countCompletionItem(world, player, Items.IRON_INGOT),
+                ingotTarget
+        );
+    }
+
+    @Override
+    public void onTrackedItemPickup(ServerLevel world, ServerPlayer player, ItemStack stack, int count) {
+        if (!DailyQuestService.isTrackingQuest(world, player.getUUID(), type())) return;
+        if (!stack.is(Items.RAW_IRON)) {
+            return;
+        }
+
+        incrementProgress(world, player, DailyQuestKeys.SMITH_SMELT_ORE_PROGRESS, DailyQuestService.smithSmeltOreTarget(), count);
+    }
+
+    @Override
+    public void onFurnaceOutput(ServerLevel world, ServerPlayer player, ItemStack stack) {
+        if (!DailyQuestService.isTrackingQuest(world, player.getUUID(), type())) return;
+        if (DailyQuestService.getQuestInt(world, player.getUUID(), DailyQuestKeys.SMITH_SMELT_ORE_PROGRESS)
+                < DailyQuestService.smithSmeltOreTarget()) {
+            return;
+        }
+        if (!stack.is(Items.IRON_INGOT)) {
+            return;
+        }
+
+        incrementProgress(world, player, DailyQuestKeys.SMITH_SMELT_INGOT_PROGRESS, DailyQuestService.smithSmeltIngotTarget(), stack.getCount());
+    }
+
+    private void incrementProgress(ServerLevel world, ServerPlayer player, String key, int target, int amount) {
+        UUID playerId = player.getUUID();
+        int current = DailyQuestService.getQuestInt(world, playerId, key);
+        if (current >= target) {
+            return;
+        }
+
+        DailyQuestService.setQuestInt(world, playerId, key, Math.min(target, current + amount));
+        DailyQuestService.completeIfEligible(world, player);
+        DailyQuestService.sendCurrentProgressActionbar(world, player);
+    }
+
+    private boolean hasTurnInItems(ServerPlayer player) {
+        ServerLevel world = (ServerLevel) player.level();
+        return DailyQuestService.countCompletionItem(world, player, Items.RAW_IRON) >= DailyQuestService.smithSmeltRawDeliveryTarget()
+                && DailyQuestService.countCompletionItem(world, player, Items.IRON_INGOT) >= DailyQuestService.smithSmeltIngotTarget();
+    }
+}

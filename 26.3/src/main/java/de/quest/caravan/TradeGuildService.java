@@ -1,0 +1,406 @@
+package de.quest.caravan;
+
+import net.minecraft.util.Prediction;
+import de.quest.data.PlayerQuestData;
+import de.quest.data.QuestState;
+import de.quest.economy.CurrencyService;
+import de.quest.economy.ProsperityService;
+import de.quest.reputation.ReputationService;
+import de.quest.util.TimeUtil;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.component.ItemContainerContents;
+import de.quest.registry.ModItems;
+import de.quest.shrine.VillageBondService;
+
+/** Long-term progression, freight contracts and investments for the caravan network. */
+public final class TradeGuildService {
+    private static final String CONTRACT_TYPE = "guild_contract_type";
+    private static final String CONTRACT_ROUTE = "guild_contract_route";
+    private static final String CONTRACT_DUE_DAY = "guild_contract_due_day";
+    private static final String CONTRACT_SUPPLIED = "guild_contract_supplied";
+    private static final String CONTRACTS_COMPLETED = "guild_contracts_completed";
+    private static final int[] RANK_THRESHOLDS = {0, 30, 65, 110, 165};
+
+    private TradeGuildService() {}
+
+    private static PlayerQuestData data(ServerLevel world, UUID playerId) {
+        return QuestState.get(world.getServer()).getPlayerData(playerId);
+    }
+
+    public static int guildScore(ServerLevel world, UUID playerId) {
+        if (world == null || playerId == null || !TradeRouteService.hasRouteAccess(world, playerId)) return 0;
+        int score = TradeRouteService.routeCount(world, playerId) * 10
+                + Math.max(0, data(world, playerId).getTradeRouteInt(CONTRACTS_COMPLETED)) * 8;
+        for (int route = 0; route < TradeRouteService.routeCount(world, playerId); route++) {
+            score += TradeRouteService.routeQuality(world, playerId, route) / 10;
+            score += Math.min(30, TradeRouteService.routeSuccesses(world, playerId, route) * 3);
+        }
+        return score;
+    }
+
+    public static int guildRank(ServerLevel world, UUID playerId) {
+        int score = guildScore(world, playerId);
+        int rank = 1;
+        for (int i = 0; i < RANK_THRESHOLDS.length; i++) {
+            if (score >= RANK_THRESHOLDS[i]) rank = i + 1;
+        }
+        return Math.min(5, rank);
+    }
+
+    public static Component rankLabel(int rank) {
+        return Component.translatable("text.village-quest.trade_guild.rank." + Math.max(1, Math.min(5, rank)));
+    }
+
+    public static List<Component> overview(ServerLevel world, UUID playerId) {
+        expireIfNeeded(world, playerId);
+        List<Component> lines = new ArrayList<>();
+        int rank = guildRank(world, playerId);
+        int score = guildScore(world, playerId);
+        int next = rank >= 5 ? score : RANK_THRESHOLDS[rank];
+        lines.add(Component.translatable("message.village-quest.trade_guild.overview",
+                rankLabel(rank), score, next,
+                TradeRouteService.incomeToday(world, playerId),
+                TradeRouteService.escrow(world, playerId)).withStyle(ChatFormatting.GOLD));
+        for (int route = 0; route < TradeRouteService.routeCount(world, playerId); route++) {
+            lines.add(Component.translatable("message.village-quest.trade_guild.route",
+                    route + 1,
+                    TradeRouteService.specialization(world, playerId, route).label(),
+                    TradeRouteService.routeQuality(world, playerId, route),
+                    TradeRouteService.routeEconomyDistanceBlocks(world, playerId, route),
+                    TradeRouteService.routeSuccesses(world, playerId, route)).withStyle(ChatFormatting.GRAY));
+        }
+        lines.add(currentContractLine(world, playerId));
+        return lines;
+    }
+
+    public static List<TradeContractType> offers(ServerLevel world, UUID playerId) {
+        int rank = guildRank(world, playerId);
+        List<TradeContractType> eligible = new ArrayList<>();
+        for (TradeContractType type : TradeContractType.values()) {
+            if (type.requiredGuildRank() <= rank) eligible.add(type);
+        }
+        if (eligible.isEmpty()) return List.of();
+        List<TradeContractType> needMatched = eligible.stream()
+                .filter(type -> VillageBondService.villages(world, playerId).stream()
+                        .anyMatch(village -> village.network().need().matches(type.item())))
+                .toList();
+        List<TradeContractType> offers = new ArrayList<>();
+        int seed = playerId.hashCode() * 31 + (int) TimeUtil.currentDay() * 17;
+        if (!needMatched.isEmpty()) {
+            int start = Math.floorMod(seed, needMatched.size());
+            for (int i = 0; i < needMatched.size() && offers.size() < 3; i++) {
+                offers.add(needMatched.get((start + i) % needMatched.size()));
+            }
+        }
+        int generalStart = Math.floorMod(seed, eligible.size());
+        for (int i = 0; i < eligible.size() && offers.size() < 3; i++) {
+            TradeContractType candidate = eligible.get((generalStart + i) % eligible.size());
+            if (!offers.contains(candidate)) offers.add(candidate);
+        }
+        return List.copyOf(offers);
+    }
+
+    public static List<Component> contractBoard(ServerLevel world, UUID playerId) {
+        expireIfNeeded(world, playerId);
+        List<Component> lines = new ArrayList<>();
+        TradeContractType active = activeContract(world, playerId);
+        if (active != null) {
+            lines.add(currentContractLine(world, playerId));
+            return lines;
+        }
+        lines.add(Component.translatable("message.village-quest.trade_guild.contract_board")
+                .withStyle(ChatFormatting.GOLD));
+        List<TradeContractType> offers = offers(world, playerId);
+        for (int i = 0; i < offers.size(); i++) {
+            TradeContractType type = offers.get(i);
+            lines.add(Component.translatable("message.village-quest.trade_guild.contract_offer",
+                    i + 1, type.title(), type.amount(), new ItemStack(type.item()).getHoverName(),
+                    CurrencyService.formatBalance(type.reward()), type.specialization().label(),
+                    matchingRouteLabel(world, playerId, type))
+                    .withStyle(ChatFormatting.GRAY));
+        }
+        return lines;
+    }
+
+    public static boolean acceptContract(ServerLevel world, ServerPlayer player, int offerNumber, int routeIndex) {
+        if (world == null || player == null || activeContract(world, player.getUUID()) != null) return false;
+        List<TradeContractType> offers = offers(world, player.getUUID());
+        if (offerNumber < 1 || offerNumber > offers.size()
+                || routeIndex < 0 || routeIndex >= TradeRouteService.routeCount(world, player.getUUID())) {
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_guild.contract_invalid")
+                    .withStyle(ChatFormatting.RED), false);
+            return false;
+        }
+        TradeContractType type = offers.get(offerNumber - 1);
+        PlayerQuestData data = data(world, player.getUUID());
+        data.setTradeRouteInt(CONTRACT_TYPE, type.ordinal() + 1);
+        data.setTradeRouteInt(CONTRACT_ROUTE, routeIndex + 1);
+        data.setTradeRouteInt(CONTRACT_DUE_DAY, (int) TimeUtil.currentDay() + 3);
+        data.setTradeRouteFlag(CONTRACT_SUPPLIED, false);
+        QuestState.get(world.getServer()).setDirty();
+        player.sendSystemMessage(Component.translatable(matchesRouteNeed(world, player.getUUID(), routeIndex, type)
+                        ? "message.village-quest.trade_guild.contract_accepted_matching"
+                        : "message.village-quest.trade_guild.contract_accepted",
+                type.title(), routeIndex + 1).withStyle(ChatFormatting.GREEN), false);
+        return true;
+    }
+
+    private static boolean matchesRouteNeed(ServerLevel world, UUID playerId, int routeIndex, TradeContractType type) {
+        int x = TradeRouteService.routeDestinationX(world, playerId, routeIndex);
+        int z = TradeRouteService.routeDestinationZ(world, playerId, routeIndex);
+        return VillageBondService.villages(world, playerId).stream()
+                .anyMatch(village -> Math.abs(village.x() - x) <= 8 && Math.abs(village.z() - z) <= 8
+                        && village.network().need().matches(type.item()));
+    }
+
+    private static Component matchingRouteLabel(ServerLevel world, UUID playerId, TradeContractType type) {
+        List<String> matches = new ArrayList<>();
+        for (int route = 0; route < TradeRouteService.routeCount(world, playerId); route++) {
+            if (matchesRouteNeed(world, playerId, route, type)) matches.add(Integer.toString(route + 1));
+        }
+        return matches.isEmpty()
+                ? Component.translatable("text.village-quest.trade_guild.contract.general_supply")
+                : Component.translatable("text.village-quest.trade_guild.contract.need_routes", String.join(", ", matches));
+    }
+
+    public static boolean supplyContract(ServerLevel world, ServerPlayer player) {
+        if (world == null || player == null) return false;
+        TradeContractType type = activeContract(world, player.getUUID());
+        PlayerQuestData data = data(world, player.getUUID());
+        if (type == null || data.hasTradeRouteFlag(CONTRACT_SUPPLIED)) return false;
+        if (expired(data)) {
+            failContract(world, player.getUUID());
+            return false;
+        }
+        if (!consume(player, type)) {
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_guild.contract_missing",
+                    type.amount(), new ItemStack(type.item()).getHoverName()).withStyle(ChatFormatting.RED), false);
+            return false;
+        }
+        data.setTradeRouteFlag(CONTRACT_SUPPLIED, true);
+        QuestState.get(world.getServer()).setDirty();
+        player.sendSystemMessage(Component.translatable("message.village-quest.trade_guild.contract_supplied",
+                type.title(), data.getTradeRouteInt(CONTRACT_ROUTE)).withStyle(ChatFormatting.GREEN), false);
+        return true;
+    }
+
+    public static InteractionResult useSatchel(ServerLevel world, ServerPlayer player, ItemStack satchel) {
+        if (world == null || player == null || satchel == null || !satchel.is(ModItems.GUILD_COURIERS_SATCHEL)) {
+            return InteractionResult.FAIL;
+        }
+        ItemStack stored = satchel.getOrDefault(DataComponents.CONTAINER, ItemContainerContents.EMPTY).copyOne();
+        if (player.isShiftKeyDown()) {
+            if (stored.isEmpty()) {
+                player.sendSystemMessage(Component.translatable("message.village-quest.satchel.empty")
+                        .withStyle(ChatFormatting.GRAY), false);
+                return InteractionResult.FAIL;
+            }
+            satchel.set(DataComponents.CONTAINER, ItemContainerContents.EMPTY);
+            if (!player.getInventory().add(stored)) player.drop(stored, false, Prediction.SERVER_ONLY);
+            player.inventoryMenu.broadcastChanges();
+            player.sendSystemMessage(Component.translatable("message.village-quest.satchel.unpacked",
+                    stored.getCount(), stored.getHoverName()).withStyle(ChatFormatting.GREEN), false);
+            return InteractionResult.SUCCESS;
+        }
+        TradeContractType type = activeContract(world, player.getUUID());
+        if (type == null) {
+            player.sendSystemMessage(Component.translatable("message.village-quest.satchel.no_contract")
+                    .withStyle(ChatFormatting.RED), false);
+            return InteractionResult.FAIL;
+        }
+        if (!stored.isEmpty() && !stored.is(type.item())) {
+            player.sendSystemMessage(Component.translatable("message.village-quest.satchel.wrong_cargo",
+                    stored.getHoverName()).withStyle(ChatFormatting.RED), false);
+            return InteractionResult.FAIL;
+        }
+        int storedCount = stored.getCount();
+        int available = countLooseCargo(player, type.item());
+        int moved = Math.min(type.amount() - storedCount, available);
+        if (moved <= 0) {
+            player.sendSystemMessage(Component.translatable("message.village-quest.satchel.missing",
+                    type.amount() - storedCount, new ItemStack(type.item()).getHoverName())
+                    .withStyle(ChatFormatting.RED), false);
+            return InteractionResult.FAIL;
+        }
+        removeLooseCargo(player, type.item(), moved);
+        satchel.set(DataComponents.CONTAINER, ItemContainerContents.fromItems(
+                List.of(new ItemStack(type.item(), storedCount + moved))));
+        player.inventoryMenu.broadcastChanges();
+        player.sendSystemMessage(Component.translatable("message.village-quest.satchel.packed",
+                storedCount + moved, type.amount(), new ItemStack(type.item()).getHoverName())
+                .withStyle(ChatFormatting.GREEN), false);
+        return InteractionResult.SUCCESS;
+    }
+
+    public static void onRouteArrival(ServerLevel world, UUID ownerId, int routeIndex) {
+        if (world == null || ownerId == null) return;
+        PlayerQuestData data = data(world, ownerId);
+        TradeContractType type = activeContract(world, ownerId);
+        boolean suppliedFreight = type != null && !expired(data)
+                && data.hasTradeRouteFlag(CONTRACT_SUPPLIED)
+                && data.getTradeRouteInt(CONTRACT_ROUTE) == routeIndex + 1;
+        VillageBondService.recordRouteArrival(world, ownerId,
+                TradeRouteService.routeDestinationX(world, ownerId, routeIndex),
+                TradeRouteService.routeDestinationZ(world, ownerId, routeIndex),
+                suppliedFreight ? type.item() : null, suppliedFreight);
+        if (type == null) return;
+        if (expired(data)) {
+            failContract(world, ownerId);
+            return;
+        }
+        if (!data.hasTradeRouteFlag(CONTRACT_SUPPLIED) || data.getTradeRouteInt(CONTRACT_ROUTE) != routeIndex + 1) return;
+        double multiplier = distanceRewardMultiplier(TradeRouteService.routeEconomyDistanceBlocks(world, ownerId, routeIndex));
+        if (TradeRouteService.specialization(world, ownerId, routeIndex) == type.specialization()) multiplier += 0.25;
+        if (TradeRouteService.hasUpgrade(world, ownerId, routeIndex, TradeRouteUpgrade.TRADE_OFFICE)) multiplier += 0.25;
+        long reward = ProsperityService.applyCeremonyBonus(world, ownerId,
+                Math.max(type.reward(), (int) Math.round(type.reward() * multiplier)));
+        CurrencyService.addBalance(world, ownerId, reward);
+        ReputationService.add(world, ownerId, ReputationService.ReputationTrack.TRADE, 8 + guildRank(world, ownerId) * 2);
+        data.setTradeRouteInt(CONTRACTS_COMPLETED, data.getTradeRouteInt(CONTRACTS_COMPLETED) + 1);
+        clearContract(data);
+        QuestState.get(world.getServer()).setDirty();
+        ServerPlayer owner = world.getServer().getPlayerList().getPlayer(ownerId);
+        if (owner != null) {
+            owner.sendSystemMessage(Component.translatable("message.village-quest.trade_guild.contract_complete",
+                    type.title(), CurrencyService.formatDelta(reward)).withStyle(ChatFormatting.GREEN), false);
+        }
+    }
+
+    public static void onRouteRemoved(ServerLevel world, UUID ownerId, int removedRouteIndex) {
+        if (world == null || ownerId == null) return;
+        PlayerQuestData data = data(world, ownerId);
+        TradeContractType active = activeContract(world, ownerId);
+        if (active == null) return;
+        int assigned = data.getTradeRouteInt(CONTRACT_ROUTE) - 1;
+        if (assigned == removedRouteIndex) {
+            ServerPlayer owner = world.getServer().getPlayerList().getPlayer(ownerId);
+            if (owner != null && data.hasTradeRouteFlag(CONTRACT_SUPPLIED)) {
+                ItemStack returned = new ItemStack(active.item(), active.amount());
+                if (!owner.getInventory().add(returned)) owner.drop(returned, false, Prediction.SERVER_ONLY);
+                owner.inventoryMenu.broadcastChanges();
+            }
+            clearContract(data);
+            if (owner != null) owner.sendSystemMessage(Component.translatable(
+                    "message.village-quest.trade_guild.contract_route_removed").withStyle(ChatFormatting.RED), false);
+        } else if (assigned > removedRouteIndex) {
+            data.setTradeRouteInt(CONTRACT_ROUTE, assigned);
+        }
+        QuestState.get(world.getServer()).setDirty();
+    }
+
+    static double distanceRewardMultiplier(int economyDistanceBlocks) {
+        return 1.0 + Math.min(0.35, Math.max(0, economyDistanceBlocks) / 2000.0);
+    }
+
+    private static Component currentContractLine(ServerLevel world, UUID playerId) {
+        PlayerQuestData data = data(world, playerId);
+        TradeContractType type = activeContract(world, playerId);
+        if (type == null) return Component.translatable("message.village-quest.trade_guild.contract_none").withStyle(ChatFormatting.GRAY);
+        return Component.translatable("message.village-quest.trade_guild.contract_current",
+                type.title(), data.getTradeRouteInt(CONTRACT_ROUTE),
+                data.hasTradeRouteFlag(CONTRACT_SUPPLIED)
+                        ? Component.translatable("text.village-quest.trade_guild.loaded")
+                        : Component.translatable("text.village-quest.trade_guild.awaiting_cargo"),
+                data.getTradeRouteInt(CONTRACT_DUE_DAY) - (int) TimeUtil.currentDay())
+                .withStyle(ChatFormatting.GRAY);
+    }
+
+    private static TradeContractType activeContract(ServerLevel world, UUID playerId) {
+        int stored = data(world, playerId).getTradeRouteInt(CONTRACT_TYPE) - 1;
+        TradeContractType[] values = TradeContractType.values();
+        return stored >= 0 && stored < values.length ? values[stored] : null;
+    }
+
+    private static boolean expired(PlayerQuestData data) {
+        return data.getTradeRouteInt(CONTRACT_DUE_DAY) <= (int) TimeUtil.currentDay();
+    }
+
+    private static void expireIfNeeded(ServerLevel world, UUID playerId) {
+        if (activeContract(world, playerId) != null && expired(data(world, playerId))) {
+            failContract(world, playerId);
+        }
+    }
+
+    private static void failContract(ServerLevel world, UUID ownerId) {
+        PlayerQuestData data = data(world, ownerId);
+        clearContract(data);
+        QuestState.get(world.getServer()).setDirty();
+        ServerPlayer owner = world.getServer().getPlayerList().getPlayer(ownerId);
+        if (owner != null) owner.sendSystemMessage(Component.translatable("message.village-quest.trade_guild.contract_expired")
+                .withStyle(ChatFormatting.RED), false);
+    }
+
+    private static void clearContract(PlayerQuestData data) {
+        data.setTradeRouteInt(CONTRACT_TYPE, 0);
+        data.setTradeRouteInt(CONTRACT_ROUTE, 0);
+        data.setTradeRouteInt(CONTRACT_DUE_DAY, 0);
+        data.setTradeRouteFlag(CONTRACT_SUPPLIED, false);
+    }
+
+    private static boolean consume(ServerPlayer player, TradeContractType type) {
+        Inventory inventory = player.getInventory();
+        int total = 0;
+        for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
+            ItemStack stack = inventory.getItem(slot);
+            if (stack.is(type.item())) total += stack.getCount();
+            if (stack.is(ModItems.GUILD_COURIERS_SATCHEL)) {
+                ItemStack cargo = stack.getOrDefault(DataComponents.CONTAINER, ItemContainerContents.EMPTY).copyOne();
+                if (cargo.is(type.item())) total += cargo.getCount();
+            }
+        }
+        if (total < type.amount()) return false;
+        int remaining = type.amount();
+        for (int slot = 0; slot < inventory.getContainerSize() && remaining > 0; slot++) {
+            ItemStack satchel = inventory.getItem(slot);
+            if (!satchel.is(ModItems.GUILD_COURIERS_SATCHEL)) continue;
+            ItemStack cargo = satchel.getOrDefault(DataComponents.CONTAINER, ItemContainerContents.EMPTY).copyOne();
+            if (!cargo.is(type.item())) continue;
+            int removed = Math.min(remaining, cargo.getCount());
+            cargo.shrink(removed);
+            remaining -= removed;
+            satchel.set(DataComponents.CONTAINER, cargo.isEmpty() ? ItemContainerContents.EMPTY
+                    : ItemContainerContents.fromItems(List.of(cargo)));
+        }
+        for (int slot = 0; slot < inventory.getContainerSize() && remaining > 0; slot++) {
+            ItemStack stack = inventory.getItem(slot);
+            if (!stack.is(type.item())) continue;
+            int removed = Math.min(remaining, stack.getCount());
+            stack.shrink(removed);
+            remaining -= removed;
+        }
+        player.inventoryMenu.broadcastChanges();
+        return true;
+    }
+
+    private static int countLooseCargo(ServerPlayer player, net.minecraft.world.item.Item item) {
+        int count = 0;
+        Inventory inventory = player.getInventory();
+        for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
+            ItemStack stack = inventory.getItem(slot);
+            if (stack.is(item)) count += stack.getCount();
+        }
+        return count;
+    }
+
+    private static void removeLooseCargo(ServerPlayer player, net.minecraft.world.item.Item item, int amount) {
+        Inventory inventory = player.getInventory();
+        int remaining = amount;
+        for (int slot = 0; slot < inventory.getContainerSize() && remaining > 0; slot++) {
+            ItemStack stack = inventory.getItem(slot);
+            if (!stack.is(item)) continue;
+            int removed = Math.min(remaining, stack.getCount());
+            stack.shrink(removed);
+            remaining -= removed;
+        }
+    }
+}

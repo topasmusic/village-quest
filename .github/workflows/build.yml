@@ -27,7 +27,7 @@ jobs:
       - name: Validate resources and translations per supported line
         shell: bash
         run: |
-          for project in 26.2 26.1.2 1.21.11; do
+          for project in 26.3 26.2 26.1.2 1.21.11; do
             python3 tools/validate_resources.py --line "$project"
           done
 
@@ -38,6 +38,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - project: 26.3
+            java: 25
           - project: 26.2
             java: 25
           - project: 26.1.2

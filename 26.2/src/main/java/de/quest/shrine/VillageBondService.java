@@ -321,6 +321,10 @@ public final class VillageBondService {
         VillageNoticeBoardService.handleAction(player, payload);
     }
 
+    public static void handleNoticeJourneyAction(ServerPlayer player, VillageNetworkPayloads.NoticeJourneyActionPayload payload) {
+        VillageNoticeBoardService.handleJourneyAction(player, payload);
+    }
+
     public static InteractionResult useWayshrine(ServerLevel world, ServerPlayer player, BlockPos pos) {
         BlockState clickedState = world.getBlockState(pos);
         if (clickedState.is(ModBlocks.GUILD_WAYSHRINE)

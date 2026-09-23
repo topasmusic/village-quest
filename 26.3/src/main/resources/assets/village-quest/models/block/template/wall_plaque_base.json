@@ -1,0 +1,75 @@
+{
+  "textures": {
+    "wood": "minecraft:block/dark_oak_planks",
+    "particle": "minecraft:block/dark_oak_planks"
+  },
+  "elements": [
+    {
+      "from": [5.0, 0.75, 0.15],
+      "to": [11.0, 2.25, 0.95],
+      "faces": {
+        "north": { "texture": "#wood" },
+        "south": { "texture": "#wood" },
+        "east": { "texture": "#wood" },
+        "west": { "texture": "#wood" },
+        "up": { "texture": "#wood" },
+        "down": { "texture": "#wood" }
+      }
+    },
+    {
+      "from": [2.0, 2.25, 0.15],
+      "to": [14.0, 5.0, 0.95],
+      "faces": {
+        "north": { "texture": "#wood" },
+        "south": { "texture": "#wood" },
+        "east": { "texture": "#wood" },
+        "west": { "texture": "#wood" },
+        "up": { "texture": "#wood" },
+        "down": { "texture": "#wood" }
+      }
+    },
+    {
+      "from": [0.75, 5.0, 0.15],
+      "to": [15.25, 11.0, 0.95],
+      "faces": {
+        "north": { "texture": "#wood" },
+        "south": { "texture": "#wood" },
+        "east": { "texture": "#wood" },
+        "west": { "texture": "#wood" },
+        "up": { "texture": "#wood" },
+        "down": { "texture": "#wood" }
+      }
+    },
+    {
+      "from": [2.0, 11.0, 0.15],
+      "to": [14.0, 13.75, 0.95],
+      "faces": {
+        "north": { "texture": "#wood" },
+        "south": { "texture": "#wood" },
+        "east": { "texture": "#wood" },
+        "west": { "texture": "#wood" },
+        "up": { "texture": "#wood" },
+        "down": { "texture": "#wood" }
+      }
+    },
+    {
+      "from": [5.0, 13.75, 0.15],
+      "to": [11.0, 15.25, 0.95],
+      "faces": {
+        "north": { "texture": "#wood" },
+        "south": { "texture": "#wood" },
+        "east": { "texture": "#wood" },
+        "west": { "texture": "#wood" },
+        "up": { "texture": "#wood" },
+        "down": { "texture": "#wood" }
+      }
+    },
+    {
+      "from": [0.75, 0.75, 0.96],
+      "to": [15.25, 15.25, 1.05],
+      "faces": {
+        "south": { "texture": "#front", "uv": [0.0, 0.0, 16.0, 16.0] }
+      }
+    }
+  ]
+}

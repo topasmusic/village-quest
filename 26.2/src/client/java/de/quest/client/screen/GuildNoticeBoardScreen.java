@@ -59,11 +59,18 @@ public final class GuildNoticeBoardScreen extends CompatScreen {
     private static final int[] OFFER_CENTER_X = {120, 208, 298};
 
     private VillageNetworkPayloads.NoticeBoardPayload data;
+    private final VillageNetworkPayloads.NoticeJourneyPayload journey;
     private int selectedOfferId;
 
     public GuildNoticeBoardScreen(VillageNetworkPayloads.NoticeBoardPayload data) {
+        this(data, null);
+    }
+
+    public GuildNoticeBoardScreen(VillageNetworkPayloads.NoticeBoardPayload data,
+                                  VillageNetworkPayloads.NoticeJourneyPayload journey) {
         super(Component.translatable("screen.village-quest.notice_board.title"));
         this.data = data;
+        this.journey = journey;
         this.selectedOfferId = firstOffer().id();
     }
 
@@ -220,6 +227,11 @@ public final class GuildNoticeBoardScreen extends CompatScreen {
     }
 
     private void drawFooter(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
+        if (journey != null) {
+            VillageUiTheme.drawButton(graphics, font, left + 17, top + BUTTON_Y, 140, BUTTON_HEIGHT,
+                    Component.translatable("screen.village-quest.notice_journey.story_tab").getString(),
+                    true, within(mouseX, mouseY, left + 17, top + BUTTON_Y, 140, BUTTON_HEIGHT), false);
+        }
         boolean deliverHover = within(mouseX, mouseY,
                 left + DELIVER_X, top + BUTTON_Y, DELIVER_WIDTH, BUTTON_HEIGHT);
         boolean closeHover = within(mouseX, mouseY,
@@ -245,6 +257,13 @@ public final class GuildNoticeBoardScreen extends CompatScreen {
         int top = (height - HEIGHT) / 2;
         int mouseX = responsiveMouseX(click.x(), WIDTH, HEIGHT);
         int mouseY = responsiveMouseY(click.y(), WIDTH, HEIGHT);
+        if (journey != null && within(mouseX, mouseY, left + 17, top + BUTTON_Y, 140, BUTTON_HEIGHT)) {
+            minecraft.gui.setScreen(new NoticeJourneyScreen(journey));
+            if (!journey.preview()) ClientPlayNetworking.send(new VillageNetworkPayloads.NoticeJourneyActionPayload(
+                    journey.worldX(), journey.worldY(), journey.worldZ(),
+                    VillageNetworkPayloads.NoticeJourneyActionPayload.REFRESH));
+            return true;
+        }
         if (within(mouseX, mouseY,
                 left + DELIVER_X, top + BUTTON_Y, DELIVER_WIDTH, BUTTON_HEIGHT)
                 && data.requestAvailable() && selectedOffer().canDeliver()) {

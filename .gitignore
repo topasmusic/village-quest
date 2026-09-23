@@ -51,6 +51,10 @@
 /26.2/design/
 /26.2/tools/*
 !/26.2/tools/validate_resources.py
+/26.3/design/
+/26.3/logs/
+/26.3/tools/*
+!/26.3/tools/validate_resources.py
 /tools/__pycache__/
 /es_es.json
 /es_es. original.json

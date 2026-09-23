@@ -1,0 +1,203 @@
+package de.quest.content.weekly;
+
+import de.quest.quest.QuestCompletionMode;
+import de.quest.quest.weekly.WeeklyQuestCompletion;
+import de.quest.quest.weekly.WeeklyQuestDefinition;
+import de.quest.quest.weekly.WeeklyQuestKeys;
+import de.quest.quest.weekly.WeeklyQuestService;
+import de.quest.reputation.ReputationService;
+import de.quest.util.Texts;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+public final class SmithWeekWeeklyQuest implements WeeklyQuestDefinition {
+    @Override
+    public QuestCompletionMode completionMode() {
+        return QuestCompletionMode.QUESTMASTER_TURN_IN;
+    }
+
+    @Override
+    public WeeklyQuestService.WeeklyQuestType type() {
+        return WeeklyQuestService.WeeklyQuestType.SMITH_WEEK;
+    }
+
+    @Override
+    public Component title() {
+        return Component.translatable("quest.village-quest.weekly.smith.title");
+    }
+
+    @Override
+    public Component offerParagraph1() {
+        return Component.translatable("quest.village-quest.weekly.smith.offer.1").withStyle(ChatFormatting.GRAY);
+    }
+
+    @Override
+    public Component offerParagraph2() {
+        return Component.translatable("quest.village-quest.weekly.smith.offer.2").withStyle(ChatFormatting.GRAY);
+    }
+
+    @Override
+    public List<Component> progressLines(ServerLevel world, UUID playerId) {
+        if (!miningStageComplete(world, playerId)) {
+            return List.of(Component.translatable(
+                    "quest.village-quest.weekly.smith.stage.1",
+                    WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.SMITH_ORE),
+                    WeeklyQuestService.smithOreTarget(),
+                    WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.SMITH_GOLD_ORE),
+                    WeeklyQuestService.smithGoldOreTarget()
+            ).withStyle(ChatFormatting.GRAY));
+        }
+
+        int ironProgress = WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.SMITH_IRON);
+        int goldProgress = WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.SMITH_GOLD);
+        if (ironProgress < WeeklyQuestService.smithIronTarget() || goldProgress < WeeklyQuestService.smithGoldTarget()) {
+            return List.of(Component.translatable(
+                    "quest.village-quest.weekly.smith.stage.2",
+                    ironProgress,
+                    WeeklyQuestService.smithIronTarget(),
+                    goldProgress,
+                    WeeklyQuestService.smithGoldTarget()
+            ).withStyle(ChatFormatting.GRAY));
+        }
+
+        ServerPlayer player = world == null ? null : world.getServer().getPlayerList().getPlayer(playerId);
+        Component blocked = player == null ? null : claimBlockedMessage(world, player);
+        return List.of(blocked == null
+                ? Component.translatable("quest.village-quest.weekly.smith.stage.3").withStyle(ChatFormatting.GRAY)
+                : blocked);
+    }
+
+    @Override
+    public boolean isComplete(ServerLevel world, ServerPlayer player) {
+        UUID playerId = player.getUUID();
+        return WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.SMITH_ORE) >= WeeklyQuestService.smithOreTarget()
+                && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.SMITH_GOLD_ORE) >= WeeklyQuestService.smithGoldOreTarget()
+                && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.SMITH_IRON) >= WeeklyQuestService.smithIronTarget()
+                && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.SMITH_GOLD) >= WeeklyQuestService.smithGoldTarget()
+                && hasTurnInItems(player);
+    }
+
+    @Override
+    public WeeklyQuestCompletion buildCompletion() {
+        return WeeklyQuestService.buildCompletion(
+                title(),
+                Component.translatable("quest.village-quest.weekly.smith.completion.1").withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.weekly.smith.completion.2").withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.weekly.smith.completion.3").withStyle(ChatFormatting.GRAY),
+                WeeklyQuestService.reward(3, 0),
+                WeeklyQuestService.magicShardReward(1),
+                ItemStack.EMPTY,
+                16,
+                ReputationService.ReputationTrack.CRAFTING,
+                45
+        );
+    }
+
+    @Override
+    public boolean consumeCompletionRequirements(ServerLevel world, ServerPlayer player) {
+        if (!hasTurnInItems(player)) {
+            return false;
+        }
+        return WeeklyQuestService.consumeCompletionItemRequirements(
+                world,
+                player,
+                Map.of(
+                        Items.RAW_IRON, WeeklyQuestService.smithOreDeliveryTarget(),
+                        Items.RAW_GOLD, WeeklyQuestService.smithGoldOreDeliveryTarget(),
+                        Items.IRON_INGOT, WeeklyQuestService.smithIronTarget(),
+                        Items.GOLD_INGOT, WeeklyQuestService.smithGoldTarget()
+                )
+        );
+    }
+
+    @Override
+    public Component claimBlockedMessage(ServerLevel world, ServerPlayer player) {
+        if (player == null || world == null) {
+            return null;
+        }
+        UUID playerId = player.getUUID();
+        int oreTarget = WeeklyQuestService.smithOreTarget();
+        int goldOreTarget = WeeklyQuestService.smithGoldOreTarget();
+        int oreDeliveryTarget = WeeklyQuestService.smithOreDeliveryTarget();
+        int goldOreDeliveryTarget = WeeklyQuestService.smithGoldOreDeliveryTarget();
+        int ironTarget = WeeklyQuestService.smithIronTarget();
+        int goldTarget = WeeklyQuestService.smithGoldTarget();
+        if (WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.SMITH_ORE) < oreTarget
+                || WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.SMITH_GOLD_ORE) < goldOreTarget
+                || WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.SMITH_IRON) < ironTarget
+                || WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.SMITH_GOLD) < goldTarget
+                || hasTurnInItems(player)) {
+            return null;
+        }
+        return Texts.turnInMissing(
+                Items.RAW_IRON.getDefaultInstance().getDisplayName(),
+                WeeklyQuestService.countCompletionItem(world, player, Items.RAW_IRON),
+                oreDeliveryTarget,
+                Items.RAW_GOLD.getDefaultInstance().getDisplayName(),
+                WeeklyQuestService.countCompletionItem(world, player, Items.RAW_GOLD),
+                goldOreDeliveryTarget,
+                Items.IRON_INGOT.getDefaultInstance().getDisplayName(),
+                WeeklyQuestService.countCompletionItem(world, player, Items.IRON_INGOT),
+                ironTarget,
+                Items.GOLD_INGOT.getDefaultInstance().getDisplayName(),
+                WeeklyQuestService.countCompletionItem(world, player, Items.GOLD_INGOT),
+                goldTarget
+        );
+    }
+
+    @Override
+    public void onTrackedItemPickup(ServerLevel world, ServerPlayer player, ItemStack stack, int count) {
+        if (!WeeklyQuestService.isAcceptedThisWeek(world, player.getUUID()) || WeeklyQuestService.hasCompletedThisWeek(world, player.getUUID())) {
+            return;
+        }
+        if (!stack.is(Items.RAW_IRON) && !stack.is(Items.RAW_GOLD)) {
+            return;
+        }
+        if (stack.is(Items.RAW_IRON)) {
+            WeeklyQuestService.addQuestIntClamped(world, player.getUUID(), WeeklyQuestKeys.SMITH_ORE, count, WeeklyQuestService.smithOreTarget());
+        } else {
+            WeeklyQuestService.addQuestIntClamped(world, player.getUUID(), WeeklyQuestKeys.SMITH_GOLD_ORE, count, WeeklyQuestService.smithGoldOreTarget());
+        }
+        WeeklyQuestService.completeIfEligible(world, player);
+    }
+
+    @Override
+    public void onFurnaceOutput(ServerLevel world, ServerPlayer player, ItemStack stack) {
+        if (!WeeklyQuestService.isAcceptedThisWeek(world, player.getUUID()) || WeeklyQuestService.hasCompletedThisWeek(world, player.getUUID())) {
+            return;
+        }
+
+        UUID playerId = player.getUUID();
+        if (!miningStageComplete(world, playerId)) {
+            return;
+        }
+        if (stack.is(Items.IRON_INGOT)) {
+            WeeklyQuestService.addQuestIntClamped(world, playerId, WeeklyQuestKeys.SMITH_IRON, stack.getCount(), WeeklyQuestService.smithIronTarget());
+        } else if (stack.is(Items.GOLD_INGOT)) {
+            WeeklyQuestService.addQuestIntClamped(world, playerId, WeeklyQuestKeys.SMITH_GOLD, stack.getCount(), WeeklyQuestService.smithGoldTarget());
+        } else {
+            return;
+        }
+        WeeklyQuestService.completeIfEligible(world, player);
+    }
+
+    private boolean hasTurnInItems(ServerPlayer player) {
+        ServerLevel world = (ServerLevel) player.level();
+        return WeeklyQuestService.countCompletionItem(world, player, Items.RAW_IRON) >= WeeklyQuestService.smithOreDeliveryTarget()
+                && WeeklyQuestService.countCompletionItem(world, player, Items.RAW_GOLD) >= WeeklyQuestService.smithGoldOreDeliveryTarget()
+                && WeeklyQuestService.countCompletionItem(world, player, Items.IRON_INGOT) >= WeeklyQuestService.smithIronTarget()
+                && WeeklyQuestService.countCompletionItem(world, player, Items.GOLD_INGOT) >= WeeklyQuestService.smithGoldTarget();
+    }
+
+    private boolean miningStageComplete(ServerLevel world, UUID playerId) {
+        return WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.SMITH_ORE) >= WeeklyQuestService.smithOreTarget()
+                && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.SMITH_GOLD_ORE) >= WeeklyQuestService.smithGoldOreTarget();
+    }
+}
