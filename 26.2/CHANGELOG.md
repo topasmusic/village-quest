@@ -1,8 +1,8 @@
 # Changelog
 
-## 2.5.0
+## Withdrawn: 2.5.0
 
-Release date: 2026-10-04
+Released and withdrawn: 2026-10-04. Current stable release: 2.4.2.
 
 Village Quest 2.5 — Roads of Concord brings living caravan crews, village recovery and personal trust to the roads between your settlements.
 

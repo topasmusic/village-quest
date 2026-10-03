@@ -1,12 +1,12 @@
 # Village Quest Wiki
 
-Current stable release: `2.5.0` — Roads of Concord for Minecraft `26.2`, including caravan crews, village recovery, Dispatches, Afterstories, Convoys and personal trust.
+Current stable release: `2.4.2`. Version `2.5.0` was withdrawn on 2026-10-04. This development wiki also describes 2.5.0 systems that are not part of 2.4.2.
 
 The 2.3 release joins versioned village conditions, three-choice local requests, need-aware freight, repairable route consequences, renewable Wayshrine energy, Adventure Profiles, an optional multiplayer guild, Journal network guidance, and bounded prestige. It includes the complete save-compatible 2.2.1 quality and balance pass.
 
 Current published releases:
 
-- `2.5.0` for Minecraft `26.3` and `26.2`;
+- `2.4.2` for Minecraft `26.3` and `26.2`;
 - `2.1.1 - Homesteads & Wayfinding` for Minecraft `26.1.2` and `1.21.11`;
 - Minecraft `26.1.2` and `1.21.11` remain maintenance lines for confirmed bug, save-safety, exploit, and meaningful performance fixes rather than receiving content-parity builds.
 

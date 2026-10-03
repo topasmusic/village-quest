@@ -2,11 +2,11 @@
 
 `Village Quest` is a Fabric mod built around village progression. Take on daily and weekly work, build reputation, unlock story arcs and village projects, and later deal with the `Pilgrim` and the road beyond the village.
 
-Current stable release: `2.5.0` — Roads of Concord, including living caravan crews, village recovery, Regional Dispatches, Guild Convoys and personal trust.
+Current stable release: `2.4.2`. Version `2.5.0` was withdrawn on 2026-10-04; the source and descriptions below are retained for development.
 
 Minecraft `26.3` is the active line for future Village Quest content. Minecraft `26.2` remains available as a previous maintenance line.
 
-## Roads of Concord 2.5
+## Roads of Concord 2.5 (withdrawn development source)
 
 Village Quest 2.5 adds persistent named caravan crews with four visible
 roles and five route liveries, a compact Caravan Master view, route traders, and
