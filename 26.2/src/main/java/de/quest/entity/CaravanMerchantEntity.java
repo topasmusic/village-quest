@@ -1,5 +1,6 @@
 package de.quest.entity;
 
+import de.quest.caravan.CaravanRole;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -33,11 +34,14 @@ public final class CaravanMerchantEntity extends PathfinderMob {
             SynchedEntityData.defineId(CaravanMerchantEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Integer> LIVERY_INDEX =
             SynchedEntityData.defineId(CaravanMerchantEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> CREW_ROLE =
+            SynchedEntityData.defineId(CaravanMerchantEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Boolean> COURIER_ROLE =
+            SynchedEntityData.defineId(CaravanMerchantEntity.class, EntityDataSerializers.BOOLEAN);
 
     private int despawnTicks = DEFAULT_DESPAWN_TICKS;
     private int encounterControlTicks;
     private int defenseCooldownTicks;
-    private boolean courier;
     private boolean encounterGuard;
 
     public CaravanMerchantEntity(EntityType<? extends PathfinderMob> entityType, Level world) {
@@ -62,6 +66,8 @@ public final class CaravanMerchantEntity extends PathfinderMob {
         super.defineSynchedData(builder);
         builder.define(ROUTE_INDEX, 0);
         builder.define(LIVERY_INDEX, 0);
+        builder.define(CREW_ROLE, CaravanRole.MASTER.ordinal());
+        builder.define(COURIER_ROLE, false);
     }
 
     public static AttributeSupplier.Builder createAttributes() {
@@ -114,7 +120,8 @@ public final class CaravanMerchantEntity extends PathfinderMob {
     protected void addAdditionalSaveData(ValueOutput data) {
         super.addAdditionalSaveData(data);
         data.putInt("DespawnTicks", this.despawnTicks);
-        data.putBoolean("Courier", this.courier);
+        data.putBoolean("Courier", isCourier());
+        data.putInt("CrewRole", getCrewRole().ordinal());
         data.putInt("RouteIndex", getRouteIndex());
         data.putInt("LiveryIndex", getLiveryIndex());
     }
@@ -123,18 +130,27 @@ public final class CaravanMerchantEntity extends PathfinderMob {
     protected void readAdditionalSaveData(ValueInput data) {
         super.readAdditionalSaveData(data);
         this.despawnTicks = Math.max(0, data.getIntOr("DespawnTicks", DEFAULT_DESPAWN_TICKS));
-        this.courier = data.getBooleanOr("Courier", false);
+        setCourier(data.getBooleanOr("Courier", false));
+        setCrewRole(CaravanRole.byId(data.getIntOr("CrewRole", 0)));
         setRouteIndex(data.getIntOr("RouteIndex", 0));
         setLiveryIndex(data.getIntOr("LiveryIndex", getRouteIndex()));
     }
 
     public void setCourier(boolean courier) {
-        this.courier = courier;
+        this.entityData.set(COURIER_ROLE, courier);
         updateHeldItemState();
     }
 
     public boolean isCourier() {
-        return this.courier;
+        return this.entityData.get(COURIER_ROLE);
+    }
+
+    public CaravanRole getCrewRole() {
+        return CaravanRole.byId(this.entityData.get(CREW_ROLE));
+    }
+
+    public void setCrewRole(CaravanRole role) {
+        this.entityData.set(CREW_ROLE, role == null ? CaravanRole.MASTER.ordinal() : role.ordinal());
     }
 
     public int getRouteIndex() {
@@ -183,11 +199,11 @@ public final class CaravanMerchantEntity extends PathfinderMob {
     }
 
     private boolean isEncounterGuardActive() {
-        return this.encounterGuard && this.encounterControlTicks > 0 && !this.courier;
+        return this.encounterGuard && this.encounterControlTicks > 0 && !isCourier();
     }
 
     private void updateHeldItemState() {
-        if (this.courier) {
+        if (isCourier()) {
             setHeldItem(Items.PAPER);
             return;
         }

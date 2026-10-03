@@ -2,7 +2,7 @@ Village Quest Licensing Notice
 
 Effective for Village Quest 2.0.0 and later releases that include this notice.
 
-Copyright (c) 2026 Raphael Huschin
+Copyright (c) 2026 Raphael Huschin (TopasMusic)
 
 Village Quest is distributed as a mixed-license package. Different parts of the
 project are governed by different terms. No license named in this notice grants
@@ -32,7 +32,13 @@ original textures, models, animations, sounds, music, written dialogue, quest
 prose, characters, artwork, logos, promotional material, user-interface art,
 and other creative assets created specifically for Village Quest are:
 
-Copyright (c) 2026 Raphael Huschin. All Rights Reserved.
+Copyright (c) 2026 Raphael Huschin (TopasMusic). All Rights Reserved.
+
+On the Minecraft 26.3 line, this includes all 23 active Roads of Concord
+entity skins: 20 caravan role skins and the Pilgrim, Questmaster, and Traitor
+skins. Their head artwork was created by TopasMusic, and their 2.5 clothing
+was authored for Village Quest. The maintainer confirmed the head authorship
+on 2026-09-24; the asset inventory is in THIRD_PARTY_ASSETS.md.
 
 This reservation applies only to the extent that the material is protected by
 applicable law and the stated copyright holder owns the relevant rights. It does
@@ -82,9 +88,6 @@ THIRD_PARTY_ASSETS.md. General software and dependency notices are documented in
 THIRD_PARTY_NOTICES.md. Inclusion in Village Quest does not transfer ownership,
 does not place that material under the LGPL, and does not grant permission to
 reuse it separately.
-
-An entry marked "unknown" or "unresolved" records missing provenance only. It
-is not a license, permission, or representation that redistribution is lawful.
 
 6. Name and branding
 

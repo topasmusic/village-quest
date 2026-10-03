@@ -749,7 +749,7 @@ public final class QuestMasterUiService {
         }
 
         StoryChapterCompletion completion = chapter.buildCompletion();
-        List<Component> description = appendQuestEcho(world, playerId, List.of(chapter.offerParagraph1(), chapter.offerParagraph2()), completion.reputationTrack());
+        List<Component> description = appendQuestEcho(world, playerId, chapter.descriptionLines(), completion.reputationTrack());
         List<Component> objectives = new ArrayList<>(chapter.progressLines(world, playerId));
         ActionSpec primary = ActionSpec.NONE;
         ActionSpec secondary = ActionSpec.NONE;
@@ -1948,5 +1948,3 @@ public final class QuestMasterUiService {
         ServerPlayNetworking.send(player, payload);
     }
 }
-
-

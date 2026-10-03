@@ -544,7 +544,7 @@ public final class StoryQuestService {
                     deliverCompletion(world, recipient, completion);
                     chapter.onClaimed(world, recipient);
                 }
-                finishChapterProgress(world, recipientId, arcType, chapterIndex);
+                finishChapterProgress(world, recipientId, arcType, chapterIndex, false);
             }
             QuestPartyService.clearStorySessionIfFinished(world, player.getUUID(), arcType, chapterIndex);
             return !recipients.isEmpty();
@@ -552,7 +552,7 @@ public final class StoryQuestService {
 
         deliverCompletion(world, player, completion);
         chapter.onClaimed(world, player);
-        finishChapterProgress(world, player.getUUID(), arcType, chapterIndex);
+        finishChapterProgress(world, player.getUUID(), arcType, chapterIndex, false);
         return true;
     }
 
@@ -941,6 +941,11 @@ public final class StoryQuestService {
     }
 
     private static void finishChapterProgress(ServerLevel world, UUID playerId, StoryArcType arcType, int chapterIndex) {
+        finishChapterProgress(world, playerId, arcType, chapterIndex, true);
+    }
+
+    private static void finishChapterProgress(ServerLevel world, UUID playerId, StoryArcType arcType, int chapterIndex,
+                                              boolean awardTrust) {
         if (world == null || playerId == null || arcType == null) {
             return;
         }
@@ -952,6 +957,9 @@ public final class StoryQuestService {
         boolean completedArc = nextChapter >= definition(arcType).chapterCount();
         if (completedArc) {
             data.setStoryCompleted(arcType.id(), true);
+            if (awardTrust) de.quest.reputation.SocialReputationService.recordNamedBenefit(world.getServer(), playerId,
+                    de.quest.reputation.SocialReputationRules.BenefitKind.STORY,
+                    "arc:" + arcType.id(), java.util.List.of());
         }
         QuestState.get(world.getServer()).setDirty();
         ServerPlayer player = world.getServer().getPlayerList().getPlayer(playerId);

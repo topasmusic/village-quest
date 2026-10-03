@@ -30,6 +30,10 @@ jobs:
           for project in 26.3 26.2 26.1.2 1.21.11; do
             python3 tools/validate_resources.py --line "$project"
           done
+      - name: Validate documentation paths, navigation and Stable declarations
+        run: |
+          python3 tools/tests/test_validate_docs.py
+          python3 tools/validate_docs.py
 
   build:
     needs: validate

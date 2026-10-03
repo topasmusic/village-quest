@@ -17,6 +17,9 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.rendering.v1.BlockEntityRendererRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.ModelLayerRegistry;
 import net.minecraft.client.renderer.entity.EntityRenderers;
+import net.minecraft.client.renderer.entity.DonkeyRenderer;
+import net.minecraft.client.model.geom.ModelLayers;
+import net.minecraft.client.resources.model.EquipmentClientInfo;
 
 public class VillageQuestClient implements ClientModInitializer {
     @Override
@@ -42,6 +45,9 @@ public class VillageQuestClient implements ClientModInitializer {
         EntityRenderers.register(ModEntities.PILGRIM, PilgrimEntityRenderer::new);
         EntityRenderers.register(ModEntities.QUEST_MASTER, QuestMasterEntityRenderer::new);
         EntityRenderers.register(ModEntities.CARAVAN_MERCHANT, CaravanMerchantEntityRenderer::new);
+        EntityRenderers.register(ModEntities.CARAVAN_PACK_MULE, context -> new DonkeyRenderer<>(
+                context, EquipmentClientInfo.LayerType.MULE_SADDLE, ModelLayers.MULE_SADDLE,
+                DonkeyRenderer.Type.MULE, DonkeyRenderer.Type.MULE_BABY));
         EntityRenderers.register(ModEntities.TRAITOR, TraitorEntityRenderer::new);
         BlockEntityRendererRegistry.register(ModBlockEntities.GUILD_WAYSHRINE, WayshrineCrystalRenderer::new);
         ClientQuestNetworking.register();

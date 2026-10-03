@@ -14,7 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.minecraft.client.gui.GuiGraphics;
+import de.quest.client.compat.GuiGraphics;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -241,6 +241,44 @@ public class JournalScreen extends CompatScreen {
         this.data = data;
     }
 
+    private int networkPage;
+    private de.quest.reputation.ReputationViewService.View reputation;
+    public void updateReputation(de.quest.reputation.ReputationViewService.View view) {
+        if (reputation != null && view.revision() < reputation.revision()) return;
+        reputation = view; clampScroll();
+    }
+    private int contentTop() { return section == Section.NETWORK ? 62 : CONTENT_TOP; }
+
+    private void drawNetworkTabs(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
+        String[] keys = {"villages", "title", "history"};
+        for (int i = 0; i < 3; i++) {
+            int x = left + 81 + i * 80;
+            VillageUiTheme.drawButton(graphics, font, x, top + 40, 77, 16,
+                    compact(ReputationPanel.text(keys[i]).getString(), 69, 0.7f), true,
+                    within(mouseX, mouseY, x, top + 40, 77, 16), networkPage == i);
+        }
+        if (networkPage == 1 && reputation != null && reputation.villageTotal() > 8) {
+            VillageUiTheme.drawButton(graphics, font, left + 326, top + 40, 24, 16, "<",
+                    reputation.villagePage() > 0, within(mouseX, mouseY, left + 326, top + 40, 24, 16), false);
+            VillageUiTheme.drawButton(graphics, font, left + 355, top + 40, 24, 16, ">",
+                    (reputation.villagePage() + 1) * 8 < reputation.villageTotal(), within(mouseX, mouseY, left + 355, top + 40, 24, 16), false);
+        }
+    }
+    private boolean handleNetworkTab(int mouseX, int mouseY, int left, int top) {
+        for (int i = 0; i < 3; i++) if (within(mouseX, mouseY, left + 81 + i * 80, top + 40, 77, 16)) {
+            networkPage = i; scrollOffset = 0; expandedCardId = ""; ensureExpandedCard(); playClick(); return true;
+        }
+        if (networkPage == 1 && reputation != null) {
+            int page = reputation.villagePage();
+            if (page > 0 && within(mouseX, mouseY, left + 326, top + 40, 24, 16)) page--;
+            if ((page + 1) * 8 < reputation.villageTotal() && within(mouseX, mouseY, left + 355, top + 40, 24, 16)) page++;
+            if (page != reputation.villagePage()) {
+                ClientPlayNetworking.send(new de.quest.network.ReputationPayloads.PagePayload(page)); scrollOffset = 0; return true;
+            }
+        }
+        return false;
+    }
+
     public void updateData(JournalScreenData data) {
         this.data = data;
         clampScroll();
@@ -267,6 +305,10 @@ public class JournalScreen extends CompatScreen {
 
     @Override
     public boolean keyPressed(KeyEvent key) {
+        if (section == Section.NETWORK && (key.key() == InputConstants.KEY_LEFT || key.key() == InputConstants.KEY_RIGHT)) {
+            networkPage = Math.floorMod(networkPage + (key.key() == InputConstants.KEY_RIGHT ? 1 : -1), 3);
+            scrollOffset = 0; expandedCardId = ""; ensureExpandedCard(); return true;
+        }
         if (this.minecraft != null && this.minecraft.options.keyInventory.matches(key)) {
             onClose();
             return true;
@@ -299,6 +341,7 @@ public class JournalScreen extends CompatScreen {
                 drawJournalBackground(graphics, left, top);
                 drawHeader(graphics, left, top);
                 drawTabs(graphics, left, top, uiMouseX, uiMouseY);
+                if (section == Section.NETWORK) drawNetworkTabs(graphics, left, top, uiMouseX, uiMouseY);
                 drawCards(graphics, left, top, uiMouseX, uiMouseY);
                 drawFooterButtons(graphics, left, top, uiMouseX, uiMouseY);
             }
@@ -324,7 +367,7 @@ public class JournalScreen extends CompatScreen {
         graphics.drawString(font, titleText, left + (WINDOW_WIDTH - font.width(titleText)) / 2,
                 top + 14, INK, false);
         String sectionText = Component.translatable(section.key).getString();
-        graphics.drawString(font, sectionText, left + CONTENT_X + 7, top + CONTENT_Y + 3, GOLD, false);
+        if (section != Section.NETWORK) graphics.drawString(font, sectionText, left + CONTENT_X + 7, top + CONTENT_Y + 3, GOLD, false);
         VillageUiTheme.drawWalletStrip(graphics, font, left, top, WINDOW_WIDTH, data.currencyBalance,
                 HEADER_WALLET_RIGHT_INSET, HEADER_WALLET_TOP);
     }
@@ -903,10 +946,10 @@ public class JournalScreen extends CompatScreen {
     private void drawCards(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
         List<JournalCard> cards = cardsForSection();
         int viewportX = left + CONTENT_X + 5;
-        int viewportY = top + CONTENT_TOP;
+        int viewportY = top + contentTop();
         int viewportWidth = CONTENT_WIDTH - 10;
         int cardWidth = viewportWidth - 5;
-        int viewportHeight = CONTENT_BOTTOM - CONTENT_TOP;
+        int viewportHeight = CONTENT_BOTTOM - contentTop();
         int contentHeight = contentHeight(cards, cardWidth);
         scrollMax = Math.max(0, contentHeight - viewportHeight);
         clampScroll();
@@ -944,10 +987,20 @@ public class JournalScreen extends CompatScreen {
                     x + cardWidth - 38, y + 5, 15, 15, 24, 24);
         }
 
+        boolean socialGuild = card.id().equals("social_guild") && reputation != null;
+        if (socialGuild) {
+            int barX = x + CARD_TEXT_INSET, barY = y + 30, barWidth = cardWidth - CARD_TEXT_INSET - 18;
+            graphics.fill(barX, barY, barX + barWidth, barY + 4, FRAME_DARK);
+            int trust = reputation.guildTrust();
+            graphics.fill(barX, barY, barX + ReputationPanel.progressPixels(trust, barWidth), barY + 4, TEAL);
+            VillageUiTheme.drawStringScaled(graphics, font, Integer.toString(ReputationPanel.progressFloor(trust)), barX, barY + 6, BODY, 0.6f);
+            String target = Integer.toString(ReputationPanel.progressTarget(trust));
+            VillageUiTheme.drawStringScaled(graphics, font, target, barX + barWidth - Math.round(font.width(target) * 0.6f), barY + 6, BODY, 0.6f);
+        }
         if (!expanded) {
             return;
         }
-        int lineY = y + CARD_COLLAPSED_HEIGHT;
+        int lineY = y + CARD_COLLAPSED_HEIGHT + (socialGuild ? 17 : 0);
         ReputationService.ReputationTrack reputationTrack = reputationTrack(card);
         if (reputationTrack != null) {
             ReputationProgress progress = reputationProgress(reputationTrack);
@@ -1036,6 +1089,8 @@ public class JournalScreen extends CompatScreen {
                     || super.mouseClicked(click, doubled);
         }
 
+        if (section == Section.NETWORK && handleNetworkTab(mouseX, mouseY, left, top)) return true;
+
         int doneX = left + WINDOW_WIDTH - FOOTER_RIGHT_INSET - DONE_BUTTON_WIDTH;
         int questMasterX = doneX - 84;
         int prosperityX = questMasterX - 74;
@@ -1061,16 +1116,17 @@ public class JournalScreen extends CompatScreen {
         List<JournalCard> cards = cardsForSection();
         int cardX = left + CONTENT_X + 5;
         int cardWidth = CONTENT_WIDTH - 15;
-        int y = top + CONTENT_TOP - scrollOffset;
+        int y = top + contentTop() - scrollOffset;
         for (JournalCard card : cards) {
             int height = cardHeight(card, cardWidth);
-            if (within(mouseX, mouseY, cardX, y, cardWidth, height)) {
+            if (mouseY >= top + contentTop() && mouseY < top + CONTENT_BOTTOM && within(mouseX, mouseY, cardX, y, cardWidth, height)) {
                 if (card.cancelAction() >= 0
                         && within(mouseX, mouseY, cardX + cardWidth - 40, y + 3, 18, 19)) {
                     ClientPlayNetworking.send(new JournalActionPayload(card.cancelAction()));
                     playClick();
                     return true;
                 }
+                if (card.id().equals("social_recent")) { networkPage = 2; scrollOffset = 0; ensureExpandedCard(); playPageTurn(); return true; }
                 expandedCardId = card.id().equals(expandedCardId) ? "" : card.id();
                 clampScroll();
                 playPageTurn();
@@ -1171,7 +1227,7 @@ public class JournalScreen extends CompatScreen {
         int uiMouseX = responsiveMouseX(mouseX, WINDOW_WIDTH, WINDOW_HEIGHT);
         int uiMouseY = responsiveMouseY(mouseY, WINDOW_WIDTH, WINDOW_HEIGHT);
         if (scrollMax > 0 && within(uiMouseX, uiMouseY,
-                left + CONTENT_X, top + CONTENT_TOP, CONTENT_WIDTH, CONTENT_BOTTOM - CONTENT_TOP)) {
+                left + CONTENT_X, top + contentTop(), CONTENT_WIDTH, CONTENT_BOTTOM - contentTop())) {
             scrollOffset -= (int) Math.signum(verticalAmount) * 22;
             clampScroll();
             return true;
@@ -1184,7 +1240,7 @@ public class JournalScreen extends CompatScreen {
         return switch (section) {
             case OVERVIEW -> content.overviewCards();
             case QUESTS -> content.activeQuestCards();
-            case NETWORK -> content.networkCards();
+            case NETWORK -> networkPage == 0 ? content.networkCards() : networkPage == 1 ? ReputationPanel.trustCards(reputation) : ReputationPanel.historyCards(reputation);
             case ATLAS -> List.of();
             case GUIDE -> content.guideCards();
         };
@@ -1388,11 +1444,12 @@ public class JournalScreen extends CompatScreen {
     }
 
     private int cardHeight(JournalCard card, int width) {
+        int socialExtra = card.id().equals("social_guild") ? 17 : 0;
         if (!card.id().equals(expandedCardId)) {
-            return CARD_COLLAPSED_HEIGHT;
+            return CARD_COLLAPSED_HEIGHT + socialExtra;
         }
         int extra = reputationTrack(card) == null ? 6 : REPUTATION_PROGRESS_HEIGHT + 4;
-        return CARD_COLLAPSED_HEIGHT + extra + compactDetails(card, width).size() * CARD_DETAIL_STEP;
+        return CARD_COLLAPSED_HEIGHT + socialExtra + extra + compactDetails(card, width).size() * CARD_DETAIL_STEP;
     }
 
     private List<String> compactDetails(JournalCard card, int cardWidth) {

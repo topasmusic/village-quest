@@ -6,6 +6,7 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import de.quest.config.VillageQuestServerConfig;
+import de.quest.caravan.GuildConvoyService;
 import de.quest.guild.VillageGuildProject;
 import de.quest.guild.VillageGuildService;
 import de.quest.guildtown.GuildTownCommission;
@@ -129,7 +130,12 @@ final class VillageNetworkCommands {
                         .then(literal("contribute").executes(ctx -> contributeSharedProject(ctx.getSource())))
                         .then(literal("claim").executes(ctx -> claimSharedProject(ctx.getSource()))))
                 .then(literal("concord")
-                        .then(literal("claim").executes(ctx -> claimConcord(ctx.getSource()))));
+                        .then(literal("claim").executes(ctx -> claimConcord(ctx.getSource()))))
+                .then(literal("convoy")
+                        .executes(ctx -> convoy(ctx.getSource(), 0))
+                        .then(literal("status").executes(ctx -> convoy(ctx.getSource(), 0)))
+                        .then(literal("start").executes(ctx -> convoy(ctx.getSource(), 1)))
+                        .then(literal("join").executes(ctx -> convoy(ctx.getSource(), 2))));
     }
 
     private static NameAndId profile(com.mojang.brigadier.context.CommandContext<CommandSourceStack> context,
@@ -216,6 +222,16 @@ final class VillageNetworkCommands {
     private static int claimConcord(CommandSourceStack source) {
         ServerPlayer player = source.getPlayer();
         return player == null ? 0 : GuildTownService.claimConcord((ServerLevel) player.level(), player);
+    }
+
+    private static int convoy(CommandSourceStack source, int action) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null || !(player.level() instanceof ServerLevel world)) return 0;
+        return switch (action) {
+            case 1 -> GuildConvoyService.start(world, player);
+            case 2 -> GuildConvoyService.join(world, player);
+            default -> GuildConvoyService.status(world, player);
+        };
     }
 
     private static int retrofit(CommandSourceStack source) {

@@ -5,7 +5,7 @@ import de.quest.client.ui.InventoryJournalCompat;
 import de.quest.client.ui.InventoryJournalTutorialState;
 import de.quest.client.ui.TutorialHintRenderer;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import de.quest.client.compat.GuiGraphics;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;

@@ -20,6 +20,8 @@ public interface StoryChapterDefinition {
 
     Component offerParagraph2();
 
+    default List<Component> descriptionLines() { return List.of(offerParagraph1(), offerParagraph2()); }
+
     List<Component> progressLines(ServerLevel world, UUID playerId);
 
     boolean isComplete(ServerLevel world, ServerPlayer player);

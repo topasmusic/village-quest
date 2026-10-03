@@ -574,38 +574,6 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
             }
         }
 
-        private void recoverMissedBookPurchases(ServerLevel world, ServerPlayer player) {
-            UUID playerId = player.getUUID();
-            if (bookProgressCount(world, playerId) >= MASTER_BOOK_FAMILIES_TARGET) {
-                return;
-            }
-            for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
-                ItemStack stack = player.getInventory().getItem(slot);
-                if (stack.is(Items.ENCHANTED_BOOK)) {
-                    recordRequiredBook(world, playerId, stack);
-                }
-            }
-            StoryQuestService.setQuestInt(world, playerId, StoryQuestKeys.SILENT_FORGE_BOOK_MIGRATION, 1);
-        }
-
-        private int armorCraftedCount(ServerLevel world, UUID playerId) {
-            int total = 0;
-            total += Math.min(1, progress(world, playerId, StoryQuestKeys.SILENT_FORGE_MASTER_HELM_CRAFTED));
-            total += Math.min(1, progress(world, playerId, StoryQuestKeys.SILENT_FORGE_MASTER_CHEST_CRAFTED));
-            total += Math.min(1, progress(world, playerId, StoryQuestKeys.SILENT_FORGE_MASTER_LEGS_CRAFTED));
-            total += Math.min(1, progress(world, playerId, StoryQuestKeys.SILENT_FORGE_MASTER_BOOTS_CRAFTED));
-            return total;
-        }
-
-        private int armorEnchantedCount(ServerLevel world, UUID playerId) {
-            int total = 0;
-            total += Math.min(1, progress(world, playerId, StoryQuestKeys.SILENT_FORGE_MASTER_HELM));
-            total += Math.min(1, progress(world, playerId, StoryQuestKeys.SILENT_FORGE_MASTER_CHEST));
-            total += Math.min(1, progress(world, playerId, StoryQuestKeys.SILENT_FORGE_MASTER_LEGS));
-            total += Math.min(1, progress(world, playerId, StoryQuestKeys.SILENT_FORGE_MASTER_BOOTS));
-            return total;
-        }
-
         private boolean hasProtectionEnchantment(ServerLevel world, ItemStack stack) {
             return hasEnchantment(world, stack, Enchantments.FIRE_PROTECTION)
                     || hasEnchantment(world, stack, Enchantments.PROTECTION)
@@ -647,24 +615,6 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
             return total;
         }
 
-        private void migrateLegacyCraftProgress(ServerLevel world, UUID playerId) {
-            if (progress(world, playerId, StoryQuestKeys.SILENT_FORGE_MASTER_HELM) >= 1) {
-                StoryQuestService.setQuestInt(world, playerId, StoryQuestKeys.SILENT_FORGE_MASTER_HELM_CRAFTED, 1);
-            }
-            if (progress(world, playerId, StoryQuestKeys.SILENT_FORGE_MASTER_CHEST) >= 1) {
-                StoryQuestService.setQuestInt(world, playerId, StoryQuestKeys.SILENT_FORGE_MASTER_CHEST_CRAFTED, 1);
-            }
-            if (progress(world, playerId, StoryQuestKeys.SILENT_FORGE_MASTER_LEGS) >= 1) {
-                StoryQuestService.setQuestInt(world, playerId, StoryQuestKeys.SILENT_FORGE_MASTER_LEGS_CRAFTED, 1);
-            }
-            if (progress(world, playerId, StoryQuestKeys.SILENT_FORGE_MASTER_BOOTS) >= 1) {
-                StoryQuestService.setQuestInt(world, playerId, StoryQuestKeys.SILENT_FORGE_MASTER_BOOTS_CRAFTED, 1);
-            }
-            if (progress(world, playerId, StoryQuestKeys.SILENT_FORGE_MASTER_EDGE) >= 1) {
-                StoryQuestService.setQuestInt(world, playerId, StoryQuestKeys.SILENT_FORGE_MASTER_EDGE_CRAFTED, 1);
-            }
-        }
-
         @Override
         public Component title() {
             return Component.translatable("quest.village-quest.story.silent_forge.chapter_4.title");
@@ -681,101 +631,50 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
         }
 
         @Override
-        public void onAccepted(ServerLevel world, ServerPlayer player) {
-            recoverMissedBookPurchases(world, player);
+        public List<Component> descriptionLines() {
+            return List.of(offerParagraph1(), offerParagraph2(),
+                    Component.translatable("quest.village-quest.story.silent_forge.chapter_4.hint")
+                            .withStyle(ChatFormatting.GRAY));
         }
 
         @Override
         public void onServerTick(ServerLevel world, ServerPlayer player) {
-            UUID playerId = player.getUUID();
-            recoverMissedBookPurchases(world, player);
-            if (bookProgressCount(world, playerId) < MASTER_BOOK_FAMILIES_TARGET) {
-                return;
+            if (bookProgressCount(world, player.getUUID()) >= MASTER_BOOK_FAMILIES_TARGET) {
+                StoryQuestService.completeIfEligible(world, player);
             }
+        }
 
-            migrateLegacyCraftProgress(world, playerId);
-            updateCraftProgress(world, player, StoryQuestKeys.SILENT_FORGE_MASTER_HELM_BASELINE, StoryQuestKeys.SILENT_FORGE_MASTER_HELM_CRAFTED, Items.IRON_HELMET, 1);
-            updateCraftProgress(world, player, StoryQuestKeys.SILENT_FORGE_MASTER_CHEST_BASELINE, StoryQuestKeys.SILENT_FORGE_MASTER_CHEST_CRAFTED, Items.IRON_CHESTPLATE, 1);
-            updateCraftProgress(world, player, StoryQuestKeys.SILENT_FORGE_MASTER_LEGS_BASELINE, StoryQuestKeys.SILENT_FORGE_MASTER_LEGS_CRAFTED, Items.IRON_LEGGINGS, 1);
-            updateCraftProgress(world, player, StoryQuestKeys.SILENT_FORGE_MASTER_BOOTS_BASELINE, StoryQuestKeys.SILENT_FORGE_MASTER_BOOTS_CRAFTED, Items.IRON_BOOTS, 1);
-            if (armorCraftedCount(world, playerId) < 4 || armorEnchantedCount(world, playerId) < 4) {
-                return;
-            }
-
-            updateCraftProgress(world, player, StoryQuestKeys.SILENT_FORGE_MASTER_EDGE_BASELINE, StoryQuestKeys.SILENT_FORGE_MASTER_EDGE_CRAFTED, Items.DIAMOND_SWORD, 1);
-            if (progress(world, playerId, StoryQuestKeys.SILENT_FORGE_MASTER_EDGE_CRAFTED) < 1
-                    || progress(world, playerId, StoryQuestKeys.SILENT_FORGE_MASTER_EDGE) < 1) {
-                return;
-            }
-
-            StoryQuestService.completeIfEligible(world, player);
+        private Component equipmentProgressLine(ServerLevel world, UUID playerId, Item item, String suffix) {
+            boolean present = countCarried(world, playerId, item) >= 1;
+            return Component.translatable("quest.village-quest.story.silent_forge.chapter_4.progress." + suffix,
+                    present ? "\u2713" : "\u2014").withStyle(present ? ChatFormatting.GREEN : ChatFormatting.GRAY);
         }
 
         @Override
         public List<Component> progressLines(ServerLevel world, UUID playerId) {
-            int books = bookProgressCount(world, playerId);
-            if (books < MASTER_BOOK_FAMILIES_TARGET) {
-                return List.of(Component.translatable(
-                        "quest.village-quest.story.silent_forge.chapter_4.progress.1",
-                        books,
-                        MASTER_BOOK_FAMILIES_TARGET
-                ).withStyle(ChatFormatting.GRAY));
-            }
-
-            int armorCrafted = armorCraftedCount(world, playerId);
-            if (armorCrafted < 4) {
-                return List.of(Component.translatable(
-                        "quest.village-quest.story.silent_forge.chapter_4.progress.2",
-                        armorCrafted,
-                        4
-                ).withStyle(ChatFormatting.GRAY));
-            }
-
-            int armorEnchanted = armorEnchantedCount(world, playerId);
-            if (armorEnchanted < 4) {
-                return List.of(Component.translatable(
-                        "quest.village-quest.story.silent_forge.chapter_4.progress.3",
-                        armorEnchanted,
-                        4
-                ).withStyle(ChatFormatting.GRAY));
-            }
-
-            int swordCrafted = Math.min(1, progress(world, playerId, StoryQuestKeys.SILENT_FORGE_MASTER_EDGE_CRAFTED));
-            if (swordCrafted < 1) {
-                return List.of(Component.translatable(
-                        "quest.village-quest.story.silent_forge.chapter_4.progress.4",
-                        swordCrafted,
-                        1
-                ).withStyle(ChatFormatting.GRAY));
-            }
-
-            int swordEnchanted = Math.min(1, progress(world, playerId, StoryQuestKeys.SILENT_FORGE_MASTER_EDGE));
-            if (swordEnchanted < 1) {
-                return List.of(Component.translatable(
-                        "quest.village-quest.story.silent_forge.chapter_4.progress.5",
-                        swordEnchanted,
-                        1
-                ).withStyle(ChatFormatting.GRAY));
-            }
-
-            ServerPlayer player = world.getServer().getPlayerList().getPlayer(playerId);
-            Component carried = Component.translatable(
-                    "quest.village-quest.story.silent_forge.chapter_4.progress.6",
-                    player == null ? 0 : carriedPieceCount(player, world),
-                    5
-            ).withStyle(ChatFormatting.GRAY);
-            Component blocked = player == null ? null : claimBlockedMessage(world, player);
-            return blocked == null ? List.of(carried) : List.of(carried, blocked);
+            int sharpness = Math.min(1, progress(world, playerId, StoryQuestKeys.SILENT_FORGE_SHARPNESS_BOOK));
+            int protection = bookProgressCount(world, playerId) - sharpness;
+            return List.of(
+                    Component.translatable("quest.village-quest.story.silent_forge.chapter_4.progress.books")
+                            .withStyle(ChatFormatting.GOLD),
+                    Component.translatable("quest.village-quest.story.silent_forge.chapter_4.progress.1", sharpness, 1)
+                            .withStyle(ChatFormatting.GRAY),
+                    Component.translatable("quest.village-quest.story.silent_forge.chapter_4.progress.2", protection, 1)
+                            .withStyle(ChatFormatting.GRAY),
+                    Component.translatable("quest.village-quest.story.silent_forge.chapter_4.progress.equipment")
+                            .withStyle(ChatFormatting.GOLD),
+                    equipmentProgressLine(world, playerId, Items.IRON_HELMET, "helmet"),
+                    equipmentProgressLine(world, playerId, Items.IRON_CHESTPLATE, "chestplate"),
+                    equipmentProgressLine(world, playerId, Items.IRON_LEGGINGS, "leggings"),
+                    equipmentProgressLine(world, playerId, Items.IRON_BOOTS, "boots"),
+                    equipmentProgressLine(world, playerId, Items.DIAMOND_SWORD, "sword")
+            );
         }
 
         @Override
         public boolean isComplete(ServerLevel world, ServerPlayer player) {
             UUID playerId = player.getUUID();
             return bookProgressCount(world, playerId) >= MASTER_BOOK_FAMILIES_TARGET
-                    && armorCraftedCount(world, playerId) >= 4
-                    && armorEnchantedCount(world, playerId) >= 4
-                    && progress(world, playerId, StoryQuestKeys.SILENT_FORGE_MASTER_EDGE_CRAFTED) >= 1
-                    && progress(world, playerId, StoryQuestKeys.SILENT_FORGE_MASTER_EDGE) >= 1
                     && carriedPieceCount(player, world) >= 5;
         }
 
@@ -799,30 +698,23 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
             }
             UUID playerId = player.getUUID();
             if (bookProgressCount(world, playerId) < MASTER_BOOK_FAMILIES_TARGET
-                    || armorCraftedCount(world, playerId) < 4
-                    || armorEnchantedCount(world, playerId) < 4
-                    || progress(world, playerId, StoryQuestKeys.SILENT_FORGE_MASTER_EDGE_CRAFTED) < 1
-                    || progress(world, playerId, StoryQuestKeys.SILENT_FORGE_MASTER_EDGE) < 1
                     || carriedPieceCount(player, world) >= 5) {
                 return null;
             }
-            return Texts.turnInMissing(
-                    Component.translatable("quest.village-quest.story.silent_forge.chapter_4.turnin.sword"),
-                    countCarried(world, playerId, Items.DIAMOND_SWORD),
-                    1,
-                    Component.translatable("quest.village-quest.story.silent_forge.chapter_4.turnin.helmet"),
-                    countCarried(world, playerId, Items.IRON_HELMET),
-                    1,
-                    Component.translatable("quest.village-quest.story.silent_forge.chapter_4.turnin.chestplate"),
-                    countCarried(world, playerId, Items.IRON_CHESTPLATE),
-                    1,
-                    Component.translatable("quest.village-quest.story.silent_forge.chapter_4.turnin.leggings"),
-                    countCarried(world, playerId, Items.IRON_LEGGINGS),
-                    1,
-                    Component.translatable("quest.village-quest.story.silent_forge.chapter_4.turnin.boots"),
-                    countCarried(world, playerId, Items.IRON_BOOTS),
-                    1
-            );
+            Component missing = Component.empty();
+            List<Item> items = List.of(Items.IRON_HELMET, Items.IRON_CHESTPLATE, Items.IRON_LEGGINGS,
+                    Items.IRON_BOOTS, Items.DIAMOND_SWORD);
+            List<String> names = List.of("helmet", "chestplate", "leggings", "boots", "sword");
+            boolean first = true;
+            for (int index = 0; index < items.size(); index++) {
+                if (countCarried(world, playerId, items.get(index)) >= 1) continue;
+                if (!first) missing = missing.copy().append(", ");
+                missing = missing.copy().append(Component.translatable(
+                        "quest.village-quest.story.silent_forge.chapter_4.turnin." + names.get(index)));
+                first = false;
+            }
+            return Component.translatable("quest.village-quest.story.silent_forge.chapter_4.turnin.missing", missing)
+                    .withStyle(ChatFormatting.RED);
         }
 
         @Override
@@ -848,51 +740,5 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
             recordRequiredBook(world, player.getUUID(), stack);
         }
 
-        @Override
-        public void onTrackedItemPickup(ServerLevel world, ServerPlayer player, ItemStack stack, int count) {
-            if (stack != null && stack.is(Items.ENCHANTED_BOOK)
-                    && bookProgressCount(world, player.getUUID()) < MASTER_BOOK_FAMILIES_TARGET) {
-                recordRequiredBook(world, player.getUUID(), stack);
-                StoryQuestService.completeIfEligible(world, player);
-            }
-        }
-
-        @Override
-        public void onAnvilOutput(ServerLevel world,
-                                  ServerPlayer player,
-                                  ItemStack leftInput,
-                                  ItemStack rightInput,
-                                  ItemStack output) {
-            if (leftInput == null || rightInput == null || output == null || !rightInput.is(Items.ENCHANTED_BOOK)) {
-                return;
-            }
-            UUID playerId = player.getUUID();
-
-            if (armorCraftedCount(world, playerId) >= 4
-                    && armorEnchantedCount(world, playerId) < 4
-                    && hasProtectionEnchantment(world, rightInput)
-                    && hasProtectionEnchantment(world, output)) {
-                if (leftInput.is(Items.IRON_HELMET) && output.is(Items.IRON_HELMET)) {
-                    StoryQuestService.setQuestInt(world, playerId, StoryQuestKeys.SILENT_FORGE_MASTER_HELM, 1);
-                } else if (leftInput.is(Items.IRON_CHESTPLATE) && output.is(Items.IRON_CHESTPLATE)) {
-                    StoryQuestService.setQuestInt(world, playerId, StoryQuestKeys.SILENT_FORGE_MASTER_CHEST, 1);
-                } else if (leftInput.is(Items.IRON_LEGGINGS) && output.is(Items.IRON_LEGGINGS)) {
-                    StoryQuestService.setQuestInt(world, playerId, StoryQuestKeys.SILENT_FORGE_MASTER_LEGS, 1);
-                } else if (leftInput.is(Items.IRON_BOOTS) && output.is(Items.IRON_BOOTS)) {
-                    StoryQuestService.setQuestInt(world, playerId, StoryQuestKeys.SILENT_FORGE_MASTER_BOOTS, 1);
-                }
-                return;
-            }
-
-            if (armorEnchantedCount(world, playerId) >= 4
-                    && progress(world, playerId, StoryQuestKeys.SILENT_FORGE_MASTER_EDGE_CRAFTED) >= 1
-                    && leftInput.is(Items.DIAMOND_SWORD)
-                    && output.is(Items.DIAMOND_SWORD)
-                    && hasEnchantment(world, rightInput, Enchantments.SHARPNESS)
-                    && hasEnchantment(world, output, Enchantments.SHARPNESS)) {
-                StoryQuestService.setQuestInt(world, playerId, StoryQuestKeys.SILENT_FORGE_MASTER_EDGE, 1);
-                StoryQuestService.completeIfEligible(world, player);
-            }
-        }
     }
 }

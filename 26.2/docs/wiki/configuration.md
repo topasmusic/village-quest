@@ -20,6 +20,16 @@ Village Quest 2.3.x creates two human-readable files under `.minecraft/config/vi
 
 Older generated files do not need to be deleted. If `adventure_profile` is absent, the server uses `STANDARD`; add the line manually while the server is stopped to choose another profile.
 
+## Social reputation (2.5)
+
+| Setting | Default | Purpose |
+|---|---|---|
+| `socialReputation.enabled` | `true` | Enables personal trust changes, sanctions, access gates and aid timers. Disabling preserves saved data and permits baseline services; re-enabling restores the existing state. Terminal rewards while disabled are not banked. |
+| `socialReputation.trackCreative` | `false` | Allows known Creative attackers to be tracked when enabled. Spectator remains exempt. Switching modes does not erase existing Survival consequences. |
+| `socialReputation.caravanMortality` | `true` | Makes VQ crew and mule vulnerable. `false` protects those actors only, not Vanilla villagers. |
+
+These switches are independent: disabled trust with mortality enabled still permits natural/physical crew deaths and safe freight interruption, without personal trust punishment. To turn both off, set `enabled=false` and `caravanMortality=false`. Existing config files use defaults for missing keys; add these exact case-sensitive keys while the server is stopped and restart. Daily/Weekly time bases stay unchanged. See [Social reputation](social-reputation.md).
+
 ## Client Settings
 
 `client.properties` affects only the local presentation:

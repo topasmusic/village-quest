@@ -6,7 +6,7 @@ import de.quest.economy.CurrencyService;
 import de.quest.network.VillageNetworkPayloads;
 import java.util.List;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.minecraft.client.gui.GuiGraphics;
+import de.quest.client.compat.GuiGraphics;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -227,6 +227,9 @@ public final class GuildNoticeBoardScreen extends CompatScreen {
     }
 
     private void drawFooter(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
+        if (journey == null) VillageUiTheme.drawButton(graphics, font, left + 17, top + BUTTON_Y, 140, BUTTON_HEIGHT,
+                Component.translatable("screen.village-quest.reputation.title").getString(), true,
+                within(mouseX, mouseY, left + 17, top + BUTTON_Y, 140, BUTTON_HEIGHT), false);
         if (journey != null) {
             VillageUiTheme.drawButton(graphics, font, left + 17, top + BUTTON_Y, 140, BUTTON_HEIGHT,
                     Component.translatable("screen.village-quest.notice_journey.story_tab").getString(),
@@ -257,6 +260,10 @@ public final class GuildNoticeBoardScreen extends CompatScreen {
         int top = (height - HEIGHT) / 2;
         int mouseX = responsiveMouseX(click.x(), WIDTH, HEIGHT);
         int mouseY = responsiveMouseY(click.y(), WIDTH, HEIGHT);
+        if (journey == null && within(mouseX, mouseY, left + 17, top + BUTTON_Y, 140, BUTTON_HEIGHT)) {
+            ClientPlayNetworking.send(new de.quest.network.ReputationPayloads.OpenPayload(0,
+                    new net.minecraft.core.BlockPos(data.worldX(), data.worldY(), data.worldZ()), 0)); return true;
+        }
         if (journey != null && within(mouseX, mouseY, left + 17, top + BUTTON_Y, 140, BUTTON_HEIGHT)) {
             minecraft.gui.setScreen(new NoticeJourneyScreen(journey));
             if (!journey.preview()) ClientPlayNetworking.send(new VillageNetworkPayloads.NoticeJourneyActionPayload(

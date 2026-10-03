@@ -66,6 +66,10 @@ public final class GuildTownProgress {
     }
     public static int completedStoryCount(PlayerQuestData data) { return Integer.bitCount(completedStoryMask(data)); }
     public static boolean storyCompleted(PlayerQuestData data, GuildTownStory story) { return (completedStoryMask(data) & story.bit()) != 0; }
+    public static boolean storyCompletedAt(PlayerQuestData data, GuildTownStory story, int villageIndex) {
+        return data != null && story != null && villageIndex >= 0 && storyCompleted(data, story)
+                && data.getStoryInt(storyKey(story, "village")) == villageIndex + 1;
+    }
 
     public static boolean beginStory(PlayerQuestData data, GuildTownStory story, int villageIndex, int variant) {
         if (data == null || story == null || villageIndex < 0 || activeStoryId(data) >= 0 || storyCompleted(data, story)) return false;

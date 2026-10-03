@@ -37,6 +37,18 @@ public final class QuestState extends SavedData {
     private final Map<Long, long[]> modifiedTerrainRegions = Collections.synchronizedMap(new HashMap<>());
     private long pilgrimNaturalSpawnCooldownUntil;
     private CompoundTag questPartyState = new CompoundTag();
+    private long socialServerTick;
+    private net.minecraft.nbt.Tag preservedSocialRecords;
+    private net.minecraft.nbt.Tag preservedProtectedVillages;
+    private de.quest.reputation.ProtectedVillageIndex protectedVillages = new de.quest.reputation.ProtectedVillageIndex();
+    public de.quest.reputation.ProtectedVillageIndex protectedVillages() { return protectedVillages; }
+
+    public long socialServerTick() { return socialServerTick; }
+
+    public void advanceSocialServerTick() {
+        if (socialServerTick < Long.MAX_VALUE) socialServerTick++;
+        if (socialServerTick % 20 == 0) setDirty();
+    }
 
     private QuestState() {}
 
@@ -52,6 +64,8 @@ public final class QuestState extends SavedData {
         CompoundTag root = new CompoundTag();
         root.put("questManager", state.writeDailyQuestData());
         root.put("questPartyManager", state.questPartyState);
+        root.putLong("socialServerTick", state.socialServerTick);
+        root.put("protectedVillages", state.preservedProtectedVillages == null ? state.protectedVillages.toNbt() : state.preservedProtectedVillages.copy());
         return root;
     }
 
@@ -63,7 +77,14 @@ public final class QuestState extends SavedData {
         if (playerId == null) {
             return new PlayerQuestData();
         }
-        return players.computeIfAbsent(playerId, id -> new PlayerQuestData());
+        return players.computeIfAbsent(playerId, id -> {
+            var data = new PlayerQuestData();
+            if (preservedSocialRecords != null) {
+                CompoundTag quarantine = new CompoundTag(); quarantine.putInt("schema", -1);
+                data.loadSocialReputation(quarantine);
+            }
+            return data;
+        });
     }
 
     public Map<UUID, PlayerQuestData> getPlayersView() {
@@ -79,6 +100,10 @@ public final class QuestState extends SavedData {
         modifiedTerrainRegions.clear();
         pilgrimNaturalSpawnCooldownUntil = 0L;
         questPartyState = new CompoundTag();
+        socialServerTick = 0;
+        preservedSocialRecords = null;
+        preservedProtectedVillages = null;
+        protectedVillages = new de.quest.reputation.ProtectedVillageIndex();
         setDirty();
     }
 
@@ -87,6 +112,12 @@ public final class QuestState extends SavedData {
 
     private void readFromNbt(CompoundTag root) {
         players.clear();
+        preservedSocialRecords = null;
+        preservedProtectedVillages = null;
+        socialServerTick = Math.max(0, root == null ? 0 : root.getLongOr("socialServerTick", 0));
+        var rawIndex = root == null ? null : root.get("protectedVillages");
+        if (rawIndex != null && !(rawIndex instanceof CompoundTag)) preservedProtectedVillages = rawIndex.copy();
+        protectedVillages = de.quest.reputation.ProtectedVillageIndex.fromNbt(rawIndex instanceof CompoundTag compound ? compound : new CompoundTag());
         modifiedTerrainRegions.clear();
         questPartyState = new CompoundTag();
         if (root == null || root.isEmpty()) {
@@ -95,6 +126,9 @@ public final class QuestState extends SavedData {
         CompoundTag daily = root.getCompoundOrEmpty("questManager");
         readDailyQuestData(daily);
         questPartyState = root.getCompoundOrEmpty("questPartyManager");
+        if (preservedSocialRecords != null) de.quest.VillageQuest.LOGGER.warn("Social reputation container is malformed; preserved read-only. Other quest progress remains available.");
+        else players.forEach((id, data) -> { if (!data.socialReputation().writable()) de.quest.VillageQuest.LOGGER.warn("Social reputation for {} has an unknown or damaged schema; preserved read-only.", id); });
+        if (preservedProtectedVillages != null) de.quest.VillageQuest.LOGGER.warn("Protected village index has an unexpected type; original data preserved.");
     }
 
     public CompoundTag getQuestPartyState() {
@@ -107,6 +141,16 @@ public final class QuestState extends SavedData {
     }
 
     private void readDailyQuestData(CompoundTag root) {
+        if (root.contains("socialReputation")) {
+            var raw = root.get("socialReputation"); boolean valid = raw instanceof ListTag;
+            java.util.Set<UUID> owners = new java.util.HashSet<>();
+            if (raw instanceof ListTag entries) for (var entry : entries) {
+                if (!(entry instanceof CompoundTag record) || !(record.get("data") instanceof CompoundTag)) { valid = false; break; }
+                try { if (!owners.add(UUID.fromString(record.getStringOr("uuid", "")))) valid = false; }
+                catch (IllegalArgumentException malformed) { valid = false; }
+            }
+            if (!valid) preservedSocialRecords = raw.copy();
+        }
         this.pilgrimNaturalSpawnCooldownUntil = Math.max(0L, root.getLongOr("pilgrimNaturalSpawnCooldownUntil", 0L));
         ListTag modifiedRegions = root.getListOrEmpty("modifiedTerrainRegions");
         for (int i = 0; i < modifiedRegions.size(); i++) {
@@ -176,6 +220,15 @@ public final class QuestState extends SavedData {
         readUuidIntMap(root, "pilgrimOfferedContractAltProfile", (id, value) -> getPlayerData(id).setOfferedPilgrimContractAltTargetProfile(RepeatableTargetProfile.byId(value)));
         readUuidLongMap(root, "pilgrimOfferDay", (id, value) -> getPlayerData(id).setPilgrimOfferDay(value));
         readUuidNamedIntMap(root, "reputation", (id, stateKey, value) -> getPlayerData(id).setReputation(stateKey, value));
+        if (preservedSocialRecords == null) for (var raw : root.getListOrEmpty("socialReputation")) {
+            if (!(raw instanceof CompoundTag entry)) continue;
+            try {
+                UUID id = UUID.fromString(entry.getStringOr("uuid", ""));
+                if (entry.get("data") instanceof CompoundTag saved) getPlayerData(id).loadSocialReputation(saved);
+            } catch (IllegalArgumentException malformedOwner) {
+                // Optional social data cannot invalidate the rest of this world's quest progress.
+            }
+        }
         readUuidNamedIntMap(root, "storyProgressInts", (id, stateKey, value) -> getPlayerData(id).setStoryInt(stateKey, value));
         readUuidNamedSet(root, "storyProgressFlags", (id, stateKey) -> getPlayerData(id).setStoryFlag(stateKey, true));
         readUuidNamedIntMap(root, "tradeRouteInts", (id, stateKey, value) -> getPlayerData(id).setTradeRouteInt(stateKey, value));
@@ -309,6 +362,7 @@ public final class QuestState extends SavedData {
         ListTag pilgrimOfferedContractAltProfile = new ListTag();
         ListTag pilgrimOfferDay = new ListTag();
         ListTag reputation = new ListTag();
+        ListTag socialReputation = new ListTag();
         ListTag storyProgressInts = new ListTag();
         ListTag storyProgressFlags = new ListTag();
         ListTag tradeRouteInts = new ListTag();
@@ -331,6 +385,10 @@ public final class QuestState extends SavedData {
             if (id == null || data == null) {
                 continue;
             }
+            CompoundTag socialEntry = new CompoundTag();
+            socialEntry.putString("uuid", id.toString());
+            socialEntry.put("data", data.socialReputation().toNbt());
+            socialReputation.add(socialEntry);
             if (data.getCurrencyBalance() > 0L) {
                 currencyBalance.add(entryLong(id, data.getCurrencyBalance()));
             }
@@ -584,6 +642,7 @@ public final class QuestState extends SavedData {
         root.put("pilgrimOfferedContractAltProfile", pilgrimOfferedContractAltProfile);
         root.put("pilgrimOfferDay", pilgrimOfferDay);
         root.put("reputation", reputation);
+        root.put("socialReputation", preservedSocialRecords == null ? socialReputation : preservedSocialRecords.copy());
         root.put("storyProgressInts", storyProgressInts);
         root.put("storyProgressFlags", storyProgressFlags);
         root.put("tradeRouteInts", tradeRouteInts);

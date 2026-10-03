@@ -398,3 +398,15 @@ This creates the five-route test network, clears every seeded route incident, ma
 - after a full `4`-chapter story arc, the next story appears only after a real `1 hour` cooldown and the `Story` tab shows a live timer during that pause
 - `Special` unlocks after the first real reputation gain.
 - `Weekly` cancel now exists and does not reroll a new weekly for the same week.
+
+## Social reputation admin tools (2.5)
+
+Operator permission is required. These affect personal NPC trust, not player-guild prestige or skill expertise.
+
+- `/vq admin reputation inspect <player>` — read values, case identity, probation and schema mutability.
+- `/vq admin reputation set guild <player> <value>` — clamp−100..100, record an administrative history entry.
+- `/vq admin reputation set village <player> <dimension> <x> <z> <value>` — use the saved physical village anchor; does not discover a village or create a route.
+- `/vq admin reputation pardon <player>` — close the personal case/reconciliation, raise affected values to at least−10 and apply two-deed probation. No revival, money or freight reward.
+- `/vq admin reputation uitest <neutral|reliable|respected|blocked|probation|major>` — open a synthetic personal view without saved state or inventory changes. Preview action buttons are inactive.
+
+For actual aid, interact with a valid own/affected board or existing Questmaster within8 blocks. A remote Journal view cannot consume materials. Unknown/future schema data cannot be silently overwritten by set/pardon.

@@ -150,6 +150,7 @@ public final class QuestCommands {
 
             LiteralArgumentBuilder<CommandSourceStack> questAdminCommand = literal("admin")
                     .requires(AdminCommands::canManageRespawn)
+                    .then(ReputationCommands.command())
                     .then(setQuestCommand)
                     .then(literal("resetdaily")
                             .executes(ctx -> resetDailyForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))

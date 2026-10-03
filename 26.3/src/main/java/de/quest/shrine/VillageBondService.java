@@ -29,6 +29,7 @@ import de.quest.village.LivingVillageNetworkState;
 import de.quest.village.NetworkSpecialization;
 import de.quest.village.VillageRequestGenerator;
 import de.quest.village.VillageRequestOffer;
+import de.quest.village.VillageLifeState;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -94,7 +95,7 @@ public final class VillageBondService {
         return QuestState.get(world.getServer()).getPlayerData(playerId);
     }
 
-    static String villageKey(int index, String suffix) {
+    public static String villageKey(int index, String suffix) {
         return "bond_village_" + index + "_" + suffix;
     }
 
@@ -126,7 +127,7 @@ public final class VillageBondService {
                 : Math.min(MAX_ACTIVE_WAYSHRINES, Math.max(0, data(world, playerId).getTradeRouteInt(SHRINE_COUNT)));
     }
 
-    static int historicalVillageCount(PlayerQuestData data) {
+    public static int historicalVillageCount(PlayerQuestData data) {
         return data == null ? 0
                 : Math.min(MAX_HISTORICAL_VILLAGES, Math.max(0, data.getTradeRouteInt(VILLAGE_COUNT)));
     }
@@ -253,11 +254,15 @@ public final class VillageBondService {
         PlayerQuestData data = data(world, playerId);
         String dimension = dimensionKey(world);
         int existing = findVillage(data, dimension, marker.centerX(), marker.centerZ());
+        de.quest.reputation.ProtectedVillageIndex.register(world,
+                new de.quest.village.VillageLifeState.VillageKey(dimension, marker.centerX(), marker.centerZ()));
         if (existing >= 0) return existing;
-        VillageBondType type = classify(world, marker, playerId);
+        VillageIdentityOrigin.Classification classification = classifyDetailed(world, marker);
+        VillageBondType type = classification.type();
         int previousCount = historicalVillageCount(data);
         int index = ensureVillageRecord(data, dimension, marker.centerX(), marker.centerZ(), type);
         if (index < 0 || historicalVillageCount(data) == previousCount) return index;
+        data.setTradeRouteString(villageKey(index, "identity_origin"), classification.origin());
         QuestState.get(world.getServer()).setDirty();
         return index;
     }
@@ -286,6 +291,11 @@ public final class VillageBondService {
     static VillageBondType classify(ServerLevel world,
                                     ShadowsTradeRoadEncounterService.VillageMarker marker,
                                     UUID playerId) {
+        return classifyDetailed(world, marker).type();
+    }
+
+    static VillageIdentityOrigin.Classification classifyDetailed(ServerLevel world,
+                                    ShadowsTradeRoadEncounterService.VillageMarker marker) {
         AABB area = new AABB(marker.minX() - 8.0, world.getMinY(), marker.minZ() - 8.0,
                 marker.maxX() + 9.0, world.getMaxY(), marker.maxZ() + 9.0);
         int farmers = 0, smiths = 0, shepherds = 0, archives = 0;
@@ -298,15 +308,9 @@ public final class VillageBondService {
             if (profession.is(VillagerProfession.LIBRARIAN) || profession.is(VillagerProfession.CARTOGRAPHER)
                     || profession.is(VillagerProfession.CLERIC)) archives++;
         }
-        if (smiths > farmers && smiths >= shepherds && smiths >= archives) return VillageBondType.FORGE;
-        if (shepherds > farmers && shepherds >= archives) return VillageBondType.PASTURE;
-        if (archives > farmers) return VillageBondType.ARCHIVE;
         String biome = world.getBiome(new BlockPos(marker.centerX(), world.getSeaLevel(), marker.centerZ()))
                 .unwrapKey().map(key -> key.identifier().toString()).orElse("").toLowerCase(Locale.ROOT);
-        if (biome.contains("flower") || biome.contains("meadow") || biome.contains("forest") || biome.contains("cherry")) {
-            return VillageBondType.APIARY;
-        }
-        return VillageBondType.GRANARY;
+        return VillageIdentityOrigin.classify(farmers, smiths, shepherds, archives, biome);
     }
 
     public static InteractionResult useNoticePost(ServerLevel world, ServerPlayer player, BlockPos pos) {
@@ -755,7 +759,8 @@ public final class VillageBondService {
             int x = playerData.getTradeRouteInt(villageKey(i, "x"));
             int z = playerData.getTradeRouteInt(villageKey(i, "z"));
             boolean registeredDestination = TradeRouteService.isRegisteredDestination(world, playerId, x, z);
-            if (!VillageContactService.shouldExposeInConnectedNetwork(playerData, i, registeredDestination)) {
+            if (!VillageContactService.shouldExposeInConnectedNetwork(
+                    playerData, i, registeredDestination)) {
                 continue;
             }
             VillageBondView view = view(world, playerId, i);
@@ -766,10 +771,37 @@ public final class VillageBondService {
     }
 
     public static List<Payloads.TradeRouteBondData> bondPayloads(ServerLevel world, UUID playerId) {
-        return villages(world, playerId).stream().map(view -> new Payloads.TradeRouteBondData(
-                view.index(), view.x(), view.z(), view.type().label(), view.level().label(),
-                view.request().title(), view.completions(), view.network().condition().label(),
-                view.network().need().label(), view.network().support(), view.network().energyProgress())).toList();
+        if (world == null || playerId == null) return List.of();
+        VillageLifeState life = VillageLifeState.get(world.getServer());
+        String dimension = dimensionKey(world);
+        PlayerQuestData data = data(world, playerId);
+        List<Payloads.TradeRouteBondData> history = new ArrayList<>();
+        for (int index = 0; index < historicalVillageCount(data); index++) {
+            if (!matchesStoredDimension(data, villageKey(index, "dimension"), dimension)) continue;
+            int x = data.getTradeRouteInt(villageKey(index, "x"));
+            int z = data.getTradeRouteInt(villageKey(index, "z"));
+            boolean connected = TradeRouteService.isRegisteredDestination(world, playerId, x, z);
+            int lifeStatus = life.status(new VillageLifeState.VillageKey(dimension, x, z)).ordinal();
+            if (!connected && VillageContactService.isContact(data, index)) {
+                VillageContactService.VillageContact contact = VillageContactService.read(data, index);
+                if (contact == null) continue;
+                int completions = Math.max(0, data.getTradeRouteInt(villageKey(index, "completions")));
+                Component identityOrigin = VillageIdentityOrigin.label(
+                        data.getTradeRouteString(villageKey(index, "identity_origin")));
+                history.add(new Payloads.TradeRouteBondData(index, x, z, contact.type().label(),
+                        levelForCompletions(completions).label(), Component.empty(), completions,
+                        Component.empty(), Component.empty(), 0, 0, lifeStatus, false, identityOrigin));
+                continue;
+            }
+            VillageBondView view = view(world, playerId, index);
+            if (view != null) history.add(new Payloads.TradeRouteBondData(
+                    view.index(), view.x(), view.z(), view.type().label(), view.level().label(),
+                    view.request().title(), view.completions(), view.network().condition().label(),
+                    view.network().need().label(), view.network().support(), view.network().energyProgress(),
+                    lifeStatus, connected, VillageIdentityOrigin.label(
+                            data.getTradeRouteString(villageKey(index, "identity_origin")))));
+        }
+        return List.copyOf(history);
     }
 
     /** Applies one physical/simulated route arrival to the connected destination village. */
@@ -1144,6 +1176,11 @@ public final class VillageBondService {
 
     static int findVillage(PlayerQuestData data, int x, int z) {
         return findVillage(data, OVERWORLD_DIMENSION, x, z);
+    }
+
+    /** Historical village identity is independent of active trade-route slots. */
+    public static int historicalVillageIndex(PlayerQuestData data, String dimension, int x, int z) {
+        return findVillage(data, dimension, x, z);
     }
 
     static int findVillage(PlayerQuestData data, String dimension, int x, int z) {

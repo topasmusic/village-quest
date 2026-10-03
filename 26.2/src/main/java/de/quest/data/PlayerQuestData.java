@@ -7,6 +7,7 @@ import de.quest.quest.special.ShardRelicQuestStage;
 import de.quest.quest.special.SpecialQuestKind;
 import de.quest.quest.story.StoryArcType;
 import de.quest.quest.weekly.WeeklyQuestService;
+import de.quest.reputation.SocialReputationData;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -15,6 +16,14 @@ import java.util.Map;
 import java.util.Set;
 
 public final class PlayerQuestData {
+    private SocialReputationData socialReputation = new SocialReputationData();
+
+    public SocialReputationData socialReputation() { return socialReputation; }
+
+    void loadSocialReputation(net.minecraft.nbt.CompoundTag tag) {
+        socialReputation = SocialReputationData.fromNbt(tag);
+    }
+
     public static final long UNSET_DAY = -1L;
 
     private static final String GUILD_TOWN_PREFIX = "guild_town.";

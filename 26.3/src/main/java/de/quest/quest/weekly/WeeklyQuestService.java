@@ -498,6 +498,8 @@ public final class WeeklyQuestService {
             for (ServerPlayer recipient : recipients) {
                 deliverCompletion(world, recipient, completion);
                 markCompletedThisWeek(world, recipient.getUUID());
+                de.quest.reputation.SocialReputationService.recordQuestCompletion(world.getServer(), recipient.getUUID(),
+                        de.quest.reputation.SocialReputationRules.BenefitKind.WEEKLY, currentCycle(), "normal");
                 refreshQuestUi(world, recipient.getUUID());
             }
             QuestPartyService.clearWeeklySessionIfFinished(world, playerId, questType);
@@ -506,6 +508,8 @@ public final class WeeklyQuestService {
 
         deliverCompletion(world, player, withTargetProfile(data, definition::buildCompletion));
         markCompletedThisWeek(world, playerId);
+        de.quest.reputation.SocialReputationService.recordQuestCompletion(world.getServer(), playerId,
+                de.quest.reputation.SocialReputationRules.BenefitKind.WEEKLY, currentCycle(), "normal");
         refreshQuestUi(world, playerId);
         return true;
     }

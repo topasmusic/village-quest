@@ -6,7 +6,7 @@ import de.quest.economy.CurrencyService;
 import de.quest.network.Payloads;
 import de.quest.registry.ModItems;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.minecraft.client.gui.GuiGraphics;
+import de.quest.client.compat.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;

@@ -102,7 +102,9 @@ final class JournalContentBuilder {
                             Component.translatable("screen.village-quest.journal.network.village.support",
                                     village.support(), 100),
                             Component.translatable("screen.village-quest.journal.network.village.energy",
-                                    village.energyProgress(), 3)),
+                                    village.energyProgress(), 3),
+                            ReputationPanel.text("local_standing", ReputationPanel.rank(village.socialTrust()), village.socialTrust()),
+                            ReputationPanel.text(village.socialCase() ? "local_case" : "local_open")),
                     conditionAccent(village.conditionKey()), -1));
         }
 

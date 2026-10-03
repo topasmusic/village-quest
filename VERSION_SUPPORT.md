@@ -2,7 +2,15 @@
 
 Village Quest uses a single-active-line development policy.
 
-## 2.4.1 current release
+## 2.5.0 current release
+
+`Village Quest 2.5.0 - Roads of Concord` targets Minecraft `26.3` and `26.2` with the same gameplay content. The 26.2 content port and release were explicitly authorized; future content is still developed only on 26.3.
+
+## 2.4.2 release
+
+`Village Quest 2.4.2` is the published caravan route reliability hotfix for Minecraft `26.3` and `26.2`. It preserves the 2.4.1 gameplay content. This does not change the single-active-line policy.
+
+## 2.4.1 release
 
 `Village Quest 2.4.1 - The Guild Comes to Town` is released for Minecraft `26.3` and `26.2` with the same gameplay content and guided Guild Notice Post journey. Minecraft `26.3` is the active content-development line. Minecraft `26.2` is the previous maintenance line.
 
@@ -31,7 +39,7 @@ The release contains the same intended features, fixes, documentation, and resou
 ## Current support policy
 
 - Minecraft `26.3` is the only active content-development line.
-- Minecraft `26.2` remains available as the previous maintenance line with the same 2.4.1 gameplay content.
+- Minecraft `26.2` remains available as the previous maintenance line with the same 2.5.0 gameplay content.
 - New quests, systems, items, interfaces, balancing passes, visual redesigns, and other content updates are not automatically backported to previous lines.
 - The released `2.1.x` builds for older Minecraft versions remain available for download.
 - Older lines may receive deliberately scoped maintenance releases for confirmed bug fixes, crash prevention, save-safety fixes, severe exploits, and meaningful performance improvements.

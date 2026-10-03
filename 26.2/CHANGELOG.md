@@ -1,5 +1,55 @@
 # Changelog
 
+## 2.5.0
+
+Release date: 2026-10-04
+
+Village Quest 2.5 — Roads of Concord brings living caravan crews, village recovery and personal trust to the roads between your settlements.
+
+### New features
+
+- Meet persistent named caravan crews with distinct Master, Trader, Guard and Courier roles, five route liveries, new character skins and an optional pack mule in Full visual mode.
+- Open the Caravan Master's journey view to inspect road conditions, incidents and cargo, or trade with the caravan's merchants.
+- Send Regional Dispatches between connected villages through actual source, hub and destination arrivals, including villages of the same identity.
+- Continue all five local village stories with Afterstories, and organize three-route Guild Convoys after The Bells of Concord with escort credit and Chronicle memories.
+- Help abandoned villages recover. Routes and local work pause while a settlement is unavailable and resume with its existing identity and history when it is resettled.
+- Earn personal Guild trust and local village trust through confirmed deeds. The Journal's Villages, Trust and Chronicle views explain your standing, recent history and available services.
+- Make amends for proven attacks through material aid, online recovery time and probation. Caravan crews have persistent lives, guards defend against proven attackers, and safe freight claims survive an interrupted journey.
+- Enjoy clearer route distances, travel estimates, identity origins, Dispatch offer details and standing-based caravan purchase limits. Respected standing adds a fixed 5% bonus to newly accepted Regional Dispatches.
+
+### Bug fixes and improvements
+
+- Reworked The Master's Edge with shorter lore, two visible objectives and exact equipment checkmarks. Buy the requested enchanted books from villagers after acceptance, then supply protected iron armor and a Sharpness diamond sword; existing saved book milestones remain valid.
+- Improved freight returns: offline claims combine safely by cargo type, and partial Dispatch returns remain claimable when your inventory is full.
+- Preserved completed-deed receipts across save/reload and reputation configuration changes, preventing repeat trust rewards.
+- Corrected caravan offence attribution, delayed fire/fall attacker evidence, first reconciliation access and pack-mule trust consequences.
+- Improved saved convoy cooldowns, village anchor handling, painting lifecycle tracking and server validation of Notice Post and Dispatch interactions.
+- Updated English, German and Spanish guidance throughout the new systems. Existing saves start the new personal trust system at neutral without retrospective rewards; permanent village bonds and expertise remain separate.
+
+## 2.5.0-unreleased.2 (in development)
+
+- Completed the Minecraft 26.2 content-parity port from the reviewed Minecraft 26.3 `2.5.0-unreleased.9` candidate, retaining native 26.2 APIs and dependencies.
+- Added personal Guild trust and local village trust, replay-safe completion rewards, measured consequences for proven civilian attacks, reachable material-and-time reparation, resettlement support, standing-based caravan purchase limits and the acceptance-fixed Dispatch bonus. Existing saves begin neutral without retrospective rewards.
+- Added saved caravan crew and pack mule lives, bounded guard defence and retreat, safe freight interruption after real deaths, and replacement only at a later safe departure. Cleanup, unload and ferry projection preserve living members.
+- Added the Journal's Villages/Trust/Chronicle views, server-authoritative physical aid desks, caravan standing displays, social configuration and operator tools, with matching English, German and Spanish text.
+- Included all `.8`/`.9` audit corrections: route-destination offence attribution, preserved fire/fall evidence, first reconciliation at affected village boards, corrected mule sanctions, loaded historical anchor repair and damaged metadata preservation, complete convoy cooldown reload/pruning, partial inventory-only freight returns, painting lifecycle tracking, the project GUI adapter namespace, disabled completion receipts and guarded Dispatch/Notice Post entrypoints.
+
+## 2.5.0-unreleased.1 (in development)
+
+- Ported the full approved Roads of Concord content from the Minecraft 26.3 `2.5.0-unreleased.6` candidate to Minecraft 26.2, preserving target-specific APIs and dependencies.
+- Roads of Concord adds persistent named caravan crews with role and livery skins, a small caravan trade interaction, and an optional route-guided pack mule in Full visual mode.
+- Villages now keep a shared active, abandoned, or recovering life state. Abandoned settlements suspend their routes and ordinary local work; stable resettlement restores the same village and connection history. The Notice Post and route map explain the state.
+- Village loss and recovery enter the Chronicle once per cycle. Existing Trade Guild freight is held through a settlement closure and returned safely if its contract ends.
+- Regional Dispatches now start from a connected village's Notice Post, move cargo on the actual source→hub→destination caravan arrivals, and keep freight safe across route loss and settlement recovery. Same-identity village pairs are supported; delivery and cancellation enter the Chronicle. Caravan Masters now open a compact, server-backed journey, incident, road and cargo view with owner-only access to the route map. Afterstories, Convoys, and expanded route UI are included below.
+- Five local Afterstories now follow completed village stories at their original Notice Posts. Each preserves its requested supply across saves and route changes, pauses while the settlement is unavailable, pays once, and leaves a personal Chronicle entry.
+- Guild Convoys now unlock after the Bells of Concord and relay through three existing connections and their named crews. The saved guild journey follows actual hub and village arrivals, pauses with route or settlement downtime, and credits signed-up guild escorts once when they are present at a village arrival. Guild and personal Chronicle entries, a prestige title, route-map markings and Master dialogue report the trip.
+- The route map now explains each village identity from its saved discovery evidence; older village records explicitly show when that evidence was not recorded. Route tooltips and survey messages show direct and surveyed distance, approximate one-way time, land/ferry stages and a warning for unusually long journeys without imposing a distance limit.
+- Regional Dispatch offers now have distinct names for each same-identity exchange and each mixed-identity destination. The name follows the saved cargo through the Notice Post and Caravan Master text; full offer details are available on hover.
+- Offline Trade Guild freight refunds now accumulate by contract type across repeated failures and return in valid item stacks, avoiding mailbox exhaustion while preserving older saved refunds.
+- Includes the approved final artwork for all 20 caravan role/color skins and the Pilgrim, Questmaster, and Traitor. All 23 active entity skins use TopasMusic project artwork; removed five unused full caravan texture files and updated the bundled license and asset inventory. The pack mule uses the correct saddle render layer.
+- The Master's Edge now requires villager purchases of one Sharpness book and one book from any vanilla protection family after acceptance, followed by one of each protected iron armor piece and a diamond sword with Sharpness. Already enchanted or damaged equipment from any source is valid; crafting and anvil milestones are unnecessary. Existing saved book milestones remain valid. Hand-in consumes the five equipment pieces and keeps the books.
+- The Master's Edge has concise lore, a separate rule note, and two objectives visible together from the start, with individual equipment checkmarks and precise missing-item messages in English, German, and Spanish.
+
 ## 2.4.2
 
 Release date: 2026-09-23

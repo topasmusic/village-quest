@@ -1,36 +1,26 @@
 # Village Quest Third-Party Assets
 
-This inventory applies to the Village Quest `2.0.0` package. Paths are relative
-to a maintained version line. The same listed resources are mirrored across the
-`1.21.11`, `26.1.2`, `26.2`, and unreleased `26.3` lines unless noted otherwise.
+This inventory records the provenance of creative resources in the Minecraft
+`26.3` package. Paths below are relative to `26.3` unless stated otherwise.
 
-An `unknown` or `unresolved` entry is a provenance warning, not permission to
-copy, modify, or redistribute the file. Such material is excluded from both the
-Village Quest All Rights Reserved declaration and `LGPL-3.0-only`.
+## Project-owned entity skins
 
-## Unresolved legacy entity skins
+The maintainer confirmed on 2026-09-24 that the head artwork for the caravan,
+Pilgrim, Questmaster, and Traitor characters was created by TopasMusic. The
+finished 2.5 clothing for these characters was authored for Village Quest.
+The active entity texture set consists of:
 
-The following medieval-style Minecraft skins were originally downloaded from a
-public skin website. The original page, creator, and license are no longer known.
-Some caravan variants were later recolored for route identity, but that does not
-establish ownership of the underlying skin.
+- 20 `caravan_<livery>_<role>.png` skins: five route liveries, each with a
+  Master, Trader, Guard, and Courier;
+- `pilgrim.png`, `quest_master.png`, and `traitor.png`, with their approved
+  2.5 clothing and TopasMusic head artwork.
 
-| File | Recorded origin | Creator | License or permission | Status |
-| --- | --- | --- | --- | --- |
-| `src/main/resources/assets/village-quest/textures/entity/caravan.png` | Public Minecraft skin website | Unknown | Unknown | Unresolved legacy file shipped in `2.0.0`; no reuse rights asserted or granted |
-| `src/main/resources/assets/village-quest/textures/entity/caravan_burgundy.png` | Derived recolor of an unresolved caravan skin | Unknown | Unknown | Unresolved derivative |
-| `src/main/resources/assets/village-quest/textures/entity/caravan_forest.png` | Derived recolor of an unresolved caravan skin | Unknown | Unknown | Unresolved derivative |
-| `src/main/resources/assets/village-quest/textures/entity/caravan_ochre.png` | Derived recolor of an unresolved caravan skin | Unknown | Unknown | Unresolved derivative |
-| `src/main/resources/assets/village-quest/textures/entity/caravan_violet.png` | Derived recolor of an unresolved caravan skin | Unknown | Unknown | Unresolved derivative |
-| `src/main/resources/assets/village-quest/textures/entity/pilgrim.png` | Public Minecraft skin website | Unknown | Unknown | Unresolved legacy file shipped in `2.0.0`; no reuse rights asserted or granted |
-| `src/main/resources/assets/village-quest/textures/entity/quest_master.png` | Public Minecraft skin website | Unknown | Unknown | Unresolved legacy file shipped in `2.0.0`; no reuse rights asserted or granted |
-| `src/main/resources/assets/village-quest/textures/entity/traitor.png` | Public Minecraft skin website | Unknown | Unknown | Unresolved legacy file shipped in `2.0.0`; no reuse rights asserted or granted |
-
-The maintainer explicitly authorized the `2.0.0` publication with these warnings
-intact. That decision does not establish ownership or permission: the files must
-not be described as owned by Village Quest merely because their filenames are
-known or because some colors were changed. Replacement or source clearance
-remains priority follow-up work.
+The eight isolated head sources used to reproduce these skins are maintained
+under `src/test/resources/assets/village-quest/skin-head-sources/`. They are
+build and verification inputs, not additional runtime entity textures. These
+23 complete skins are original Village Quest assets governed by the creative
+asset terms in `LICENSE` (All Rights Reserved, with the stated permission to
+use an official release). They are not LGPL-licensed code.
 
 ## Spanish localization contribution
 
@@ -63,6 +53,5 @@ in this inventory.
 
 ## Updating this inventory
 
-When an unresolved asset is replaced or its source is recovered, record the exact
-file, creator, source URL, license or written permission, attribution text,
-modifications, and the date on which the record was verified.
+For future additions, record the creator, source, applicable terms, attribution,
+modifications, and verification date before including a new resource.

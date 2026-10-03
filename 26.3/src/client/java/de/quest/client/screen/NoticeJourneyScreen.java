@@ -7,7 +7,7 @@ import de.quest.network.VillageNetworkPayloads;
 import java.util.ArrayList;
 import java.util.List;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.minecraft.client.gui.GuiGraphics;
+import de.quest.client.compat.GuiGraphics;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -65,18 +65,29 @@ public final class NoticeJourneyScreen extends CompatScreen {
     }
 
     private void drawProgress(GuiGraphics graphics, int left, int top) {
-        if (data.firstTarget() > 0 && data.stage() != VillageNetworkPayloads.NoticeJourneyPayload.READY) {
+        if (data.firstTarget() > 0 && data.stage() != VillageNetworkPayloads.NoticeJourneyPayload.READY
+                && data.stage() != VillageNetworkPayloads.NoticeJourneyPayload.AFTERSTORY_READY) {
             String label = data.stage() == VillageNetworkPayloads.NoticeJourneyPayload.INTRO
                     ? Component.translatable("screen.village-quest.notice_journey.greetings").getString()
+                    : data.stage() == VillageNetworkPayloads.NoticeJourneyPayload.RESETTLEMENT
+                    || data.stage() == VillageNetworkPayloads.NoticeJourneyPayload.RECOVERING
+                    ? Component.translatable("screen.village-quest.village_life.settlers").getString()
+                    : data.stage() == VillageNetworkPayloads.NoticeJourneyPayload.AFTERSTORY_ACTIVE
+                    ? Component.translatable("screen.village-quest.afterstory.supplies").getString()
                     : Component.translatable("screen.village-quest.notice_journey.objective_one").getString();
             progress(graphics, left + 48, top + 135, label, data.first(), data.firstTarget());
             if (data.secondTarget() > 0) {
                 progress(graphics, left + 218, top + 135,
-                        Component.translatable("screen.village-quest.notice_journey.objective_two").getString(),
+                        Component.translatable(data.stage() == VillageNetworkPayloads.NoticeJourneyPayload.RESETTLEMENT
+                                || data.stage() == VillageNetworkPayloads.NoticeJourneyPayload.RECOVERING
+                                ? "screen.village-quest.village_life.beds"
+                                : "screen.village-quest.notice_journey.objective_two").getString(),
                         data.second(), data.secondTarget());
             }
         }
-        if (data.stage() == VillageNetworkPayloads.NoticeJourneyPayload.READY && !data.delivery().isEmpty()) {
+        if ((data.stage() == VillageNetworkPayloads.NoticeJourneyPayload.READY
+                || data.stage() == VillageNetworkPayloads.NoticeJourneyPayload.AFTERSTORY_READY)
+                && !data.delivery().isEmpty()) {
             graphics.renderItem(data.delivery(), left + 81, top + 145);
             graphics.drawString(font, Component.translatable("screen.village-quest.notice_journey.bundle",
                     data.deliveryCount(), data.delivery().getHoverName()), left + 106, top + 150, INK, false);
@@ -97,10 +108,17 @@ public final class NoticeJourneyScreen extends CompatScreen {
             button(graphics, left + 59, top + 188, 135, 20, "screen.village-quest.notice_journey.reserve", mouseX, mouseY);
             button(graphics, left + 207, top + 188, 135, 20, "screen.village-quest.notice_journey.share", mouseX, mouseY);
         } else if (stage == VillageNetworkPayloads.NoticeJourneyPayload.AVAILABLE
-                || stage == VillageNetworkPayloads.NoticeJourneyPayload.READY) {
+                || stage == VillageNetworkPayloads.NoticeJourneyPayload.READY
+                || stage == VillageNetworkPayloads.NoticeJourneyPayload.AFTERSTORY_AVAILABLE
+                || stage == VillageNetworkPayloads.NoticeJourneyPayload.AFTERSTORY_READY) {
             button(graphics, left + 115, top + 188, 186, 20,
-                    stage == VillageNetworkPayloads.NoticeJourneyPayload.AVAILABLE
-                            ? "screen.village-quest.notice_journey.accept" : "screen.village-quest.notice_journey.deliver",
+                    stage == VillageNetworkPayloads.NoticeJourneyPayload.AFTERSTORY_AVAILABLE
+                            ? "screen.village-quest.afterstory.accept"
+                            : stage == VillageNetworkPayloads.NoticeJourneyPayload.AFTERSTORY_READY
+                            ? "screen.village-quest.afterstory.deliver"
+                            : stage == VillageNetworkPayloads.NoticeJourneyPayload.AVAILABLE
+                            ? "screen.village-quest.notice_journey.accept"
+                            : "screen.village-quest.notice_journey.deliver",
                     mouseX, mouseY);
         } else if (stage == VillageNetworkPayloads.NoticeJourneyPayload.QUESTMASTER) {
             button(graphics, left + 115, top + 188, 186, 20,
@@ -113,9 +131,13 @@ public final class NoticeJourneyScreen extends CompatScreen {
                     "screen.village-quest.notice_journey.refresh", mouseX, mouseY);
         }
         if (data.requests() != null) {
-            button(graphics, left + 17, top + 213, 141, 16,
+            button(graphics, left + 17, top + 213, 100, 16,
                     "screen.village-quest.notice_journey.requests", mouseX, mouseY);
         }
+        button(graphics, left + 122, top + 213, 105, 16,
+                "screen.village-quest.dispatch.title", mouseX, mouseY);
+        button(graphics, left + 232, top + 213, 92, 16,
+                "screen.village-quest.reputation.title", mouseX, mouseY);
         button(graphics, left + 331, top + 213, 67, 16,
                 "screen.village-quest.notice_board.close", mouseX, mouseY);
     }
@@ -143,6 +165,12 @@ public final class NoticeJourneyScreen extends CompatScreen {
                 && data.stage() == VillageNetworkPayloads.NoticeJourneyPayload.READY) {
             action = VillageNetworkPayloads.NoticeJourneyActionPayload.DELIVER;
         } else if (within(x, y, left + 115, top + 188, 186, 20)
+                && data.stage() == VillageNetworkPayloads.NoticeJourneyPayload.AFTERSTORY_AVAILABLE) {
+            action = VillageNetworkPayloads.NoticeJourneyActionPayload.ACCEPT_AFTERSTORY;
+        } else if (within(x, y, left + 115, top + 188, 186, 20)
+                && data.stage() == VillageNetworkPayloads.NoticeJourneyPayload.AFTERSTORY_READY) {
+            action = VillageNetworkPayloads.NoticeJourneyActionPayload.DELIVER_AFTERSTORY;
+        } else if (within(x, y, left + 115, top + 188, 186, 20)
                 && data.stage() == VillageNetworkPayloads.NoticeJourneyPayload.QUESTMASTER) {
             if (!data.preview() && minecraft != null && minecraft.player != null) {
                 minecraft.player.connection.sendCommand("vq questmaster");
@@ -152,7 +180,9 @@ public final class NoticeJourneyScreen extends CompatScreen {
         } else if (within(x, y, left + 146, top + 188, 124, 20)
                 && data.stage() != VillageNetworkPayloads.NoticeJourneyPayload.CHOOSE
                 && data.stage() != VillageNetworkPayloads.NoticeJourneyPayload.AVAILABLE
-                && data.stage() != VillageNetworkPayloads.NoticeJourneyPayload.READY) {
+                && data.stage() != VillageNetworkPayloads.NoticeJourneyPayload.READY
+                && data.stage() != VillageNetworkPayloads.NoticeJourneyPayload.AFTERSTORY_AVAILABLE
+                && data.stage() != VillageNetworkPayloads.NoticeJourneyPayload.AFTERSTORY_READY) {
             action = data.stage() == VillageNetworkPayloads.NoticeJourneyPayload.PAUSED
                     ? VillageNetworkPayloads.NoticeJourneyActionPayload.RESUME
                     : VillageNetworkPayloads.NoticeJourneyActionPayload.REFRESH;
@@ -162,8 +192,19 @@ public final class NoticeJourneyScreen extends CompatScreen {
                     data.worldX(), data.worldY(), data.worldZ(), action));
             return true;
         }
-        if (data.requests() != null && within(x, y, left + 17, top + 213, 141, 16)) {
+        if (data.requests() != null && within(x, y, left + 17, top + 213, 100, 16)) {
             minecraft.gui.setScreen(new GuildNoticeBoardScreen(data.requests(), data));
+            return true;
+        }
+        if (within(x, y, left + 122, top + 213, 105, 16)) {
+            if (!data.preview()) ClientPlayNetworking.send(new VillageNetworkPayloads.NoticeJourneyActionPayload(
+                    data.worldX(), data.worldY(), data.worldZ(),
+                    VillageNetworkPayloads.NoticeJourneyActionPayload.DISPATCH));
+            return true;
+        }
+        if (within(x, y, left + 232, top + 213, 92, 16)) {
+            if (!data.preview()) ClientPlayNetworking.send(new de.quest.network.ReputationPayloads.OpenPayload(0,
+                    new net.minecraft.core.BlockPos(data.worldX(), data.worldY(), data.worldZ()), 0));
             return true;
         }
         if (within(x, y, left + 331, top + 213, 67, 16)) {

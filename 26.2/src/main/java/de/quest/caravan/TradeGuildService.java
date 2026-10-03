@@ -142,6 +142,11 @@ public final class TradeGuildService {
         }
         TradeContractType type = offers.get(offerNumber - 1);
         PlayerQuestData data = data(world, player.getUUID());
+        if (!TradeRouteService.settlementAvailable(world, data, routeIndex)) {
+            player.sendSystemMessage(Component.translatable(
+                    "message.village-quest.village_life.work_paused").withStyle(ChatFormatting.YELLOW), false);
+            return false;
+        }
         data.setTradeRouteInt(CONTRACT_TYPE, type.ordinal() + 1);
         data.setTradeRouteInt(CONTRACT_ROUTE, routeIndex + 1);
         data.setTradeRouteInt(CONTRACT_DUE_DAY, (int) TimeUtil.currentDay() + 3);
@@ -177,6 +182,11 @@ public final class TradeGuildService {
         TradeContractType type = activeContract(world, player.getUUID());
         PlayerQuestData data = data(world, player.getUUID());
         if (type == null || data.hasTradeRouteFlag(CONTRACT_SUPPLIED)) return false;
+        if (syncSettlementHold(world, player.getUUID(), data)) {
+            player.sendSystemMessage(Component.translatable(
+                    "message.village-quest.village_life.work_paused").withStyle(ChatFormatting.YELLOW), false);
+            return false;
+        }
         if (expired(data)) {
             failContract(world, player.getUUID());
             return false;
@@ -244,6 +254,10 @@ public final class TradeGuildService {
     public static void onRouteArrival(ServerLevel world, UUID ownerId, int routeIndex) {
         if (world == null || ownerId == null) return;
         PlayerQuestData data = data(world, ownerId);
+        if (data.hasTradeRouteFlag("guild_contract_crew_loss_pending")) { onCrewJourneyLost(world, ownerId, data.getTradeRouteInt(CONTRACT_ROUTE) - 1); return; }
+
+        if (syncSettlementHold(world, ownerId, data)
+                || !TradeRouteService.settlementAvailable(world, data, routeIndex)) return;
         TradeContractType type = activeContract(world, ownerId);
         boolean suppliedFreight = type != null && !expired(data)
                 && data.hasTradeRouteFlag(CONTRACT_SUPPLIED)
@@ -282,12 +296,8 @@ public final class TradeGuildService {
         if (active == null) return;
         int assigned = data.getTradeRouteInt(CONTRACT_ROUTE) - 1;
         if (assigned == removedRouteIndex) {
+            if (!refundSuppliedFreight(world, ownerId, data, active)) return;
             ServerPlayer owner = world.getServer().getPlayerList().getPlayer(ownerId);
-            if (owner != null && data.hasTradeRouteFlag(CONTRACT_SUPPLIED)) {
-                ItemStack returned = new ItemStack(active.item(), active.amount());
-                if (!owner.getInventory().add(returned)) owner.drop(returned, false);
-                owner.inventoryMenu.broadcastChanges();
-            }
             clearContract(data);
             if (owner != null) owner.sendSystemMessage(Component.translatable(
                     "message.village-quest.trade_guild.contract_route_removed").withStyle(ChatFormatting.RED), false);
@@ -295,6 +305,20 @@ public final class TradeGuildService {
             data.setTradeRouteInt(CONTRACT_ROUTE, assigned);
         }
         QuestState.get(world.getServer()).setDirty();
+    }
+
+    public static boolean recordCrewLoss(PlayerQuestData data, int route) {
+        if (data == null || data.getTradeRouteInt(CONTRACT_ROUTE) != route + 1) return false;
+        int typeId = data.getTradeRouteInt(CONTRACT_TYPE);
+        if (typeId <= 0 || typeId > TradeContractType.values().length) return false;
+        data.setTradeRouteFlag("guild_contract_crew_loss_pending", true);
+        if (data.hasTradeRouteFlag(CONTRACT_SUPPLIED) && !TradeContractRefundLedger.queue(data, typeId,
+                TradeContractType.values()[typeId - 1].amount())) return false;
+        clearContract(data); return true;
+    }
+
+    public static void onCrewJourneyLost(ServerLevel world, UUID ownerId, int route) {
+        recordCrewLoss(data(world, ownerId), route); QuestState.get(world.getServer()).setDirty();
     }
 
     static double distanceRewardMultiplier(int economyDistanceBlocks) {
@@ -305,6 +329,11 @@ public final class TradeGuildService {
         PlayerQuestData data = data(world, playerId);
         TradeContractType type = activeContract(world, playerId);
         if (type == null) return Component.translatable("message.village-quest.trade_guild.contract_none").withStyle(ChatFormatting.GRAY);
+        if (TradeContractHold.isHeld(data)) {
+            return Component.translatable("message.village-quest.trade_guild.contract_settlement_hold",
+                    type.title(), data.getTradeRouteInt(CONTRACT_ROUTE))
+                    .withStyle(ChatFormatting.YELLOW);
+        }
         return Component.translatable("message.village-quest.trade_guild.contract_current",
                 type.title(), data.getTradeRouteInt(CONTRACT_ROUTE),
                 data.hasTradeRouteFlag(CONTRACT_SUPPLIED)
@@ -325,13 +354,36 @@ public final class TradeGuildService {
     }
 
     private static void expireIfNeeded(ServerLevel world, UUID playerId) {
-        if (activeContract(world, playerId) != null && expired(data(world, playerId))) {
+        if (activeContract(world, playerId) != null
+                && !syncSettlementHold(world, playerId, data(world, playerId))
+                && expired(data(world, playerId))) {
             failContract(world, playerId);
         }
     }
 
+    /** Called for offline owners as soon as a known physical settlement changes state. */
+    public static void onSettlementChanged(ServerLevel world, UUID playerId) {
+        if (world != null && playerId != null && activeContract(world, playerId) != null) {
+            syncSettlementHold(world, playerId, data(world, playerId));
+        }
+    }
+
+    private static boolean syncSettlementHold(ServerLevel world, UUID ownerId, PlayerQuestData data) {
+        if (activeContract(world, ownerId) == null) return false;
+        int routeIndex = data.getTradeRouteInt(CONTRACT_ROUTE) - 1;
+        int day = (int) TimeUtil.currentDay();
+        if (!TradeRouteService.settlementAvailable(world, data, routeIndex)) {
+            if (TradeContractHold.begin(data, day)) QuestState.get(world.getServer()).setDirty();
+            return true;
+        }
+        if (TradeContractHold.end(data, day)) QuestState.get(world.getServer()).setDirty();
+        return false;
+    }
+
     private static void failContract(ServerLevel world, UUID ownerId) {
         PlayerQuestData data = data(world, ownerId);
+        TradeContractType type = activeContract(world, ownerId);
+        if (type != null && !refundSuppliedFreight(world, ownerId, data, type)) return;
         clearContract(data);
         QuestState.get(world.getServer()).setDirty();
         ServerPlayer owner = world.getServer().getPlayerList().getPlayer(ownerId);
@@ -339,11 +391,58 @@ public final class TradeGuildService {
                 .withStyle(ChatFormatting.RED), false);
     }
 
+    private static boolean refundSuppliedFreight(ServerLevel world, UUID ownerId,
+                                                 PlayerQuestData data, TradeContractType type) {
+        if (!data.hasTradeRouteFlag(CONTRACT_SUPPLIED)) return true;
+        ServerPlayer owner = world.getServer().getPlayerList().getPlayer(ownerId);
+        if (owner == null) {
+            if (!TradeContractRefundLedger.queue(data, type.ordinal() + 1, type.amount())) return false;
+        } else {
+            ItemStack returned = new ItemStack(type.item(), type.amount());
+            if (!owner.getInventory().add(returned)) owner.drop(returned, false);
+            owner.inventoryMenu.broadcastChanges();
+            owner.sendSystemMessage(Component.translatable(
+                    "message.village-quest.trade_guild.contract_freight_returned",
+                    type.amount(), new ItemStack(type.item()).getHoverName())
+                    .withStyle(ChatFormatting.YELLOW), false);
+        }
+        QuestState.get(world.getServer()).setDirty();
+        return true;
+    }
+
+    public static void deliverPendingRefund(ServerLevel world, ServerPlayer player) {
+        if (world == null || player == null) return;
+        PlayerQuestData data = data(world, player.getUUID());
+        var inventory = player.getInventory(); boolean changed = false;
+        for (var refund : TradeContractRefundLedger.peek(data)) {
+            TradeContractType type = TradeContractType.values()[refund.typeId() - 1];
+            int remaining = refund.amount();
+            // Inventory.add uses the ordinary 36 slots; armour/offhand are not freight capacity.
+            for (int slot = 0; slot < Math.min(36, inventory.getContainerSize()) && remaining > 0; slot++) {
+                ItemStack existing = inventory.getItem(slot);
+                if (!existing.isEmpty() && (!existing.is(type.item()) || !ItemStack.isSameItemSameComponents(existing, new ItemStack(type.item())))) continue;
+                int capacity = existing.isEmpty() ? new ItemStack(type.item()).getMaxStackSize() : Math.max(0, existing.getMaxStackSize() - existing.getCount());
+                int taken = Math.min(capacity, remaining); if (taken <= 0) continue;
+                if (existing.isEmpty()) inventory.setItem(slot, new ItemStack(type.item(), taken)); else existing.grow(taken);
+                remaining -= taken;
+            }
+            int returned = refund.amount() - remaining;
+            if (returned > 0) {
+                TradeContractRefundLedger.claim(data, refund.typeId(), returned); changed = true;
+                player.sendSystemMessage(Component.translatable("message.village-quest.trade_guild.contract_freight_returned",
+                        returned, new ItemStack(type.item()).getHoverName()).withStyle(ChatFormatting.YELLOW), false);
+            }
+        }
+        if (changed) { inventory.setChanged(); player.inventoryMenu.broadcastChanges(); QuestState.get(world.getServer()).setDirty(); }
+    }
+
     private static void clearContract(PlayerQuestData data) {
+        data.setTradeRouteFlag("guild_contract_crew_loss_pending", false);
         data.setTradeRouteInt(CONTRACT_TYPE, 0);
         data.setTradeRouteInt(CONTRACT_ROUTE, 0);
         data.setTradeRouteInt(CONTRACT_DUE_DAY, 0);
         data.setTradeRouteFlag(CONTRACT_SUPPLIED, false);
+        TradeContractHold.clear(data);
     }
 
     private static boolean consume(ServerPlayer player, TradeContractType type) {

@@ -1,6 +1,7 @@
 package de.quest.client.render;
 
 import de.quest.VillageQuest;
+import de.quest.caravan.CaravanRole;
 import de.quest.client.compat.ClientModCompat;
 import de.quest.entity.CaravanMerchantEntity;
 import net.minecraft.client.model.HumanoidModel;
@@ -23,16 +24,8 @@ import net.minecraft.world.item.Items;
 public final class CaravanMerchantEntityRenderer extends MobRenderer<CaravanMerchantEntity, AvatarRenderState, QuestNpcPlayerModel> {
     public static final ModelLayerLocation CARAVAN_MERCHANT_LAYER =
             new ModelLayerLocation(Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "caravan_merchant"), "main");
-    private static final Identifier[] TEXTURES = {
-            texture("caravan_burgundy.png"),
-            texture("caravan_forest.png"),
-            texture("caravan.png"),
-            texture("caravan_ochre.png"),
-            texture("caravan_violet.png")
-    };
-    private static final PlayerSkin[] SKINS = {
-            skin(TEXTURES[0]), skin(TEXTURES[1]), skin(TEXTURES[2]), skin(TEXTURES[3]), skin(TEXTURES[4])
-    };
+    private static final String[] LIVERIES = {"burgundy", "forest", "neutral", "ochre", "violet"};
+    private static final PlayerSkin[][] SKINS = createRoleSkins();
     private final ItemModelResolver itemModelManager;
     private final boolean heldItemRenderingEnabled;
 
@@ -67,14 +60,26 @@ public final class CaravanMerchantEntityRenderer extends MobRenderer<CaravanMerc
         if (entity.getMainHandItem().getItem() == Items.TORCH) {
             state.rightArmPose = HumanoidModel.ArmPose.BLOCK;
         }
-        // Every member of one route shares an outfit. This makes a caravan readable
-        // at a glance and matches the route color used by the ledger and minimap.
-        state.skin = SKINS[Math.floorMod(entity.getLiveryIndex(), SKINS.length)];
+        // One livery identifies the route; each synchronized role has its own outfit.
+        CaravanRole role = entity.isCourier() ? CaravanRole.COURIER : entity.getCrewRole();
+        state.skin = SKINS[Math.floorMod(entity.getLiveryIndex(), SKINS.length)][role.ordinal()];
     }
 
     @Override
     public Identifier getTextureLocation(AvatarRenderState state) {
-        return state.skin == null ? TEXTURES[0] : state.skin.body().texturePath();
+        return state.skin == null ? texture("caravan_burgundy_master.png")
+                : state.skin.body().texturePath();
+    }
+
+    private static PlayerSkin[][] createRoleSkins() {
+        PlayerSkin[][] skins = new PlayerSkin[LIVERIES.length][CaravanRole.values().length];
+        for (int livery = 0; livery < LIVERIES.length; livery++) {
+            for (CaravanRole role : CaravanRole.values()) {
+                skins[livery][role.ordinal()] = skin(texture("caravan_" + LIVERIES[livery]
+                        + "_" + role.name().toLowerCase(java.util.Locale.ROOT) + ".png"));
+            }
+        }
+        return skins;
     }
 
     private static Identifier texture(String filename) {

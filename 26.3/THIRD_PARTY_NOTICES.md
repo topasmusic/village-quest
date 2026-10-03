@@ -21,5 +21,5 @@ relicensed by Village Quest. Minecraft, its names, code, textures, and trademark
 remain the property of Mojang Studios and Microsoft. Village Quest does not ship
 a copy of Minecraft.
 
-Asset-specific attribution and unresolved provenance are documented in
+Asset-specific attribution and authorship declarations are documented in
 `THIRD_PARTY_ASSETS.md`.

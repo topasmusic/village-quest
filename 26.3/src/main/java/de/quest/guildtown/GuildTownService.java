@@ -12,6 +12,7 @@ import de.quest.registry.ModItems;
 import de.quest.shrine.VillageBondService;
 import de.quest.shrine.VillageBondType;
 import de.quest.shrine.VillageWelcomeService;
+import de.quest.village.VillageLifeState;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -103,6 +104,11 @@ public final class GuildTownService {
         GuildTownCommission activeCommission = GuildTownProgress.activeCommission(data);
         if (activeStory != null) lines.add(storyProgressLine(data, activeStory));
         if (activeCommission != null) lines.add(commissionProgressLine(data, activeCommission));
+        if ((activeStory != null && !activeStoryVillageIsActive(world, player, data))
+                || (activeCommission != null && !commissionVillagesActive(world, data))) {
+            lines.add(Component.translatable("message.village-quest.village_life.work_paused")
+                    .withStyle(ChatFormatting.YELLOW));
+        }
         if (activeStory == null && activeCommission == null) {
             lines.add(Component.translatable("message.village-quest.guild_town.status.idle")
                     .withStyle(ChatFormatting.GRAY));
@@ -122,6 +128,9 @@ public final class GuildTownService {
             }
         }
         VillageGuildState.GuildSnapshot guild = VillageGuildService.guild(world, player.getUUID());
+        if (guild != null) lines.add(Component.translatable("message.village-quest.convoy.town_hint")
+                .withStyle(style -> style.withColor(ChatFormatting.AQUA)
+                        .withClickEvent(new ClickEvent.RunCommand("/vq town convoy"))));
         GuildTownSharedState.ProjectSnapshot project = guild == null ? null
                 : GuildTownSharedState.get(world.getServer()).project(guild.id()).orElse(null);
         if (project != null) {
@@ -140,6 +149,10 @@ public final class GuildTownService {
         }
         if (GuildTownProgress.hasReward(data, "concord_title")) {
             lines.add(Component.translatable("message.village-quest.guild_town.title.concord")
+                    .withStyle(ChatFormatting.GOLD));
+        }
+        if (GuildTownProgress.hasReward(data, "convoy_escort_title")) {
+            lines.add(Component.translatable("message.village-quest.convoy.title")
                     .withStyle(ChatFormatting.GOLD));
         }
         if (GuildTownProgress.hasReward(data, "pairing_mastery")) {
@@ -332,6 +345,9 @@ public final class GuildTownService {
         if (village == null || !VillageWelcomeService.isCompleted(data)) {
             return fail(player, "message.village-quest.guild_town.story.no_contact");
         }
+        if (!isActiveSettlement(world, village.x(), village.z())) {
+            return fail(player, "message.village-quest.village_life.work_paused");
+        }
         GuildTownStory story = GuildTownStory.forVillage(village.type());
         int variant = village.needsRecovery() ? GuildTownProgress.RECOVERY : GuildTownProgress.PREVENTIVE;
         if (!GuildTownProgress.beginStory(data, story, village.index(), variant)) {
@@ -350,6 +366,9 @@ public final class GuildTownService {
 
     public static int chooseSharedTable(ServerLevel world, ServerPlayer player, String choice) {
         PlayerQuestData data = data(world, player.getUUID());
+        if (!activeStoryVillageIsActive(world, player, data)) {
+            return fail(player, "message.village-quest.village_life.work_paused");
+        }
         GuildTownStory story = GuildTownStory.SHARED_TABLE;
         if (GuildTownProgress.activeStoryId(data) != story.id()
                 || GuildTownProgress.storyState(data, story) != GuildTownProgress.ACTIVE
@@ -375,6 +394,9 @@ public final class GuildTownService {
         if (story == null || GuildTownProgress.storyState(data, story) != GuildTownProgress.READY) {
             return fail(player, "message.village-quest.guild_town.story.not_ready");
         }
+        if (!activeStoryVillageIsActive(world, player, data)) {
+            return fail(player, "message.village-quest.village_life.work_paused");
+        }
         if (!isNearStoryVillage(world, player, data)) {
             return fail(player, "message.village-quest.guild_town.story.return_to_village");
         }
@@ -395,6 +417,11 @@ public final class GuildTownService {
             return fail(player, "message.village-quest.guild_town.story.complete_failed");
         }
         giveStoryMemory(player, data, story);
+        var socialVillage = new de.quest.village.VillageLifeState.VillageKey(world.dimension().identifier().toString(),
+                chronicleVillage.x(), chronicleVillage.z());
+        de.quest.reputation.SocialReputationService.recordNamedBenefit(world.getServer(), player.getUUID(),
+                de.quest.reputation.SocialReputationRules.BenefitKind.STORY,
+                "local:" + story.key() + ":" + socialVillage, java.util.List.of(socialVillage));
         QuestState.get(world.getServer()).setDirty();
         player.sendSystemMessage(Component.translatable("message.village-quest.guild_town.story.completed", story.title())
                 .withStyle(ChatFormatting.GREEN), false);
@@ -404,6 +431,9 @@ public final class GuildTownService {
 
     public static int pauseStory(ServerLevel world, ServerPlayer player, boolean paused) {
         PlayerQuestData data = data(world, player.getUUID());
+        if (!paused && !activeStoryVillageIsActive(world, player, data)) {
+            return fail(player, "message.village-quest.village_life.work_paused");
+        }
         if (!GuildTownProgress.setStoryPaused(data, paused)) {
             return fail(player, "message.village-quest.guild_town.story.pause_failed");
         }
@@ -471,6 +501,9 @@ public final class GuildTownService {
             QuestState.get(world.getServer()).setDirty();
             return fail(player, "message.village-quest.guild_town.commission.return_to_pair");
         }
+        if (!paused && !commissionVillagesActive(world, data)) {
+            return fail(player, "message.village-quest.village_life.work_paused");
+        }
         if (!GuildTownProgress.setCommissionPaused(data, paused)) return fail(player, "message.village-quest.guild_town.commission.pause_failed");
         QuestState.get(world.getServer()).setDirty();
         player.sendSystemMessage(Component.translatable(paused
@@ -510,6 +543,9 @@ public final class GuildTownService {
         if (!ensureCommissionIdentities(world, data)) {
             QuestState.get(world.getServer()).setDirty();
             return fail(player, "message.village-quest.guild_town.commission.return_to_pair");
+        }
+        if (!commissionVillagesActive(world, data)) {
+            return fail(player, "message.village-quest.village_life.work_paused");
         }
         if (!isNearCommissionPair(player, data)) {
             return fail(player, "message.village-quest.guild_town.commission.return_to_pair");
@@ -846,6 +882,7 @@ public final class GuildTownService {
         VillageBondService.VillageBondView second = null;
         for (VillageBondService.VillageBondView village : VillageBondService.villages(world, owner)) {
             if (!TradeRouteService.isRegisteredDestination(world, owner, village.x(), village.z())) continue;
+            if (!isActiveSettlement(world, village.x(), village.z())) continue;
             if (village.type() == commission.first() && first == null) first = village;
             if (village.type() == commission.second() && second == null) second = village;
         }
@@ -890,10 +927,33 @@ public final class GuildTownService {
         if (target < 0) return false;
         GuildTownStoryVillageResolver.StoryVillage village =
                 GuildTownStoryVillageResolver.byIndex(world, player.getUUID(), data, target);
-        if (village == null) return false;
+        if (village == null || !isActiveSettlement(world, village.x(), village.z())) return false;
         long dx = (long) player.getBlockX() - village.x();
         long dz = (long) player.getBlockZ() - village.z();
         return dx * dx + dz * dz <= 128L * 128L;
+    }
+
+    private static boolean activeStoryVillageIsActive(ServerLevel world, ServerPlayer player,
+                                                       PlayerQuestData data) {
+        if (world == null || player == null || data == null) return false;
+        GuildTownStoryVillageResolver.StoryVillage village = GuildTownStoryVillageResolver.byIndex(
+                world, player.getUUID(), data, GuildTownProgress.activeStoryVillage(data));
+        return village != null && isActiveSettlement(world, village.x(), village.z());
+    }
+
+    private static boolean commissionVillagesActive(ServerLevel world, PlayerQuestData data) {
+        if (world == null || data == null) return false;
+        GuildTownProgress.VillageIdentity first = GuildTownProgress.commissionFirstIdentity(data);
+        GuildTownProgress.VillageIdentity second = GuildTownProgress.commissionSecondIdentity(data);
+        return first != null && second != null
+                && isActiveSettlement(world, first.x(), first.z())
+                && isActiveSettlement(world, second.x(), second.z());
+    }
+
+    private static boolean isActiveSettlement(ServerLevel world, int x, int z) {
+        return world != null && VillageLifeState.get(world.getServer()).status(
+                new VillageLifeState.VillageKey(world.dimension().identifier().toString(), x, z))
+                == VillageLifeState.Status.ACTIVE;
     }
 
     private static boolean isNearLongDriveStart(ServerLevel world, UUID owner, PlayerQuestData data, BlockPos animalPos) {
@@ -1146,7 +1206,7 @@ public final class GuildTownService {
         return item == null || item == Items.AIR ? fallback : item;
     }
 
-    private static boolean consumeAtomic(ServerPlayer player, Item item, int amount) {
+    static boolean consumeAtomic(ServerPlayer player, Item item, int amount) {
         if (count(player, item) < amount) return false;
         int remaining = amount;
         for (int slot = 0; slot < player.getInventory().getContainerSize() && remaining > 0; slot++) {
@@ -1160,7 +1220,7 @@ public final class GuildTownService {
         return remaining == 0;
     }
 
-    private static int count(ServerPlayer player, Item item) {
+    static int count(ServerPlayer player, Item item) {
         int count = 0;
         for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
             ItemStack stack = player.getInventory().getItem(slot);
@@ -1205,6 +1265,26 @@ public final class GuildTownService {
 
     private static Component chronicleLabel(String eventId) {
         if (eventId != null) {
+            if (eventId.startsWith("village.abandoned.")) {
+                return Component.translatable("message.village-quest.guild_town.chronicle.village_abandoned");
+            }
+            if (eventId.startsWith("village.restored.")) {
+                return Component.translatable("message.village-quest.guild_town.chronicle.village_restored");
+            }
+            if (eventId.startsWith("dispatch.delivered.")) {
+                return Component.translatable("message.village-quest.guild_town.chronicle.dispatch_delivered");
+            }
+            if (eventId.startsWith("dispatch.cancelled.")) {
+                return Component.translatable("message.village-quest.guild_town.chronicle.dispatch_cancelled");
+            }
+            if (eventId.startsWith("afterstory_")) {
+                return Component.translatable("message.village-quest.guild_town.chronicle.afterstory",
+                        Component.translatable("quest.village-quest.guild_town.afterstory."
+                                + eventId.substring("afterstory_".length()) + ".title"));
+            }
+            if (eventId.startsWith("convoy.completed.")) {
+                return Component.translatable("message.village-quest.convoy.chronicle_completed");
+            }
             for (GuildTownStory story : GuildTownStory.values()) {
                 if (eventId.equals("story.accepted." + story.key())) {
                     return Component.translatable("message.village-quest.guild_town.chronicle.story.accepted", story.title());

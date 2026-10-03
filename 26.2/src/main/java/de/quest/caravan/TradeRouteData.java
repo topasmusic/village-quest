@@ -171,6 +171,36 @@ final class TradeRouteData {
                 : Math.max(0, Math.min(TradeRouteService.MAX_ROUTES - 1, stored - 1));
     }
 
+    /** A route connection keeps its identity when compacting slot numbers. */
+    static UUID connectionId(PlayerQuestData data, int routeIndex) {
+        if (data == null || routeIndex < 0) return null;
+        try {
+            return UUID.fromString(data.getTradeRouteString(routeKey(routeIndex, "connection_id")));
+        } catch (IllegalArgumentException invalid) {
+            return null;
+        }
+    }
+
+    static UUID ensureConnectionId(PlayerQuestData data, int routeIndex) {
+        if (data == null || routeIndex < 0
+                || routeIndex >= Math.min(TradeRouteService.MAX_ROUTES,
+                        Math.max(0, data.getTradeRouteInt(ROUTE_COUNT)))) {
+            throw new IllegalArgumentException("route does not exist");
+        }
+        String key = routeKey(routeIndex, "connection_id");
+        String saved = data.getTradeRouteString(key);
+        if (!saved.isBlank()) {
+            try {
+                return UUID.fromString(saved);
+            } catch (IllegalArgumentException ignored) {
+                // Recover malformed optional 2.5 metadata without touching route geometry.
+            }
+        }
+        UUID created = UUID.randomUUID();
+        data.setTradeRouteString(key, created.toString());
+        return created;
+    }
+
     static TradeRouteStatus status(PlayerQuestData data, int routeIndex) {
         TradeRouteStatus status = TradeRouteStatus.byId(routeInt(data, routeIndex, "status"));
         return status == TradeRouteStatus.UNKNOWN ? TradeRouteStatus.DANGEROUS : status;
@@ -189,6 +219,7 @@ final class TradeRouteData {
     }
 
     static void setRouteInt(PlayerQuestData data, int routeIndex, String suffix, int value) {
+        if ("event".equals(suffix) && value == 0) data.setTradeRouteString(routeKey(routeIndex, "social_incident_id"), "");
         data.setTradeRouteInt(routeKey(routeIndex, suffix), value);
     }
 

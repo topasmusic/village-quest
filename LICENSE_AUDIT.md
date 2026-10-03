@@ -2,13 +2,13 @@
 
 Audit date: 2026-07-19
 
-Status: **The mixed `2.0.0` licensing package is implemented locally but must not be published while the legacy entity skins remain unresolved.** Functional code is `LGPL-3.0-only`; owned original assets and creative content use the Village Quest All Rights Reserved notice; third-party material is explicitly excluded and inventoried.
+Status: **Historical `2.0.0` audit for the earlier maintained lines.** For the Minecraft `26.3` (`2.5.0`) and expressly ported `26.2` (`2.5.0`) release packages, each package now contains 23 TopasMusic-owned entity skins, based on the maintainer's authorship confirmation of 2026-09-24. Their current package terms and asset inventories are in the respective `26.3/` and `26.2/` `LICENSE` and `THIRD_PARTY_ASSETS.md` files. Functional code remains `LGPL-3.0-only`; owned original assets and creative content use the Village Quest All Rights Reserved notice.
 
 This document is a maintainer audit, not legal advice.
 
 ## Scope
 
-The audit covers the three maintained lines:
+The historical findings below cover the three earlier maintained lines and do not describe the current 2.5 art packages on `26.3` and `26.2`:
 
 - `26.2`
 - `26.1.2`

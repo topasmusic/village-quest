@@ -1,6 +1,6 @@
 # Trade Routes and Caravans
 
-This page describes the `2.0.0 - Roads Between Villages` trade-route and Trade-Guild system now shared by all three maintained lines. This `26.2` implementation remains the native-client visual and gameplay reference.
+This page describes the `2.0.0 - Roads Between Villages` trade-route and Trade-Guild system in the Minecraft `26.2` line. The same gameplay is available in the Minecraft `26.2` maintenance line.
 
 ## Unlocking the Network
 
@@ -285,3 +285,7 @@ Clean up the generated route state with:
 ```
 
 The ordinary complete data reset also removes route runtime entities, but it is broader and should only be used when a full mod reset is intended.
+
+## Caravan violence and reparation in2.5
+
+Crews and the pack mule now have persistent lives and are physically vulnerable by default. Confirmed personal attacks trigger warnings, measured trust losses and temporary work restrictions; guards defend only against proven attackers within the route leash. A real death interrupts the affected trip, keeps freight in safe saved claims and replaces the lost person only at a later safe departure. Cleanup/ferries/unload preserve living identities. Full rules and the reachable aid path are in [Social reputation](social-reputation.md). Caravan purchase limits now use the configured real Daily reset, with personal standing limits2/4/5/6 and case/ostracism0.

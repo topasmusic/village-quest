@@ -1601,6 +1601,8 @@ public final class DailyQuestService {
                 boolean storyWasUnlocked = QuestMasterProgressionService.isStoryCategoryUnlocked(world, recipient.getUUID());
                 deliverCompletion(world, recipient, questType, completion, true);
                 markCompletedToday(world, recipient.getUUID());
+                de.quest.reputation.SocialReputationService.recordQuestCompletion(world.getServer(), recipient.getUUID(),
+                        de.quest.reputation.SocialReputationRules.BenefitKind.DAILY, currentDay(), "normal");
                 if (FirstDailyChoiceService.complete(data(world, recipient.getUUID()))) {
                     VillageWelcomeService.unlockAfterFirstDaily(world, recipient);
                 }
@@ -1612,6 +1614,9 @@ public final class DailyQuestService {
         }
         boolean storyWasUnlocked = QuestMasterProgressionService.isStoryCategoryUnlocked(world, playerId);
         deliverCompletion(world, player, questType, completion, allowMagicShardDrop);
+        de.quest.reputation.SocialReputationService.recordQuestCompletion(world.getServer(), playerId,
+                de.quest.reputation.SocialReputationRules.BenefitKind.DAILY, currentDay(),
+                slot == ActiveQuestSlot.BONUS ? "bonus" : "normal");
         if (slot == ActiveQuestSlot.BONUS) {
             markBonusCompletedToday(world, playerId);
         } else {

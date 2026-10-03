@@ -40,12 +40,20 @@ public final class QuestService {
     private QuestService() {}
 
     public static void registerEvents() {
+        de.quest.caravan.CaravanCrewLifecycle.activate();
+        de.quest.reputation.ReputationDamageAdapter.activate(TradeRouteService::socialVictim);
+        net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
+            if (entity.level() instanceof ServerLevel world) TradeRouteService.onCaravanDeath(world, entity);
+        });
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             resetTransientRuntimeState();
             ShadowsTradeRoadEncounterService.despawnAll(server.overworld());
             TradeRouteService.despawnAll(server.overworld());
             EmptyCaravanStoryService.despawnAll(server.overworld());
             QuestState.get(server).applyToRuntime();
+            de.quest.reputation.ProtectedVillageIndex.primeHistorical(server);
+            de.quest.caravan.GuildConvoyService.reconcileTrust(server);
+            de.quest.reputation.ResettlementSupportService.reconcile(server);
             QuestPartyService.loadPersistentState(server);
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
@@ -57,9 +65,11 @@ public final class QuestService {
             state.updateFromRuntime();
             server.overworld().getDataStorage().saveAndJoin();
             resetTransientRuntimeState();
+            PaintingNameService.clear();
         });
 
         ServerTickEvents.END_SERVER_TICK.register(QuestPartyService::onServerTick);
+        ServerTickEvents.END_SERVER_TICK.register(server -> QuestState.get(server).advanceSocialServerTick());
         ServerTickEvents.END_SERVER_TICK.register(QuestDropTracker::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(QuestHarvestTracker::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(DailyQuestService::onServerTick);
@@ -70,6 +80,9 @@ public final class QuestService {
         ServerTickEvents.END_SERVER_TICK.register(SpecialQuestService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(PilgrimContractService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(PaintingNameService::onServerTick);
+        ServerTickEvents.END_SERVER_TICK.register(de.quest.reputation.ReputationDamageAdapter::onServerTick);
+        ServerTickEvents.END_SERVER_TICK.register(de.quest.reputation.ReparationService::onServerTick);
+        ServerTickEvents.END_SERVER_TICK.register(de.quest.reputation.ReputationInteractionService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(QuestBookHelper::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(QuestTrackerService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(PilgrimService::onServerTick);
@@ -88,6 +101,7 @@ public final class QuestService {
                     }
                     QuestPartyService.handleJoin(handler.player);
                     TradeRouteService.backfillUnlockedLedger(server.overworld(), handler.player);
+                    de.quest.caravan.TradeGuildService.deliverPendingRefund(server.overworld(), handler.player);
                     ReputationService.backfillRoadwardenHorn(server.overworld(), handler.player);
                     GuildArchiveService.migrateInventoryOnJoin(server.overworld(), handler.player);
                     VillageQuestRecipeBookService.unlockEligibleRecipes(handler.player);
@@ -143,6 +157,10 @@ public final class QuestService {
         });
 
         ServerEntityEvents.ENTITY_LOAD.register(QuestDropTracker::onEntityLoad);
+        ServerEntityEvents.ENTITY_LOAD.register(PaintingNameService::onEntityLoad);
+        ServerEntityEvents.ENTITY_UNLOAD.register(PaintingNameService::onEntityUnload);
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents.CHUNK_LOAD.register((world, chunk, newlyGenerated) ->
+                de.quest.reputation.ProtectedVillageIndex.onChunkLoad(world, chunk.getPos()));
 
         UseEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
             if (world instanceof ServerLevel sw && player instanceof net.minecraft.server.level.ServerPlayer sp) {
@@ -213,5 +231,9 @@ public final class QuestService {
         GuildArchiveService.resetTransientState();
         ClientPreferenceService.reset();
         GuildCornerPlacementService.resetRuntimeState();
+        de.quest.caravan.VillageLifeService.resetRuntimeState();
+        de.quest.caravan.CaravanProtectionService.resetRuntime();
+        de.quest.reputation.ReputationDamageAdapter.resetRuntime();
+        de.quest.reputation.ReputationInteractionService.resetRuntime();
     }
 }

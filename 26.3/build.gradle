@@ -39,6 +39,7 @@ dependencies {
 
     implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
     testImplementation "org.junit.jupiter:junit-jupiter:5.11.4"
+    testImplementation "org.mockito:mockito-core:5.20.0"
     testRuntimeOnly "org.junit.platform:junit-platform-launcher:1.11.4"
 }
 

@@ -23,12 +23,23 @@ public final class VillageContactService {
             return ContactResult.rejected();
         }
         PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(playerId);
-        ContactResult result = establish(data, VillageBondService.dimensionKey(world),
+        String dimension = VillageBondService.dimensionKey(world);
+        boolean newVillage = VillageBondService.findVillage(data, dimension,
+                marker.centerX(), marker.centerZ()) < 0;
+        VillageIdentityOrigin.Classification classification =
+                VillageBondService.classifyDetailed(world, marker);
+        ContactResult result = establish(data, dimension,
                 marker.centerX(), marker.centerZ(),
-                VillageBondService.classify(world, marker, playerId));
+                classification.type());
+        if (newVillage && result.contact() != null) {
+            data.setTradeRouteString(VillageBondService.villageKey(
+                    result.contact().villageIndex(), "identity_origin"), classification.origin());
+        }
         if (result.created()) {
             QuestState.get(world.getServer()).setDirty();
         }
+        if (result.contact() != null) de.quest.reputation.ProtectedVillageIndex.register(world,
+                new de.quest.village.VillageLifeState.VillageKey(dimension, marker.centerX(), marker.centerZ()));
         return result;
     }
 

@@ -11,6 +11,7 @@ import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /** Packets owned by the village-board and Wayshrine domain. */
 public final class VillageNetworkPayloads {
@@ -183,7 +184,10 @@ public final class VillageNetworkPayloads {
                                        boolean sharedTable, ItemStack delivery, int deliveryCount,
                                        NoticeBoardPayload requests, boolean preview) implements CustomPacketPayload {
         public static final int INTRO = 0, AVAILABLE = 1, ACTIVE = 2, CHOOSE = 3,
-                READY = 4, REMEMBERED = 5, PAUSED = 6, AWAY = 7, QUESTMASTER = 8;
+                READY = 4, REMEMBERED = 5, PAUSED = 6, AWAY = 7, QUESTMASTER = 8,
+                RESETTLEMENT = 9, RECOVERING = 10,
+                AFTERSTORY_AVAILABLE = 11, AFTERSTORY_ACTIVE = 12,
+                AFTERSTORY_READY = 13, AFTERSTORY_COMPLETE = 14;
         public static final Type<NoticeJourneyPayload> ID = new Type<>(
                 Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "notice_journey"));
         public static final StreamCodec<RegistryFriendlyByteBuf, NoticeJourneyPayload> CODEC =
@@ -216,7 +220,8 @@ public final class VillageNetworkPayloads {
 
     public record NoticeJourneyActionPayload(int worldX, int worldY, int worldZ, int action)
             implements CustomPacketPayload {
-        public static final int ACCEPT = 1, RESERVE = 2, SHARE = 3, DELIVER = 4, REFRESH = 5, RESUME = 6;
+        public static final int ACCEPT = 1, RESERVE = 2, SHARE = 3, DELIVER = 4, REFRESH = 5, RESUME = 6,
+                DISPATCH = 7, ACCEPT_AFTERSTORY = 8, DELIVER_AFTERSTORY = 9;
         public static final Type<NoticeJourneyActionPayload> ID = new Type<>(
                 Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "notice_journey_action"));
         public static final StreamCodec<RegistryFriendlyByteBuf, NoticeJourneyActionPayload> CODEC =
@@ -224,6 +229,118 @@ public final class VillageNetworkPayloads {
                     buf.writeInt(value.worldX()); buf.writeInt(value.worldY()); buf.writeInt(value.worldZ());
                     buf.writeVarInt(value.action());
                 }, buf -> new NoticeJourneyActionPayload(buf.readInt(), buf.readInt(), buf.readInt(), buf.readVarInt()));
+        @Override public Type<? extends CustomPacketPayload> type() { return ID; }
+    }
+
+    public record RegionalDispatchOfferData(int routeIndex, Component destination,
+                                            ItemStack cargo, int amount, int inventory, int reward) {
+        private static RegionalDispatchOfferData read(RegistryFriendlyByteBuf buf) {
+            return new RegionalDispatchOfferData(buf.readVarInt(),
+                    ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf),
+                    ItemStack.STREAM_CODEC.decode(buf), buf.readVarInt(), buf.readVarInt(), buf.readVarInt());
+        }
+
+        private static void write(RegistryFriendlyByteBuf buf, RegionalDispatchOfferData value) {
+            buf.writeVarInt(value.routeIndex());
+            ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, value.destination());
+            ItemStack.STREAM_CODEC.encode(buf, value.cargo());
+            buf.writeVarInt(value.amount()); buf.writeVarInt(value.inventory()); buf.writeVarInt(value.reward());
+        }
+    }
+
+    public record RegionalDispatchPayload(int worldX, int worldY, int worldZ,
+                                          Component source, Component status, Component path,
+                                          ItemStack activeCargo, int activeAmount, boolean canClaim, boolean canStart,
+                                          List<RegionalDispatchOfferData> offers) implements CustomPacketPayload {
+        public static final Type<RegionalDispatchPayload> ID = new Type<>(
+                Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "regional_dispatch"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, RegionalDispatchPayload> CODEC =
+                StreamCodec.of((buf, value) -> {
+                    buf.writeInt(value.worldX()); buf.writeInt(value.worldY()); buf.writeInt(value.worldZ());
+                    ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, value.source());
+                    ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, value.status());
+                    ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, value.path());
+                    buf.writeBoolean(!value.activeCargo().isEmpty());
+                    if (!value.activeCargo().isEmpty()) ItemStack.STREAM_CODEC.encode(buf, value.activeCargo());
+                    buf.writeVarInt(value.activeAmount()); buf.writeBoolean(value.canClaim());
+                    buf.writeBoolean(value.canStart());
+                    int count = Math.min(4, value.offers().size());
+                    buf.writeVarInt(count);
+                    for (int i = 0; i < count; i++) RegionalDispatchOfferData.write(buf, value.offers().get(i));
+                }, buf -> {
+                    int x = buf.readInt(), y = buf.readInt(), z = buf.readInt();
+                    Component source = ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf);
+                    Component status = ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf);
+                    Component path = ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf);
+                    ItemStack cargo = buf.readBoolean() ? ItemStack.STREAM_CODEC.decode(buf) : ItemStack.EMPTY;
+                    int amount = buf.readVarInt();
+                    boolean claim = buf.readBoolean();
+                    boolean canStart = buf.readBoolean();
+                    int count = Math.max(0, Math.min(4, buf.readVarInt()));
+                    List<RegionalDispatchOfferData> offers = new ArrayList<>(count);
+                    for (int i = 0; i < count; i++) offers.add(RegionalDispatchOfferData.read(buf));
+                    return new RegionalDispatchPayload(x, y, z, source, status, path, cargo, amount,
+                            claim, canStart, List.copyOf(offers));
+                });
+        @Override public Type<? extends CustomPacketPayload> type() { return ID; }
+    }
+
+    public record RegionalDispatchActionPayload(int worldX, int worldY, int worldZ, int action, int routeIndex)
+            implements CustomPacketPayload {
+        public static final int START = 1, CLAIM = 2, REFRESH = 3;
+        public static final Type<RegionalDispatchActionPayload> ID = new Type<>(
+                Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "regional_dispatch_action"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, RegionalDispatchActionPayload> CODEC =
+                StreamCodec.of((buf, value) -> {
+                    buf.writeInt(value.worldX()); buf.writeInt(value.worldY()); buf.writeInt(value.worldZ());
+                    buf.writeVarInt(value.action()); buf.writeVarInt(value.routeIndex());
+                }, buf -> new RegionalDispatchActionPayload(buf.readInt(), buf.readInt(), buf.readInt(),
+                        buf.readVarInt(), buf.readVarInt()));
+        @Override public Type<? extends CustomPacketPayload> type() { return ID; }
+    }
+
+    public record CaravanMasterPayload(UUID entityId, Component masterName, Component routeName,
+                                       Component journey, int progressPercent, int etaSeconds,
+                                       int roadQuality, Component roadStatus, Component availability,
+                                       Component incident, Component cargo, Component quote,
+                                       boolean canViewRoute) implements CustomPacketPayload {
+        public static final Type<CaravanMasterPayload> ID = new Type<>(
+                Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "caravan_master"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, CaravanMasterPayload> CODEC =
+                StreamCodec.of((buf, value) -> {
+                    buf.writeUUID(value.entityId());
+                    ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, value.masterName());
+                    ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, value.routeName());
+                    ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, value.journey());
+                    buf.writeVarInt(value.progressPercent()); buf.writeVarInt(value.etaSeconds());
+                    buf.writeVarInt(value.roadQuality());
+                    ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, value.roadStatus());
+                    ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, value.availability());
+                    ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, value.incident());
+                    ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, value.cargo());
+                    ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, value.quote());
+                    buf.writeBoolean(value.canViewRoute());
+                }, buf -> new CaravanMasterPayload(buf.readUUID(),
+                        ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf),
+                        ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf),
+                        ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf),
+                        buf.readVarInt(), buf.readVarInt(), buf.readVarInt(),
+                        ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf),
+                        ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf),
+                        ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf),
+                        ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf),
+                        ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf), buf.readBoolean()));
+        @Override public Type<? extends CustomPacketPayload> type() { return ID; }
+    }
+
+    public record CaravanMasterActionPayload(UUID entityId, int action) implements CustomPacketPayload {
+        public static final int VIEW_ROUTE = 1, REFRESH = 2;
+        public static final Type<CaravanMasterActionPayload> ID = new Type<>(
+                Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "caravan_master_action"));
+        public static final StreamCodec<RegistryFriendlyByteBuf, CaravanMasterActionPayload> CODEC =
+                StreamCodec.of((buf, value) -> {
+                    buf.writeUUID(value.entityId()); buf.writeVarInt(value.action());
+                }, buf -> new CaravanMasterActionPayload(buf.readUUID(), buf.readVarInt()));
         @Override public Type<? extends CustomPacketPayload> type() { return ID; }
     }
 

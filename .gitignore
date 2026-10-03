@@ -25,6 +25,7 @@
 **/.DS_Store
 
 # private maintainer context and local planning notes
+/docs/superpowers/
 /MAINTAINER.md
 /NEXT_SESSION.md
 /*_START_HERE.md
@@ -56,5 +57,6 @@
 /26.3/tools/*
 !/26.3/tools/validate_resources.py
 /tools/__pycache__/
+/tools/tests/__pycache__/
 /es_es.json
 /es_es. original.json

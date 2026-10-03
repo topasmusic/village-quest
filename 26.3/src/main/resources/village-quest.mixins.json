@@ -16,6 +16,7 @@
     "ForgingScreenHandlerAccessor",
     "ForgingScreenHandlerMixin",
     "ItemEntityMixin",
+    "LivingEntityReputationMixin",
     "MerchantEntityAccessor",
     "PaintingEntityMixin",
     "SheepMixin",

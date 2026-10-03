@@ -71,3 +71,7 @@ Use `/vq network` for the same authoritative summary in chat. Rank 5 is the cap;
 ## Save and server safety
 
 Village network data uses schema `2`; optional guild data has its own schema `1`. Missing fields receive bounded defaults, invalid records are ignored, and repeated loading does not grant progress. Virtual routes still work without loading their chunks. Reconnects and offline members do not advance timers or lose supply. Serverbound board selections are revalidated against the current generated offer before any item is removed.
+
+## Social trust in2.5
+
+The new [Trust on the Roads of Concord](social-reputation.md) layer is personal and reversible. It does not remove permanent bonds, earned expertise or network prestige. Network village cards display local trust separately from bond/supply; the Trust and Chronicle subtabs explain benefits, personal sanctions and active aid.

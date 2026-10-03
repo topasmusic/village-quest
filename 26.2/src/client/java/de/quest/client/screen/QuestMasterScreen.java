@@ -5,7 +5,7 @@ import de.quest.client.ui.VillageUiTheme;
 import de.quest.network.Payloads;
 import de.quest.util.TimeUtil;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.minecraft.client.gui.GuiGraphics;
+import de.quest.client.compat.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -257,6 +257,9 @@ public final class QuestMasterScreen extends CompatScreen {
             VillageUiTheme.drawPanelShadow(context, left, top, WINDOW_WIDTH, WINDOW_HEIGHT);
             drawBoard(context, left, top);
             drawHeader(context, left, top);
+            VillageUiTheme.drawButton(context, font, left + 307, top + 12, 63, 18,
+                    Component.translatable("screen.village-quest.reputation.title").getString(), true,
+                    isWithin(uiMouseX, uiMouseY, left + 307, top + 12, 63, 18), false);
             drawSidebar(context, left, top, uiMouseX, uiMouseY);
             drawEntryList(context, left, top, uiMouseX, uiMouseY);
             drawDetailPanel(context, left, top, uiMouseX, uiMouseY);
@@ -283,6 +286,10 @@ public final class QuestMasterScreen extends CompatScreen {
         int mouseX = responsiveMouseX(click.x(), WINDOW_WIDTH, WINDOW_HEIGHT);
         int mouseY = responsiveMouseY(click.y(), WINDOW_WIDTH, WINDOW_HEIGHT);
 
+        if (isWithin(mouseX, mouseY, left + 307, top + 12, 63, 18)) {
+            ClientPlayNetworking.send(new de.quest.network.ReputationPayloads.OpenPayload(1, net.minecraft.core.BlockPos.ZERO, data.entityId()));
+            return true;
+        }
         List<CategoryView> categories = data.categories();
         for (int i = 0; i < categories.size(); i++) {
             CategoryView category = categories.get(i);

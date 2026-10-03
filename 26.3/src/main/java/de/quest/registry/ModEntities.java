@@ -2,6 +2,7 @@ package de.quest.registry;
 
 import de.quest.VillageQuest;
 import de.quest.entity.CaravanMerchantEntity;
+import de.quest.entity.CaravanPackMuleEntity;
 import de.quest.entity.PilgrimEntity;
 import de.quest.entity.QuestMasterEntity;
 import de.quest.entity.TraitorEntity;
@@ -18,10 +19,12 @@ public final class ModEntities {
     private static final Identifier PILGRIM_ID = Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "pilgrim");
     private static final Identifier QUEST_MASTER_ID = Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "quest_master");
     private static final Identifier CARAVAN_MERCHANT_ID = Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "caravan_merchant");
+    private static final Identifier CARAVAN_PACK_MULE_ID = Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "caravan_pack_mule");
     private static final Identifier TRAITOR_ID = Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "traitor");
     private static final ResourceKey<EntityType<?>> PILGRIM_KEY = ResourceKey.create(Registries.ENTITY_TYPE, PILGRIM_ID);
     private static final ResourceKey<EntityType<?>> QUEST_MASTER_KEY = ResourceKey.create(Registries.ENTITY_TYPE, QUEST_MASTER_ID);
     private static final ResourceKey<EntityType<?>> CARAVAN_MERCHANT_KEY = ResourceKey.create(Registries.ENTITY_TYPE, CARAVAN_MERCHANT_ID);
+    private static final ResourceKey<EntityType<?>> CARAVAN_PACK_MULE_KEY = ResourceKey.create(Registries.ENTITY_TYPE, CARAVAN_PACK_MULE_ID);
     private static final ResourceKey<EntityType<?>> TRAITOR_KEY = ResourceKey.create(Registries.ENTITY_TYPE, TRAITOR_ID);
 
     public static final EntityType<PilgrimEntity> PILGRIM = Registry.register(
@@ -45,6 +48,13 @@ public final class ModEntities {
                     .sized(0.6f, 1.8f)
                     .build(CARAVAN_MERCHANT_KEY)
     );
+    public static final EntityType<CaravanPackMuleEntity> CARAVAN_PACK_MULE = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE,
+            CARAVAN_PACK_MULE_ID,
+            EntityType.Builder.<CaravanPackMuleEntity>of(CaravanPackMuleEntity::new, MobCategory.CREATURE)
+                    .sized(1.3965f, 1.6f)
+                    .build(CARAVAN_PACK_MULE_KEY)
+    );
     public static final EntityType<TraitorEntity> TRAITOR = Registry.register(
             BuiltInRegistries.ENTITY_TYPE,
             TRAITOR_ID,
@@ -59,6 +69,7 @@ public final class ModEntities {
         FabricDefaultAttributeRegistry.register(PILGRIM, PilgrimEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(QUEST_MASTER, QuestMasterEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(CARAVAN_MERCHANT, CaravanMerchantEntity.createAttributes());
+        FabricDefaultAttributeRegistry.register(CARAVAN_PACK_MULE, CaravanPackMuleEntity.createBaseHorseAttributes());
         FabricDefaultAttributeRegistry.register(TRAITOR, TraitorEntity.createAttributes());
         VillageQuest.LOGGER.info("Registered entities");
     }

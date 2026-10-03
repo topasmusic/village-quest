@@ -34,6 +34,10 @@ public final class Payloads {
                 VillageNetworkPayloads.NoticeBoardPayload.ID, VillageNetworkPayloads.NoticeBoardPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(
                 VillageNetworkPayloads.NoticeJourneyPayload.ID, VillageNetworkPayloads.NoticeJourneyPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(
+                VillageNetworkPayloads.RegionalDispatchPayload.ID, VillageNetworkPayloads.RegionalDispatchPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(
+                VillageNetworkPayloads.CaravanMasterPayload.ID, VillageNetworkPayloads.CaravanMasterPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(GuildPathPayload.ID, GuildPathPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(QuestFeedbackPayload.ID, QuestFeedbackPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(JournalActionPayload.ID, JournalActionPayload.CODEC);
@@ -52,8 +56,20 @@ public final class Payloads {
                 VillageNetworkPayloads.NoticeBoardActionPayload.ID, VillageNetworkPayloads.NoticeBoardActionPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(
                 VillageNetworkPayloads.NoticeJourneyActionPayload.ID, VillageNetworkPayloads.NoticeJourneyActionPayload.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(
+                VillageNetworkPayloads.RegionalDispatchActionPayload.ID,
+                VillageNetworkPayloads.RegionalDispatchActionPayload.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(
+                VillageNetworkPayloads.CaravanMasterActionPayload.ID,
+                VillageNetworkPayloads.CaravanMasterActionPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(ClientPreferencesPayload.ID, ClientPreferencesPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(QuestTrackerActionPayload.ID, QuestTrackerActionPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(ReputationPayloads.ViewPayload.ID, ReputationPayloads.ViewPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(ReputationPayloads.InteractionPayload.ID, ReputationPayloads.InteractionPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(ReputationPayloads.ClosePayload.ID, ReputationPayloads.ClosePayload.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(ReputationPayloads.PagePayload.ID, ReputationPayloads.PagePayload.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(ReputationPayloads.OpenPayload.ID, ReputationPayloads.OpenPayload.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(ReputationPayloads.ActionPayload.ID, ReputationPayloads.ActionPayload.CODEC);
         registered = true;
     }
 
@@ -226,7 +242,7 @@ public final class Payloads {
             int networkVillageCount = Math.max(0, Math.min(16, buf.readVarInt()));
             List<NetworkVillageData> networkVillages = new ArrayList<>(networkVillageCount);
             for (int i = 0; i < networkVillageCount; i++) {
-                networkVillages.add(NetworkVillageData.read(buf));
+                networkVillages.add(NetworkVillageData.CODEC.decode(buf));
             }
             int networkGuildLineCount = Math.max(0, Math.min(16, buf.readVarInt()));
             List<Component> networkGuildLines = new ArrayList<>(networkGuildLineCount);
@@ -338,7 +354,7 @@ public final class Payloads {
             int networkVillageCount = Math.min(16, networkVillages.size());
             buf.writeVarInt(networkVillageCount);
             for (int i = 0; i < networkVillageCount; i++) {
-                NetworkVillageData.write(buf, networkVillages.get(i));
+                NetworkVillageData.CODEC.encode(buf, networkVillages.get(i));
             }
             List<Component> networkGuildLines = payload.networkGuildLines() == null
                     ? List.of() : payload.networkGuildLines();
@@ -382,7 +398,9 @@ public final class Payloads {
 
     public record NetworkVillageData(int index, Component villageType, Component bondLevel,
                                      Component condition, String conditionKey, Component need,
-                                     int support, int energyProgress) {
+                                     int support, int energyProgress, int socialTrust, boolean socialCase) {
+        public static final StreamCodec<RegistryFriendlyByteBuf, NetworkVillageData> CODEC =
+                StreamCodec.of(NetworkVillageData::write, NetworkVillageData::read);
         private static NetworkVillageData read(RegistryFriendlyByteBuf buf) {
             return new NetworkVillageData(
                     buf.readVarInt(),
@@ -392,13 +410,13 @@ public final class Payloads {
                     buf.readUtf(32),
                     ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf),
                     buf.readVarInt(),
-                    buf.readVarInt());
+                    buf.readVarInt(), buf.readVarInt(), buf.readBoolean());
         }
 
         private static void write(RegistryFriendlyByteBuf buf, NetworkVillageData value) {
             NetworkVillageData safe = value == null
                     ? new NetworkVillageData(0, Component.empty(), Component.empty(), Component.empty(),
-                    "stable", Component.empty(), 0, 0)
+                    "stable", Component.empty(), 0, 0, 0, false)
                     : value;
             buf.writeVarInt(safe.index());
             ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, safe.villageType());
@@ -408,6 +426,7 @@ public final class Payloads {
             ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, safe.need());
             buf.writeVarInt(safe.support());
             buf.writeVarInt(safe.energyProgress());
+            buf.writeVarInt(safe.socialTrust()); buf.writeBoolean(safe.socialCase());
         }
     }
 
@@ -1192,7 +1211,8 @@ public final class Payloads {
             int worldX,
             int worldZ,
             boolean home,
-            boolean playerYard
+            boolean playerYard,
+            int lifeStatus
     ) {
         private static TradeRouteNodeData read(RegistryFriendlyByteBuf buf) {
             return new TradeRouteNodeData(
@@ -1201,7 +1221,8 @@ public final class Payloads {
                     buf.readInt(),
                     buf.readInt(),
                     buf.readBoolean(),
-                    buf.readBoolean()
+                    buf.readBoolean(),
+                    buf.readVarInt()
             );
         }
 
@@ -1212,6 +1233,7 @@ public final class Payloads {
             buf.writeInt(node.worldZ());
             buf.writeBoolean(node.home());
             buf.writeBoolean(node.playerYard());
+            buf.writeVarInt(node.lifeStatus());
         }
     }
 
@@ -1233,10 +1255,12 @@ public final class Payloads {
             Component name,
             int status,
             Component statusLabel,
+            Component availabilityLabel,
             int roadQuality,
             int progress,
             boolean returning,
             boolean paused,
+            boolean settlementSuspended,
             boolean surveying,
             Component eventLabel,
             Component eventHelp,
@@ -1244,7 +1268,17 @@ public final class Payloads {
             Component specializationLabel,
             Component incidentApproachLabel,
             Component upgradeSummary,
-            List<TradeRoutePointData> waypoints
+            String masterName,
+            String traderName,
+            String guardName,
+            String courierName,
+            List<TradeRoutePointData> waypoints,
+            long straightBlocks,
+            long surveyedBlocks,
+            long estimatedBlocks,
+            long estimatedMinutes,
+            int expectedLegs,
+            boolean unusuallyLong
     ) {
         private static TradeRouteLineData read(RegistryFriendlyByteBuf buf) {
             int routeIndex = buf.readVarInt();
@@ -1252,10 +1286,12 @@ public final class Payloads {
             Component name = ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf);
             int status = buf.readVarInt();
             Component statusLabel = ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf);
+            Component availabilityLabel = ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf);
             int roadQuality = buf.readVarInt();
             int progress = buf.readVarInt();
             boolean returning = buf.readBoolean();
             boolean paused = buf.readBoolean();
+            boolean settlementSuspended = buf.readBoolean();
             boolean surveying = buf.readBoolean();
             Component eventLabel = ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf);
             Component eventHelp = ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf);
@@ -1263,14 +1299,28 @@ public final class Payloads {
             Component specializationLabel = ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf);
             Component incidentApproachLabel = ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf);
             Component upgradeSummary = ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf);
+            String masterName = buf.readUtf(64);
+            String traderName = buf.readUtf(64);
+            String guardName = buf.readUtf(64);
+            String courierName = buf.readUtf(64);
             int waypointCount = buf.readVarInt();
             List<TradeRoutePointData> waypoints = new ArrayList<>(waypointCount);
             for (int i = 0; i < waypointCount; i++) {
                 waypoints.add(TradeRoutePointData.read(buf));
             }
-            return new TradeRouteLineData(routeIndex, liveryIndex, name, status, statusLabel, roadQuality, progress,
-                    returning, paused, surveying, eventLabel, eventHelp, lifetimeEarnings,
-                    specializationLabel, incidentApproachLabel, upgradeSummary, List.copyOf(waypoints));
+            long straightBlocks = buf.readVarLong();
+            long surveyedBlocks = buf.readVarLong();
+            long estimatedBlocks = buf.readVarLong();
+            long estimatedMinutes = buf.readVarLong();
+            int expectedLegs = buf.readVarInt();
+            boolean unusuallyLong = buf.readBoolean();
+            return new TradeRouteLineData(routeIndex, liveryIndex, name, status, statusLabel, availabilityLabel,
+                    roadQuality, progress,
+                    returning, paused, settlementSuspended, surveying, eventLabel, eventHelp, lifetimeEarnings,
+                    specializationLabel, incidentApproachLabel, upgradeSummary,
+                    masterName, traderName, guardName, courierName, List.copyOf(waypoints),
+                    straightBlocks, surveyedBlocks, estimatedBlocks, estimatedMinutes,
+                    expectedLegs, unusuallyLong);
         }
 
         private static void write(RegistryFriendlyByteBuf buf, TradeRouteLineData route) {
@@ -1279,10 +1329,12 @@ public final class Payloads {
             ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, route.name());
             buf.writeVarInt(route.status());
             ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, route.statusLabel());
+            ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, route.availabilityLabel());
             buf.writeVarInt(route.roadQuality());
             buf.writeVarInt(route.progress());
             buf.writeBoolean(route.returning());
             buf.writeBoolean(route.paused());
+            buf.writeBoolean(route.settlementSuspended());
             buf.writeBoolean(route.surveying());
             ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, route.eventLabel());
             ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, route.eventHelp());
@@ -1290,10 +1342,20 @@ public final class Payloads {
             ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, route.specializationLabel());
             ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, route.incidentApproachLabel());
             ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, route.upgradeSummary());
+            buf.writeUtf(route.masterName(), 64);
+            buf.writeUtf(route.traderName(), 64);
+            buf.writeUtf(route.guardName(), 64);
+            buf.writeUtf(route.courierName(), 64);
             buf.writeVarInt(route.waypoints().size());
             for (TradeRoutePointData point : route.waypoints()) {
                 TradeRoutePointData.write(buf, point);
             }
+            buf.writeVarLong(route.straightBlocks());
+            buf.writeVarLong(route.surveyedBlocks());
+            buf.writeVarLong(route.estimatedBlocks());
+            buf.writeVarLong(route.estimatedMinutes());
+            buf.writeVarInt(route.expectedLegs());
+            buf.writeBoolean(route.unusuallyLong());
         }
     }
 
@@ -1324,7 +1386,8 @@ public final class Payloads {
 
     public record TradeRouteBondData(int index, int worldX, int worldZ, Component type,
                                      Component level, Component request, int completions,
-                                     Component condition, Component need, int support, int energyProgress) {
+                                     Component condition, Component need, int support, int energyProgress,
+                                     int lifeStatus, boolean connected, Component identityOrigin) {
         private static TradeRouteBondData read(RegistryFriendlyByteBuf buf) {
             return new TradeRouteBondData(buf.readVarInt(), buf.readInt(), buf.readInt(),
                     ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf),
@@ -1332,7 +1395,8 @@ public final class Payloads {
                     ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf), buf.readVarInt(),
                     ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf),
                     ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf),
-                    buf.readVarInt(), buf.readVarInt());
+                    buf.readVarInt(), buf.readVarInt(), buf.readVarInt(), buf.readBoolean(),
+                    ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf));
         }
 
         private static void write(RegistryFriendlyByteBuf buf, TradeRouteBondData value) {
@@ -1347,6 +1411,9 @@ public final class Payloads {
             ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, value.need());
             buf.writeVarInt(value.support());
             buf.writeVarInt(value.energyProgress());
+            buf.writeVarInt(value.lifeStatus());
+            buf.writeBoolean(value.connected());
+            ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, value.identityOrigin());
         }
     }
 

@@ -123,6 +123,8 @@ public final class QuestBookHelper {
                 networkProgress.specialization().label(),
                 Component.translatable("text.village-quest.adventure_profile."
                         + VillageQuestServerConfig.get().adventureProfile().name().toLowerCase(Locale.ROOT)));
+        var social = de.quest.data.QuestState.get(world.getServer()).getPlayerData(pid).socialReputation();
+        String socialDimension = world.dimension().identifier().toString();
         List<Payloads.NetworkVillageData> networkVillageData = networkVillages.stream()
                 .map(village -> new Payloads.NetworkVillageData(
                         village.index(),
@@ -132,7 +134,10 @@ public final class QuestBookHelper {
                         village.network().condition().key(),
                         village.network().need().label(),
                         village.network().support(),
-                        village.network().energyProgress()))
+                        village.network().energyProgress(),
+                        social.localTrust(new de.quest.village.VillageLifeState.VillageKey(socialDimension, village.x(), village.z())),
+                        de.quest.reputation.SocialReputationService.enabled() && social.activeCase() != null
+                                && social.activeCase().affected().contains(new de.quest.village.VillageLifeState.VillageKey(socialDimension, village.x(), village.z()))))
                 .toList();
         List<Component> networkGuildLines = VillageGuildService.statusLines(world, pid);
         VillageBondService.VillageBondView priorityVillage = networkVillages.stream()
@@ -204,6 +209,8 @@ public final class QuestBookHelper {
         sendPayload(player, buildPayload(world, player, JournalPayload.ACTION_OPEN));
         return true;
     }
+
+    public static boolean isJournalOpen(UUID player) { return JOURNAL_ENABLED.contains(player); }
 
     public static boolean toggleJournal(ServerLevel world, ServerPlayer player) {
         if (JOURNAL_ENABLED.contains(player.getUUID())) {
@@ -282,6 +289,7 @@ public final class QuestBookHelper {
             return;
         }
         JOURNAL_ENABLED.remove(playerId);
+        de.quest.reputation.ReputationInteractionService.remove(playerId);
         LAST_JOURNAL_REFRESH.remove(playerId);
     }
 
@@ -310,6 +318,7 @@ public final class QuestBookHelper {
 
     private static void sendPayload(ServerPlayer player, JournalPayload payload) {
         ServerPlayNetworking.send(player, payload);
+        if (payload.action() != JournalPayload.ACTION_CLOSE) de.quest.reputation.ReputationInteractionService.sendJournal(player);
     }
 
     private static boolean hasInventoryItem(ServerPlayer player, Item item) {

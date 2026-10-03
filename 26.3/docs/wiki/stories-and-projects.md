@@ -206,16 +206,19 @@ At turn-in, carry a complete pristine kit with those quantities. The craft progr
 
 ### Chapter 4: `The Master's Edge`
 
-This chapter now advances through one visible stage at a time:
+The book purchases must happen while this chapter is active:
 
-1. acquire one `Sharpness` enchanted book and one book from the `Protection`, `Fire Protection`, `Blast Protection`, or `Projectile Protection` family; trade, exploration, loot, and other acquisition paths count
-2. craft one each of the `Iron Helmet`, `Iron Chestplate`, `Iron Leggings`, and `Iron Boots`
-3. apply `Protection`, `Fire Protection`, `Blast Protection`, or `Projectile Protection` at any level to every armor piece; the four protections can be assigned to the four pieces in any order
-4. craft a `Diamond Sword`
-5. apply `Sharpness` at any level to that sword
-6. carry the four qualifying armor pieces and qualifying sword to the Questmaster for the final hand-in
+The quest presents two objectives together: **Knowledge of the librarians** and **Equipment for the hall**. Each equipment piece has its own checkmark, visible even before buying the books. Supplies may be gathered in any order; completion still requires both book purchases and the complete set. The story explains the forge's need for knowledge and supplies, with enchantment and hand-in rules in a separate note.
 
-Finishing a stage unlocks the next automatically. Only the final five-piece delivery needs the Questmaster, and those delivered arms are consumed together.
+1. buy one enchanted book with `Sharpness` from a villager
+2. buy one enchanted book with `Protection`, `Fire Protection`, `Blast Protection`, or `Projectile Protection` from a villager; any level counts for either book, and the purchases may happen in either order
+3. bring one each of the `Iron Helmet`, `Iron Chestplate`, `Iron Leggings`, and `Iron Boots`, each with any of those four protection types, plus a `Diamond Sword` with `Sharpness`, to the Questmaster
+
+Found books, books already owned when accepting, and trading enchanted equipment do not grant new book purchase progress. Equipment may come from any source and may already be enchanted or damaged. There is no crafting or anvil-event requirement. Any positive enchantment level counts; different armor pieces may use different protection types, independently of the protection book purchased. Only the five equipment pieces are consumed at hand-in; the books are kept and need not be applied to that equipment. Four copies of the same armor piece do not form a complete set.
+
+For existing active saves, previously stored book milestones remain valid: older saves did not record the source of those books. New progress requires actual villager purchases. Modded enchantments with different registry IDs are not automatically treated as the vanilla enchantments named above.
+
+After both book purchases are proven, the quest checks the finished set directly. Only the final five-piece delivery needs the Questmaster.
 
 ### Result
 

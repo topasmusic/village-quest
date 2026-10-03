@@ -2,6 +2,7 @@ package de.quest.village;
 
 import de.quest.VillageQuest;
 import de.quest.caravan.TradeRouteService;
+import de.quest.caravan.VillageLifeService;
 import de.quest.content.block.GuildNoticePostBlock;
 import de.quest.content.story.ShadowsTradeRoadEncounterService;
 import de.quest.data.QuestState;
@@ -67,7 +68,11 @@ public final class GuildCornerPlacementService {
             NEXT_VISIT_CHECK.put(player.getUUID(), gameTime + VISIT_CHECK_INTERVAL_TICKS);
             ShadowsTradeRoadEncounterService.VillageMarker marker =
                     ShadowsTradeRoadEncounterService.currentVillage(world, player.blockPosition());
-            if (marker != null) processLocalVillageVisit(world, marker, gameTime);
+            if (marker != null) {
+                VillageLifeService.observeNearby(world, player, marker);
+                processLocalVillageVisit(world, marker, gameTime);
+            }
+            VillageLifeService.notifyPending(server, player);
         }
     }
 
@@ -78,6 +83,7 @@ public final class GuildCornerPlacementService {
         long nextCheck = NEXT_VISIT_CHECK.getOrDefault(player.getUUID(), 0L);
         if (gameTime < nextCheck) return;
         NEXT_VISIT_CHECK.put(player.getUUID(), gameTime + VISIT_CHECK_INTERVAL_TICKS);
+        VillageLifeService.observeNearby(world, player, marker);
         processLocalVillageVisit(world, marker, gameTime);
     }
 

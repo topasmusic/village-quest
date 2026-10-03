@@ -1,6 +1,8 @@
 package de.quest.shrine;
 
 import de.quest.caravan.TradeRouteService;
+import de.quest.caravan.RegionalDispatchService;
+import de.quest.caravan.VillageLifeService;
 import de.quest.content.story.ShadowsTradeRoadEncounterService;
 import de.quest.config.VillageQuestServerConfig;
 import de.quest.data.PlayerQuestData;
@@ -9,6 +11,7 @@ import de.quest.economy.CurrencyService;
 import de.quest.guild.VillageGuildService;
 import de.quest.guildtown.GuildTownService;
 import de.quest.guildtown.GuildTownProgress;
+import de.quest.guildtown.GuildTownAfterstoryService;
 import de.quest.network.VillageNetworkPayloads;
 import de.quest.quest.daily.FirstDailyChoiceService;
 import de.quest.registry.ModBlocks;
@@ -17,6 +20,7 @@ import de.quest.village.LivingVillageNetworkState;
 import de.quest.village.NetworkSpecialization;
 import de.quest.village.VillageRequestGenerator;
 import de.quest.village.VillageRequestOffer;
+import de.quest.village.VillageLifeState;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -39,8 +43,14 @@ final class VillageNoticeBoardService {
 
     private VillageNoticeBoardService() {}
 
+    private static boolean validBoard(ServerLevel world, ServerPlayer player, BlockPos pos) {
+        return world != null && player != null && pos != null && player.level() == world
+                && player.isAlive() && !player.isSpectator() && player.blockPosition().distSqr(pos) <= 64
+                && world.hasChunkAt(pos) && world.getBlockState(pos).is(ModBlocks.GUILD_NOTICE_POST);
+    }
+
     static InteractionResult use(ServerLevel world, ServerPlayer player, BlockPos pos) {
-        if (world == null || player == null || pos == null || !world.getBlockState(pos).is(ModBlocks.GUILD_NOTICE_POST)) {
+        if (!validBoard(world, player, pos)) {
             return InteractionResult.FAIL;
         }
         VillageBondService.VillageBondView view = VillageBondService.inspectCurrentVillage(world, player, false);
@@ -52,6 +62,34 @@ final class VillageNoticeBoardService {
 
     private static void sendJourney(ServerLevel world, ServerPlayer player, BlockPos pos) {
         PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(player.getUUID());
+        ShadowsTradeRoadEncounterService.VillageMarker marker =
+                ShadowsTradeRoadEncounterService.currentVillage(world, pos);
+        if (marker != null) {
+            VillageLifeService.observe(world, marker);
+            VillageLifeState.Status life = lifeStatus(world, marker);
+            if (life != VillageLifeState.Status.ACTIVE) {
+                VillageLifeService.ResettlementProgress progress =
+                        VillageLifeService.resettlementProgress(world, marker);
+                int stage = life == VillageLifeState.Status.ABANDONED
+                        ? VillageNetworkPayloads.NoticeJourneyPayload.RESETTLEMENT
+                        : VillageNetworkPayloads.NoticeJourneyPayload.RECOVERING;
+                Component detail = Component.translatable(!progress.fullyLoaded()
+                        ? "screen.village-quest.village_life.load_village"
+                        : life == VillageLifeState.Status.ABANDONED
+                        ? "screen.village-quest.village_life.resettlement_detail"
+                        : "screen.village-quest.village_life.recovering_detail");
+                ServerPlayNetworking.send(player, new VillageNetworkPayloads.NoticeJourneyPayload(
+                        pos.getX(), pos.getY(), pos.getZ(), stage,
+                        Component.translatable("text.village-quest.village_life.settlement",
+                                marker.centerX(), marker.centerZ()),
+                        Component.translatable(life == VillageLifeState.Status.ABANDONED
+                                ? "screen.village-quest.village_life.resettlement_title"
+                                : "screen.village-quest.village_life.recovering_title"),
+                        detail, Math.min(2, progress.adults()), 2,
+                        Math.min(2, progress.beds()), 2, false, ItemStack.EMPTY, 0, null, false));
+                return;
+            }
+        }
         VillageBondService.VillageBondView view = VillageBondService.inspectCurrentVillage(world, player, false);
         VillageNetworkPayloads.NoticeBoardPayload requests = view == null ? null : build(world, player, pos, view);
         GuildTownService.NoticePostStoryContext interaction = GuildTownService.createNoticePostStoryContext(world, player);
@@ -66,8 +104,6 @@ final class VillageNoticeBoardService {
         boolean sharedTable = false;
         ItemStack delivery = ItemStack.EMPTY;
         if (!VillageWelcomeService.isCompleted(data) || resolution == null) {
-            ShadowsTradeRoadEncounterService.VillageMarker marker =
-                    ShadowsTradeRoadEncounterService.currentVillage(world, pos);
             GuildNoticePostTeaser.Stage teaser = GuildNoticePostTeaser.classify(
                     marker != null, TradeRouteService.isNearPlayerYard(world, player.getUUID(), pos, 16),
                     FirstDailyChoiceService.canChoose(data), FirstDailyChoiceService.isActive(data),
@@ -131,6 +167,27 @@ final class VillageNoticeBoardService {
             } else if (stage == VillageNetworkPayloads.NoticeJourneyPayload.REMEMBERED) {
                 detail = Component.translatable("message.village-quest.guild_town.story.remembered", title);
             }
+            if (stage == VillageNetworkPayloads.NoticeJourneyPayload.REMEMBERED) {
+                GuildTownAfterstoryService.View followUp =
+                        GuildTownAfterstoryService.view(world, player, resolution, view);
+                if (followUp != null) {
+                    title = followUp.title();
+                    detail = followUp.detail();
+                    stage = switch (followUp.state()) {
+                        case NOT_STARTED -> VillageNetworkPayloads.NoticeJourneyPayload.AFTERSTORY_AVAILABLE;
+                        case ACTIVE -> followUp.ready()
+                                ? VillageNetworkPayloads.NoticeJourneyPayload.AFTERSTORY_READY
+                                : VillageNetworkPayloads.NoticeJourneyPayload.AFTERSTORY_ACTIVE;
+                        case COMPLETE -> VillageNetworkPayloads.NoticeJourneyPayload.AFTERSTORY_COMPLETE;
+                    };
+                    if (followUp.state() == de.quest.guildtown.GuildTownAfterstoryLedger.State.ACTIVE) {
+                        first = followUp.inventory();
+                        firstTarget = followUp.amount();
+                    }
+                    delivery = followUp.delivery();
+                    deliveryCount = followUp.amount();
+                }
+            }
         }
         ServerPlayNetworking.send(player, new VillageNetworkPayloads.NoticeJourneyPayload(
                 pos.getX(), pos.getY(), pos.getZ(), stage, village, title, detail,
@@ -140,8 +197,23 @@ final class VillageNoticeBoardService {
     static void handleJourneyAction(ServerPlayer player, VillageNetworkPayloads.NoticeJourneyActionPayload payload) {
         if (player == null || payload == null || !(player.level() instanceof ServerLevel world)) return;
         BlockPos pos = new BlockPos(payload.worldX(), payload.worldY(), payload.worldZ());
-        if (player.blockPosition().distSqr(pos) > 64.0 || !world.getBlockState(pos).is(ModBlocks.GUILD_NOTICE_POST)) {
+        if (!validBoard(world, player, pos)) {
             invalid(player);
+            return;
+        }
+        ShadowsTradeRoadEncounterService.VillageMarker marker =
+                ShadowsTradeRoadEncounterService.currentVillage(world, pos);
+        if (marker != null && lifeStatus(world, marker) != VillageLifeState.Status.ACTIVE) {
+            if (payload.action() == VillageNetworkPayloads.NoticeJourneyActionPayload.DISPATCH) {
+                RegionalDispatchService.open(world, player, pos);
+                return;
+            }
+            if (payload.action() != VillageNetworkPayloads.NoticeJourneyActionPayload.REFRESH) {
+                player.sendSystemMessage(Component.translatable(
+                        "message.village-quest.village_life.board_suspended")
+                        .withStyle(ChatFormatting.GOLD), false);
+            }
+            sendJourney(world, player, pos);
             return;
         }
         switch (payload.action()) {
@@ -150,6 +222,14 @@ final class VillageNoticeBoardService {
             case VillageNetworkPayloads.NoticeJourneyActionPayload.SHARE -> GuildTownService.chooseSharedTable(world, player, "share");
             case VillageNetworkPayloads.NoticeJourneyActionPayload.DELIVER -> GuildTownService.deliverStory(world, player);
             case VillageNetworkPayloads.NoticeJourneyActionPayload.RESUME -> GuildTownService.pauseStory(world, player, false);
+            case VillageNetworkPayloads.NoticeJourneyActionPayload.ACCEPT_AFTERSTORY ->
+                    GuildTownAfterstoryService.handle(world, player, false);
+            case VillageNetworkPayloads.NoticeJourneyActionPayload.DELIVER_AFTERSTORY ->
+                    GuildTownAfterstoryService.handle(world, player, true);
+            case VillageNetworkPayloads.NoticeJourneyActionPayload.DISPATCH -> {
+                RegionalDispatchService.open(world, player, pos);
+                return;
+            }
             case VillageNetworkPayloads.NoticeJourneyActionPayload.REFRESH -> { }
             default -> { return; }
         }
@@ -167,13 +247,20 @@ final class VillageNoticeBoardService {
             return;
         }
         BlockPos pos = new BlockPos(payload.worldX(), payload.worldY(), payload.worldZ());
-        if (player.blockPosition().distSqr(pos) > 64.0 || !world.getBlockState(pos).is(ModBlocks.GUILD_NOTICE_POST)) {
+        if (!validBoard(world, player, pos)) {
             invalid(player);
             return;
         }
         VillageBondService.VillageBondView view = VillageBondService.inspectCurrentVillage(world, player, false);
         if (view == null) {
             invalid(player);
+            return;
+        }
+        if (lifeStatus(world, view.x(), view.z()) != VillageLifeState.Status.ACTIVE) {
+            player.sendSystemMessage(Component.translatable(
+                    "message.village-quest.village_life.board_suspended")
+                    .withStyle(ChatFormatting.GOLD), false);
+            sendJourney(world, player, pos);
             return;
         }
         fulfill(world, player, view, payload.requestId());
@@ -186,6 +273,16 @@ final class VillageNoticeBoardService {
     private static void invalid(ServerPlayer player) {
         player.sendSystemMessage(Component.translatable("message.village-quest.village_bond.notice_invalid")
                 .withStyle(ChatFormatting.RED), false);
+    }
+
+    private static VillageLifeState.Status lifeStatus(ServerLevel world,
+            ShadowsTradeRoadEncounterService.VillageMarker marker) {
+        return lifeStatus(world, marker.centerX(), marker.centerZ());
+    }
+
+    private static VillageLifeState.Status lifeStatus(ServerLevel world, int x, int z) {
+        return VillageLifeState.get(world.getServer()).status(new VillageLifeState.VillageKey(
+                world.dimension().identifier().toString(), x, z));
     }
 
     private static void send(ServerLevel world, ServerPlayer player, BlockPos pos,
@@ -252,6 +349,9 @@ final class VillageNoticeBoardService {
 
     private static boolean fulfill(ServerLevel world, ServerPlayer player,
                                    VillageBondService.VillageBondView view, int requestId) {
+        if (!de.quest.reputation.ReputationAccessService.require(world, player,
+                de.quest.reputation.SocialReputationRules.ServiceKind.NOTICE_ACCEPT,
+                new VillageLifeState.VillageKey(world.dimension().identifier().toString(), view.x(), view.z()))) return false;
         VillageRequestOffer offer = offers(world, player.getUUID(), view).stream()
                 .filter(candidate -> candidate.id() == requestId).findFirst().orElse(null);
         if (offer == null) {
@@ -284,6 +384,10 @@ final class VillageNoticeBoardService {
         LivingVillageNetworkState.SupportResult result = LivingVillageNetworkService.recordNoticeDelivery(
                 world, player.getUUID(), view.index(), view.x(), view.z(), view.type(), request, offer.support());
         VillageGuildService.recordDelivery(world, player.getUUID(), offer.primaryNeed());
+        var socialVillage = new de.quest.village.VillageLifeState.VillageKey(world.dimension().identifier().toString(), view.x(), view.z());
+        de.quest.reputation.SocialReputationService.recordNamedBenefit(world.getServer(), player.getUUID(),
+                de.quest.reputation.SocialReputationRules.BenefitKind.NOTICE,
+                socialVillage + ":" + completions, java.util.List.of(socialVillage));
         QuestState.get(world.getServer()).setDirty();
         player.sendSystemMessage(Component.translatable("message.village-quest.village_bond.request_complete",
                 request.title(), level.label(), CurrencyService.formatDelta(offer.reward()))

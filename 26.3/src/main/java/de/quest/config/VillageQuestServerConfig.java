@@ -69,6 +69,9 @@ public final class VillageQuestServerConfig {
     private final boolean allowPlayerCaravanYards;
     private final CaravanVisualMode caravanVisualMode;
     private final AdventureProfile adventureProfile;
+    public record SocialReputationConfig(boolean enabled, boolean trackCreative, boolean caravanMortality) {}
+    private final SocialReputationConfig socialReputation;
+    public SocialReputationConfig socialReputation() { return socialReputation; }
 
     private VillageQuestServerConfig(String configuredResetTimezone,
                                      ZoneId resetZone,
@@ -77,7 +80,7 @@ public final class VillageQuestServerConfig {
                                      int weeklyResetHour,
                                      boolean allowPlayerCaravanYards,
                                      CaravanVisualMode caravanVisualMode,
-                                     AdventureProfile adventureProfile) {
+                                     AdventureProfile adventureProfile, SocialReputationConfig socialReputation) {
         this.configuredResetTimezone = configuredResetTimezone;
         this.resetZone = resetZone;
         this.dailyResetHour = dailyResetHour;
@@ -86,6 +89,7 @@ public final class VillageQuestServerConfig {
         this.allowPlayerCaravanYards = allowPlayerCaravanYards;
         this.caravanVisualMode = caravanVisualMode;
         this.adventureProfile = adventureProfile;
+        this.socialReputation = socialReputation;
     }
 
     public static void bootstrap() {
@@ -160,13 +164,16 @@ public final class VillageQuestServerConfig {
         AdventureProfile adventureProfile = enumValue(
                 properties, "adventure_profile", AdventureProfile.STANDARD, AdventureProfile.class);
         return new VillageQuestServerConfig(
-                configuredZone, zone, dailyHour, weeklyDay, weeklyHour, yards, caravanMode, adventureProfile);
+                configuredZone, zone, dailyHour, weeklyDay, weeklyHour, yards, caravanMode, adventureProfile,
+                new SocialReputationConfig(booleanValue(properties, "socialReputation.enabled", true),
+                        booleanValue(properties, "socialReputation.trackCreative", false),
+                        booleanValue(properties, "socialReputation.caravanMortality", true)));
     }
 
     private static VillageQuestServerConfig defaults() {
         return new VillageQuestServerConfig(
                 "AUTO", ZoneId.systemDefault(), 6, DayOfWeek.MONDAY, 6, true,
-                CaravanVisualMode.FULL, AdventureProfile.STANDARD);
+                CaravanVisualMode.FULL, AdventureProfile.STANDARD, new SocialReputationConfig(true, false, true));
     }
 
     private static ZoneId parseZone(String raw) {
@@ -247,6 +254,12 @@ public final class VillageQuestServerConfig {
 
                 # FULL = three nearby merchants, REDUCED = one nearby merchant, MAP_ONLY = simulation and maps only.
                 physical_caravans=FULL
+
+                # Personal NPC-guild and local trust. Disabling preserves saved standings and cases.
+                socialReputation.enabled=true
+                socialReputation.trackCreative=false
+                # Applies only to Village Quest caravan crews and their pack mule.
+                socialReputation.caravanMortality=true
                 """;
     }
 }

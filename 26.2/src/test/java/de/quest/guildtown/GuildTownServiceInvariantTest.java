@@ -58,7 +58,6 @@ final class GuildTownServiceInvariantTest {
         assertEquals(net.minecraft.world.item.Items.HAY_BLOCK, ready.delivery().getItem());
         assertEquals(4, ready.deliveryCount());
     }
-
     private static final UUID OWNER = UUID.fromString("f16859a5-5aaa-472d-bd46-25fc58664e72");
     private static final UUID GUEST = UUID.fromString("dd65ea8d-a004-48b4-a1fb-5c3bb7ce7bb2");
     private static final UUID GUILD = UUID.fromString("b696826d-bc1f-4c4b-8204-52f87979a8fd");

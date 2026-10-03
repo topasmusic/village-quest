@@ -1,6 +1,7 @@
 package de.quest.network;
 
 import de.quest.caravan.TradeRouteService;
+import de.quest.caravan.RegionalDispatchService;
 import de.quest.config.ClientPreferenceService;
 import de.quest.economy.ProsperityService;
 import de.quest.pilgrim.PilgrimService;
@@ -19,6 +20,12 @@ public final class QuestNetworking {
 
     public static void register() {
         Payloads.register();
+        ServerPlayNetworking.registerGlobalReceiver(ReputationPayloads.PagePayload.ID, (payload, context) ->
+                context.server().execute(() -> de.quest.reputation.ReputationInteractionService.page(context.player(), payload)));
+        ServerPlayNetworking.registerGlobalReceiver(ReputationPayloads.OpenPayload.ID, (payload, context) ->
+                context.server().execute(() -> de.quest.reputation.ReputationInteractionService.open(context.player(), payload)));
+        ServerPlayNetworking.registerGlobalReceiver(ReputationPayloads.ActionPayload.ID, (payload, context) ->
+                context.server().execute(() -> de.quest.reputation.ReputationInteractionService.handle(context.player(), payload)));
         ServerPlayNetworking.registerGlobalReceiver(Payloads.JournalActionPayload.ID, (payload, context) -> {
             ServerPlayer player = context.player();
             context.server().execute(() -> {
@@ -90,6 +97,16 @@ public final class QuestNetworking {
         ServerPlayNetworking.registerGlobalReceiver(VillageNetworkPayloads.NoticeJourneyActionPayload.ID, (payload, context) -> {
             ServerPlayer player = context.player();
             context.server().execute(() -> VillageBondService.handleNoticeJourneyAction(player, payload));
+        });
+
+        ServerPlayNetworking.registerGlobalReceiver(VillageNetworkPayloads.RegionalDispatchActionPayload.ID, (payload, context) -> {
+            ServerPlayer player = context.player();
+            context.server().execute(() -> RegionalDispatchService.handleAction(player, payload));
+        });
+
+        ServerPlayNetworking.registerGlobalReceiver(VillageNetworkPayloads.CaravanMasterActionPayload.ID, (payload, context) -> {
+            ServerPlayer player = context.player();
+            context.server().execute(() -> TradeRouteService.handleMasterAction(player, payload));
         });
 
         ServerPlayNetworking.registerGlobalReceiver(Payloads.ClientPreferencesPayload.ID, (payload, context) -> {

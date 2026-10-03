@@ -55,7 +55,7 @@ The Archive also restores the temporary Lens or Cracked Core for free only while
 All Village Quest crafting recipes share a dedicated tab in the vanilla recipe book. A recipe is discovered from its signature ingredient or story component rather than only after the complete crafting bundle is already present; after discovery it remains in the book permanently and uses vanilla filtering and automatic grid placement.
 
 - `Guild Wayshrine`: bound fast-travel endpoint with active and inactive model states.
-- `Guild Notice Post`: opens a localized request interface and fulfils the current local delivery.
+- `Guild Notice Post`: opens a village journey page for the welcome assignment and local story; registered route villages also expose the localized request interface for deliveries.
 - `Emberglass Lantern`: decorative guild road lighting.
 - `Guild Milestone`: 3D route marker read with the Wayfarer's Sigil.
 - `Cartographer's Lens`: a temporary story tool that records two villages, then becomes a permanent Caravan Ledger upgrade.

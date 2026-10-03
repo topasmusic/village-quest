@@ -1,12 +1,12 @@
 # Village Quest Wiki
 
-This wiki accompanies `Village Quest 2.4.1 - The Guild Comes to Town` for Minecraft `26.3`. Minecraft `26.2` remains available as a previous maintenance line.
+Current stable release: `2.5.0` — Roads of Concord for Minecraft `26.3`, including caravan crews, village recovery, Dispatches, Afterstories, Convoys and personal trust.
 
 The 2.3 release joins versioned village conditions, three-choice local requests, need-aware freight, repairable route consequences, renewable Wayshrine energy, Adventure Profiles, an optional multiplayer guild, Journal network guidance, and bounded prestige. It includes the complete save-compatible 2.2.1 quality and balance pass.
 
 Current published releases:
 
-- `2.4.1 - The Guild Comes to Town` for Minecraft `26.3` and `26.2`;
+- `2.5.0` for Minecraft `26.3` and `26.2`;
 - `2.1.1 - Homesteads & Wayfinding` for Minecraft `26.1.2` and `1.21.11`;
 - Minecraft `26.1.2` and `1.21.11` remain maintenance lines for confirmed bug, save-safety, exploit, and meaningful performance fixes rather than receiving content-parity builds.
 
@@ -36,6 +36,7 @@ The core loop is:
 - [Trade Routes and Caravans](./trade-routes-and-caravans.md)
 - [The Shrines Between Roads](./shrines-between-roads.md)
 - [Living Village Network](./living-village-network.md)
+- [Social Reputation](./social-reputation.md)
 - [Relics, Wayfinder, and Magic Shards](./relics-and-shards.md)
 - [Pilgrim and Roadside Watch](./pilgrim-and-roadside-watch.md)
 - [Quest Reference](./quest-reference.md)

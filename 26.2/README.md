@@ -2,9 +2,22 @@
 
 `Village Quest` is a Fabric mod built around village progression. Take on daily and weekly work, build reputation, unlock story arcs and village projects, and later deal with the `Pilgrim` and the road beyond the village.
 
-Current stable release: `2.4.1 - The Guild Comes to Town`, retaining the complete 2.3 Living Village Network and save-compatible 2.2.1 improvements.
+Current stable release: `2.5.0` — Roads of Concord, including living caravan crews, village recovery, Regional Dispatches, Guild Convoys and personal trust.
 
 Minecraft `26.2` is the previous maintenance line. Minecraft `26.3` is the active line for future Village Quest content.
+
+## Roads of Concord 2.5
+
+Village Quest 2.5 adds persistent named caravan crews with four visible
+roles and five route liveries, a compact Caravan Master view, route traders, and
+an optional pack mule. Villages gain shared active, abandoned, and recovering
+states: routes and local work pause during abandonment, while the same village
+history can recover through resettlement. Regional Dispatch carries goods on
+actual source-to-hub-to-destination caravan arrivals. Five village Afterstories,
+three-route Guild Convoys, historical village contacts, and clearer route distance
+and time estimates extend the late game.
+
+This Minecraft 26.2 candidate is the expressly requested full port of the 26.3 development content. Minecraft 26.3 remains the reference for future content.
 
 ## Requirements
 
@@ -170,4 +183,4 @@ Village Quest uses a mixed-license model beginning with `2.0.0`:
 - third-party and provenance-sensitive files keep their own terms and are listed in [THIRD_PARTY_ASSETS.md](THIRD_PARTY_ASSETS.md) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md); and
 - releases already published under MIT remain MIT-licensed under the notice preserved in [LICENSE-MIT](LICENSE-MIT).
 
-See [LICENSE](LICENSE), [COPYING](COPYING), and [COPYING.LESSER](COPYING.LESSER) for the complete terms. The unresolved legacy entity skins listed in `THIRD_PARTY_ASSETS.md` are excluded from Village Quest ownership and licensing claims; replacement or source clearance remains a priority.
+See [LICENSE](LICENSE), [COPYING](COPYING), and [COPYING.LESSER](COPYING.LESSER) for the complete terms. All 23 active 2.5 entity skins (20 caravan roles plus Pilgrim, Questmaster, and Traitor) are TopasMusic project assets under the original-asset terms in `LICENSE`. Their head authorship was confirmed by the maintainer on 2026-09-24 and is recorded in `THIRD_PARTY_ASSETS.md`.

@@ -12,6 +12,8 @@ import de.quest.client.screen.TradeRouteMapScreen;
 import de.quest.client.screen.WayshrineScreen;
 import de.quest.client.screen.GuildNoticeBoardScreen;
 import de.quest.client.screen.NoticeJourneyScreen;
+import de.quest.client.screen.RegionalDispatchScreen;
+import de.quest.client.screen.CaravanMasterScreen;
 import de.quest.client.screen.GuildPathScreen;
 import de.quest.client.hud.TradeRouteMinimapHud;
 import de.quest.network.Payloads;
@@ -37,6 +39,18 @@ public final class ClientQuestNetworking {
 
     public static void register() {
         Payloads.register();
+        ClientPlayNetworking.registerGlobalReceiver(de.quest.network.ReputationPayloads.ViewPayload.ID, (payload, context) -> context.client().execute(() -> {
+            if (currentScreen(context.client()) instanceof JournalScreen screen) screen.updateReputation(payload.view());
+            if (currentScreen(context.client()) instanceof CaravanMasterScreen screen) screen.updateReputation(payload.view());
+        }));
+        ClientPlayNetworking.registerGlobalReceiver(de.quest.network.ReputationPayloads.InteractionPayload.ID, (payload, context) -> context.client().execute(() -> {
+            var client = context.client();
+            if (currentScreen(client) instanceof de.quest.client.screen.ReparationScreen screen && screen.session().equals(payload.session())) screen.updateData(payload);
+            else setScreen(client, new de.quest.client.screen.ReparationScreen(payload, currentScreen(client)));
+        }));
+        ClientPlayNetworking.registerGlobalReceiver(de.quest.network.ReputationPayloads.ClosePayload.ID, (payload, context) -> context.client().execute(() -> {
+            if (currentScreen(context.client()) instanceof de.quest.client.screen.ReparationScreen screen && screen.session().equals(payload.session())) screen.closeFromServer();
+        }));
 
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> client.execute(() -> {
             VillageQuestClientConfig config = VillageQuestClientConfig.get();
@@ -239,6 +253,9 @@ public final class ClientQuestNetworking {
                     return;
                 }
 
+                if (payload.action() == Payloads.QuestMasterPayload.ACTION_UPDATE
+                        && currentScreen(client) instanceof de.quest.client.screen.ReparationScreen) return;
+
                 List<QuestMasterScreen.CategoryView> categories = new ArrayList<>(payload.categories().size());
                 for (Payloads.QuestMasterCategoryData category : payload.categories()) {
                     categories.add(new QuestMasterScreen.CategoryView(
@@ -380,6 +397,28 @@ public final class ClientQuestNetworking {
                     screen.updateData(payload);
                 } else {
                     setScreen(client, new NoticeJourneyScreen(payload));
+                }
+            });
+        });
+
+        ClientPlayNetworking.registerGlobalReceiver(VillageNetworkPayloads.RegionalDispatchPayload.ID, (payload, context) -> {
+            var client = context.client();
+            client.execute(() -> {
+                if (currentScreen(client) instanceof RegionalDispatchScreen screen) {
+                    screen.updateData(payload);
+                } else {
+                    setScreen(client, new RegionalDispatchScreen(payload));
+                }
+            });
+        });
+
+        ClientPlayNetworking.registerGlobalReceiver(VillageNetworkPayloads.CaravanMasterPayload.ID, (payload, context) -> {
+            var client = context.client();
+            client.execute(() -> {
+                if (currentScreen(client) instanceof CaravanMasterScreen screen) {
+                    screen.updateData(payload);
+                } else if (currentScreen(client) == null) {
+                    setScreen(client, new CaravanMasterScreen(payload));
                 }
             });
         });
