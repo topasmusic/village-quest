@@ -529,6 +529,10 @@ public final class QuestCommands {
                             .then(literal("cancel").executes(ctx -> cancelRouteSurvey(ctx.getSource()))));
 
             CommandNode<CommandSourceStack> villageQuestCommand = dispatcher.register(literal("villagequest")
+                    .then(literal("rewards").then(literal("claim").executes(ctx -> {
+                        ServerPlayer player = ctx.getSource().getPlayer();
+                        return player == null ? 0 : de.quest.reward.VanillaRewardService.claim(ctx.getSource().getServer().overworld(), player);
+                    })))
                     .then(questAdminCommand)
                     .then(journalCommand)
                     .then(prosperityCommand)
@@ -987,7 +991,7 @@ public final class QuestCommands {
         }
         QuestBookHelper.closeJournal(player);
         if (!TradeRouteService.hasRouteAccess(source.getServer().overworld(), player.getUUID())) {
-            player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.locked").withStyle(ChatFormatting.RED), false);
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.locked").withStyle(ChatFormatting.GRAY), false);
             return 0;
         }
         TradeRouteService.openMap(source.getServer().overworld(), player);
@@ -1267,45 +1271,7 @@ public final class QuestCommands {
     }
 
     static LiteralArgumentBuilder<CommandSourceStack> buildUiTestCommand() {
-        return literal("uitest")
-                .then(literal("questmaster")
-                        .executes(ctx -> AdminUiPreviewService.openQuestMaster(ctx.getSource())))
-                .then(literal("pilgrim")
-                        .executes(ctx -> AdminUiPreviewService.openPilgrim(ctx.getSource())))
-                .then(literal("wayshrine")
-                        .executes(ctx -> AdminUiPreviewService.openWayshrine(ctx.getSource(), true))
-                        .then(literal("owner")
-                                .executes(ctx -> AdminUiPreviewService.openWayshrine(ctx.getSource(), true)))
-                        .then(literal("guest")
-                                .executes(ctx -> AdminUiPreviewService.openWayshrine(ctx.getSource(), false))))
-                .then(literal("noticeboard")
-                        .executes(ctx -> AdminUiPreviewService.openNoticeBoard(
-                                ctx.getSource(), VillageBondLevel.KNOWN))
-                        .then(literal("known")
-                                .executes(ctx -> AdminUiPreviewService.openNoticeBoard(
-                                        ctx.getSource(), VillageBondLevel.KNOWN)))
-                        .then(literal("trusted")
-                                .executes(ctx -> AdminUiPreviewService.openNoticeBoard(
-                                        ctx.getSource(), VillageBondLevel.TRUSTED)))
-                        .then(literal("allied")
-                                .executes(ctx -> AdminUiPreviewService.openNoticeBoard(
-                                        ctx.getSource(), VillageBondLevel.ALLIED))))
-                .then(literal("noticejourney")
-                        .executes(ctx -> AdminUiPreviewService.openNoticeJourney(ctx.getSource(), "welcome"))
-                        .then(literal("welcome").executes(ctx -> AdminUiPreviewService.openNoticeJourney(ctx.getSource(), "welcome")))
-                        .then(literal("greeting").executes(ctx -> AdminUiPreviewService.openNoticeJourney(ctx.getSource(), "greeting")))
-                        .then(literal("available").executes(ctx -> AdminUiPreviewService.openNoticeJourney(ctx.getSource(), "available")))
-                        .then(literal("active").executes(ctx -> AdminUiPreviewService.openNoticeJourney(ctx.getSource(), "active")))
-                        .then(literal("forge").executes(ctx -> AdminUiPreviewService.openNoticeJourney(ctx.getSource(), "forge")))
-                        .then(literal("pasture").executes(ctx -> AdminUiPreviewService.openNoticeJourney(ctx.getSource(), "pasture")))
-                        .then(literal("apiary").executes(ctx -> AdminUiPreviewService.openNoticeJourney(ctx.getSource(), "apiary")))
-                        .then(literal("archive").executes(ctx -> AdminUiPreviewService.openNoticeJourney(ctx.getSource(), "archive")))
-                        .then(literal("connected").executes(ctx -> AdminUiPreviewService.openNoticeJourney(ctx.getSource(), "connected")))
-                        .then(literal("choice").executes(ctx -> AdminUiPreviewService.openNoticeJourney(ctx.getSource(), "choice")))
-                        .then(literal("ready").executes(ctx -> AdminUiPreviewService.openNoticeJourney(ctx.getSource(), "ready")))
-                        .then(literal("paused").executes(ctx -> AdminUiPreviewService.openNoticeJourney(ctx.getSource(), "paused")))
-                        .then(literal("away").executes(ctx -> AdminUiPreviewService.openNoticeJourney(ctx.getSource(), "away")))
-                        .then(literal("remembered").executes(ctx -> AdminUiPreviewService.openNoticeJourney(ctx.getSource(), "remembered"))));
+        return literal("uitest").executes(ctx -> AdminUiPreviewService.start(ctx.getSource()));
     }
 
     private static int summonQuestMaster(CommandSourceStack source) {
@@ -1325,7 +1291,7 @@ public final class QuestCommands {
             return 0;
         }
         if (QuestMasterService.findNearbyQuestMaster(world, player.getX(), player.getY(), player.getZ()) != null) {
-            source.sendSuccess(() -> Component.translatable("command.village-quest.questmaster.spawn.exists").withStyle(ChatFormatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questmaster.spawn.exists").withStyle(ChatFormatting.GRAY), false);
             return 0;
         }
 

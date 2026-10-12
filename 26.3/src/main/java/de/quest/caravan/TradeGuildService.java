@@ -5,6 +5,7 @@ import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.economy.CurrencyService;
 import de.quest.economy.ProsperityService;
+import de.quest.economy.DeliveryEconomy;
 import de.quest.reputation.ReputationService;
 import de.quest.util.TimeUtil;
 import java.util.ArrayList;
@@ -29,6 +30,7 @@ public final class TradeGuildService {
     private static final String CONTRACT_DUE_DAY = "guild_contract_due_day";
     private static final String CONTRACT_SUPPLIED = "guild_contract_supplied";
     private static final String CONTRACTS_COMPLETED = "guild_contracts_completed";
+    private static final String CONTRACT_QUOTE = "guild_contract_reward_quote";
     private static final int[] RANK_THRESHOLDS = {0, 30, 65, 110, 165};
 
     private TradeGuildService() {}
@@ -84,6 +86,7 @@ public final class TradeGuildService {
     }
 
     public static List<TradeContractType> offers(ServerLevel world, UUID playerId) {
+        if (!DeliveryEconomy.canAccept(data(world, playerId), (int) TimeUtil.currentDay())) return List.of();
         int rank = guildRank(world, playerId);
         List<TradeContractType> eligible = new ArrayList<>();
         for (TradeContractType type : TradeContractType.values()) {
@@ -121,6 +124,8 @@ public final class TradeGuildService {
         lines.add(Component.translatable("message.village-quest.trade_guild.contract_board")
                 .withStyle(ChatFormatting.GOLD));
         List<TradeContractType> offers = offers(world, playerId);
+        if (offers.isEmpty()) lines.add(Component.translatable("message.village-quest.delivery.daily_limit",
+                DeliveryEconomy.DAILY_COMMISSIONS).withStyle(ChatFormatting.GRAY));
         for (int i = 0; i < offers.size(); i++) {
             TradeContractType type = offers.get(i);
             lines.add(Component.translatable("message.village-quest.trade_guild.contract_offer",
@@ -134,6 +139,11 @@ public final class TradeGuildService {
 
     public static boolean acceptContract(ServerLevel world, ServerPlayer player, int offerNumber, int routeIndex) {
         if (world == null || player == null || activeContract(world, player.getUUID()) != null) return false;
+        if (!DeliveryEconomy.canAccept(data(world, player.getUUID()), (int) TimeUtil.currentDay())) {
+            player.sendSystemMessage(Component.translatable("message.village-quest.delivery.daily_limit",
+                    DeliveryEconomy.DAILY_COMMISSIONS).withStyle(ChatFormatting.GRAY), false);
+            return false;
+        }
         List<TradeContractType> offers = offers(world, player.getUUID());
         if (offerNumber < 1 || offerNumber > offers.size()
                 || routeIndex < 0 || routeIndex >= TradeRouteService.routeCount(world, player.getUUID())) {
@@ -148,6 +158,17 @@ public final class TradeGuildService {
                     "message.village-quest.village_life.work_paused").withStyle(ChatFormatting.YELLOW), false);
             return false;
         }
+        if (!DeliveryEconomy.reserve(data, (int) TimeUtil.currentDay())) {
+            player.sendSystemMessage(Component.translatable("message.village-quest.delivery.daily_limit",
+                    DeliveryEconomy.DAILY_COMMISSIONS).withStyle(ChatFormatting.GRAY), false);
+            return false;
+        }
+        int quote = type.reward() + DeliveryEconomy.transportBonus(
+                TradeRouteService.routeEconomyDistanceBlocks(world, player.getUUID(), routeIndex),
+                TradeRouteService.specialization(world, player.getUUID(), routeIndex) == type.specialization(),
+                TradeRouteService.hasUpgrade(world, player.getUUID(), routeIndex, TradeRouteUpgrade.TRADE_OFFICE),
+                TradeRouteData.status(data, routeIndex) == TradeRouteStatus.DANGEROUS);
+        data.setTradeRouteInt(CONTRACT_QUOTE, quote);
         data.setTradeRouteInt(CONTRACT_TYPE, type.ordinal() + 1);
         data.setTradeRouteInt(CONTRACT_ROUTE, routeIndex + 1);
         data.setTradeRouteInt(CONTRACT_DUE_DAY, (int) TimeUtil.currentDay() + 3);
@@ -277,7 +298,7 @@ public final class TradeGuildService {
         if (TradeRouteService.specialization(world, ownerId, routeIndex) == type.specialization()) multiplier += 0.25;
         if (TradeRouteService.hasUpgrade(world, ownerId, routeIndex, TradeRouteUpgrade.TRADE_OFFICE)) multiplier += 0.25;
         long reward = ProsperityService.applyCeremonyBonus(world, ownerId,
-                Math.max(type.reward(), (int) Math.round(type.reward() * multiplier)));
+                acceptedReward(data, type, multiplier));
         CurrencyService.addBalance(world, ownerId, reward);
         ReputationService.add(world, ownerId, ReputationService.ReputationTrack.TRADE, 8 + guildRank(world, ownerId) * 2);
         data.setTradeRouteInt(CONTRACTS_COMPLETED, data.getTradeRouteInt(CONTRACTS_COMPLETED) + 1);
@@ -324,6 +345,11 @@ public final class TradeGuildService {
 
     static double distanceRewardMultiplier(int economyDistanceBlocks) {
         return 1.0 + Math.min(0.35, Math.max(0, economyDistanceBlocks) / 2000.0);
+    }
+
+    static long acceptedReward(PlayerQuestData data, TradeContractType type, double legacyMultiplier) {
+        int quote = data.getTradeRouteInt(CONTRACT_QUOTE);
+        return quote > 0 ? quote : Math.max(type.legacyReward(), Math.round(type.legacyReward() * legacyMultiplier));
     }
 
     private static Component currentContractLine(ServerLevel world, UUID playerId) {
@@ -442,6 +468,7 @@ public final class TradeGuildService {
         data.setTradeRouteInt(CONTRACT_TYPE, 0);
         data.setTradeRouteInt(CONTRACT_ROUTE, 0);
         data.setTradeRouteInt(CONTRACT_DUE_DAY, 0);
+        data.setTradeRouteInt(CONTRACT_QUOTE, 0);
         data.setTradeRouteFlag(CONTRACT_SUPPLIED, false);
         TradeContractHold.clear(data);
     }

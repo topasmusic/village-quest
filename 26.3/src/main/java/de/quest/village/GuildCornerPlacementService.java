@@ -245,6 +245,9 @@ public final class GuildCornerPlacementService {
                                  TemplateHandle template) {
         int width = template.template().getSize().getX();
         int depth = template.template().getSize().getZ();
+        if (!marker.pieces().isEmpty()) return findBestSite(world, template,
+                GuildCornerCandidateSearch.nearStructures(marker.minX(), marker.maxX(),
+                        marker.minZ(), marker.maxZ(), width, depth, marker.pieces()));
         Site inside = findBestSite(world, template, GuildCornerCandidateSearch.inside(
                 marker.minX(), marker.maxX(), marker.minZ(), marker.maxZ(), width, depth));
         if (inside != null) return inside;
@@ -391,8 +394,8 @@ public final class GuildCornerPlacementService {
                                                        TemplateHandle template) {
         int width = template.template().getSize().getX();
         int depth = template.template().getSize().getZ();
-        for (GuildCornerCandidateSearch.Candidate candidate : GuildCornerCandidateSearch.insideThenAround(
-                marker.minX(), marker.maxX(), marker.minZ(), marker.maxZ(), width, depth)) {
+        for (GuildCornerCandidateSearch.Candidate candidate : GuildCornerCandidateSearch.nearStructures(
+                marker.minX(), marker.maxX(), marker.minZ(), marker.maxZ(), width, depth, marker.pieces())) {
             StructurePlaceSettings settings = settings(candidate.facing());
             BoundingBox zeroBox = template.template().getBoundingBox(settings, BlockPos.ZERO);
             int minX = candidate.centerX() - zeroBox.getXSpan() / 2;

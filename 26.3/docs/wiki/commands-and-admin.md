@@ -2,6 +2,8 @@
 
 All commands are available as `/villagequest ...` and the short alias `/vq ...`.
 
+In Village Quest 2.5, messages about features that still need a project, rank or story unlock use gray text. This includes the Journal's Map and Prosperity actions and locked services or Shop offers.
+
 ## Player Commands
 
 ### Core Commands
@@ -32,6 +34,9 @@ All commands are available as `/villagequest ...` and the short alias `/vq ...`.
 
 - `/vq diagnose`
   Print a read-only reset, route, caravan, stuck-group, and orphan-entity report. Operators can use `/vq diagnose <player>` for another player.
+
+- `/vq town retrofit`
+  Request a Guild Corner in the generated Overworld village around you when automatic placement was skipped. The complete site must be loaded and safe; existing buildings, block entities and protected terrain are not overwritten. Already generated or player-removed corners are not recreated. In Village Quest 2.5 on both maintained lines, both bundled presets pass Minecraft's current template validation.
 
 - `/vq routes guild`
   Show trade-guild rank, score, daily income, escrow, route specialization, road length, quality, and solved incidents.
@@ -151,8 +156,9 @@ The shared guild stores only membership, roles, renown, and its selected network
 
 Quest-party notes:
 
-- this surface is only active on dedicated multiplayer servers
-- the `Questmaster` party drawer is intentionally hidden on singleplayer and integrated worlds
+- parties work on dedicated multiplayer servers and integrated worlds opened to LAN; mod-hosted sessions such as Essential are also detected when another player has joined
+- the `Questmaster` party drawer is available to both host and guests for shareable quests; private singleplayer worlds keep it hidden
+- saved parties load when the world becomes multiplayer and remain stored when the shared session ends
 - co-op scope currently covers shareable `Daily`, `Weekly`, core `Story`, and normal `Pilgrim` combat-contract flows
 - `Shadows on the Trade Road`, `The Empty Caravan`, persistent route events, relic/special quests, and compass-item quest lines remain solo by design
 
@@ -265,15 +271,19 @@ This focused `2.1.0` fixture unlocks the five matching project branches, prepare
 
 ### UI Layout Tests
 
-- `/vq admin uitest questmaster`
-- `/vq admin uitest pilgrim`
-- `/vq admin uitest wayshrine [owner|guest]`
-- `/vq admin uitest noticeboard [known|trusted|allied]`
-- `/vq admin uitest noticejourney [welcome|greeting|available|active|choice|ready|remembered|paused|away|forge|pasture|apiary|archive|connected]`
+Village Quest 2.5: `/vq admin uitest` starts a permanent, admin-only guided UI tour. The former individual `uitest` subcommands have been replaced.
 
-`noticejourney` previews every first-village and local-story page without altering saved progression. `connected` also exposes the request tab. Its action buttons are inert in preview mode; use a real Notice Post to test server-validated acceptance, decisions, and delivery.
+Click **Next** to move through all 43 steps, **Back** to revisit a screen, and **Finish** or **Exit** to end the tour. Esc also exits. A separate footer shows the current screen and state. Tabs, lists, maps and local selection can still be inspected; quest, purchase, delivery, travel, rename and other server actions are suppressed during previews.
 
-These admin-only commands open the real Questmaster dashboard, Pilgrim trader payload, or non-persistent Wayshrine and Guild Notice Board previews without requiring precise NPC or block interaction. They use current player progression and currency where applicable, making them suitable for checking translations, long descriptions, large wallet values, GUI scaling, and reusable component alignment in a real client. The Wayshrine preview defaults to `owner`, displays a compact five-shrine network with mixed Known/Trusted/Allied terms, charges, and ready travel controls, and offers a separate doubled-price `guest` view. Its synthetic indices are outside every real network, so travel and rename actions cannot alter game state. The Notice Board defaults to `known`; its three explicit states exercise incomplete and complete delivery progress plus every bond-path endpoint without changing quest or world state. For the Questmaster, inspect all four icon tabs, list scrolling, the selected quest detail card, locked/active/claimable states, simultaneous action buttons, reset timers, and the party overlay on a multiplayer client.
+The tour uses the actual UI classes at their normal responsive size with fixed sample data, without spawning NPCs or modifying progression, inventory, currency or tutorial preferences. It covers Journal pages, available/active/locked Quest Board layouts, Trust and aid tabs, Pilgrim goods/contracts, Prosperity sections, three Notice Board bond tiers, every former Notice Journey preview, Regional Dispatches, Caravan travel/cargo/incident/paused states, owner/guest Wayshrines, the route map and Guild Path.
+
+Tour goods use production shop prices. The Pilgrim example is the actual Hedgerow contract with its production reward, and Daily entries show their own reward tier. The former fictional “32 wheat for 3 Crowns” example was not a playable contract and is no longer shown. Dispatch samples use the real eight-item shipment and current reward formula.
+
+Caravan Master, Regional Dispatch and village journey pages now use compact authored layouts with about 30% less area in both gameplay and the tour. Journey primary actions use teal in the common footer; mutually exclusive story choices have equal buttons above the centered navigation row. The standalone Guild Path uses the transparent Atlas frame; the Journal's Guild Atlas layout is unchanged.
+
+Prosperity tour pages include all five working local tabs (Upgrades, Commissions, Services, Collection and Statistics); each tour step starts on its matching section. Teal primary actions now show warm hover feedback. Wayshrine destination lists show four taller rows and scroll when more destinations are available.
+
+Check EN/DE/ES labels, long descriptions, full names, selection accents, scrollbars and footer spacing at different GUI scales. Real gameplay and multiplayer party actions need separate testing outside the tour.
 
 ### Pilgrim
 
@@ -410,3 +420,9 @@ Operator permission is required. These affect personal NPC trust, not player-gui
 - `/vq admin reputation uitest <neutral|reliable|respected|blocked|probation|major>` — open a synthetic personal view without saved state or inventory changes. Preview action buttons are inactive.
 
 For actual aid, interact with a valid own/affected board or existing Questmaster within8 blocks. A remote Journal view cannot consume materials. Unknown/future schema data cannot be silently overwritten by set/pardon.
+
+Village Quest 2.5 adds [chosen Vanilla reward packages and saved collection](vanilla-rewards.md), including `/vq rewards claim`. Existing accepted contracts and prepaid orders retain their original conditions.
+
+## Reward collection after testing
+
+The temporary `/vq admin rewardtest` command and all its subcommands were removed before the 2.5 release for Minecraft26.3 and26.2. Use the Questmaster or `/vq rewards claim` for normal earned rewards. Existing saved rewards, inventories, wallets and completion receipts are retained. The permanent `/vq admin uitest` visual tour remains available.

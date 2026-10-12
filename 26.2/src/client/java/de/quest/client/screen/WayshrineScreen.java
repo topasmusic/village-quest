@@ -1,5 +1,6 @@
 package de.quest.client.screen;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import de.quest.VillageQuest;
 import de.quest.client.ui.SurfaceMapRenderer;
 import de.quest.client.ui.VillageUiTheme;
@@ -37,8 +38,9 @@ public final class WayshrineScreen extends CompatScreen {
     private static final int LIST_X = 281;
     private static final int LIST_Y = 56;
     private static final int LIST_WIDTH = 116;
-    private static final int ROW_HEIGHT = 28;
-    private static final int VISIBLE_ROWS = 5;
+    private static final int LIST_BACKING_HEIGHT = 146;
+    private static final int ROW_HEIGHT = 34;
+    private static final int VISIBLE_ROWS = 4;
     private static final int STATUS_X = 151;
     private static final int STATUS_Y = 35;
     private static final int STATUS_WIDTH = 130;
@@ -107,6 +109,7 @@ public final class WayshrineScreen extends CompatScreen {
         nameField.setVisible(false);
         nameField.setBordered(false);
         nameField.setTextColor(INK);
+        nameField.setTextShadow(false);
         nameField.setTextColorUneditable(MUTED);
         nameField.setInvertHighlightedTextColor(false);
         nameField.setHint(Component.translatable("screen.village-quest.wayshrine.rename_hint")
@@ -124,8 +127,7 @@ public final class WayshrineScreen extends CompatScreen {
             int left = (width - WINDOW_WIDTH) / 2;
             int top = (height - WINDOW_HEIGHT) / 2;
             VillageUiTheme.drawPanelShadow(graphics, left, top, WINDOW_WIDTH, WINDOW_HEIGHT);
-            graphics.blit(RenderPipelines.GUI_TEXTURED, BOARD_TEXTURE, left, top, 0.0f, 0.0f,
-                    WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH, WINDOW_HEIGHT);
+            VillageUiTheme.drawMapBoard(graphics, BOARD_TEXTURE, left, top, WINDOW_WIDTH, WINDOW_HEIGHT);
             drawHeader(graphics, left, top, uiMouseX, uiMouseY);
             drawMap(graphics, left, top, uiMouseX, uiMouseY);
             drawDestinations(graphics, left, top, uiMouseX, uiMouseY);
@@ -199,6 +201,8 @@ public final class WayshrineScreen extends CompatScreen {
             }
         }
         graphics.disableScissor();
+        VillageUiTheme.drawEmbeddedMapRim(graphics, BOARD_TEXTURE, left, top, WINDOW_WIDTH, WINDOW_HEIGHT,
+                MAP_X, MAP_Y, MAP_WIDTH, MAP_HEIGHT);
         drawMapControls(graphics, left, top, mouseX, mouseY);
     }
 
@@ -243,32 +247,38 @@ public final class WayshrineScreen extends CompatScreen {
     }
 
     private void drawDestinations(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
+        // A continuous paper backing replaces the five baked slots; render only real destinations.
+        VillageUiTheme.blitRegionScaled(graphics, BOARD_TEXTURE, left + LIST_X, top + LIST_Y,
+                LIST_WIDTH, LIST_BACKING_HEIGHT, 286, 60, 108, 18, WINDOW_WIDTH, WINDOW_HEIGHT);
         int y = top + LIST_Y;
         for (Payloads.TradeRouteShrineData shrine : visibleChoices()) {
-            boolean hovered = within(mouseX, mouseY, left + LIST_X, y, LIST_WIDTH, 26);
+            boolean hovered = within(mouseX, mouseY, left + LIST_X, y, LIST_WIDTH, 32);
             boolean selected = shrine.index() == selectedIndex;
+            VillageUiTheme.drawCard(graphics, left + LIST_X, y, LIST_WIDTH, 32, hovered, selected);
             if (selected) {
                 graphics.fill(left + LIST_X + 3, y + 3,
-                        left + LIST_X + LIST_WIDTH - 3, y + 24, 0x2237B5AC);
+                        left + LIST_X + LIST_WIDTH - 3, y + 30, 0x2237B5AC);
                 graphics.fill(left + LIST_X + 4, y + 4,
-                        left + LIST_X + 7, y + 23, 0xCC236B68);
+                        left + LIST_X + 7, y + 29, 0xCC236B68);
             } else if (hovered) {
                 graphics.fill(left + LIST_X + 3, y + 3,
-                        left + LIST_X + LIST_WIDTH - 3, y + 24, 0x14FFFFFF);
+                        left + LIST_X + LIST_WIDTH - 3, y + 30, 0x14FFFFFF);
             }
-            VillageUiTheme.drawMarker(graphics, "shrine", left + LIST_X + 13, y + 13, 14);
-            String name = VillageUiTheme.ellipsize(font, shrine.name().getString(), 87);
-            graphics.drawString(font, name, left + LIST_X + 24, y + 4, INK, false);
+            VillageUiTheme.drawMarker(graphics, "shrine", left + LIST_X + 13, y + 16, 14);
+            List<String> nameLines = VillageUiTheme.wrapScaled(font, shrine.name().getString(), 83, .62f);
+            for (int i = 0; i < Math.min(2, nameLines.size()); i++) {
+                VillageUiTheme.drawStringScaled(graphics, font, VillageUiTheme.ellipsize(font, nameLines.get(i), 133), left + LIST_X + 24, y + 6 + i * 7, INK, .62f);
+            }
             String detail = Component.translatable("screen.village-quest.wayshrine.list_detail",
                     distanceTo(shrine), shrine.cost()).getString();
-            VillageUiTheme.drawStringScaled(graphics, font, detail,
-                    left + LIST_X + 24, y + 15, MUTED, 0.62f);
+            VillageUiTheme.drawStringScaled(graphics, font, VillageUiTheme.ellipsize(font, detail, 148),
+                    left + LIST_X + 24, y + 21, MUTED, 0.56f);
             if (hovered) {
                 graphics.setTooltipForNextFrame(font, destinationTooltip(shrine), mouseX, mouseY);
             }
             y += ROW_HEIGHT;
         }
-        VillageUiTheme.drawScrollBar(graphics, left + LIST_X + LIST_WIDTH - 3, top + LIST_Y, 138,
+        VillageUiTheme.drawScrollBar(graphics, left + LIST_X + LIST_WIDTH - 3, top + LIST_Y, VISIBLE_ROWS * ROW_HEIGHT,
                 VISIBLE_ROWS * ROW_HEIGHT, choices().size() * ROW_HEIGHT,
                 listScroll * ROW_HEIGHT, maxListScroll() * ROW_HEIGHT);
     }
@@ -337,7 +347,7 @@ public final class WayshrineScreen extends CompatScreen {
         graphics.fill(left + 76, top + 78, left + 356, top + 167, 0xD92A2119);
         VillageUiTheme.drawCard(graphics, left + 81, top + 83, 270, 79, false, false);
         String heading = Component.translatable("screen.village-quest.wayshrine.rename_title").getString();
-        graphics.drawCenteredString(font, heading, left + WINDOW_WIDTH / 2, top + 92, INK);
+        graphics.drawString(font, heading, left + (WINDOW_WIDTH - font.width(heading)) / 2, top + 92, INK, false);
         graphics.fill(left + 107, top + 109, left + 325, top + 137, 0xFF6B4726);
         graphics.fill(left + 109, top + 111, left + 323, top + 135, 0xFFE8D3A5);
         boolean saveHover = within(mouseX, mouseY, left + 107, top + 139, 104, 18);
@@ -351,8 +361,8 @@ public final class WayshrineScreen extends CompatScreen {
     }
 
     @Override
-    public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
-        if (click.button() != 0) return super.mouseClicked(click, doubled);
+    protected boolean handleMouseClicked(MouseButtonEvent click, boolean doubled) {
+        if (click.button() != InputConstants.MOUSE_BUTTON_LEFT) return super.handleMouseClicked(click, doubled);
         int left = (width - WINDOW_WIDTH) / 2;
         int top = (height - WINDOW_HEIGHT) / 2;
         int mouseX = responsiveMouseX(click.x(), WINDOW_WIDTH, WINDOW_HEIGHT);
@@ -366,14 +376,14 @@ public final class WayshrineScreen extends CompatScreen {
                 closeRename();
                 return true;
             }
-            return super.mouseClicked(click, doubled);
+            return super.handleMouseClicked(click, doubled);
         }
         if (handleMapControlClick(mouseX, mouseY, left, top)) {
             return true;
         }
         int y = top + LIST_Y;
         for (Payloads.TradeRouteShrineData shrine : visibleChoices()) {
-            if (within(mouseX, mouseY, left + LIST_X, y, LIST_WIDTH, 26)) {
+            if (within(mouseX, mouseY, left + LIST_X, y, LIST_WIDTH, 32)) {
                 selectedIndex = shrine.index();
                 focusMapOn(shrine);
                 return true;
@@ -392,7 +402,7 @@ public final class WayshrineScreen extends CompatScreen {
                 left + TRAVEL_X, top + FOOTER_Y, TRAVEL_WIDTH, FOOTER_HEIGHT)
                 && selected() != null && cooldownSeconds() <= 0
                 && (useCharge ? data.charges() >= selected().chargeCost() : data.balance() >= selected().cost())) {
-            ClientPlayNetworking.send(new VillageNetworkPayloads.WayshrineTravelPayload(
+            UiTestTour.send(new VillageNetworkPayloads.WayshrineTravelPayload(
                     data.currentIndex(), selectedIndex, useCharge && data.charges() >= selected().chargeCost()));
             onClose();
             return true;
@@ -412,7 +422,7 @@ public final class WayshrineScreen extends CompatScreen {
             mapDragging = true;
             return true;
         }
-        return super.mouseClicked(click, doubled);
+        return super.handleMouseClicked(click, doubled);
     }
 
     private List<Component> destinationTooltip(Payloads.TradeRouteShrineData shrine) {
@@ -433,7 +443,7 @@ public final class WayshrineScreen extends CompatScreen {
 
     @Override
     public boolean mouseDragged(MouseButtonEvent click, double dragX, double dragY) {
-        if (mapDragging && click.button() == 0) {
+        if (mapDragging && click.button() == InputConstants.MOUSE_BUTTON_LEFT) {
             MapBounds bounds = bounds();
             centerX -= responsiveDrag(dragX, WINDOW_WIDTH, WINDOW_HEIGHT)
                     * (bounds.maxX - bounds.minX) / MAP_WIDTH;
@@ -446,7 +456,7 @@ public final class WayshrineScreen extends CompatScreen {
 
     @Override
     public boolean mouseReleased(MouseButtonEvent click) {
-        if (click.button() == 0 && mapDragging) {
+        if (click.button() == InputConstants.MOUSE_BUTTON_LEFT && mapDragging) {
             mapDragging = false;
             return true;
         }
@@ -478,21 +488,20 @@ public final class WayshrineScreen extends CompatScreen {
         renaming = true;
         nameField.setVisible(true);
         nameField.setValue(current().name().getString());
-        nameField.setFocused(true);
         nameField.moveCursorToEnd(false);
         setInitialFocus(nameField);
     }
 
     private void saveRename() {
         if (nameField == null || nameField.getValue().trim().isEmpty()) return;
-        ClientPlayNetworking.send(new VillageNetworkPayloads.WayshrineRenamePayload(data.currentIndex(), nameField.getValue()));
+        UiTestTour.send(new VillageNetworkPayloads.WayshrineRenamePayload(data.currentIndex(), nameField.getValue()));
         closeRename();
     }
 
     private void closeRename() {
         renaming = false;
         if (nameField != null) {
-            nameField.setFocused(false);
+            clearFocus();
             nameField.setVisible(false);
         }
     }
@@ -504,12 +513,12 @@ public final class WayshrineScreen extends CompatScreen {
 
     @Override
     public boolean keyPressed(KeyEvent key) {
-        if (renaming && (key.key() == 257
-                || key.key() == 335)) {
+        if (renaming && (key.key() == InputConstants.KEY_RETURN
+                || key.key() == InputConstants.KEY_NUMPADENTER)) {
             saveRename();
             return true;
         }
-        if (renaming && key.key() == 256) {
+        if (renaming && key.key() == InputConstants.KEY_ESCAPE) {
             closeRename();
             return true;
         }

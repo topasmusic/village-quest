@@ -50,6 +50,9 @@ public final class FirstDailyChoiceService {
         if (!canChoose(data)) {
             return false;
         }
+        if (!de.quest.reward.VanillaRewardService.prepare(world, player, "daily", "intro",
+                de.quest.reward.VanillaRewardService.dailyIdentity(choice.name()), RepeatableTargetProfile.LIGHT,
+                () -> accept(world, player, choice))) return false;
         data.setTradeRouteFlag(ACTIVE, true);
         data.setDailyChoice(choice);
         data.setDailyChoiceDay(de.quest.util.TimeUtil.currentDay());

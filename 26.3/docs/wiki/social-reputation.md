@@ -1,8 +1,10 @@
-# Trust on the Roads of Concord
+# Trust in Bonds & Bounty
 
 The NPC trading community keeps **Guild trust** and each registered physical village keeps **local trust** for each player. Both run from −100 to +100 and begin at zero in existing and new saves. They are independent of earned skill expertise, permanent Known/Trusted/Allied village bonds, network renown, multiplayer guild prestige and money. Old achievements do not award retrospective points.
 
 ## Standing and services
+
+The Trust desk groups standing, services and village aid in subtle parchment insets. Its three sidebar sections—Trust, Making amends and Resettlement—fit without vertical scrolling; arrows switch village and support pages. Hover hints explain each field. When no amends are due, a compact message appears beside its shield emblem. The Back action and page navigation share a compact parchment footer.
 
 | Guild trust | Standing | Caravan purchases per player/connection/Daily reset | New Dispatches / Convoys |
 |---|---|---:|---|
@@ -55,6 +57,8 @@ Environmental or unknown causes do not invent an offender. A proven recent injur
 
 Open **Trust / Reparation** at your own valid Homestead Notice Post, a valid affected village board, or an existing nearby Questmaster. The Questmaster fallback works even without routes or a surviving victim village. A board in a village where your local trust is at most−20 can also open the first reconciliation case after an administrative/imported trust change. Stand within8 blocks. The Journal is read-only and explains where to go.
 
+In Village Quest 2.5, the desk uses three icon sections on the left: **Trust** (handshake), **Making amends** (repaired shield) and **Resettlement** (cottage and sprout). Hover an icon to see its label. The gold heading names the current section. Fixed cards show standing, services, material aid and village recovery without vertical scrolling; arrows switch villages and support offers. Hover individual values for compact, wrapped hints that stay on screen. Recent trust changes remain in the Journal's Trust and Chronicle views. Village labels show coordinates without technical world identifiers. The Journal's separate Network tabs remain available.
+
 - **Minor case:**10 online minutes alive and not Spectator, plus **one chosen aid**:32 wheat **or**16 any planks **or**4 iron ingots. You can change the choice before any delivery.
 - **Major case (any death):**30 online minutes, plus **64 wheat,32 any planks and8 iron ingots**. Partial deliveries and any order are supported.
 
@@ -72,10 +76,14 @@ A real death interrupts the affected journey and records the member's logical id
 
 See [Configuration](configuration.md) for the three independent social options and [Admin commands](commands-and-admin.md) for inspect/set/pardon and nonpersistent preview modes. Unknown or damaged optional reputation data is preserved read-only; normal quests remain available. Both client and server need the matching new2.5 packet contract.
 
-This is an **Unreleased26.3 feature**. Automated state/codec/inventory tests and a separate headless Mixin smoke test are available. Actual Minecraft UI, combat/navigation, two-player play, old-world migration and protection-mod compatibility require the final manual acceptance pass; they are not claimed tested.
+This feature is included in Village Quest 2.5.
 
 ## Freight returns and persistence boundaries
 
 Cancelled Regional Dispatches return only what fits in the ordinary36 inventory slots. Unclaimed quantities stay saved under the same assignment and can be reclaimed later; no freight is dropped into the world because inventory is full. Partial claims survive normal save/reload.
 
 Player inventories and mod SavedData have separate storage files. These mechanisms do not promise an atomic transaction across arbitrary hard crashes or inconsistent external world backups. Preserve complete world backups rather than mixing player and world-data snapshots.
+
+## Trust before village connection
+
+Clicking Trust at an unavailable Notice Post shows a hint inside the board instead of doing nothing. Complete Village Welcome and connect the village, or use your own Homestead board or a nearby Questmaster; stay within eight blocks. Update progress returns to the normal village page. If Trust is disabled in the server configuration, the board explains that separately. The hint grants no standing, discovery or access rights.

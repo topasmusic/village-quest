@@ -1,5 +1,6 @@
 package de.quest.quest.weekly;
 
+import de.quest.reward.VanillaRewardService;
 import net.minecraft.util.Prediction;
 import de.quest.quest.QuestCompletionMode;
 import de.quest.quest.QuestSoundFeedback;
@@ -434,6 +435,10 @@ public final class WeeklyQuestService {
         }
 
         PlayerQuestData data = data(world, playerId);
+        final WeeklyQuestType rewardType = type;
+        if (!de.quest.reward.VanillaRewardService.prepare(world, player, "weekly", QuestPartyService.rewardWeeklyKey(world, playerId, type),
+                de.quest.reward.VanillaRewardService.weeklyIdentity(rewardType.name()),
+                QuestPartyService.rewardWeeklyProfile(world, playerId, type, data.getWeeklyTargetProfile()), () -> acceptQuest(world, player))) return false;
         clearProgress(data);
         data.setWeeklyAcceptedCycle(currentCycle());
         setDirty(world);
@@ -525,6 +530,7 @@ public final class WeeklyQuestService {
         WeeklyQuestType cancelledType = activeQuestType(world, playerId);
         PlayerQuestData data = data(world, playerId);
         clearProgress(data);
+        data.vanillaRewards().forget("weekly");
         data.setWeeklyAcceptedCycle(PlayerQuestData.UNSET_DAY);
         setDirty(world);
         QuestPartyService.clearWeeklySessionIfFinished(world, playerId, cancelledType);
@@ -572,6 +578,7 @@ public final class WeeklyQuestService {
         }
 
         PlayerQuestData data = data(world, playerId);
+        data.vanillaRewards().forget("weekly");
         boolean changed = false;
         if (!data.getWeeklyIntState().isEmpty() || !data.getWeeklyFlags().isEmpty()) {
             clearProgress(data);
@@ -970,6 +977,8 @@ public final class WeeklyQuestService {
     }
 
     private static void deliverCompletion(ServerLevel world, ServerPlayer player, WeeklyQuestCompletion completion) {
+        var rewardType = data(world, player.getUUID()).getWeeklyChoice();
+        if (rewardType != null) de.quest.reward.VanillaRewardService.complete(world, player, "weekly", de.quest.reward.VanillaRewardService.weeklyIdentity(rewardType.name()));
         long actualCurrencyReward = ProsperityService.applyFestivalBonus(world, player.getUUID(),
                 completion.currencyReward() + VillageProjectService.bonusCurrency(world, player.getUUID(), completion.reputationTrack()));
         if (actualCurrencyReward > 0L) {

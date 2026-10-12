@@ -21,6 +21,8 @@ The pilgrim exists for:
 
 The pilgrim uses the wallet system.
 
+In the trader UI, the Rumor tab opens a contained contract selector. When several contracts are available, use its left/right arrows or scroll over the selector to switch contracts; scroll over the description separately to read its details. The countdown and exit hint sit in the lower wooden rail.
+
 The current shop mix includes:
 
 - travel and utility bundles such as `Provisions Satchel`, `Road Camp Kit`, and `Village Ledger Desk`
@@ -29,7 +31,18 @@ The current shop mix includes:
 
 Current shop rules:
 
-- all multi-item bundles now share the same price as the `Provisions Satchel`
+| Fixed bundle | Price (Silvermarks) | Personal unlock |
+| --- | --- | --- |
+| Provisions: 24 golden carrots | 12 | 25 Farming reputation |
+| Healing: golden apple + 2 Healing II potions | 14 | 25 Monster Hunting reputation |
+| Nether: 2 eight-minute Fire Resistance potions + 16 golden carrots | 20 | Watch Bell village project |
+| Light: 64 glass + 16 lanterns | 30 | 25 Crafting reputation |
+| Rails: 64 rails + 8 powered rails | 32 | Forge Charter village project |
+| Leather: 48 leather | 32 | Pasture Charter village project |
+
+Both the visible shop list and server purchases enforce these unlocks. Newly unlocked wares enter subsequent trader rotations; an existing trader retains its rolled stock. Previously paid delivery claims retain their saved contents.
+
+- Other camp/building bundles retain their individual prices.
 - plaque and reliquary wares cost `3 Crowns 5 Silvermarks`
 - decorative custom heads cost `5 Crowns`
 - each pilgrim can roll at most `1` custom-head decor offer at a time
@@ -44,15 +57,14 @@ The upper wood header keeps the interface controls predictable: `Rumor` sits on 
 
 `Roadmarks for the Compass` is a one-time special contract.
 
-If it is available:
-- the pilgrim shows only this contract
-- it replaces the normal combat rumor for that day
+If it is available, Roadmarks takes priority in the selector. A second eligible combat rumor can accompany it.
 
 ### Watch Bell combat lane
 
 After `Watch Bell` is unlocked:
-- the pilgrim offers exactly `1` dangerous combat rumor per day
-- this is a random rumor from the unlocked roadside pool
+- the pilgrim offers up to `2` eligible rumors per daily rotation
+- one is chosen from the Overworld pool when available; the second differs from the first
+- the pool depends on personal village progress; an admin unlock can bypass project requirements for tests
 
 After `3` completed `Pilgrim` combat rumors:
 
@@ -179,3 +191,5 @@ The late `Shadows on the Trade Road` arc builds directly on the pilgrim rumor la
 - rescue chapters spawn living caravan survivors in the world at night
 - regular mobs focus the caravan first, so the encounter remains a defense check instead of a simple player duel
 - the final convoy fight adds elite `Traitor` bandits as the last wave
+
+Village Quest 2.5 adds [chosen Vanilla reward packages and saved collection](vanilla-rewards.md), including `/vq rewards claim`. Existing accepted contracts and prepaid orders retain their original conditions.

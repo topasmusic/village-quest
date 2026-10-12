@@ -330,3 +330,5 @@ Each completed stage unlocks the next automatically. Books crafted before the pa
 - keeps offline route proceeds in a capped trade-office escrow until the ledger is opened
 
 See [Trade Routes and Caravans](./trade-routes-and-caravans.md) for the complete system and its in-game test command.
+
+Village Quest 2.5 adds [chosen Vanilla reward packages and saved collection](vanilla-rewards.md), including `/vq rewards claim`. Existing accepted contracts and prepaid orders retain their original conditions.

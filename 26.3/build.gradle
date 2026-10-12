@@ -47,6 +47,12 @@ tasks.named("test").configure {
     useJUnitPlatform()
 }
 
+// Screen input regression tests need the split client classes and Minecraft API.
+sourceSets.test.compileClasspath += sourceSets.client.output + sourceSets.client.compileClasspath
+sourceSets.test.runtimeClasspath += sourceSets.client.output + sourceSets.client.runtimeClasspath
+
+apply from: 'tools/localization-quality.gradle'
+
 processResources {
     inputs.property "version", project.version
     filesMatching("fabric.mod.json") { expand "version": inputs.properties.version }

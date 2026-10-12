@@ -1,27 +1,21 @@
 package de.quest.client.screen;
 
 import com.mojang.blaze3d.platform.InputConstants;
-import de.quest.VillageQuest;
 import de.quest.client.ui.VillageUiTheme;
 import de.quest.network.VillageNetworkPayloads;
 import java.util.ArrayList;
 import java.util.List;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import de.quest.client.compat.GuiGraphics;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
 
 /** The first-village and local-story page of the physical Notice Post. */
 public final class NoticeJourneyScreen extends CompatScreen {
-    private static final Identifier FRAME = Identifier.fromNamespaceAndPath(
-            VillageQuest.MOD_ID, "textures/gui/guild_notice_board_frame.png");
-    private static final Identifier INNER = Identifier.fromNamespaceAndPath(
-            VillageQuest.MOD_ID, "textures/gui/guild_notice_board_inner.png");
-    private static final int WIDTH = 416, HEIGHT = 234;
+    private static final int WIDTH = NoticeJourneyLayout.WIDTH, HEIGHT = NoticeJourneyLayout.HEIGHT;
     private static final int INK = 0xFF302015, MUTED = 0xFF69523C, TEAL = 0xFF246E6A;
-    private static final int GOLD = 0xFF9B6A29, CREAM = 0xFFF1D8AA;
+    private static final int CREAM = 0xFFF1D8AA;
     private VillageNetworkPayloads.NoticeJourneyPayload data;
+    private String trustFeedback = "";
 
     public NoticeJourneyScreen(VillageNetworkPayloads.NoticeJourneyPayload data) {
         super(Component.translatable("screen.village-quest.notice_journey.title"));
@@ -30,7 +24,15 @@ public final class NoticeJourneyScreen extends CompatScreen {
 
     public void updateData(VillageNetworkPayloads.NoticeJourneyPayload data) {
         this.data = data;
+        trustFeedback = "";
     }
+
+    public void showTrustFeedback(String reasonKey) {
+        trustFeedback = reasonKey;
+    }
+
+    // This page exchanges server packets; singleplayer cooldowns must keep advancing.
+    @Override public boolean isPauseScreen() { return false; }
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
@@ -41,22 +43,21 @@ public final class NoticeJourneyScreen extends CompatScreen {
         try {
             int left = (width - WIDTH) / 2, top = (height - HEIGHT) / 2;
             VillageUiTheme.drawPanelShadow(graphics, left, top, WIDTH, HEIGHT);
-            VillageUiTheme.blitScaled(graphics, INNER, left + 8, top + 14, 400, 207, 400, 207);
-            VillageUiTheme.drawCard(graphics, left + 25, top + 43, 366, 145, false, false);
-            graphics.fill(left + 31, top + 51, left + 385, top + 52, GOLD);
-            graphics.fill(left + 31, top + 183, left + 385, top + 184, GOLD);
-            VillageUiTheme.drawIcon(graphics, VillageUiTheme.icon("story"), left + 33, top + 57, 28);
-            VillageUiTheme.blitScaled(graphics, FRAME, left, top, WIDTH, HEIGHT, WIDTH, HEIGHT);
-
-            drawCentered(graphics, title.getString(), left + 208, top + 16, CREAM, 0.78f, 230);
-            drawCentered(graphics, data.village().getString(), left + 208, top + 32, CREAM, 0.62f, 270);
-            drawCentered(graphics, data.title().getString(), left + 210, top + 61, INK, 0.85f, 280);
-            List<String> description = wrap(data.detail().getString(), 345);
-            int lineY = top + 86;
-            for (int i = 0; i < Math.min(3, description.size()); i++) {
-                graphics.drawString(font, description.get(i), left + 36, lineY + i * 11, MUTED, false);
+            VillageUiTheme.drawCompactNoticeBoard(graphics, left, top, WIDTH, HEIGHT);
+            VillageUiTheme.drawCard(graphics, left + 18, top + 39, 324, 98, false, false);
+            VillageUiTheme.drawIcon(graphics, VillageUiTheme.icon("story"), left + 26, top + 49, 20);
+            drawCentered(graphics, title.getString(), left + 180, top + 12, CREAM, 0.78f, 200);
+            drawCentered(graphics, data.village().getString(), left + 180, top + 31, CREAM, 0.62f, 260);
+            drawCentered(graphics, trustFeedback.isBlank() ? data.title().getString()
+                    : Component.translatable("screen.village-quest.reputation.title").getString(),
+                    left + 188, top + 50, INK, 0.85f, 260);
+            List<String> description = wrap(trustFeedback.isBlank() ? data.detail().getString()
+                    : Component.translatable(trustFeedback).getString(), 357);
+            for (int i = 0; i < Math.min(trustFeedback.isBlank() ? 3 : 5, description.size()); i++) {
+                VillageUiTheme.drawStringScaled(graphics, font, description.get(i),
+                        left + 28, top + 72 + i * 9, MUTED, 0.85f);
             }
-            drawProgress(graphics, left, top);
+            if (trustFeedback.isBlank()) drawProgress(graphics, left, top);
             drawButtons(graphics, left, top, uiX, uiY);
             super.render(graphics, uiX, uiY, delta);
         } finally {
@@ -75,9 +76,9 @@ public final class NoticeJourneyScreen extends CompatScreen {
                     : data.stage() == VillageNetworkPayloads.NoticeJourneyPayload.AFTERSTORY_ACTIVE
                     ? Component.translatable("screen.village-quest.afterstory.supplies").getString()
                     : Component.translatable("screen.village-quest.notice_journey.objective_one").getString();
-            progress(graphics, left + 48, top + 135, label, data.first(), data.firstTarget());
+            progress(graphics, left + 28, top + 113, label, data.first(), data.firstTarget());
             if (data.secondTarget() > 0) {
-                progress(graphics, left + 218, top + 135,
+                progress(graphics, left + 190, top + 113,
                         Component.translatable(data.stage() == VillageNetworkPayloads.NoticeJourneyPayload.RESETTLEMENT
                                 || data.stage() == VillageNetworkPayloads.NoticeJourneyPayload.RECOVERING
                                 ? "screen.village-quest.village_life.beds"
@@ -88,130 +89,61 @@ public final class NoticeJourneyScreen extends CompatScreen {
         if ((data.stage() == VillageNetworkPayloads.NoticeJourneyPayload.READY
                 || data.stage() == VillageNetworkPayloads.NoticeJourneyPayload.AFTERSTORY_READY)
                 && !data.delivery().isEmpty()) {
-            graphics.renderItem(data.delivery(), left + 81, top + 145);
-            graphics.drawString(font, Component.translatable("screen.village-quest.notice_journey.bundle",
-                    data.deliveryCount(), data.delivery().getHoverName()), left + 106, top + 150, INK, false);
+            graphics.renderItem(data.delivery(), left + 48, top + 113);
+            VillageUiTheme.drawStringScaled(graphics, font, VillageUiTheme.ellipsize(font, Component.translatable("screen.village-quest.notice_journey.bundle",
+                    data.deliveryCount(), data.delivery().getHoverName()).getString(), 342), left + 71, top + 118, INK, .75f);
         }
     }
 
     private void progress(GuiGraphics graphics, int x, int y, String label, int current, int target) {
-        graphics.drawString(font, label + "  " + current + "/" + target, x, y, INK, false);
-        graphics.fill(x, y + 14, x + 148, y + 21, 0xFF6A4B30);
-        graphics.fill(x + 2, y + 16, x + 146, y + 19, 0xFFD7BC8A);
-        graphics.fill(x + 2, y + 16, x + 2 + Math.round(144f * Math.min(target, current) / target),
-                y + 19, TEAL);
+        VillageUiTheme.drawStringScaled(graphics, font, VillageUiTheme.ellipsize(font, label + "  " + current + "/" + target, 190), x, y, INK, 0.7f);
+        graphics.fill(x, y + 11, x + 132, y + 17, 0xFF6A4B30);
+        graphics.fill(x + 2, y + 13, x + 130, y + 15, 0xFFD7BC8A);
+        graphics.fill(x + 2, y + 13, x + 2 + Math.round(128f * Math.min(target, current) / target),
+                y + 15, TEAL);
     }
 
     private void drawButtons(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
-        int stage = data.stage();
-        if (stage == VillageNetworkPayloads.NoticeJourneyPayload.CHOOSE) {
-            button(graphics, left + 59, top + 188, 135, 20, "screen.village-quest.notice_journey.reserve", mouseX, mouseY);
-            button(graphics, left + 207, top + 188, 135, 20, "screen.village-quest.notice_journey.share", mouseX, mouseY);
-        } else if (stage == VillageNetworkPayloads.NoticeJourneyPayload.AVAILABLE
-                || stage == VillageNetworkPayloads.NoticeJourneyPayload.READY
-                || stage == VillageNetworkPayloads.NoticeJourneyPayload.AFTERSTORY_AVAILABLE
-                || stage == VillageNetworkPayloads.NoticeJourneyPayload.AFTERSTORY_READY) {
-            button(graphics, left + 115, top + 188, 186, 20,
-                    stage == VillageNetworkPayloads.NoticeJourneyPayload.AFTERSTORY_AVAILABLE
-                            ? "screen.village-quest.afterstory.accept"
-                            : stage == VillageNetworkPayloads.NoticeJourneyPayload.AFTERSTORY_READY
-                            ? "screen.village-quest.afterstory.deliver"
-                            : stage == VillageNetworkPayloads.NoticeJourneyPayload.AVAILABLE
-                            ? "screen.village-quest.notice_journey.accept"
-                            : "screen.village-quest.notice_journey.deliver",
-                    mouseX, mouseY);
-        } else if (stage == VillageNetworkPayloads.NoticeJourneyPayload.QUESTMASTER) {
-            button(graphics, left + 115, top + 188, 186, 20,
-                    "screen.village-quest.notice_journey.questmaster", mouseX, mouseY);
-        } else if (stage == VillageNetworkPayloads.NoticeJourneyPayload.PAUSED) {
-            button(graphics, left + 146, top + 188, 124, 20,
-                    "screen.village-quest.notice_journey.resume", mouseX, mouseY);
-        } else {
-            button(graphics, left + 146, top + 188, 124, 20,
-                    "screen.village-quest.notice_journey.refresh", mouseX, mouseY);
+        for (var button : NoticeJourneyLayout.buttons(data.stage(), data.requests() != null)) {
+            VillageUiTheme.drawButton(graphics, font, left + button.x(), top + button.y(),
+                    button.width(), button.height(), Component.translatable(button.key()).getString(),
+                    true, button.contains(mouseX - left, mouseY - top), button.primary());
+            if (button.contains(mouseX - left, mouseY - top)) {
+                graphics.setTooltipForNextFrame(font, Component.translatable(button.key()), mouseX, mouseY);
+            }
         }
-        if (data.requests() != null) {
-            button(graphics, left + 17, top + 213, 100, 16,
-                    "screen.village-quest.notice_journey.requests", mouseX, mouseY);
-        }
-        button(graphics, left + 122, top + 213, 105, 16,
-                "screen.village-quest.dispatch.title", mouseX, mouseY);
-        button(graphics, left + 232, top + 213, 92, 16,
-                "screen.village-quest.reputation.title", mouseX, mouseY);
-        button(graphics, left + 331, top + 213, 67, 16,
-                "screen.village-quest.notice_board.close", mouseX, mouseY);
-    }
-
-    private void button(GuiGraphics graphics, int x, int y, int width, int height,
-                        String key, int mouseX, int mouseY) {
-        VillageUiTheme.drawButton(graphics, font, x, y, width, height,
-                Component.translatable(key).getString(), true,
-                within(mouseX, mouseY, x, y, width, height), false);
     }
 
     @Override
-    public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
-        if (click.button() != InputConstants.MOUSE_BUTTON_LEFT) return super.mouseClicked(click, doubled);
+    protected boolean handleMouseClicked(MouseButtonEvent click, boolean doubled) {
+        if (click.button() != InputConstants.MOUSE_BUTTON_LEFT) return super.handleMouseClicked(click, doubled);
         int left = (width - WIDTH) / 2, top = (height - HEIGHT) / 2;
-        int x = responsiveMouseX(click.x(), WIDTH, HEIGHT), y = responsiveMouseY(click.y(), WIDTH, HEIGHT);
-        int action = 0;
-        if (data.stage() == VillageNetworkPayloads.NoticeJourneyPayload.CHOOSE) {
-            if (within(x, y, left + 59, top + 188, 135, 20)) action = VillageNetworkPayloads.NoticeJourneyActionPayload.RESERVE;
-            if (within(x, y, left + 207, top + 188, 135, 20)) action = VillageNetworkPayloads.NoticeJourneyActionPayload.SHARE;
-        } else if (within(x, y, left + 115, top + 188, 186, 20)
-                && data.stage() == VillageNetworkPayloads.NoticeJourneyPayload.AVAILABLE) {
-            action = VillageNetworkPayloads.NoticeJourneyActionPayload.ACCEPT;
-        } else if (within(x, y, left + 115, top + 188, 186, 20)
-                && data.stage() == VillageNetworkPayloads.NoticeJourneyPayload.READY) {
-            action = VillageNetworkPayloads.NoticeJourneyActionPayload.DELIVER;
-        } else if (within(x, y, left + 115, top + 188, 186, 20)
-                && data.stage() == VillageNetworkPayloads.NoticeJourneyPayload.AFTERSTORY_AVAILABLE) {
-            action = VillageNetworkPayloads.NoticeJourneyActionPayload.ACCEPT_AFTERSTORY;
-        } else if (within(x, y, left + 115, top + 188, 186, 20)
-                && data.stage() == VillageNetworkPayloads.NoticeJourneyPayload.AFTERSTORY_READY) {
-            action = VillageNetworkPayloads.NoticeJourneyActionPayload.DELIVER_AFTERSTORY;
-        } else if (within(x, y, left + 115, top + 188, 186, 20)
-                && data.stage() == VillageNetworkPayloads.NoticeJourneyPayload.QUESTMASTER) {
-            if (!data.preview() && minecraft != null && minecraft.player != null) {
-                minecraft.player.connection.sendCommand("vq questmaster");
-                onClose();
+        int x = responsiveMouseX(click.x(), WIDTH, HEIGHT) - left;
+        int y = responsiveMouseY(click.y(), WIDTH, HEIGHT) - top;
+        for (var button : NoticeJourneyLayout.buttons(data.stage(), data.requests() != null)) {
+            if (!button.contains(x, y)) continue;
+            if (button.action() != NoticeJourneyLayout.TRUST) trustFeedback = "";
+            switch (button.action()) {
+                case NoticeJourneyLayout.CLOSE -> onClose();
+                case NoticeJourneyLayout.TRUST -> {
+                    if (!data.preview()) UiTestTour.send(new de.quest.network.ReputationPayloads.OpenPayload(0,
+                            new net.minecraft.core.BlockPos(data.worldX(), data.worldY(), data.worldZ()), 0));
+                }
+                case NoticeJourneyLayout.REQUESTS -> UiTestTour.navigate(new GuildNoticeBoardScreen(data.requests(), data));
+                case NoticeJourneyLayout.QUESTMASTER -> {
+                    if (!data.preview() && minecraft != null && minecraft.player != null) {
+                        UiTestTour.command("vq questmaster");
+                        onClose();
+                    }
+                }
+                default -> {
+                    if (!data.preview()) UiTestTour.send(new VillageNetworkPayloads.NoticeJourneyActionPayload(
+                            data.worldX(), data.worldY(), data.worldZ(), button.action()));
+                }
             }
             return true;
-        } else if (within(x, y, left + 146, top + 188, 124, 20)
-                && data.stage() != VillageNetworkPayloads.NoticeJourneyPayload.CHOOSE
-                && data.stage() != VillageNetworkPayloads.NoticeJourneyPayload.AVAILABLE
-                && data.stage() != VillageNetworkPayloads.NoticeJourneyPayload.READY
-                && data.stage() != VillageNetworkPayloads.NoticeJourneyPayload.AFTERSTORY_AVAILABLE
-                && data.stage() != VillageNetworkPayloads.NoticeJourneyPayload.AFTERSTORY_READY) {
-            action = data.stage() == VillageNetworkPayloads.NoticeJourneyPayload.PAUSED
-                    ? VillageNetworkPayloads.NoticeJourneyActionPayload.RESUME
-                    : VillageNetworkPayloads.NoticeJourneyActionPayload.REFRESH;
         }
-        if (action != 0) {
-            if (!data.preview()) ClientPlayNetworking.send(new VillageNetworkPayloads.NoticeJourneyActionPayload(
-                    data.worldX(), data.worldY(), data.worldZ(), action));
-            return true;
-        }
-        if (data.requests() != null && within(x, y, left + 17, top + 213, 100, 16)) {
-            minecraft.gui.setScreen(new GuildNoticeBoardScreen(data.requests(), data));
-            return true;
-        }
-        if (within(x, y, left + 122, top + 213, 105, 16)) {
-            if (!data.preview()) ClientPlayNetworking.send(new VillageNetworkPayloads.NoticeJourneyActionPayload(
-                    data.worldX(), data.worldY(), data.worldZ(),
-                    VillageNetworkPayloads.NoticeJourneyActionPayload.DISPATCH));
-            return true;
-        }
-        if (within(x, y, left + 232, top + 213, 92, 16)) {
-            if (!data.preview()) ClientPlayNetworking.send(new de.quest.network.ReputationPayloads.OpenPayload(0,
-                    new net.minecraft.core.BlockPos(data.worldX(), data.worldY(), data.worldZ()), 0));
-            return true;
-        }
-        if (within(x, y, left + 331, top + 213, 67, 16)) {
-            onClose();
-            return true;
-        }
-        return super.mouseClicked(click, doubled);
+        return super.handleMouseClicked(click, doubled);
     }
 
     private void drawCentered(GuiGraphics graphics, String value, float center, float y,

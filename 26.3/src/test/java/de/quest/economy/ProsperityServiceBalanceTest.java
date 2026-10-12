@@ -16,18 +16,18 @@ final class ProsperityServiceBalanceTest {
     }
 
     @Test
-    void festivalGuaranteedBonusRemainsASinkAcrossThreeMinimumRewards() {
+    void festivalDeliversItsAdvertisedFourSilvermarkMinimum() {
         long totalMinimumBonus = 3L * ProsperityService.festivalBonusAmount(1L);
-        assertTrue(totalMinimumBonus < ProsperityService.VillageService.VILLAGE_FESTIVAL.cost());
-        assertEquals(3L, ProsperityService.festivalBonusAmount(3L));
+        assertEquals(12L, totalMinimumBonus);
+        assertEquals(4L, ProsperityService.festivalBonusAmount(3L));
         assertEquals(25L, ProsperityService.festivalBonusAmount(100L));
     }
 
     @Test
-    void ceremonyGuaranteedBonusRemainsASinkAcrossThreeMinimumRewards() {
+    void ceremonyDeliversItsAdvertisedEightSilvermarkMinimum() {
         long totalMinimumBonus = 3L * ProsperityService.ceremonyBonusAmount(1L);
-        assertTrue(totalMinimumBonus < ProsperityService.VillageService.GUILD_CEREMONY.cost());
-        assertEquals(6L, ProsperityService.ceremonyBonusAmount(20L));
+        assertEquals(24L, totalMinimumBonus);
+        assertEquals(8L, ProsperityService.ceremonyBonusAmount(20L));
         assertEquals(25L, ProsperityService.ceremonyBonusAmount(100L));
     }
 }

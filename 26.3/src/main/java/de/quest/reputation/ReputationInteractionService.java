@@ -37,13 +37,20 @@ public final class ReputationInteractionService {
         return village != null && ReputationViewService.knownVillages(player).contains(village);
     }
     public static void open(ServerPlayer player, OpenPayload request) {
-        if (!allowRequest(player) || !SocialReputationService.enabled()) return;
+        if (!allowRequest(player)) return;
+        if (!SocialReputationService.enabled()) {
+            ServerPlayNetworking.send(player, new OpenFeedbackPayload("reputation.village-quest.open.disabled"));
+            return;
+        }
         var world = player.level(); InteractionAnchor anchor;
         if (request.kind() == 0) anchor = new InteractionAnchor(AnchorKind.BOARD, world.dimension().identifier().toString(), request.position(), null);
         else if (request.kind() == 1 && world.getEntity(request.entityId()) instanceof QuestMasterEntity master)
             anchor = new InteractionAnchor(AnchorKind.QUESTMASTER, world.dimension().identifier().toString(), master.blockPosition(), master.getUUID());
         else return;
-        if (!validReadAnchor(player, anchor)) return;
+        if (!validReadAnchor(player, anchor)) {
+            ServerPlayNetworking.send(player, new OpenFeedbackPayload("reputation.village-quest.open.unavailable"));
+            return;
+        }
         ReparationService.open(player, anchor);
         var session = SESSIONS.open(player.getUUID(), anchor, QuestState.get(world.getServer()).socialServerTick());
         LAST.remove(player.getUUID()); send(player, session, "");

@@ -1,12 +1,12 @@
 # Village Quest Wiki
 
-Current stable release: `2.4.2`. Version `2.5.0` was withdrawn on 2026-10-04. This development wiki also describes 2.5.0 systems that are not part of 2.4.2.
+Current stable release: `2.5.0` — Bonds & Bounty for Minecraft `26.2`.
 
 The 2.3 release joins versioned village conditions, three-choice local requests, need-aware freight, repairable route consequences, renewable Wayshrine energy, Adventure Profiles, an optional multiplayer guild, Journal network guidance, and bounded prestige. It includes the complete save-compatible 2.2.1 quality and balance pass.
 
 Current published releases:
 
-- `2.4.2` for Minecraft `26.3` and `26.2`;
+- `2.5.0` for Minecraft `26.3` and `26.2`;
 - `2.1.1 - Homesteads & Wayfinding` for Minecraft `26.1.2` and `1.21.11`;
 - Minecraft `26.1.2` and `1.21.11` remain maintenance lines for confirmed bug, save-safety, exploit, and meaningful performance fixes rather than receiving content-parity builds.
 
@@ -69,3 +69,7 @@ If you are testing or balancing the mod, read these as well:
 1. [Pilgrim and Roadside Watch](./pilgrim-and-roadside-watch.md)
 2. [Quest Reference](./quest-reference.md)
 3. [Commands and Admin Tools](./commands-and-admin.md)
+
+- [Vanilla reward packages ](vanilla-rewards.md)
+
+Upcoming 2.5 update: **Bonds & Bounty** — caravan journeys, village/Guild trust and progression, themed trade and earned village gifts.

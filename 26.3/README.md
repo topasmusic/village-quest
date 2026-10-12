@@ -1,12 +1,12 @@
 # Village Quest for Minecraft 26.3
 
-`Village Quest` is a Fabric mod built around village progression. Take on daily and weekly work, build reputation, unlock story arcs and village projects, and later deal with the `Pilgrim` and the road beyond the village.
+`Village Quest` is a Fabric mod built around village progression. Take on daily and weekly work, build reputation, unlock stories and projects, and explore the roads between villages.
 
-Current stable release: `2.4.2`. Version `2.5.0` was withdrawn on 2026-10-04; the source and descriptions below are retained for development.
+Current stable release: `2.5.0` — **Bonds & Bounty** for Minecraft `26.3`. Both Minecraft `26.3` and `26.2` share the same content with native dependencies and APIs, including [village gifts and saved collection](docs/wiki/vanilla-rewards.md).
 
 Minecraft `26.3` is the active line for future Village Quest content. Minecraft `26.2` remains available as a previous maintenance line.
 
-## Roads of Concord 2.5 (withdrawn development source)
+## Bonds & Bounty 2.5
 
 Village Quest 2.5 adds persistent named caravan crews with four visible
 roles and five route liveries, a compact Caravan Master view, route traders, and

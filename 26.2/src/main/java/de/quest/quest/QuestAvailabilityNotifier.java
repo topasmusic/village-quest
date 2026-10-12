@@ -23,6 +23,14 @@ import net.minecraft.server.level.ServerPlayer;
  */
 public final class QuestAvailabilityNotifier {
     private static final int CHECK_INTERVAL_TICKS = 20;
+    private static final int LOGIN_DELAY_TICKS = 20 * 20;
+    private static final java.util.Map<java.util.UUID, Long> READY_AT = new java.util.HashMap<>();
+
+    public static void handleJoin(ServerPlayer player) {
+        READY_AT.put(player.getUUID(), (long) player.level().getServer().getTickCount() + LOGIN_DELAY_TICKS);
+    }
+    public static void handleDisconnect(java.util.UUID player) { READY_AT.remove(player); }
+    public static void resetRuntimeState() { READY_AT.clear(); }
 
     private QuestAvailabilityNotifier() {
     }
@@ -36,11 +44,25 @@ public final class QuestAvailabilityNotifier {
         QuestState state = QuestState.get(server);
         boolean changed = false;
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            long readyAt = READY_AT.computeIfAbsent(player.getUUID(),
+                    id -> (long) server.getTickCount() + LOGIN_DELAY_TICKS);
+            if (server.getTickCount() < readyAt) continue;
             PlayerQuestData data = state.getPlayerData(player.getUUID());
-            boolean playerChanged = notifyDaily(world, player, data);
-            playerChanged |= notifyWeekly(world, player, data);
-            playerChanged |= notifyStory(world, player, data);
+            boolean daily = notifyDaily(world, player, data);
+            boolean weekly = notifyWeekly(world, player, data);
+            boolean story = notifyStory(world, player, data);
+            boolean playerChanged = daily || weekly || story;
             if (playerChanged) {
+                String key = switch ((daily ? 1 : 0) | (weekly ? 2 : 0) | (story ? 4 : 0)) {
+                    case 1 -> "message.village-quest.questmaster.new_offers.daily";
+                    case 2 -> "message.village-quest.questmaster.new_offers.weekly";
+                    case 3 -> "message.village-quest.questmaster.new_offers.daily_weekly";
+                    case 4 -> "message.village-quest.questmaster.new_offers.story";
+                    case 5 -> "message.village-quest.questmaster.new_offers.daily_story";
+                    case 6 -> "message.village-quest.questmaster.new_offers.weekly_story";
+                    default -> "message.village-quest.questmaster.new_offers.daily_weekly_story";
+                };
+                announce(world, player, key);
                 QuestMasterUiService.refreshIfOpen(world, player);
             }
             changed |= playerChanged;
@@ -58,7 +80,6 @@ public final class QuestAvailabilityNotifier {
             return false;
         }
         data.setDailyOfferNoticeDay(day);
-        announce(world, player, "message.village-quest.questmaster.new_daily");
         return true;
     }
 
@@ -71,7 +92,6 @@ public final class QuestAvailabilityNotifier {
             return false;
         }
         data.setWeeklyOfferNoticeCycle(cycle);
-        announce(world, player, "message.village-quest.questmaster.new_weekly");
         return true;
     }
 
@@ -96,7 +116,6 @@ public final class QuestAvailabilityNotifier {
             return false;
         }
         data.setStoryOfferNoticeKey(offerKey);
-        announce(world, player, "message.village-quest.questmaster.new_story");
         return true;
     }
 

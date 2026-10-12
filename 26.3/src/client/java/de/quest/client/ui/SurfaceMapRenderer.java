@@ -91,6 +91,9 @@ public final class SurfaceMapRenderer {
     };
     private static final Set<Long> DIRTY_TILES = new HashSet<>();
     private static Raster screenRaster;
+    private static Raster tourRaster;
+    private static final SurfaceTexture TOUR_TEXTURE = new SurfaceTexture(
+            Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "surface_map_tour"));
     private static Raster hudRaster;
     private static ClientLevel memoryLevel;
     private static Path cacheDirectory;
@@ -107,6 +110,10 @@ public final class SurfaceMapRenderer {
     public static void drawScreen(GuiGraphics graphics, int x, int y, int width, int height,
                                   int minX, int maxX, int minZ, int maxZ,
                                   boolean refreshTerrain) {
+        if (de.quest.client.screen.UiTestTour.active()) {
+            drawTour(graphics, x, y, width, height, minX, maxX, minZ, maxZ);
+            return;
+        }
         screenRaster = raster(Minecraft.getInstance(), screenRaster, minX, maxX, minZ, maxZ,
                 scaledSamples(Math.max(72, width / 2)), scaledSamples(Math.max(42, height / 2)),
                 50L, refreshTerrain);
@@ -127,7 +134,39 @@ public final class SurfaceMapRenderer {
         screenRaster = null;
     }
 
+    private static void drawTour(GuiGraphics graphics, int x, int y, int width, int height,
+                                 int minX, int maxX, int minZ, int maxZ) {
+        int cellSize = sampleCellSize(minX, maxX, minZ, maxZ, 96, 54);
+        if (tourRaster == null || !tourRaster.covers(null, minX, maxX, minZ, maxZ, cellSize, 1)) {
+            var coverage = SurfaceMapProjection.bufferedCoverage(minX, maxX, minZ, maxZ, cellSize);
+            Sample[] samples = new Sample[coverage.cellWidth() * coverage.cellHeight()];
+            for (int row = 0; row < coverage.cellHeight(); row++) {
+                int wz = fixedSampleCoordinate(coverage.originCellZ() + row, cellSize);
+                for (int col = 0; col < coverage.cellWidth(); col++) {
+                    int wx = fixedSampleCoordinate(coverage.originCellX() + col, cellSize);
+                    double land = Math.sin(wx / 110.0) + Math.cos(wz / 90.0);
+                    Terrain terrain = land < -.35 ? Terrain.WATER : land < -.10 ? Terrain.SAND
+                            : land > 1.35 ? Terrain.FOREST : Terrain.GRASS;
+                    int color = switch (terrain) {
+                        case WATER -> 0x4E99AC; case SAND -> 0xD7C18C; case FOREST -> 0x5A7949; default -> 0x8CAC56;
+                    };
+                    samples[row * coverage.cellWidth() + col] = new Sample(terrain, terrain == Terrain.WATER ? 62 : 70, color, wx, wz);
+                }
+            }
+            tourRaster = new Raster(null, coverage.minX(), coverage.maxX(), coverage.minZ(), coverage.maxZ(),
+                    coverage.originCellX(), coverage.originCellZ(), cellSize, 1,
+                    coverage.cellWidth(), coverage.cellHeight(), samples, 0);
+        }
+        draw(graphics, TOUR_TEXTURE, tourRaster, x, y, width, height, minX, maxX, minZ, maxZ, true);
+    }
+
+    public static void clearTour() {
+        tourRaster = null;
+        TOUR_TEXTURE.release();
+    }
+
     public static void clear() {
+        clearTour();
         scheduleCacheWrites();
         screenRaster = null;
         hudRaster = null;

@@ -30,15 +30,24 @@ public final class ClientQuestNetworking {
     private ClientQuestNetworking() {}
 
     private static net.minecraft.client.gui.screens.Screen currentScreen(net.minecraft.client.Minecraft client) {
-        return client.gui.screen();
+        if (de.quest.client.screen.UiTestTour.active()) return null;
+        return client.gui.screen() instanceof de.quest.client.screen.VanillaRewardScreen rewards ? rewards.parent() : client.gui.screen();
     }
 
     private static void setScreen(net.minecraft.client.Minecraft client, net.minecraft.client.gui.screens.Screen screen) {
+        if (de.quest.client.screen.UiTestTour.active()) return;
+        if (client.gui.screen() instanceof de.quest.client.screen.VanillaRewardScreen rewards
+                && !(screen instanceof de.quest.client.screen.VanillaRewardScreen)) { rewards.parent(screen); return; }
         client.gui.setScreen(screen);
     }
 
     public static void register() {
         Payloads.register();
+        ClientPlayNetworking.registerGlobalReceiver(de.quest.network.RewardPayloads.View.ID, (payload, context) ->
+                context.client().execute(() -> setScreen(context.client(), new de.quest.client.screen.VanillaRewardScreen(payload, currentScreen(context.client())))));
+        ClientPlayNetworking.registerGlobalReceiver(de.quest.network.UiTestTourPayload.ID, (payload, context) ->
+                context.client().execute(de.quest.client.screen.UiTestTour::start));
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> de.quest.client.screen.UiTestTour.disconnected());
         ClientPlayNetworking.registerGlobalReceiver(de.quest.network.ReputationPayloads.ViewPayload.ID, (payload, context) -> context.client().execute(() -> {
             if (currentScreen(context.client()) instanceof JournalScreen screen) screen.updateReputation(payload.view());
             if (currentScreen(context.client()) instanceof CaravanMasterScreen screen) screen.updateReputation(payload.view());
@@ -50,6 +59,11 @@ public final class ClientQuestNetworking {
         }));
         ClientPlayNetworking.registerGlobalReceiver(de.quest.network.ReputationPayloads.ClosePayload.ID, (payload, context) -> context.client().execute(() -> {
             if (currentScreen(context.client()) instanceof de.quest.client.screen.ReparationScreen screen && screen.session().equals(payload.session())) screen.closeFromServer();
+        }));
+        ClientPlayNetworking.registerGlobalReceiver(de.quest.network.ReputationPayloads.OpenFeedbackPayload.ID, (payload, context) -> context.client().execute(() -> {
+            if (currentScreen(context.client()) instanceof NoticeJourneyScreen screen) screen.showTrustFeedback(payload.reasonKey());
+            else if (context.client().player != null) context.client().gui.chatListener().handleSystemMessage(
+                    net.minecraft.network.chat.Component.translatable(payload.reasonKey()), true);
         }));
 
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> client.execute(() -> {

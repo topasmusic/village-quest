@@ -20,11 +20,13 @@ Each branch requires its matching permanent village project. Every branch has th
 
 | Rank | Cost |
 |---|---:|
-| `Foundation` | `6 Crowns` |
-| `Established` | `12 Crowns` |
-| `Legacy` | `24 Crowns` |
+| `Foundation` | `2 Crowns` |
+| `Established` | `6 Crowns` |
+| `Legacy` | `14 Crowns` |
 
 The currently selected rank shows this Crown price directly above `Invest`, so the charge is visible before confirmation.
+
+The five branches now cost `110 Crowns` in total instead of `210`. Discounts and permanent effects retain their existing caps; purchased ranks remain owned.
 
 There are `15` ranks across the complete village:
 
@@ -63,6 +65,8 @@ Services are repeatable Crown sinks with bounded effects:
 | Guild Ceremony | `2 Crowns` | at Trade Guild rank `3`, adds `25%` (at least `8 Silvermarks`) to each of the next three completed freight contracts |
 
 These effects do not stack without limit. Buying a new Festival or Ceremony resets its remaining uses to three.
+
+The minimum bonuses now match the descriptions. Three minimum Festival uses return `12 SM` for a `10 SM` service, and three minimum Ceremony uses return `24 SM` for `20 SM`. The small gain rewards completing work; buying repeatedly without completing eligible quests creates no money and discards remaining uses.
 
 ## Prestige Collection
 
@@ -112,3 +116,5 @@ The test setup:
 - opens `Prosperity & Prestige`
 
 Use the ranks progressively rather than buying everything at once. Verify prices before and after each relevant rank, place one commission and advance to a later day, buy route-targeted services on different routes, apply all five liveries, and inspect the economy ledger after each action.
+
+Village Quest 2.5 adds [chosen Vanilla reward packages and saved collection](vanilla-rewards.md), including `/vq rewards claim`. Existing accepted contracts and prepaid orders retain their original conditions.

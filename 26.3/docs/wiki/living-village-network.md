@@ -74,4 +74,4 @@ Village network data uses schema `2`; optional guild data has its own schema `1`
 
 ## Social trust in2.5
 
-The new [Trust on the Roads of Concord](social-reputation.md) layer is personal and reversible. It does not remove permanent bonds, earned expertise or network prestige. Network village cards display local trust separately from bond/supply; the Trust and Chronicle subtabs explain benefits, personal sanctions and active aid.
+The new [Trust in Bonds & Bounty](social-reputation.md) layer is personal and reversible. It does not remove permanent bonds, earned expertise or network prestige. Network village cards display local trust separately from bond/supply; the Trust and Chronicle subtabs explain benefits, personal sanctions and active aid.

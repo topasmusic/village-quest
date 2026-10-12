@@ -15,6 +15,22 @@ final class GuildCornerTemplateContractTest {
     }
 
     @Test
+    void legacyAuthoredPaletteIsStillAcceptedBeforeDataFixing() {
+        CompoundTag legacy = validTemplate();
+        ListTag palette = legacy.getListOrEmpty("palette");
+        for (int index = 0; index < palette.size(); index++) {
+            CompoundTag state = palette.getCompoundOrEmpty(index);
+            state.putString("Name", state.getStringOr("id", ""));
+            state.remove("id");
+            if (state.contains("properties")) {
+                state.put("Properties", state.getCompoundOrEmpty("properties"));
+                state.remove("properties");
+            }
+        }
+        assertTrue(GuildCornerTemplateContract.isValid(legacy));
+    }
+
+    @Test
     void entitiesBlockEntitiesWrongOrientationAndExtraPostsAreRejected() {
         CompoundTag entity = validTemplate();
         entity.getListOrEmpty("entities").add(new CompoundTag());
@@ -26,7 +42,7 @@ final class GuildCornerTemplateContractTest {
 
         CompoundTag implicitBlockEntity = validTemplate();
         CompoundTag chest = new CompoundTag();
-        chest.putString("Name", "minecraft:chest");
+        chest.putString("id", "minecraft:chest");
         implicitBlockEntity.getListOrEmpty("palette").add(chest);
         implicitBlockEntity.getListOrEmpty("blocks").add(block(2, 1, 0, 0));
         assertFalse(GuildCornerTemplateContract.isValid(implicitBlockEntity,
@@ -34,7 +50,7 @@ final class GuildCornerTemplateContractTest {
 
         CompoundTag furnaceWithoutNbt = validTemplate();
         CompoundTag furnace = new CompoundTag();
-        furnace.putString("Name", "minecraft:furnace");
+        furnace.putString("id", "minecraft:furnace");
         furnaceWithoutNbt.getListOrEmpty("palette").add(furnace);
         furnaceWithoutNbt.getListOrEmpty("blocks").add(block(2, 1, 0, 0));
         assertFalse(GuildCornerTemplateContract.isValid(furnaceWithoutNbt,
@@ -42,7 +58,7 @@ final class GuildCornerTemplateContractTest {
 
         CompoundTag facing = validTemplate();
         facing.getListOrEmpty("palette").getCompoundOrEmpty(0)
-                .getCompoundOrEmpty("Properties").putString("facing", "south");
+                .getCompoundOrEmpty("properties").putString("facing", "south");
         assertFalse(GuildCornerTemplateContract.isValid(facing));
 
         CompoundTag posts = validTemplate();
@@ -71,7 +87,7 @@ final class GuildCornerTemplateContractTest {
     void solidBlocksInsideTheNoticePostOverhangAreRejected() {
         CompoundTag blocked = validTemplate();
         CompoundTag stone = new CompoundTag();
-        stone.putString("Name", "minecraft:stone");
+        stone.putString("id", "minecraft:stone");
         blocked.getListOrEmpty("palette").add(stone);
         blocked.getListOrEmpty("blocks").getCompoundOrEmpty(2).putInt("state", 2);
 
@@ -84,17 +100,17 @@ final class GuildCornerTemplateContractTest {
         size.add(IntTag.valueOf(3)); size.add(IntTag.valueOf(2)); size.add(IntTag.valueOf(1));
         root.put("size", size);
         CompoundTag post = new CompoundTag();
-        post.putString("Name", "village-quest:guild_notice_post");
+        post.putString("id", "village-quest:guild_notice_post");
         CompoundTag properties = new CompoundTag();
         properties.putString("facing", "north");
-        post.put("Properties", properties);
+        post.put("properties", properties);
         ListTag palette = new ListTag();
         palette.add(post);
         root.put("palette", palette);
         ListTag blocks = new ListTag();
         blocks.add(block(0, 1, 0, 0));
         CompoundTag air = new CompoundTag();
-        air.putString("Name", "minecraft:air");
+        air.putString("id", "minecraft:air");
         palette.add(air);
         for (int x = 0; x < 3; x++) {
             for (int y = 0; y < 2; y++) {

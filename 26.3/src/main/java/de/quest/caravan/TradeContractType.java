@@ -33,7 +33,9 @@ public enum TradeContractType {
 
     public Item item() { return item; }
     public int amount() { return amount; }
-    public int reward() { return reward; }
+    public int reward() { return de.quest.economy.DeliveryEconomy.freightBase(item, amount, requiredGuildRank); }
+    /** Existing accepted saves predate stored quotes; honor their original formula. */
+    public int legacyReward() { return reward; }
     public int requiredGuildRank() { return requiredGuildRank; }
     public TradeRouteSpecialization specialization() { return specialization; }
     public Component title() { return Component.translatable("text.village-quest.trade_guild.contract." + key); }

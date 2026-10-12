@@ -1,12 +1,12 @@
 # Village Quest for Minecraft 26.2
 
-`Village Quest` is a Fabric mod built around village progression. Take on daily and weekly work, build reputation, unlock story arcs and village projects, and later deal with the `Pilgrim` and the road beyond the village.
+`Village Quest` is a Fabric mod built around village progression. Take on daily and weekly work, build reputation, unlock stories and projects, and explore the roads between villages.
 
-Current stable release: `2.4.2`. Version `2.5.0` was withdrawn on 2026-10-04; the source and descriptions below are retained for development.
+Current stable release: `2.5.0` — **Bonds & Bounty** for Minecraft `26.2`. Both Minecraft `26.3` and `26.2` share the same content with native dependencies and APIs, including [village gifts and saved collection](docs/wiki/vanilla-rewards.md).
 
-Minecraft `26.2` is the previous maintenance line. Minecraft `26.3` is the active line for future Village Quest content.
+Minecraft `26.3` is the active line for future Village Quest content. Minecraft `26.2` remains available as a previous maintenance line.
 
-## Roads of Concord 2.5 (withdrawn development source)
+## Bonds & Bounty 2.5
 
 Village Quest 2.5 adds persistent named caravan crews with four visible
 roles and five route liveries, a compact Caravan Master view, route traders, and
@@ -17,7 +17,13 @@ actual source-to-hub-to-destination caravan arrivals. Five village Afterstories,
 three-route Guild Convoys, historical village contacts, and clearer route distance
 and time estimates extend the late game.
 
-This Minecraft 26.2 candidate is the expressly requested full port of the 26.3 development content. Minecraft 26.3 remains the reference for future content.
+The 2.5 reputation expansion adds personal Guild/local trust, confirmed completion
+rewards, temporary violence consequences and active reparation. Network Journal
+subtabs explain values, actual services and recent history; existing board and
+Questmaster interactions accept ordinary aid. Crews and mule now have persistent
+lives, bounded guard defence and safe freight claims after a real loss. Expertise,
+permanent village bonds and stories remain separate. See
+[Social reputation](docs/wiki/social-reputation.md) for exact rules and configuration.
 
 ## Requirements
 
@@ -45,7 +51,7 @@ This Minecraft 26.2 candidate is the expressly requested full port of the 26.3 d
 - The compact modular `Questmaster` dashboard separates Daily, Weekly, Story, and Special work into icon tabs, with a dedicated quest list and a scrollable detail card for descriptions, objectives, rewards, and actions
 - One-time Questmaster chat notices announce fresh Daily, Weekly, and Story work; Story cooldowns show a live timer without turning the empty waiting state into a false badge
 - A restrained quest sound ladder distinguishes acceptance, normal progress, completed objectives, stage transitions, and final rewards without turning routine gathering into constant noise
-- A compact five-tab Journal with collapsible progress cards, a complete Living Network overview, visual Trust milestone bars, a quest tracker, and a wallet with `Silvermark` and `Crown`
+- A compact five-tab Journal with collapsible progress cards, a complete Living Network overview, visual Expertise milestone bars, a quest tracker, and a wallet with `Silvermark` and `Crown`
 - A one-time animated inventory pointer introduces the Journal bookmark and follows its compatibility fallback when another mod changes the inventory layout
 - Reputation across farming, crafting, animals, trade, and later roadside work
 - Story arcs and permanent village projects

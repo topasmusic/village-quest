@@ -16,6 +16,11 @@ import java.util.Map;
 import java.util.Set;
 
 public final class PlayerQuestData {
+    private de.quest.reward.PlayerRewardState vanillaRewards = new de.quest.reward.PlayerRewardState();
+    public de.quest.reward.PlayerRewardState vanillaRewards() { return vanillaRewards; }
+    void loadVanillaRewards(net.minecraft.nbt.CompoundTag tag) {
+        vanillaRewards = de.quest.reward.PlayerRewardState.fromNbt(tag);
+    }
     private SocialReputationData socialReputation = new SocialReputationData();
 
     public SocialReputationData socialReputation() { return socialReputation; }
@@ -1252,6 +1257,7 @@ public final class PlayerQuestData {
     }
 
     public void resetStoryState() {
+        vanillaRewards.forget("story");
         clearStoryProgress();
         storyDiscovered.clear();
         storyCompleted.clear();
@@ -1262,6 +1268,7 @@ public final class PlayerQuestData {
     }
 
     public void resetPilgrimContractState() {
+        vanillaRewards.forget("pilgrim");
         clearPilgrimProgress();
         this.activePilgrimContractId = null;
         this.activePilgrimTargetProfile = RepeatableTargetProfile.NORMAL.id();

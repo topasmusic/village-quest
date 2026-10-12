@@ -12,8 +12,52 @@ public final class GuildCornerCandidateSearch {
     static final int DEFAULT_STEP = 4;
     static final int MAX_CANDIDATES_PER_SIDE = 7;
     static final int MAX_INTERIOR_SAMPLES_PER_AXIS = 5;
+    private static final int MAX_NEAR_STRUCTURE_CANDIDATES = 96;
+    private static final long MAX_STRUCTURE_DISTANCE_SQR = 12L * 12L;
 
     private GuildCornerCandidateSearch() {}
+
+    /** Searches beside real buildings/paths, not empty portions of their combined bounding box. */
+    public static List<Candidate> nearStructures(int villageMinX, int villageMaxX,
+                                                 int villageMinZ, int villageMaxZ,
+                                                 int templateWidth, int templateDepth,
+                                                 List<StructureFootprint> pieces) {
+        if (!valid(villageMinX, villageMaxX, villageMinZ, villageMaxZ, templateWidth, templateDepth))
+            return List.of();
+        if (pieces == null || pieces.isEmpty()) return insideThenAround(villageMinX, villageMaxX,
+                villageMinZ, villageMaxZ, templateWidth, templateDepth);
+        List<StructureFootprint> villagePieces = pieces.stream().filter(piece -> piece != null
+                && piece.minX() <= piece.maxX() && piece.minZ() <= piece.maxZ()
+                && piece.minX() >= villageMinX && piece.maxX() <= villageMaxX
+                && piece.minZ() >= villageMinZ && piece.maxZ() <= villageMaxZ).toList();
+        if (villagePieces.isEmpty()) return List.of();
+        Set<Candidate> candidates = new LinkedHashSet<>(insideThenAround(villageMinX, villageMaxX,
+                villageMinZ, villageMaxZ, templateWidth, templateDepth));
+        for (StructureFootprint piece : villagePieces) candidates.addAll(around(piece.minX(), piece.maxX(),
+                piece.minZ(), piece.maxZ(), templateWidth, templateDepth));
+        int centerX = midpoint(villageMinX, villageMaxX);
+        int centerZ = midpoint(villageMinZ, villageMaxZ);
+        record Ranked(Candidate candidate, long proximity, long centerDistance) {}
+        return candidates.stream().map(candidate -> {
+            long nearest = villagePieces.stream().mapToLong(piece -> distanceSqr(candidate, piece)).min().orElseThrow();
+            long dx = (long) candidate.centerX() - centerX;
+            long dz = (long) candidate.centerZ() - centerZ;
+            return new Ranked(candidate, nearest, dx * dx + dz * dz);
+        }).filter(site -> site.proximity() <= MAX_STRUCTURE_DISTANCE_SQR)
+                .sorted(Comparator.comparingLong(Ranked::proximity).thenComparingLong(Ranked::centerDistance)
+                        .thenComparingInt(site -> site.candidate().centerX())
+                        .thenComparingInt(site -> site.candidate().centerZ())
+                        .thenComparingInt(site -> site.candidate().facing().ordinal()))
+                .limit(MAX_NEAR_STRUCTURE_CANDIDATES).map(Ranked::candidate).toList();
+    }
+
+    private static long distanceSqr(Candidate candidate, StructureFootprint piece) {
+        long dx = Math.max(0L, Math.max((long) piece.minX() - candidate.centerX(),
+                (long) candidate.centerX() - piece.maxX()));
+        long dz = Math.max(0L, Math.max((long) piece.minZ() - candidate.centerZ(),
+                (long) candidate.centerZ() - piece.maxZ()));
+        return dx * dx + dz * dz;
+    }
 
     /** Prefers a bounded center-out interior grid, then falls back to the nearest outer ring. */
     public static List<Candidate> insideThenAround(int villageMinX, int villageMaxX,
@@ -162,6 +206,8 @@ public final class GuildCornerCandidateSearch {
 
     public record Candidate(int centerX, int centerZ,
                             GuildCornerLandmarkState.CornerFacing facing) {}
+
+    public record StructureFootprint(int minX, int maxX, int minZ, int maxZ) {}
 
     private record HorizontalFootprint(int width, int depth) {}
 }

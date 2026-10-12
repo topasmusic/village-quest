@@ -21,6 +21,9 @@ public final class Payloads {
         if (registered) {
             return;
         }
+        PayloadTypeRegistry.clientboundPlay().register(UiTestTourPayload.ID, UiTestTourPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(RewardPayloads.View.ID, RewardPayloads.View.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(RewardPayloads.Action.ID, RewardPayloads.Action.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(JournalPayload.ID, JournalPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(AdminJournalPayload.ID, AdminJournalPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(QuestTrackerPayload.ID, QuestTrackerPayload.CODEC);
@@ -67,6 +70,7 @@ public final class Payloads {
         PayloadTypeRegistry.clientboundPlay().register(ReputationPayloads.ViewPayload.ID, ReputationPayloads.ViewPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(ReputationPayloads.InteractionPayload.ID, ReputationPayloads.InteractionPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(ReputationPayloads.ClosePayload.ID, ReputationPayloads.ClosePayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(ReputationPayloads.OpenFeedbackPayload.ID, ReputationPayloads.OpenFeedbackPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(ReputationPayloads.PagePayload.ID, ReputationPayloads.PagePayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(ReputationPayloads.OpenPayload.ID, ReputationPayloads.OpenPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(ReputationPayloads.ActionPayload.ID, ReputationPayloads.ActionPayload.CODEC);

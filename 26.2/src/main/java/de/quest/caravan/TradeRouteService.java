@@ -98,8 +98,6 @@ public final class TradeRouteService {
     private static final String SURVEY_POINT_COUNT = "survey_point_count";
     private static final String SURVEY_POINT_PREFIX = "survey_point_";
     private static final String SURVEY_WAS_STOPPED = "survey_was_stopped";
-    private static final String INCOME_DAY = "network_income_day";
-    private static final String INCOME_TODAY = "network_income_today";
     private static final String ESCROW = "network_escrow";
     private static final String TUTORIAL_EVENT_SEEN = "network_tutorial_event_seen";
     private static final String WARDEN_CHARGES = "network_warden_charges";
@@ -357,6 +355,10 @@ public final class TradeRouteService {
         int catchUp = TradeRouteSchedulingPolicy.catchUpSeconds(
                 lastSecond, currentSecond, MAX_OFFLINE_CATCH_UP_SECONDS);
         int routeCount = Math.min(MAX_ROUTES, data.getTradeRouteInt(ROUTE_COUNT));
+        if (ownerOnline && routeCount > 0) {
+            de.quest.economy.CaravanIncomeLedger.onlineSecond(data);
+            QuestState.get(world.getServer()).setDirty();
+        }
         for (int routeIndex = 0; routeIndex < routeCount; routeIndex++) {
             if (!CaravanCrewData.isComplete(data, routeIndex)
                     || data.getTradeRouteString(routeKey(routeIndex, "connection_id")).isBlank()) {
@@ -572,7 +574,7 @@ public final class TradeRouteService {
         }
         if (!hasRouteAccess(world, player.getUUID())) {
             player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.locked")
-                    .withStyle(ChatFormatting.RED), false);
+                    .withStyle(ChatFormatting.GRAY), false);
             return InteractionResult.FAIL;
         }
         collectEscrow(world, player);
@@ -844,7 +846,7 @@ public final class TradeRouteService {
         }
         if (!hasRouteAccess(world, playerId)) {
             player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.locked")
-                    .withStyle(ChatFormatting.RED), true);
+                    .withStyle(ChatFormatting.GRAY), true);
             return false;
         }
         if (player.level() != world) {
@@ -872,7 +874,7 @@ public final class TradeRouteService {
         }
         if (!hasRouteAccess(world, player.getUUID())) {
             player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.locked")
-                    .withStyle(ChatFormatting.RED), false);
+                    .withStyle(ChatFormatting.GRAY), false);
             return false;
         }
         PlayerQuestData data = data(world, player.getUUID());
@@ -2924,17 +2926,6 @@ public final class TradeRouteService {
         }
         TradeRouteStatus status = status(data, routeIndex);
         ServerPlayer owner = world.getServer().getPlayerList().getPlayer(ownerId);
-        int day = currentWorldDay(world);
-        if (data.getTradeRouteInt(INCOME_DAY) != day) {
-            data.setTradeRouteInt(INCOME_DAY, day);
-            data.setTradeRouteInt(INCOME_TODAY, 0);
-        }
-        int dailyCap = hasCaravanYard(world, ownerId) ? 60 : 8;
-        int remaining = Math.max(0, dailyCap - data.getTradeRouteInt(INCOME_TODAY));
-        if (remaining <= 0) {
-            TradeGuildService.onRouteArrival(world, ownerId, routeIndex);
-            return;
-        }
         double distance = economyRouteDistance(data, routeIndex);
         double statusFactor = switch (status) {
             case FLOURISHING -> 1.25;
@@ -2944,14 +2935,10 @@ public final class TradeRouteService {
         double qualityFactor = 0.8 + quality(data, routeIndex) / 250.0;
         int distanceReward = 1 + Math.min(9, (int) Math.floor(distance / 300.0));
         int reward = Math.min(15, Math.max(1, (int) Math.round(distanceReward * statusFactor * qualityFactor)));
-        reward = Math.min(reward, remaining);
-        data.setTradeRouteInt(INCOME_TODAY, data.getTradeRouteInt(INCOME_TODAY) + reward);
-        if (owner != null) {
-            CurrencyService.addBalance(world, ownerId, reward);
-        } else {
-            int escrowCap = hasCaravanYard(world, ownerId) ? 30 : 8;
-            data.setTradeRouteInt(ESCROW, Math.min(escrowCap, data.getTradeRouteInt(ESCROW) + reward));
-        }
+        reward = de.quest.economy.CaravanIncomeLedger.withdraw(data, reward, owner != null);
+        // Freight still completes when the passive budget is empty or the owner is offline.
+        if (reward <= 0) { TradeGuildService.onRouteArrival(world, ownerId, routeIndex); return; }
+        CurrencyService.addBalance(world, ownerId, reward);
         setRouteInt(data, routeIndex, "earnings", routeInt(data, routeIndex, "earnings") + reward);
         TradeGuildService.onRouteArrival(world, ownerId, routeIndex);
         if (owner != null && ClientPreferenceService.caravanEventNotifications(owner)) {
@@ -2986,8 +2973,7 @@ public final class TradeRouteService {
             return 0;
         }
         PlayerQuestData data = data(world, playerId);
-        return data.getTradeRouteInt(INCOME_DAY) == currentWorldDay(world)
-                ? Math.max(0, data.getTradeRouteInt(INCOME_TODAY)) : 0;
+        return de.quest.economy.CaravanIncomeLedger.paidThisOnlineHour(data);
     }
 
     public static boolean useRoadwardenHorn(ServerLevel world, ServerPlayer player) {
@@ -3324,7 +3310,7 @@ public final class TradeRouteService {
         if (!canMutateRoute(world, player) || upgrade == null || !validRoute(world, player.getUUID(), routeIndex)) return false;
         if (TradeGuildService.guildRank(world, player.getUUID()) < upgrade.requiredGuildRank()) {
             player.sendSystemMessage(Component.translatable("message.village-quest.trade_guild.rank_locked",
-                    upgrade.requiredGuildRank()).withStyle(ChatFormatting.RED), false);
+                    upgrade.requiredGuildRank()).withStyle(ChatFormatting.GRAY), false);
             return false;
         }
         PlayerQuestData data = data(world, player.getUUID());

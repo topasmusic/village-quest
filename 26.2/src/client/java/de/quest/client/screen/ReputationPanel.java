@@ -12,7 +12,7 @@ final class ReputationPanel {
     private ReputationPanel() {}
     static Component text(String key, Object... args) { return Component.translatable("screen.village-quest.reputation." + key, args); }
     static Component rank(int points) { return text("rank." + SocialReputationRules.rankFor(points).name().toLowerCase(Locale.ROOT)); }
-    static Component village(VillageKey key) { return text("village", key.anchorX(), key.anchorZ(), key.dimension()); }
+    static Component village(VillageKey key) { return text("desk.village", key.anchorX(), key.anchorZ()); }
     static Component yes(boolean allowed) { return text(allowed ? "available" : "blocked"); }
     static String signed(int value) { return value > 0 ? "+" + value : Integer.toString(value); }
     static List<JournalCard> trustCards(View view) {

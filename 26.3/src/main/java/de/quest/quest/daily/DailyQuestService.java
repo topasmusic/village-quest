@@ -1,5 +1,6 @@
 package de.quest.quest.daily;
 
+import de.quest.reward.VanillaRewardService;
 import de.quest.quest.QuestCompletionMode;
 import de.quest.quest.QuestSoundFeedback;
 import de.quest.content.daily.PetCollarDailyQuest;
@@ -136,7 +137,7 @@ public final class DailyQuestService {
         BONUS
     }
 
-    private record TargetProfileContext(RepeatableTargetProfile profile, boolean introductory) {}
+    private record TargetProfileContext(RepeatableTargetProfile profile, boolean introductory, boolean modernSmith) {}
 
     private record QuestStatusSnapshot(Component title, Component progressLine) {}
 
@@ -320,6 +321,7 @@ public final class DailyQuestService {
             PlayerQuestData data = data(world, playerId);
             clearQuestProgress(data);
             data.setBonusAcceptedDay(PlayerQuestData.UNSET_DAY);
+            data.vanillaRewards().forget("bonus");
             data.setPendingBonusOffer(false);
             setDirty(world);
             refreshQuestUi(world, playerId);
@@ -331,6 +333,7 @@ public final class DailyQuestService {
         DailyQuestType cancelledType = activeQuestType(world, playerId);
         PlayerQuestData data = data(world, playerId);
         resetProgressFor(data);
+        data.vanillaRewards().forget("daily");
         data.setAcceptedDay(PlayerQuestData.UNSET_DAY);
         clearPendingOffers(data);
         setDirty(world);
@@ -511,6 +514,12 @@ public final class DailyQuestService {
             setDirty(world);
         }
         DailyQuestDefinition definition = definitionFor(choice);
+        final DailyQuestType rewardChoice = choice;
+        String rewardKey = FirstDailyChoiceService.isActive(data) ? "intro" : QuestPartyService.rewardDailyKey(world, playerId, choice);
+        if (!de.quest.reward.VanillaRewardService.prepare(world, player, "daily", rewardKey,
+                de.quest.reward.VanillaRewardService.dailyIdentity(rewardChoice.name()),
+                QuestPartyService.rewardDailyProfile(world, playerId, choice, data.getDailyTargetProfile()),
+                () -> acceptQuest(world, player))) return;
         setAcceptedToday(world, playerId);
         if (definition != null) {
             withTargetProfile(data, ActiveQuestSlot.NORMAL, () -> definition.onAccepted(world, player));
@@ -537,6 +546,9 @@ public final class DailyQuestService {
             return;
         }
 
+        if (!de.quest.reward.VanillaRewardService.prepare(world, player, "bonus", "daily:" + data.getBonusChoice().name(),
+                de.quest.reward.VanillaRewardService.dailyIdentity(data.getBonusChoice().name()), data.getBonusTargetProfile(),
+                () -> acceptBonusQuest(world, player))) return;
         clearQuestProgress(data);
         setBonusAcceptedToday(world, playerId);
         DailyQuestDefinition definition = definitionFor(data.getBonusChoice());
@@ -837,7 +849,8 @@ public final class DailyQuestService {
         TargetProfileContext previous = TARGET_PROFILE_CONTEXT.get();
         TARGET_PROFILE_CONTEXT.set(new TargetProfileContext(
                 profileForSlot(data, slot),
-                slot == ActiveQuestSlot.NORMAL && FirstDailyChoiceService.isActive(data)));
+                slot == ActiveQuestSlot.NORMAL && FirstDailyChoiceService.isActive(data),
+                modernSmithContract(data, slot)));
         try {
             return supplier.get();
         } finally {
@@ -872,7 +885,7 @@ public final class DailyQuestService {
             return Component.empty();
         }
         TargetProfileContext previous = TARGET_PROFILE_CONTEXT.get();
-        TARGET_PROFILE_CONTEXT.set(new TargetProfileContext(RepeatableTargetProfile.LIGHT, true));
+        TARGET_PROFILE_CONTEXT.set(new TargetProfileContext(RepeatableTargetProfile.LIGHT, true, true));
         try {
             return definition.progressLine(world, playerId);
         } finally {
@@ -888,7 +901,7 @@ public final class DailyQuestService {
             return null;
         }
         TargetProfileContext previous = TARGET_PROFILE_CONTEXT.get();
-        TARGET_PROFILE_CONTEXT.set(new TargetProfileContext(RepeatableTargetProfile.LIGHT, true));
+        TARGET_PROFILE_CONTEXT.set(new TargetProfileContext(RepeatableTargetProfile.LIGHT, true, true));
         try {
             return definition.buildCompletion(world);
         } finally {
@@ -988,6 +1001,8 @@ public final class DailyQuestService {
         }
 
         PlayerQuestData data = data(world, playerId);
+        data.vanillaRewards().forget("daily");
+        data.vanillaRewards().forget("bonus");
         boolean changed = false;
         long day = currentDay();
 
@@ -1044,6 +1059,8 @@ public final class DailyQuestService {
         }
 
         PlayerQuestData data = data(world, playerId);
+        data.vanillaRewards().forget("daily");
+        data.vanillaRewards().forget("bonus");
         DailyQuestType previousChoice = ensureQuestChoice(world, playerId, data);
         long day = currentDay();
         boolean changed = false;
@@ -1713,6 +1730,8 @@ public final class DailyQuestService {
                                           DailyQuestCompletion completion,
                                           boolean allowMagicShardDrop) {
         int shardCountBefore = ModItems.MAGIC_SHARD == null ? 0 : countInventoryItem(player, ModItems.MAGIC_SHARD);
+        String extraSlot = activeQuestSlot(world, player.getUUID()) == ActiveQuestSlot.BONUS ? "bonus" : "daily";
+        de.quest.reward.VanillaRewardService.complete(world, player, extraSlot, de.quest.reward.VanillaRewardService.dailyIdentity(questType.name()));
         ItemStack bonusReward = allowMagicShardDrop ? maybeRollMagicShardReward(world, player.getUUID()) : ItemStack.EMPTY;
         ReputationService.ReputationTrack track = completion.reputationTrack();
         long actualCurrencyReward = ProsperityService.applyFestivalBonus(world, player.getUUID(),
@@ -2043,7 +2062,16 @@ public final class DailyQuestService {
         return tunedTarget(AUTUMN_MELON_TARGET, "daily.autumn.melon");
     }
 
+    private static boolean modernSmithContract(PlayerQuestData data, ActiveQuestSlot slot) {
+        if (data == null) return true;
+        boolean accepted = (slot == ActiveQuestSlot.BONUS ? data.getBonusAcceptedDay() : data.getAcceptedDay()) == currentDay();
+        if (!accepted) return true;
+        return data.vanillaRewards().snapshot(slot == ActiveQuestSlot.BONUS ? "bonus" : "daily",
+                de.quest.reward.VanillaRewardService.dailyIdentity("SMITH_SMELTING")).getIntOr("version", 0) >= 1;
+    }
     public static int smithSmeltRawDeliveryTarget() {
+        var context = TARGET_PROFILE_CONTEXT.get();
+        if (context != null && context.modernSmith()) return 0;
         return tunedTarget(SMITH_SMELT_ORE_TARGET, "daily.smelting.ore");
     }
 

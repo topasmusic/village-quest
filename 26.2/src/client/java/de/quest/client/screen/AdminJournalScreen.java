@@ -1,5 +1,6 @@
 package de.quest.client.screen;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -181,14 +182,14 @@ public class AdminJournalScreen extends CompatScreen {
     }
 
     @Override
-    public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent click, boolean doubled) {
+    protected boolean handleMouseClicked(net.minecraft.client.input.MouseButtonEvent click, boolean doubled) {
         int left = (this.width - PAGE_WIDTH) / 2;
         int top = (this.height - PAGE_HEIGHT) / 2;
         int buttonY = top + PAGE_HEIGHT - 14 - 15 + 8;
         int prevX = left + 20 + 15;
         int nextX = left + PAGE_WIDTH - 20 - ARROW_WIDTH - 15;
 
-        if (click.button() == 0) {
+        if (click.button() == InputConstants.MOUSE_BUTTON_LEFT) {
             int mouseX = (int) click.x();
             int mouseY = (int) click.y();
             for (LinkHit hit : linkHits) {
@@ -223,7 +224,7 @@ public class AdminJournalScreen extends CompatScreen {
                 return true;
             }
         }
-        return super.mouseClicked(click, doubled);
+        return super.handleMouseClicked(click, doubled);
     }
 
     private void playPageTurnSound() {
@@ -241,7 +242,7 @@ public class AdminJournalScreen extends CompatScreen {
         if (trimmed.startsWith("/")) {
             trimmed = trimmed.substring(1);
         }
-        this.minecraft.player.connection.sendCommand(trimmed);
+        UiTestTour.command(trimmed);
     }
 
     private void confirmCommand(String command) {
@@ -250,14 +251,14 @@ public class AdminJournalScreen extends CompatScreen {
         }
         Component title = Component.literal("NPC loeschen?");
         Component message = Component.literal("NPC und alle seine Einstellungen gehen verloren. Dieser Vorgang kann nicht rueckgaengig gemacht werden.");
-        this.minecraft.gui.setScreen(new ConfirmDeleteScreen(this, title, message, confirmed -> {
+        UiTestTour.navigate(new ConfirmDeleteScreen(this, title, message, confirmed -> {
             if (confirmed) {
                 sendCommand(command);
                 if (this.minecraft != null) {
-                    this.minecraft.gui.setScreen(this);
+                    UiTestTour.navigate(this);
                 }
             } else if (this.minecraft != null) {
-                this.minecraft.gui.setScreen(this);
+                UiTestTour.navigate(this);
             }
         }));
     }
@@ -270,7 +271,7 @@ public class AdminJournalScreen extends CompatScreen {
         if (!text.startsWith("/")) {
             text = "/" + text;
         }
-        this.minecraft.gui.setScreen(new net.minecraft.client.gui.screens.ChatScreen(text, false));
+        UiTestTour.navigate(new net.minecraft.client.gui.screens.ChatScreen(text, false));
     }
 
     private void buildPages() {
@@ -699,7 +700,7 @@ public class AdminJournalScreen extends CompatScreen {
         @Override
         public void onClose() {
             if (this.minecraft != null) {
-                this.minecraft.gui.setScreen(parent);
+                UiTestTour.navigate(parent);
             }
         }
 

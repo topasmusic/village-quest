@@ -40,8 +40,8 @@ import net.minecraft.world.item.component.ItemLore;
 
 public final class ShopService {
     private static final long PRICE_MULTIPLIER = 3L;
-    private static final long PROVISIONS_PRICE = price(12L);
-    private static final long HUNTER_PRICE = price(8L);
+    private static final long PROVISIONS_PRICE = 12L;
+    private static final long HUNTER_PRICE = 14L;
     private static final long BEEKEEPER_PRICE = price(8L);
     private static final long ROAD_CAMP_PRICE = price(10L);
     private static final long LEDGER_DESK_PRICE = price(10L);
@@ -87,6 +87,9 @@ public final class ShopService {
             "decor_creeper_plushie", PilgrimContractType.WOOL_BEFORE_RAIN
     );
     private static final Map<String, VillageProjectType> PROJECT_UNLOCKS = Map.ofEntries(
+            Map.entry("nether_supplies", VillageProjectType.WATCH_BELL),
+            Map.entry("rail_supplies", VillageProjectType.FORGE_CHARTER),
+            Map.entry("leather_supplies", VillageProjectType.PASTURE_CHARTER),
             Map.entry("village_ledger_desk", VillageProjectType.VILLAGE_LEDGER),
             Map.entry("apiary_charter_plaque", VillageProjectType.APIARY_CHARTER),
             Map.entry("village_ledger_plaque", VillageProjectType.VILLAGE_LEDGER),
@@ -126,6 +129,14 @@ public final class ShopService {
                         new ItemStack(Items.ARROW, 32),
                         new ItemStack(Items.COOKED_BEEF, 6))
         ));
+        for (var entry : de.quest.reward.RewardShopCatalog.all().entrySet()) {
+            String id = entry.getKey(); var pack = entry.getValue();
+            offers.put(id, new ShopOffer(id, "travel", Component.translatable("reward.village-quest.shop." + id),
+                    de.quest.reward.VanillaRewardService.summary(new de.quest.reward.VanillaRewardRegistry.Option("",0,pack.goods(),false)), pack.price(),
+                    world -> new ItemStack(Items.BUNDLE),
+                    (world, player) -> de.quest.reward.VanillaRewardService.enqueue(world,player,de.quest.reward.RewardItems.create(world,pack.goods()))
+                            ? ShopOffer.PurchaseResult.success(Component.empty()) : ShopOffer.PurchaseResult.fail(Component.translatable("reward.village-quest.unavailable"))));
+        }
         offers.put("honigfass", new ShopOffer(
                 "honigfass",
                 "decor",
@@ -623,10 +634,10 @@ public final class ShopService {
             return Component.translatable(
                     "command.village-quest.shop.locked.project_reputation",
                     Component.translatable("quest.village-quest.project." + projectUnlock.id() + ".title"),
-                    ReputationService.displayName(unlock.track()),
-                    ReputationService.displayUnlockTitle(unlock),
-                    Component.literal(Integer.toString(ReputationService.get(world, playerId, unlock.track()))).withStyle(unlock.track().color()),
-                    Component.literal(Integer.toString(unlock.requiredReputation())).withStyle(unlock.track().color())
+                    ReputationService.displayName(unlock.track()).copy().withStyle(ChatFormatting.GRAY),
+                    ReputationService.displayUnlockTitle(unlock).copy().withStyle(ChatFormatting.GRAY),
+                    Component.literal(Integer.toString(ReputationService.get(world, playerId, unlock.track()))),
+                    Component.literal(Integer.toString(unlock.requiredReputation()))
             );
         }
         if (projectLocked) {
@@ -641,10 +652,10 @@ public final class ShopService {
         if (reputationLocked) {
             return Component.translatable(
                     "command.village-quest.shop.locked",
-                    ReputationService.displayName(unlock.track()),
-                    ReputationService.displayUnlockTitle(unlock),
-                    Component.literal(Integer.toString(ReputationService.get(world, playerId, unlock.track()))).withStyle(unlock.track().color()),
-                    Component.literal(Integer.toString(unlock.requiredReputation())).withStyle(unlock.track().color())
+                    ReputationService.displayName(unlock.track()).copy().withStyle(ChatFormatting.GRAY),
+                    ReputationService.displayUnlockTitle(unlock).copy().withStyle(ChatFormatting.GRAY),
+                    Component.literal(Integer.toString(ReputationService.get(world, playerId, unlock.track()))),
+                    Component.literal(Integer.toString(unlock.requiredReputation()))
             );
         }
         return null;
@@ -713,7 +724,7 @@ public final class ShopService {
         }
         Component lockedMessage = lockedMessage(world, player.getUUID(), offerId);
         if (lockedMessage != null) {
-            player.sendSystemMessage(lockedMessage.copy().withStyle(ChatFormatting.RED), false);
+            player.sendSystemMessage(lockedMessage.copy().withStyle(ChatFormatting.GRAY), false);
             return 0;
         }
         long actualPrice = ProsperityService.shopPrice(world, player.getUUID(), offer);
@@ -726,6 +737,16 @@ public final class ShopService {
             return 0;
         }
 
+        if (de.quest.reward.RewardShopCatalog.get(offerId) != null) {
+            var rewardState = de.quest.reward.VanillaRewardService.state(world, player.getUUID());
+            var goods = de.quest.reward.RewardItems.create(world, de.quest.reward.RewardShopCatalog.get(offerId).goods());
+            if (!rewardState.canAccept() || !rewardState.canEnqueue(goods.size())) return 0;
+            if (!CurrencyService.removeBalance(world,player.getUUID(),actualPrice)) return 0;
+            if (!de.quest.reward.VanillaRewardService.enqueue(world,player,goods)) { CurrencyService.addBalance(world,player.getUUID(),actualPrice); return 0; }
+            recordCompletedPurchase(world,player,offerId);
+            player.sendSystemMessage(Component.translatable("command.village-quest.shop.buy.success",offer.title(),CurrencyService.formatBalance(actualPrice),CurrencyService.formatBalance(CurrencyService.getBalance(world,player.getUUID()))),false);
+            return 1;
+        }
         ShopOffer.PurchaseResult result = offer.purchaseHandler().purchase(world, player);
         if (!result.success()) {
             player.sendSystemMessage(result.message(), false);
@@ -753,12 +774,24 @@ public final class ShopService {
 
     /** Delivers a prepaid 2.1.0 commission without charging the wallet twice. */
     public static boolean fulfillCommission(ServerLevel world, ServerPlayer player, String offerId) {
-        if (world == null || player == null || offerId == null || !isOfferUnlocked(world, player.getUUID(), offerId)) {
+        // The server commission caller already validates the paid claim and due day. New gates apply at purchase.
+        if (world == null || player == null || offerId == null) {
             return false;
         }
         ShopOffer offer = offer(offerId);
         if (offer == null) return false;
-        ShopOffer.PurchaseResult result = offer.purchaseHandler().purchase(world, player);
+        var rewards = de.quest.reward.VanillaRewardService.state(world, player.getUUID());
+        var saved = rewards.snapshot("shop", rewards.currentIdentity("shop"));
+        if (QuestState.get(world.getServer()).getPlayerData(player.getUUID()).hasMilestoneFlag("reward.shop_snapshot")) {
+            if (!rewards.writable() || !saved.getStringOr("key", "").equals("shop:" + offerId) || saved.getBooleanOr("redeemed",true)) return false;
+            de.quest.reward.VanillaRewardService.completeCurrent(world,player,"shop");
+            QuestState.get(world.getServer()).getPlayerData(player.getUUID()).setMilestoneFlag("reward.shop_snapshot",false);
+            recordCompletedPurchase(world,player,offerId); return true;
+        }
+        // Older prepaid supplies retain their historical random bonuses/arrows and steak.
+        ShopOffer.PurchaseResult result = offerId.equals("proviantbeutel") ? deliver(player, createProvisionsSatchelLoot(world))
+                : offerId.equals("hunters_satchel") ? deliver(player,new ItemStack(Items.ARROW,32),new ItemStack(Items.COOKED_BEEF,6))
+                : offer.purchaseHandler().purchase(world, player);
         if (!result.success()) {
             player.sendSystemMessage(result.message(), false);
             return false;

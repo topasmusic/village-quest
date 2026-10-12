@@ -24,6 +24,8 @@ Outer-road side lane:
 
 The `Questmaster` is the center of village progression.
 
+In Village Quest 2.5, newly available Daily, Weekly and Story offers found together produce one lore announcement and one notification sound. The message names the new categories; already announced offers are not repeated on the next check or after their saved notice markers are reloaded. Your chat notification preference still applies.
+
 He handles:
 - daily quests
 - weekly quests
@@ -192,3 +194,9 @@ That is intentional:
 - `Weekly` quests are random from the non-combat weekly pool.
 - `Pilgrim` dangerous roadside rumors are random from the unlocked rumor pool after `Watch Bell`.
 - `Roadmarks for the Compass` is not random; it is a one-time special override.
+
+Village Quest 2.5 adds [chosen Vanilla reward packages and saved collection](vanilla-rewards.md), including `/vq rewards claim`. Existing accepted contracts and prepaid orders retain their original conditions.
+
+## Questmaster offer notice after login
+
+New-offer chat and its hint sound wait 400 server ticks after login, approximately 20 seconds at normal tick speed. Assignments remain immediately available. The next regular check sends any still-new offers in one combined notice; existing saved receipts prevent repeated announcements. Rejoining starts a fresh wait, and waiting does not consume a pending notice. Normal later offer checks and notification preferences remain unchanged.

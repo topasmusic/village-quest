@@ -41,9 +41,6 @@ public final class VillageUiTheme {
     public static final int LIGHT_TEXT = 0xFFF7E8CB;
     public static final int DISABLED_TEXT = 0xFFC5B296;
     public static final int SCREEN_SHADE = 0x4018120D;
-    private static final int PANEL_SHADOW_OUTER = 0x1218120D;
-    private static final int PANEL_SHADOW_MIDDLE = 0x1818120D;
-    private static final int PANEL_SHADOW_CONTACT = 0x2218120D;
 
     private static final Identifier TAB_NORMAL = texture("tab_normal");
     private static final Identifier TAB_SELECTED = texture("tab_selected");
@@ -54,8 +51,8 @@ public final class VillageUiTheme {
     private static final int SCROLL_TRACK_TEXTURE_HEIGHT = 96;
     private static final int SCROLL_THUMB_TEXTURE_WIDTH = 16;
     private static final int SCROLL_THUMB_TEXTURE_HEIGHT = 32;
-    private static final int SCROLL_TRACK_RENDER_WIDTH = 7;
-    private static final int SCROLL_THUMB_RENDER_WIDTH = 13;
+    private static final int SCROLL_TRACK_RENDER_WIDTH = 3;
+    private static final int SCROLL_THUMB_RENDER_WIDTH = 8;
     private static final int SCROLL_THUMB_SOURCE_CAP = 10;
     private static final int WALLET_GAP = 3;
     private static final int CARD_TEXTURE_SIZE = 64;
@@ -78,22 +75,20 @@ public final class VillageUiTheme {
 
     /**
      * Applies the shared, restrained world dimming used behind every primary
-     * Village Quest panel. The board textures have transparent exteriors; the
-     * single shared panel shadow is rendered separately below.
+     * Village Quest panel. The board textures keep transparent exteriors and
+     * carry their own contact shadows.
      */
     public static void drawScreenShade(GuiGraphics graphics, int width, int height) {
         graphics.fill(0, 0, width, height, SCREEN_SHADE);
     }
 
     /**
-     * Draws one restrained pixel-soft shadow around a primary Village Quest
-     * panel. A faint ambient edge keeps the frame grounded on every side while
-     * the wider lower-right falloff supplies a consistent light direction.
+     * Retained shared hook for panel rendering. Contact shadows are part of
+     * the frame artwork; no rectangular fill is added behind its silhouette.
      */
     public static void drawPanelShadow(GuiGraphics graphics, int x, int y, int width, int height) {
-        graphics.fill(x - 2, y - 2, x + width + 7, y + height + 8, PANEL_SHADOW_OUTER);
-        graphics.fill(x - 1, y - 1, x + width + 5, y + height + 6, PANEL_SHADOW_MIDDLE);
-        graphics.fill(x, y, x + width + 3, y + height + 4, PANEL_SHADOW_CONTACT);
+        // The frame carries its own contact shadows. A rectangular backdrop
+        // shows through its transparent silhouette and creates a second panel.
     }
 
     public static void drawButton(GuiGraphics graphics, Font font, int x, int y, int width, int height,
@@ -102,7 +97,11 @@ public final class VillageUiTheme {
                 : active ? ButtonState.ACTIVE
                 : hovered ? ButtonState.HOVER
                 : ButtonState.NORMAL;
-        blitScaled(graphics, state.texture, x, y, width, height, 120, 32);
+        drawButtonSurface(graphics, state.texture, x, y, width, height);
+        // Active actions retain their teal identity while giving the same warm hover cue.
+        if (enabled && active && hovered) {
+            graphics.fill(x + 2, y + 2, x + width - 2, y + height - 2, 0x33FFC66D);
+        }
         float textScale = height <= 18 ? 0.75f : 0.85f;
         int available = Math.max(4, Math.round((width - 12) / textScale));
         String visible = ellipsize(font, label, available);
@@ -121,6 +120,31 @@ public final class VillageUiTheme {
         if (hovered && !selected) {
             graphics.fill(x + 4, y + 4, x + width - 4, y + height - 4, 0x22FFF1C7);
         }
+    }
+
+    private static void drawButtonSurface(GuiGraphics graphics, Identifier texture, int x, int y, int width, int height) {
+        // Sample the painted bevel, excluding the sprite's black exterior padding.
+        int capX = Math.min(2, width / 2), capY = Math.min(2, height / 2);
+        int[] sx = {5, 8, 112}, sy = {3, 6, 26};
+        int[] sw = {3, 104, 3}, sh = {3, 20, 3};
+        int[] dx = {x, x + capX, x + width - capX}, dy = {y, y + capY, y + height - capY};
+        int[] dw = {capX, Math.max(0, width - 2 * capX), capX}, dh = {capY, Math.max(0, height - 2 * capY), capY};
+        for (int row = 0; row < 3; row++) for (int col = 0; col < 3; col++) {
+            blitRegionScaled(graphics, texture, dx[col], dy[row], dw[col], dh[row], sx[col], sy[row], sw[col], sh[row], 120, 32);
+        }
+    }
+
+    public static List<String> wrapScaled(Font font, String text, int width, float scale) {
+        int limit = Math.max(1, Math.round(width / scale));
+        List<String> lines = new ArrayList<>();
+        String line = "";
+        for (String word : text.split("\\s+")) {
+            String next = line.isEmpty() ? word : line + " " + word;
+            if (!line.isEmpty() && font.width(next) > limit) { lines.add(ellipsize(font, line, limit)); line = word; }
+            else line = next;
+        }
+        if (!line.isEmpty()) lines.add(ellipsize(font, line, limit));
+        return lines;
     }
 
     public static void drawCard(GuiGraphics graphics, int x, int y, int width, int height,
@@ -181,6 +205,65 @@ public final class VillageUiTheme {
                 new ItemStack(ModItems.CROWN), crownText, crownAmount > 0L, 0xFFFFD27A, 0.74f);
         drawWalletEntry(graphics, font, startX + crownWidth + WALLET_GAP, top + topOffset, silverWidth,
                 new ItemStack(ModItems.SILVERMARK), silverText, silverAmount > 0L, 0xFFD9E2F0, 0.68f);
+    }
+
+    /** Wallet constrained to a small plate, including icons and text. */
+    public static void drawCompactWalletStrip(GuiGraphics graphics, Font font,
+                                              int right, int top, long balance) {
+        String crowns = compactWalletAmount(balance / CurrencyService.CROWN);
+        String silver = compactWalletAmount(balance % CurrencyService.CROWN);
+        int crownWidth = 11 + Math.round(font.width(crowns) * .72f);
+        int silverWidth = 11 + Math.round(font.width(silver) * .72f);
+        int x = right - crownWidth - silverWidth - 4;
+        drawScaledItem(graphics, new ItemStack(ModItems.CROWN), x, top, .5f);
+        drawStringScaled(graphics, font, crowns, x + 10, top + 2, 0xFFFFD27A, .72f);
+        x += crownWidth + 4;
+        drawScaledItem(graphics, new ItemStack(ModItems.SILVERMARK), x, top, .5f);
+        drawStringScaled(graphics, font, silver, x + 10, top + 2, 0xFFD9E2F0, .72f);
+    }
+
+    /** Reuses the accepted board artwork without stretching its vertical ornaments. */
+    public static void drawCompactNoticeBoard(GuiGraphics g, int x, int y, int width, int height) {
+        Identifier paper = Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "textures/gui/journal_board.png");
+        Identifier frame = Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "textures/gui/guild_notice_board_frame.png");
+        Identifier header = Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "textures/gui/guild_notice_board_inner.png");
+        // Cropped frame rails contain transparent pixels: keep an opaque wood bed underneath.
+        g.fill(x + 3, y + 18, x + width - 3, y + height - 3, 0xFF40220F);
+        blitRegionScaled(g, paper, x + 14, y + 14, width - 28, height - 27,
+                90, 44, 285, 150, 416, 234);
+        blitRegionScaled(g, header, x + 14, y + 14, width - 28, 25,
+                0, 0, 400, 24, 400, 207);
+        blitRegionScaled(g, frame, x, y, width, 40, 0, 0, 416, 40, 416, 234);
+        blitRegionScaled(g, frame, x, y + 40, 14, height - 56, 0, 40, 14, 178, 416, 234);
+        blitRegionScaled(g, frame, x + width - 14, y + 40, 14, height - 56, 402, 40, 14, 178, 416, 234);
+        blitRegionScaled(g, frame, x, y + height - 16, width, 16, 0, 218, 416, 16, 416, 234);
+    }
+
+    /** Uses one continuous accepted Atlas perimeter instead of overlapping cropped corners. */
+    public static void drawMapBoard(GuiGraphics g, Identifier board, int x, int y, int width, int height) {
+        Identifier frame = Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "textures/gui/guild_atlas_frame.png");
+        // Preserve the native inner map/list panels, excluding all old outer ornaments.
+        g.fill(x + 14, y + 25, x + width - 14, y + height - 14, 0xFF40220F);
+        blitRegionScaled(g, board, x + 26, y + 32, width - 52, height - 58,
+                26, 32, width - 52, height - 58, width, height);
+        blitScaled(g, frame, x, y, width, height, 416, 234);
+    }
+
+    /** Draw the native parchment lip above the live map, with its inner contact shadow. */
+    public static void drawEmbeddedMapRim(GuiGraphics g, Identifier board, int left, int top,
+                                          int boardWidth, int boardHeight,
+                                          int mapX, int mapY, int mapWidth, int mapHeight) {
+        int x = left + mapX, y = top + mapY;
+        blitRegionScaled(g, board, x - 2, y - 2, mapWidth + 4, 4,
+                mapX - 4, mapY - 4, mapWidth + 8, 4, boardWidth, boardHeight);
+        blitRegionScaled(g, board, x - 2, y + mapHeight - 2, mapWidth + 4, 4,
+                mapX - 4, mapY + mapHeight, mapWidth + 8, 4, boardWidth, boardHeight);
+        blitRegionScaled(g, board, x - 2, y + 2, 4, mapHeight - 4,
+                mapX - 4, mapY, 4, mapHeight, boardWidth, boardHeight);
+        blitRegionScaled(g, board, x + mapWidth - 2, y + 2, 4, mapHeight - 4,
+                mapX + mapWidth, mapY, 4, mapHeight, boardWidth, boardHeight);
+        g.fill(x + 2, y + 2, x + mapWidth - 2, y + 3, 0x883A2717);
+        g.fill(x + 2, y + 3, x + 3, y + mapHeight - 2, 0x663A2717);
     }
 
     private static void blitScrollThumb(GuiGraphics graphics, int x, int y, int width, int height) {
@@ -300,7 +383,7 @@ public final class VillageUiTheme {
                 textureWidth, textureHeight);
     }
 
-    private static void blitRegionScaled(GuiGraphics graphics, Identifier texture,
+    public static void blitRegionScaled(GuiGraphics graphics, Identifier texture,
                                          int x, int y, int width, int height,
                                          int sourceX, int sourceY,
                                          int sourceWidth, int sourceHeight,
@@ -354,6 +437,23 @@ public final class VillageUiTheme {
             return 0;
         }
         int unscaledWidth = Math.max(1, (int) Math.floor(maxWidth / scale));
+        List<String> lines = wrapScaledLines(font, text, maxWidth, scale);
+        int visibleLines = Math.min(maxLines, lines.size());
+        int lineStep = Math.max(7, Math.round((font.lineHeight + 2) * scale));
+        for (int i = 0; i < visibleLines; i++) {
+            String visible = lines.get(i);
+            if (i == visibleLines - 1 && lines.size() > maxLines) {
+                visible = ellipsize(font, visible + " ...", unscaledWidth);
+            }
+            drawStringScaled(graphics, font, visible, x, y + i * lineStep, color, scale);
+        }
+        return visibleLines;
+    }
+
+    /** The same font-aware wrapping used for rendering, also available for card measurement. */
+    public static List<String> wrapScaledLines(Font font, String text, int maxWidth, float scale) {
+        if (text == null || text.isBlank() || maxWidth <= 0 || scale <= 0) return List.of();
+        int unscaledWidth = Math.max(1, (int) Math.floor(maxWidth / scale));
         List<String> lines = new ArrayList<>();
         StringBuilder line = new StringBuilder();
         for (String word : text.trim().split("\\s+")) {
@@ -372,16 +472,7 @@ public final class VillageUiTheme {
         if (!line.isEmpty()) {
             lines.add(line.toString());
         }
-        int visibleLines = Math.min(maxLines, lines.size());
-        int lineStep = Math.max(7, Math.round((font.lineHeight + 2) * scale));
-        for (int i = 0; i < visibleLines; i++) {
-            String visible = lines.get(i);
-            if (i == visibleLines - 1 && lines.size() > maxLines) {
-                visible = ellipsize(font, visible + " ...", unscaledWidth);
-            }
-            drawStringScaled(graphics, font, visible, x, y + i * lineStep, color, scale);
-        }
-        return visibleLines;
+        return lines;
     }
 
     private static Identifier texture(String name) {

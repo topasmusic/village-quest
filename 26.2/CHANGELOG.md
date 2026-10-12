@@ -1,5 +1,139 @@
 # Changelog
 
+## 2.5.0 — Bonds & Bounty
+
+Release date: 2026-10-12
+
+Village Quest 2.5 — Bonds & Bounty brings personal village trust, living caravan journeys and gifts earned through your work. Continue your existing world with matching content on Minecraft 26.3 and 26.2.
+
+### New features
+
+- Meet persistent named caravan crews with Masters, Traders, Guards and Couriers, five route liveries, 23 project-owned character skins and an optional pack mule. Inspect each journey, its cargo, road conditions and incidents at the Caravan Master.
+- Send Regional Dispatches between connected villages, continue five village stories with Afterstories, and organize three-route Guild Convoys after The Bells of Concord.
+- Restore abandoned villages through resettlement while preserving their identity, history and connections. Routes and local work pause until the settlement recovers.
+- Build personal Guild and local village trust through confirmed deeds. The Journal and Trust desk explain standing, services and recent history; material aid, recovery time and probation offer a path to making amends.
+- Choose village gifts after turning in qualifying Daily, Weekly, Pilgrim and final Story quests. Select supplies, work packages, unlocked diamonds or extra Silvermarks. Each eligible party member receives a full personal package alongside the existing base rewards.
+- Postpone a gift and collect it later at the Questmaster or with `/vq rewards claim`. Collection entries show how many gifts await and open the oldest first; full inventories keep remaining items safely stored with their potion and enchantment components.
+- Discover six fixed Pilgrim bundles through matching reputation and village projects. Nether supplies unlock after Watch Bell; rail and leather bundles follow Forge and Pasture Charters. First completions of town stories and commission types grant a one-time Silvermark bonus.
+- Explore a unified wood, parchment, brass and teal interface, with compact reward choices, native item and coin previews, clearer Pilgrim cards, and refreshed Trust, Journal, map and Dispatch views.
+- Use cooperative quest parties in shared LAN and mod-hosted worlds as well as dedicated servers. Operators can inspect the interface through the permanent, non-destructive `/vq admin uitest` tour.
+
+### Bug fixes and improvements
+
+- Corrected Guild Corner placement beside village buildings and paths, including current Minecraft template formats, while protecting existing builds and removed posts.
+- Fixed reward-window crashes and doubled text, clipped Pilgrim headings and scrolling, map/frame gaps, and the unresponsive return from Dispatches to Trust in singleplayer.
+- Village gifts appear only under Rewards. Choosing Later shows a collection reminder; a limit of eight open gift offers prevents a growing backlog while preserving already earned gifts in older saves.
+- New Smith Smelting contracts on NORMAL collect and smelt 51 fresh raw iron and hand in only the ingots. New peaceful End contracts also require visiting an End City after acceptance; existing accepted contracts keep their original conditions.
+- Reworked The Master's Edge with two visible objectives and exact equipment checkmarks. Buy the required enchanted books after acceptance, then hand in protected iron armor and a Sharpness diamond sword; existing saved book milestones remain valid.
+- Balanced new delivery rewards around material value and transport, limited new freight and Dispatch acceptances to three per real daily reset, and capped passive caravan income at 15 Silvermarks per online hour across the network. Existing wallet funds, freight contracts and prepaid orders are retained.
+- Improved partial freight returns, saved convoy cooldowns, village anchors, offence attribution and completion receipts across reloads. New personal trust begins neutral in existing worlds without retrospective rewards.
+- Updated English, German and Spanish wording, progression guidance, prices and item names. The Questmaster exchanges a valuable Magic Shard for another daily task; fresh-offer notices arrive about 20 seconds after login.
+
+Requires Minecraft **26.2**, Java **25**, Fabric Loader **0.19.3 or newer**, and Fabric API **0.153.0+26.2 or newer for this Minecraft version**. Install the matching Village Quest version on both client and server.
+
+
+## 2.5.0-unreleased.20 — Bonds & Bounty (in development, Minecraft 26.2)
+
+- Removed the temporary reward-testing admin command and its item/currency granting subcommands after acceptance. Normal earned reward collection and the permanent UI tour remain available. Existing saved rewards are retained.
+
+## 2.5.0-unreleased.19 — Bonds & Bounty (in development, Minecraft 26.2 only)
+
+- Trust on an unconnected village board explains the next step; new Questmaster offer notices wait approximately 20 seconds after login.
+- Regional Dispatches uses the Notice Board layout, and returning from Dispatches keeps Trust responsive in singleplayer.
+- Corrected EN/DE/ES spelling, encoding, item identities and progression context. Pilgrim headers and scrolling, first-favor subtitles and Atlas project descriptions show their complete intended content.
+- Lens offers, objectives, completion and lore share the actual two-village survey target. Offline language/context/glossary checks and expanded layout/navigation regressions now gate tests and builds.
+- Rebuilt both native Minecraft lines with all current source corrections. Previous .18 and Stable artifacts remain unchanged.
+
+## 2.5.0-unreleased.18 — Bonds & Bounty (ported to Minecraft 26.2 with full current 26.3 parity)
+
+**Changes developed after the .18 candidate build (included in .19):**
+
+- Cartographer's Lens offer, objective, completion and lore now share the actual survey target; the requirement remains two villages. Added an offline language/context/glossary gate to tests/builds and CI, with explicit reviews for changed texts and mechanic sources, plus full localized Pilgrim scroll and repeated Notice Board/Dispatches navigation regressions. No automated computer use or game start is required.
+- Rechecked EN/DE/ES with quest and item context: consistent currencies, profession reputation, compass and ledger names; corrected the spider-fang contract, first-route project explanation, and applicable progression instructions. Added contextual localization regression guards. Pilgrim contract headers sit higher, scrolling keeps whole text lines visible, first-favor subtitles use the full width, and Atlas project cards show complete effects and chronicles.
+
+- Reviewed EN/DE/ES localization throughout: repaired damaged UTF-8 separators, umlauts and accents, corrected spelling/grammar and mistranslated quest or item descriptions, and fixed the German route-upgrade price display. Quest requirements and quantities remain unchanged. Resource validation now rejects damaged Unicode and invisible control characters.
+
+- Regional Dispatches now follows the Notice Board's compact parchment layout, with an icon, a heading, wrapped unavailable-state guidance and a matching footer. Freight offers retain their send and claim actions.
+- Returning from Dispatches no longer leaves Trust unresponsive in singleplayer. Notice Board and Dispatches keep the world running while open, like the other interactive boards.
+- Clicking Trust before a village is connected now shows an explanation directly on the Notice Board, with the next progression step and alternative access points. Disabled server Trust has its own explanation. Existing access rules remain.
+- New Questmaster offer messages and their sound wait approximately 20 seconds after login. Quests remain immediately available; reconnect starts a fresh wait and existing notification receipts prevent duplicates.
+
+- Fixed trader bundles now require matching personal reputation or village projects: Nether after Watch Bell, Rails after Forge Charter, Leather after Pasture Charter, Light at25Crafting, Provisions at25Farming; Healing retains25Monster Hunting. Both display and purchase enforce these gates.
+- Postponed gifts are grouped per category at the Questmaster with a pending count and oldest-first collection. New gift offers are limited to eight including accepted tasks; older queues remain intact and collectible.
+- The Questmaster's Call now presents a valuable Magic Shard exchanged for another task, with EN/DE/ES text. Updated Pilgrim prices, rotations and collection wiki.
+
+## 2.5.0-unreleased.17 (ported to Minecraft 26.2 with full current 26.3 parity)
+
+- Village gifts (Beigaben) appear only under Rewards, no longer inside Daily/Bonus, Weekly, Story or Pilgrim objectives. Updated EN/DE/ES terminology and parcel labels.
+- Choosing Later keeps a completed-quest collection entry at the Questmaster, with a Collect gifts action that opens that exact personal saved choice. Entries survive new quests/reset/reload and disappear after collection.
+- Pilgrim parchment now reaches the wooden frame without old top/bottom strips; the offer title clears the card rim, trade slots have balanced spacing and unaffordable prices use readable warm ink.
+
+## 2.5.0-unreleased.16 (ported to Minecraft 26.2 with full current 26.3 parity)
+
+- Reward tabs now show native item/coin icons. Centered reward rows include actual Minecraft item models, complete potion/enchantment components and total quantities across split stacks; currency uses Crown/Silvermark icons. Hover retains full reward details.
+- Updated the Pilgrim trader interior to the Quest Board card style, with complete borders, clear section headings and the shared teal selection accent. Trading, prices, contracts and scrolling retain their existing rules.
+
+## 2.5.0-unreleased.15 (ported to Minecraft 26.2 with full current 26.3 parity)
+
+- Extra packages are chosen after successful quest turn-in. Options and quantities remain frozen at acceptance; Later/ESC keeps the earned choice for `/vq rewards claim`, save/reload and later quests. Previously chosen accepted packages retain their automatic payout; each eligible party member receives a full personal package.
+- Compact 320 Ã— 180 parchment reward panel with a new VQ wood/gold/teal background and clear text without shadows.
+- Temporary admin test flow: `choose <ID> [profile]` prepares a test quest, `complete` opens the earned reward choice, confirming pays once.
+
+## 2.5.0-unreleased.14 (ported to Minecraft 26.2 with full current 26.3 parity)
+
+- Fixed the reward selection screen crashing with "Can only blur once per frame" when opening a package choice. Minecraft26.3 already draws the screen background; the reward panel no longer requests a second background blur.
+
+## 2.5.0-unreleased.13 (ported to Minecraft 26.2 with full current 26.3 parity)
+
+- Fixed `/vq admin rewardtest choose` rejecting namespaced package IDs such as `daily:SMITH_SMELTING`. Package IDs and optional LIGHT/NORMAL/HEAVY profiles now parse without quotes; package/profile Tab suggestions produce executable commands. Unknown profiles and extra arguments are rejected before opening a choice.
+
+## 2.5.0-unreleased.12 (ported to Minecraft 26.2 with full current 26.3 parity)
+
+- Added temporary operator-only `/vq admin rewardtest` for actual reward choices, profile variants, one-time test payouts, fixed shop samples, first-completion bonus and saved collection. Separate test slots preserve active quests; Stable builds cannot use the command.
+
+## 2.5.0-unreleased.11 (ported to Minecraft 26.2 with full current 26.3 parity)
+
+- Added visible, deterministic extra reward choices for qualifying new Dailies, Weeklies, Pilgrim contracts, Story finales and the Concord. Each eligible party member receives their full chosen package. Existing base rewards remain.
+- Freeze chosen quantities and complete potion/enchantment components at acceptance. Full inventories retain earned items in saved storage; `/vq rewards claim` collects what fits. Existing accepted contracts receive no retroactive extras.
+- New Smith Smelting contracts collect and smelt 51 fresh raw iron on NORMAL and hand in only 51 ingots. Old accepted contracts retain their 102-ore / raw-iron-and-ingot objectives. New peaceful End contracts additionally require visiting an End City after acceptance.
+- Added eight Silvermarks once per newly accepted first Guild Town story/commission type; the saved type receipts survive progress resets. Replaced the two supply shop packages and added Nether, light, rail and leather packages with fixed contents and prices. Older prepaid orders retain their previous contents.
+- Added EN/DE/ES choice screens, saved reward previews and collection messages. Diamond alternatives require the vanilla Diamonds advancement; progression suggests a package without changing reward amounts.
+
+## 2.5.0-unreleased.10 (in development)
+
+- New Guild Corners search beside actual village buildings and paths, with a bounded 12-block proximity limit, rather than empty forest inside a village's overall bounding rectangle. Existing corners and building/player-edit protection remain unchanged.
+- Enabled quest parties in shared LAN worlds, including mod-hosted sessions with joined guests. The LAN host can now use the Questmaster party drawer; saved parties load after sharing the world and persist when the shared session closes.
+- Fixed Guild Corners failing to spawn on Minecraft 26.3 because their runtime template validator still expected the older block-state NBT format. Generic and desert presets now pass validation after Minecraft data fixing; terrain protection and removed-post safeguards remain in force.
+- Balance review: passive caravan income uses a saved online-time budget of 15 Silvermarks per hour across the network, independent of Minecraft days and offline catch-up. Existing wallet funds and escrow remain intact. New freight and regional commissions share three acceptance slots per real daily reset; accepted old freight retains its original payout.
+- Delivery rewards now separate material value and bounded transport/risk payments, with consistent wheat/bread/hay ingredient ratios. Prosperity ranks cost 2/6/14 Crowns; Festival and Ceremony now deliver their advertised 4/8 Silvermark minimum bonuses. Daily, Weekly, Pilgrim, one-time Story and cooperative XP rewards are unchanged.
+- Third UI audit: Trust is 10% smaller with matching pointer scaling, the Pilgrim left footer moves inward, opaque backing closes Notice Board side gaps, and Wayshrine/Caravan maps sit beneath parchment rims. Wayshrine rename text no longer has a dark doubled shadow. Tour prices, payouts and the Pilgrim contract use production data instead of the fictitious three-Crown wheat contract.
+
+- Follow-up UI audit: restored all five Prosperity tabs in the tour, added warm hover feedback to teal primary actions, widened Village requests, inset notice-board parchment within continuous wood rails, and centered the Resettlement/Pilgrim footer hints. Caravan journey, arrival, road status and cargo now have subtle grouped fields. Wayshrine/route-map perimeters use the continuous Atlas frame, and taller Wayshrine destination cards keep both name lines and costs inside their borders.
+- Combined newly available Daily, Weekly and Story offers into one lore message and one notification sound per check, with all seven combinations localized in EN/DE/ES. Existing saved notice markers and notification preferences remain effective.
+- Compressed Caravan Master, Regional Dispatch and village journey layouts by approximately 30% in area while retaining readable text. Journey actions share a centered footer, primary actions use teal, and story choices have equal compact buttons.
+- Fixed overlapping Trust village cards, slimmed Making amends and Resettlement actions, aligned Pilgrim wallet/Rumor/footer text, and contained contract titles in a fixed selector with previous/next arrows for multiple contracts.
+- Corrected Prosperity tour icon references, contained Notice Board currency icons and Wayshrine destination labels, matched map-board rails/corners to the shared artwork, and placed the standalone Guild Path map beneath the transparent Atlas frame.
+- Fixed the admin UI tour showing smaller boards than normal gameplay; previews now retain the original responsive size and pointer coordinates.
+- Fixed clicks on the admin UI tour's Back, Next, Finish and Exit controls on Minecraft 26.3.
+- Replaced individual admin UI previews with permanent `/vq admin uitest`: a guided 43-step tour with Back, Next and Exit, isolated example data and inert gameplay actions.
+- Aligned Journal, Quest Board, Trust, Caravan and Notice Board spacing around parchment footers and shared compact controls. Journal next-action hints wrap, progress details use two columns, and Quest Board objectives/rewards precede descriptions.
+- Notice Board selection uses a side accent instead of a misleading full-width bar; rewards and village aid are labeled. Pilgrim prices use currency icons, unavailable prices are neutral, and the redundant Buy outline is removed. Wayshrine destinations use compact wrapped names and only occupied rows are framed.
+- Refined the wooden frames' exterior contours and matched both edges of the Quest Board title plaque while retaining the current wood artwork. Removed the rectangular backdrop visible outside the ornaments.
+- Quest Board names can use two lines, category counts sit beside their headings, and status labels are compact. A single selection stripe, slimmer inset scrollbars and actions inside the parchment improve spacing; shared buttons retain narrow fixed borders.
+- Removed the black exterior fringe from the seven shared wooden frames using transparency, preserving the existing wood grain, corner ornaments and inner shadows.
+- The reminder that a Questmaster is already nearby now uses gray text.
+- Closed transparent gaps at wooden frame joins and matched their shading to the adjoining rails, removing lighter rectangular patches under the corner ornaments.
+- The Trust desk uses subtle parchment insets with more space around its progress bar and a compact Making amends empty state.
+- Messages explaining features that are still locked now use calm gray text, including the Journal's Map action, route upgrades, project services, Shop offers, Convoys and story access.
+- Unified the warm wood, brass corners and blue-green stones across the Quest Board, Journal and Guild Atlas, Trust desk, Prosperity, Notice Post and journey pages, Caravan Master, Regional Dispatches, Wayshrines, route map and Pilgrim trader frames.
+- The Trust desk now has three illustrated sidebar sections: Trust, Making amends and Resettlement. Fixed cards group standing, services, material aid and village recovery without vertical scrolling; arrows switch villages and support offers. Village labels use coordinates without technical world identifiers.
+- The Caravan Master's journey view uses an open parchment layout with consistent text sizes, a clearer progress bar and a centered percentage badge, without a second inner window.
+- Trust and Caravan Master hints are compact, wrapped and kept within the screen at different GUI scales. Trust hints describe the hovered section rather than repeating the entire rule list.
+- Cleaned stray Quest Board edge pixels and centered its Trust button within the header.
+- Added a gold VQ emblem to both Questmaster clothing layers, with space separating it from the suspenders, and removed the two detached pixels below the chin.
+- Rebuilt the shared exterior rails and corners with continuous artwork and a consistent transparent gutter, preserving the gold corners and blue-green stones without protruding rectangular patches.
+- Adjusted all five plaques' held-item poses so the player holds them close to the hand.
+
 ## Withdrawn: 2.5.0
 
 Released and withdrawn: 2026-10-04. Current stable release: 2.4.2.

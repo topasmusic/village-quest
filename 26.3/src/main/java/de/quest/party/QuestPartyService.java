@@ -60,13 +60,14 @@ public final class QuestPartyService {
     private QuestPartyService() {}
 
     public static boolean isEnabled(MinecraftServer server) {
-        return server != null && server.isDedicatedServer();
+        // Mod-hosted sessions may admit guests without vanilla's LAN publication flag.
+        return server != null && (server.isDedicatedServer() || server.isPublished() || server.getPlayerCount() > 1);
     }
 
     public static void loadPersistentState(MinecraftServer server) {
         resetRuntimeState();
         if (server == null || !isEnabled(server)) {
-            loaded = true;
+            // Integrated worlds start private; defer loading until multiplayer opens.
             return;
         }
 
@@ -85,10 +86,10 @@ public final class QuestPartyService {
     }
 
     public static void onServerTick(MinecraftServer server) {
-        ensureLoaded(server);
-        if (server == null) {
+        if (!isEnabled(server)) {
             return;
         }
+        ensureLoaded(server);
         long now = System.currentTimeMillis();
         expireInvites(server, now);
         expireDisconnectedMembers(server.overworld(), now);
@@ -104,7 +105,7 @@ public final class QuestPartyService {
 
     public static void persistRuntimeState(MinecraftServer server) {
         ensureLoaded(server);
-        if (server != null && isEnabled(server)) {
+        if (server != null && loaded) {
             storePersistentState(server);
         }
         resetRuntimeState();
@@ -153,7 +154,8 @@ public final class QuestPartyService {
         removePendingInviteFor(player.getUUID());
 
         PartyRuntime party = partyFor(player.getUUID());
-        if (party == null || !isEnabled(server)) {
+        // The last mod-hosted guest can leave after the player count drops to one.
+        if (party == null) {
             return;
         }
         if (party.disconnectDeadlines().containsKey(player.getUUID())) {
@@ -1092,6 +1094,49 @@ public final class QuestPartyService {
         return party == null ? 1 : party.members().size();
     }
 
+    public static de.quest.quest.repeatable.RepeatableTargetProfile rewardDailyProfile(ServerLevel world, UUID player,
+            DailyQuestService.DailyQuestType type, de.quest.quest.repeatable.RepeatableTargetProfile fallback) {
+        PartyRuntime party = partyFor(player);
+        return party != null && activeDailyType(party) == type && !party.daily().syncedMembers().isEmpty()
+                ? sharedDailyTargetProfile(world, party, type) : fallback;
+    }
+    public static de.quest.quest.repeatable.RepeatableTargetProfile rewardWeeklyProfile(ServerLevel world, UUID player,
+            WeeklyQuestService.WeeklyQuestType type, de.quest.quest.repeatable.RepeatableTargetProfile fallback) {
+        PartyRuntime party = partyFor(player);
+        return party != null && activeWeeklyType(party) == type && !party.weekly().syncedMembers().isEmpty()
+                ? sharedWeeklyTargetProfile(world, party, type) : fallback;
+    }
+    private static boolean modernShared(ServerLevel world, SharedQuestRuntime session, String slot) {
+        for (UUID owner : session.syncedMembers()) {
+            var state = QuestState.get(world.getServer()).getPlayerData(owner).vanillaRewards();
+            var snapshot = state.snapshot(slot, state.currentIdentity(slot));
+            String expectedKey = slot + ":" + session.questId();
+            if (slot.equals("story") && session.questId() != null) expectedKey = "story:" + session.questId().split("#")[0];
+            if (snapshot.getStringOr("key", "").equals(expectedKey) && snapshot.getIntOr("version", 0) >= 1) {
+                if (slot.equals("daily") && !state.currentIdentity(slot).equals(de.quest.reward.VanillaRewardService.dailyIdentity(session.questId()))) continue;
+                if (slot.equals("weekly") && !state.currentIdentity(slot).equals(de.quest.reward.VanillaRewardService.weeklyIdentity(session.questId()))) continue;
+                return true;
+            }
+        }
+        return session.syncedMembers().isEmpty();
+    }
+    public static String rewardDailyKey(ServerLevel world, UUID player, DailyQuestService.DailyQuestType type) {
+        PartyRuntime party = partyFor(player);
+        return party != null && activeDailyType(party) == type && !modernShared(world, party.daily(), "daily") ? "" : "daily:" + type.name();
+    }
+    public static String rewardWeeklyKey(ServerLevel world, UUID player, WeeklyQuestService.WeeklyQuestType type) {
+        PartyRuntime party = partyFor(player);
+        return party != null && activeWeeklyType(party) == type && !modernShared(world, party.weekly(), "weekly") ? "" : "weekly:" + type.name();
+    }
+    public static String rewardStoryKey(ServerLevel world, UUID player, StoryArcType type, int chapter) {
+        PartyRuntime party = partyFor(player);
+        return party != null && activeStoryType(party) == type && activeStoryChapterIndex(party) == chapter && !modernShared(world, party.story(), "story") ? "" : "story:" + type.id();
+    }
+    public static String rewardPilgrimKey(ServerLevel world, UUID player, PilgrimContractType type) {
+        PartyRuntime party = partyFor(player);
+        return party != null && activePilgrimType(party) == type && !modernShared(world, party.pilgrim(), "pilgrim") ? "" : "pilgrim:" + type.id();
+    }
+
     public static boolean acceptDailyOffer(ServerLevel world, ServerPlayer player) {
         if (world == null || player == null) {
             return false;
@@ -1121,6 +1166,9 @@ public final class QuestPartyService {
             return false;
         }
 
+        if (!de.quest.reward.VanillaRewardService.prepare(world, player, "daily", rewardDailyKey(world, player.getUUID(), type),
+                de.quest.reward.VanillaRewardService.dailyIdentity(type.name()), sharedDailyTargetProfile(world, party, type),
+                () -> acceptDailyOffer(world, player))) return false;
         syncDailyMember(world, party, player, type, DailyQuestGenerator.definition(type), offer.sourceId());
         storePersistentState(world.getServer());
         refreshPartyUi(world, party);
@@ -1171,6 +1219,9 @@ public final class QuestPartyService {
             return false;
         }
 
+        if (!de.quest.reward.VanillaRewardService.prepare(world, player, "weekly", rewardWeeklyKey(world, player.getUUID(), type),
+                de.quest.reward.VanillaRewardService.weeklyIdentity(type.name()), sharedWeeklyTargetProfile(world, party, type),
+                () -> acceptWeeklyOffer(world, player))) return false;
         syncWeeklyMember(world, party, player, type, WeeklyQuestGenerator.definition(type), offer.sourceId());
         storePersistentState(world.getServer());
         refreshPartyUi(world, party);
@@ -1222,6 +1273,9 @@ public final class QuestPartyService {
         if (chapter == null) {
             chapter = StoryQuestService.definition(arcType) == null ? null : StoryQuestService.definition(arcType).chapter(chapterIndex);
         }
+        if (chapterIndex == arcType.chapterCount() - 1 && !de.quest.reward.VanillaRewardService.prepare(world, player, "story",
+                rewardStoryKey(world, player.getUUID(), arcType, chapterIndex), arcType.id() + ":" + chapterIndex,
+                de.quest.quest.repeatable.RepeatableTargetProfile.NORMAL, () -> acceptStoryOffer(world, player))) return false;
         syncStoryMember(world, party, player, arcType, chapterIndex, chapter, offer.sourceId());
         storePersistentState(world.getServer());
         refreshPartyUi(world, party);
@@ -1268,6 +1322,10 @@ public final class QuestPartyService {
             return false;
         }
 
+        var rewardState = QuestState.get(world.getServer()).getPlayerData(player.getUUID()).vanillaRewards();
+        if (!de.quest.reward.VanillaRewardService.prepare(world, player, "pilgrim", rewardPilgrimKey(world, player.getUUID(), type),
+                rewardState.nextIdentity("pilgrim", type.id()), sharedPilgrimTargetProfile(world,party,type),
+                () -> acceptPilgrimOffer(world, player))) return false;
         syncPilgrimMember(world, party, player, type, offer.sourceId());
         storePersistentState(world.getServer());
         refreshPartyUi(world, party);
@@ -1290,7 +1348,7 @@ public final class QuestPartyService {
     }
 
     private static void ensureLoaded(MinecraftServer server) {
-        if (!loaded) {
+        if (!loaded && isEnabled(server)) {
             loadPersistentState(server);
         }
     }
@@ -1748,7 +1806,18 @@ public final class QuestPartyService {
                 && data.getDailyChoice() == type
                 && data.getDailyChoiceDay() == day;
         if (sameQuestActive) {
+            if (sourceId != null) {
+                var source = QuestState.get(world.getServer()).getPlayerData(sourceId);
+                if (data.getDailyTargetProfile() != source.getDailyTargetProfile()) return;
+                if (type == DailyQuestService.DailyQuestType.SMITH_SMELTING) {
+                    String identity = de.quest.reward.VanillaRewardService.dailyIdentity(type.name());
+                    boolean ownModern = data.vanillaRewards().snapshot("daily",identity).getIntOr("version",0) >= 1;
+                    boolean sourceModern = source.vanillaRewards().snapshot("daily",identity).getIntOr("version",0) >= 1;
+                    if (ownModern != sourceModern) return;
+                }
+            }
             mergeDailyProgressIntoSession(world, member.getUUID(), type, session);
+            if (!session.hasSynced(member.getUUID())) return;
             clearDailyOffer(party, member.getUUID());
             data.setDailyTargetProfile(sharedDailyTargetProfile(world, party, type));
             if (sourceId != null && !sourceId.equals(member.getUUID())) {
@@ -1807,6 +1876,7 @@ public final class QuestPartyService {
                 && data.getWeeklyChoiceCycle() == cycle;
         if (sameQuestActive) {
             mergeWeeklyProgressIntoSession(world, member.getUUID(), type, session);
+            if (!session.hasSynced(member.getUUID())) return;
             clearWeeklyOffer(party, member.getUUID());
             data.setWeeklyTargetProfile(sharedWeeklyTargetProfile(world, party, type));
             if (sourceId != null && !sourceId.equals(member.getUUID())) {
@@ -1939,6 +2009,7 @@ public final class QuestPartyService {
         boolean sameContractActive = memberHasActivePilgrim(world, member.getUUID(), type);
         if (sameContractActive) {
             mergePilgrimProgressIntoSession(world, member.getUUID(), type, session);
+            if (!session.hasSynced(member.getUUID())) return;
             clearPilgrimOffer(party, member.getUUID());
             data.setActivePilgrimTargetProfile(sharedPilgrimTargetProfile(world, party, type));
             if (sourceId != null && !sourceId.equals(member.getUUID())) {
@@ -2048,6 +2119,7 @@ public final class QuestPartyService {
         if (world == null || memberId == null || session == null || session.hasSynced(memberId)) {
             return;
         }
+        if (!canMergeRewardContract(world,memberId,session,"pilgrim")) return;
         PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
         QuestShareProfiles.SharedQuestProfile profile = QuestShareProfiles.pilgrimProfile(type);
         if (profile == null) {
@@ -2067,6 +2139,24 @@ public final class QuestPartyService {
         session.markSynced(memberId);
     }
 
+    private static boolean canMergeRewardContract(ServerLevel world, UUID member, SharedQuestRuntime session, String slot) {
+        var data = QuestState.get(world.getServer()).getPlayerData(member);
+        for (UUID owner : session.syncedMembers()) {
+            var other = QuestState.get(world.getServer()).getPlayerData(owner);
+            if (slot.equals("daily") && data.getDailyTargetProfile() != other.getDailyTargetProfile()) return false;
+            if (slot.equals("weekly") && data.getWeeklyTargetProfile() != other.getWeeklyTargetProfile()) return false;
+            if (slot.equals("pilgrim") && data.getActivePilgrimTargetProfile() != other.getActivePilgrimTargetProfile()) return false;
+            if ((slot.equals("daily") && "SMITH_SMELTING".equals(session.questId()))
+                    || (slot.equals("pilgrim") && "stillness_beyond_the_gate".equals(session.questId()))) {
+                var own = data.vanillaRewards(); var theirs = other.vanillaRewards();
+                boolean ownModern = own.snapshot(slot,own.currentIdentity(slot)).getIntOr("version",0) >= 1;
+                boolean otherModern = theirs.snapshot(slot,theirs.currentIdentity(slot)).getIntOr("version",0) >= 1;
+                if (ownModern != otherModern) return false;
+            }
+        }
+        return true;
+    }
+
     private static void mergeDailyProgressIntoSession(ServerLevel world,
                                                       UUID memberId,
                                                       DailyQuestService.DailyQuestType type,
@@ -2074,6 +2164,7 @@ public final class QuestPartyService {
         if (world == null || memberId == null || session == null || session.hasSynced(memberId)) {
             return;
         }
+        if (!canMergeRewardContract(world,memberId,session,"daily")) return;
         PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
         QuestShareProfiles.SharedQuestProfile profile = QuestShareProfiles.dailyProfile(type);
         if (profile == null) {
@@ -2103,6 +2194,7 @@ public final class QuestPartyService {
         if (world == null || memberId == null || session == null || session.hasSynced(memberId)) {
             return;
         }
+        if (!canMergeRewardContract(world,memberId,session,"weekly")) return;
         PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
         QuestShareProfiles.SharedQuestProfile profile = QuestShareProfiles.weeklyProfile(type);
         if (profile == null) {
@@ -2131,7 +2223,7 @@ public final class QuestPartyService {
         }
         PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
         DailyQuestService.DailyQuestType dailyType = activeDailyType(party);
-        if (dailyType != null
+        if (dailyType != null && party.daily().hasSynced(memberId)
                 && data.getAcceptedDay() == TimeUtil.currentDay()
                 && data.getLastRewardDay() != TimeUtil.currentDay()
                 && data.getDailyChoice() == dailyType
@@ -2142,7 +2234,7 @@ public final class QuestPartyService {
         }
 
         WeeklyQuestService.WeeklyQuestType weeklyType = activeWeeklyType(party);
-        if (weeklyType != null
+        if (weeklyType != null && party.weekly().hasSynced(memberId)
                 && data.getWeeklyAcceptedCycle() == TimeUtil.currentWeekCycle()
                 && data.getWeeklyRewardCycle() != TimeUtil.currentWeekCycle()
                 && data.getWeeklyChoice() == weeklyType
@@ -2163,7 +2255,7 @@ public final class QuestPartyService {
         }
 
         PilgrimContractType pilgrimType = activePilgrimType(party);
-        if (pilgrimType != null
+        if (pilgrimType != null && party.pilgrim().hasSynced(memberId)
                 && pilgrimType == PilgrimContractType.fromId(data.getActivePilgrimContractId())) {
             applySharedPilgrimProgress(data, party.pilgrim(), pilgrimType);
             QuestState.get(world.getServer()).setDirty();
@@ -2895,7 +2987,9 @@ public final class QuestPartyService {
     }
 
     private static void storePersistentState(MinecraftServer server) {
-        if (server == null || !isEnabled(server)) {
+        // Save a loaded session even if LAN publication has already ended at shutdown.
+        // An unopened private world must not overwrite its inactive saved party data.
+        if (server == null || !loaded) {
             return;
         }
         QuestState.get(server).setQuestPartyState(QuestPartyPersistence.write(PARTIES, INVITES));

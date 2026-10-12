@@ -100,6 +100,7 @@ public final class QuestService {
                         state.setDirty();
                     }
                     QuestPartyService.handleJoin(handler.player);
+                    QuestAvailabilityNotifier.handleJoin(handler.player);
                     TradeRouteService.backfillUnlockedLedger(server.overworld(), handler.player);
                     de.quest.caravan.TradeGuildService.deliverPendingRefund(server.overworld(), handler.player);
                     ReputationService.backfillRoadwardenHorn(server.overworld(), handler.player);
@@ -203,6 +204,7 @@ public final class QuestService {
             return;
         }
         var playerId = player.getUUID();
+        QuestAvailabilityNotifier.handleDisconnect(playerId);
         QuestBookHelper.handleDisconnect(playerId);
         QuestTrackerService.handleDisconnect(playerId);
         QuestMasterUiService.handleDisconnect(player);
@@ -220,6 +222,7 @@ public final class QuestService {
         QuestDropTracker.clear();
         QuestHarvestTracker.clear();
         QuestSoundFeedback.resetRuntimeState();
+        QuestAvailabilityNotifier.resetRuntimeState();
         QuestBookHelper.resetAllSessions();
         QuestTrackerService.resetAllRuntimeState();
         QuestMasterUiService.resetAllSessions();

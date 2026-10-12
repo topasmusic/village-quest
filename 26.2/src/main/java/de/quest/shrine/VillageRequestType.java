@@ -51,7 +51,7 @@ public enum VillageRequestType {
     public VillageBondType bondType() { return bondType; }
     public Item item() { return item; }
     public int amount() { return amount; }
-    public int reward() { return reward; }
+    public int reward() { return de.quest.economy.DeliveryEconomy.materialValue(item, amount) + 2; }
     public Component title() { return Component.translatable("text.village-quest.village_request." + key); }
 
     public static VillageRequestType forVillage(VillageBondType type, int seed) {

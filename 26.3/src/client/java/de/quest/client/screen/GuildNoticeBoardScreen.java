@@ -45,13 +45,13 @@ public final class GuildNoticeBoardScreen extends CompatScreen {
 
     private static final int DELIVER_X = 168;
     private static final int CLOSE_X = 330;
-    private static final int BUTTON_Y = 214;
+    private static final int BUTTON_Y = 199;
     private static final int DELIVER_WIDTH = 156;
     private static final int CLOSE_WIDTH = 68;
     private static final int BUTTON_HEIGHT = 16;
 
     private static final int[] BOND_CENTERS = {143, 211, 271};
-    private static final int BOND_CENTER_Y = 200;
+    private static final int BOND_CENTER_Y = 184;
     private static final int BOND_SEAL_SIZE = 20;
     private static final int[] OFFER_X = {81, 169, 258};
     private static final int[] OFFER_WIDTH = {78, 78, 79};
@@ -118,8 +118,7 @@ public final class GuildNoticeBoardScreen extends CompatScreen {
         float titleWidth = font.width(heading) * titleScale;
         VillageUiTheme.drawStringScaled(graphics, font, heading,
                 left + (WIDTH - titleWidth) / 2.0f, top + 14.0f, INK, titleScale);
-        VillageUiTheme.drawWalletStrip(graphics, font, left, top, WIDTH, data.balance(),
-                WALLET_RIGHT_INSET, WALLET_TOP);
+        VillageUiTheme.drawCompactWalletStrip(graphics, font, left + WIDTH - WALLET_RIGHT_INSET, top + 9, data.balance());
 
         String village = data.villageType().getString() + " · " + data.bondLevel().getString()
                 + " · " + data.villageCondition().getString() + " · " + data.adventureProfile().getString();
@@ -140,8 +139,8 @@ public final class GuildNoticeBoardScreen extends CompatScreen {
             int offerWidth = OFFER_WIDTH[i];
             boolean selected = offer.id() == selectedOfferId;
             if (selected) {
-                graphics.fill(x + 6, offerY + OFFER_HEIGHT - 5,
-                        x + offerWidth - 6, offerY + OFFER_HEIGHT - 2, TEAL);
+                graphics.fill(x + 5, offerY + 5,
+                        x + 7, offerY + OFFER_HEIGHT - 5, TEAL);
             }
             drawScaledItem(graphics, offer.stack(), left + OFFER_CENTER_X[i] - 8, top + 50, 1.0f);
             drawCenteredScaled(graphics, offer.inventoryAmount() + " / " + offer.requiredAmount(),
@@ -162,18 +161,17 @@ public final class GuildNoticeBoardScreen extends CompatScreen {
         drawCenteredScaled(graphics, selected.title().getString(),
                 left + 208, top + 96, INK, 0.68f, 220);
         drawScaledItem(graphics, selected.stack(), left + 90, top + 107, 1.5f);
-        drawCenteredScaled(graphics, shown + " / " + required,
-                left + 208, top + 108, INK, 0.65f, 150);
 
         String context = data.requestAvailable()
                 ? Component.translatable("screen.village-quest.notice_board.network_need",
                         data.villageNeed(), Math.max(0, Math.min(100, data.villageSupport())), 100).getString()
                 : Component.translatable("screen.village-quest.notice_board.available_after_reset").getString();
         drawCenteredScaled(graphics, context, left + 216, top + 120, META, 0.60f, 190);
-        drawCenteredScaled(graphics, CurrencyService.formatBalance(selected.reward()).getString(),
-                left + 174, top + 132, GOLD, 0.60f, 92);
-        drawCenteredScaled(graphics, "+" + selected.support(),
-                left + 274, top + 132, TEAL, 0.60f, 58);
+        drawCenteredScaled(graphics, Component.translatable("screen.village-quest.notice_board.reward_label",
+                        CurrencyService.formatBalance(selected.reward())).getString(),
+                left + 174, top + 132, GOLD, 0.60f, 110);
+        drawCenteredScaled(graphics, Component.translatable("screen.village-quest.notice_board.support_label", selected.support()).getString(),
+                left + 285, top + 132, TEAL, 0.60f, 95);
 
         int progressX = left + 128;
         int progressY = top + 141;
@@ -195,7 +193,7 @@ public final class GuildNoticeBoardScreen extends CompatScreen {
         } else {
             bondSummary = data.nextPerk().getString();
         }
-        drawCenteredScaled(graphics, bondSummary, left + WIDTH / 2.0f, top + 172,
+        drawCenteredScaled(graphics, bondSummary, left + WIDTH / 2.0f, top + 163,
                 INK, 0.60f, 260);
 
         int bondTier = Math.max(0, Math.min(data.bondTier(), BOND_CENTERS.length - 1));
@@ -217,7 +215,7 @@ public final class GuildNoticeBoardScreen extends CompatScreen {
 
         String hint = Component.translatable("screen.village-quest.notice_board.bond_hint").getString();
         int finalThreshold = data.nextThreshold() > 0 ? data.nextThreshold() : 8;
-        if (within(mouseX, mouseY, left + 90, top + 165, 238, 45)) {
+        if (within(mouseX, mouseY, left + 90, top + 160, 238, 34)) {
             graphics.setTooltipForNextFrame(font, List.of(
                     Component.translatable("screen.village-quest.notice_board.bond_path"),
                     Component.translatable("screen.village-quest.notice_board.bond_summary"),
@@ -253,21 +251,21 @@ public final class GuildNoticeBoardScreen extends CompatScreen {
     }
 
     @Override
-    public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
+    protected boolean handleMouseClicked(MouseButtonEvent click, boolean doubled) {
         if (click.button() != InputConstants.MOUSE_BUTTON_LEFT) {
-            return super.mouseClicked(click, doubled);
+            return super.handleMouseClicked(click, doubled);
         }
         int left = (width - WIDTH) / 2;
         int top = (height - HEIGHT) / 2;
         int mouseX = responsiveMouseX(click.x(), WIDTH, HEIGHT);
         int mouseY = responsiveMouseY(click.y(), WIDTH, HEIGHT);
         if (journey == null && within(mouseX, mouseY, left + 17, top + BUTTON_Y, 140, BUTTON_HEIGHT)) {
-            ClientPlayNetworking.send(new de.quest.network.ReputationPayloads.OpenPayload(0,
+            UiTestTour.send(new de.quest.network.ReputationPayloads.OpenPayload(0,
                     new net.minecraft.core.BlockPos(data.worldX(), data.worldY(), data.worldZ()), 0)); return true;
         }
         if (journey != null && within(mouseX, mouseY, left + 17, top + BUTTON_Y, 140, BUTTON_HEIGHT)) {
-            minecraft.gui.setScreen(new NoticeJourneyScreen(journey));
-            if (!journey.preview()) ClientPlayNetworking.send(new VillageNetworkPayloads.NoticeJourneyActionPayload(
+            UiTestTour.navigate(new NoticeJourneyScreen(journey));
+            if (!journey.preview()) UiTestTour.send(new VillageNetworkPayloads.NoticeJourneyActionPayload(
                     journey.worldX(), journey.worldY(), journey.worldZ(),
                     VillageNetworkPayloads.NoticeJourneyActionPayload.REFRESH));
             return true;
@@ -275,7 +273,7 @@ public final class GuildNoticeBoardScreen extends CompatScreen {
         if (within(mouseX, mouseY,
                 left + DELIVER_X, top + BUTTON_Y, DELIVER_WIDTH, BUTTON_HEIGHT)
                 && data.requestAvailable() && selectedOffer().canDeliver()) {
-            ClientPlayNetworking.send(new VillageNetworkPayloads.NoticeBoardActionPayload(
+            UiTestTour.send(new VillageNetworkPayloads.NoticeBoardActionPayload(
                     data.worldX(), data.worldY(), data.worldZ(),
                     VillageNetworkPayloads.NoticeBoardActionPayload.ACTION_DELIVER, selectedOffer().id()));
             return true;
@@ -293,7 +291,7 @@ public final class GuildNoticeBoardScreen extends CompatScreen {
             onClose();
             return true;
         }
-        return super.mouseClicked(click, doubled);
+        return super.handleMouseClicked(click, doubled);
     }
 
     private void drawCenteredScaled(GuiGraphics graphics, String text,

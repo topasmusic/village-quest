@@ -65,10 +65,11 @@ public final class RegionalDispatchService {
                                 .append(" · ").append(villageLabel(targetType,
                                         TradeRouteData.routeInt(data, target, "x"),
                                         TradeRouteData.routeInt(data, target, "z"))),
-                        new ItemStack(cargo), amount, count(player, cargo), 12));
+                        new ItemStack(cargo), amount, count(player, cargo), dispatchReward(data, source, target, cargo, amount)));
             }
         }
         Dispatch active = RegionalDispatchLedger.read(data);
+        boolean commissionAvailable = de.quest.economy.DeliveryEconomy.canAccept(data, (int) de.quest.util.TimeUtil.currentDay());
         Component sourceLabel = source < 0
                 ? Component.translatable("screen.village-quest.dispatch.no_source")
                 : villageLabel(routeType(data, source), marker.centerX(), marker.centerZ());
@@ -91,13 +92,17 @@ public final class RegionalDispatchService {
                                 active.sourceX(), active.sourceZ()),
                         villageLabel(VillageBondType.byId(active.targetType() - 1),
                                 active.targetX(), active.targetZ())));
+        if (!commissionAvailable && (active == null || active.stage() == Stage.DELIVERED)) {
+            status = Component.translatable("message.village-quest.delivery.daily_limit",
+                    de.quest.economy.DeliveryEconomy.DAILY_COMMISSIONS);
+        }
         ItemStack activeCargo = active == null || active.stage() == Stage.DELIVERED ? ItemStack.EMPTY
                 : new ItemStack(cargo(VillageBondType.byId(active.sourceType() - 1)));
         ServerPlayNetworking.send(player, new VillageNetworkPayloads.RegionalDispatchPayload(
                 board.getX(), board.getY(), board.getZ(), sourceLabel, status, path,
                 activeCargo, active == null ? 0 : active.amount(),
                 active != null && active.stage() == Stage.CANCELLED_SAFE,
-                active == null || active.stage() == Stage.DELIVERED, List.copyOf(offers)));
+                commissionAvailable && (active == null || active.stage() == Stage.DELIVERED), List.copyOf(offers)));
     }
 
     public static void handleAction(ServerPlayer player,
@@ -135,21 +140,34 @@ public final class RegionalDispatchService {
         }
         UUID sourceConnection = TradeRouteData.ensureConnectionId(data, source);
         UUID targetConnection = TradeRouteData.ensureConnectionId(data, target);
+        if (!de.quest.economy.DeliveryEconomy.canAccept(data, (int) de.quest.util.TimeUtil.currentDay())) {
+            player.sendSystemMessage(Component.translatable("message.village-quest.delivery.daily_limit",
+                    de.quest.economy.DeliveryEconomy.DAILY_COMMISSIONS).withStyle(ChatFormatting.GRAY), false);
+            return;
+        }
         Dispatch dispatch = new Dispatch(UUID.randomUUID(), sourceConnection, targetConnection,
                 world.dimension().identifier().toString(), marker.centerX(), marker.centerZ(),
                 TradeRouteData.routeInt(data, target, "x"), TradeRouteData.routeInt(data, target, "z"),
                 type.id() + 1, routeType(data, target).id() + 1,
                 BuiltInRegistries.ITEM.getKey(item).toString(), amount,
-                de.quest.reputation.SocialReputationRules.rewardWithBonus(12,
-                        de.quest.reputation.SocialReputationRules.decision(
-                                de.quest.reputation.SocialReputationRules.ServiceKind.DISPATCH_START,
-                                data.socialReputation(), null).rewardPercent()), Stage.WAITING_AT_SOURCE);
+                dispatchReward(data, source, target, item, amount), Stage.WAITING_AT_SOURCE);
         if (!RegionalDispatchLedger.start(data, dispatch)) return;
+        de.quest.economy.DeliveryEconomy.reserve(data, (int) de.quest.util.TimeUtil.currentDay());
         remove(player, item, amount);
         player.inventoryMenu.broadcastChanges();
         QuestState.get(world.getServer()).setDirty();
         player.sendSystemMessage(Component.translatable("message.village-quest.dispatch.started")
                 .withStyle(ChatFormatting.GREEN), false);
+    }
+
+    private static int dispatchReward(PlayerQuestData data, int source, int target, Item item, int amount) {
+        int distance = TradeRouteService.routeEconomyDistanceBlocks(data, source)
+                + TradeRouteService.routeEconomyDistanceBlocks(data, target);
+        return de.quest.reputation.SocialReputationRules.rewardWithBonus(
+                de.quest.economy.DeliveryEconomy.regionalReward(item, amount, distance),
+                de.quest.reputation.SocialReputationRules.decision(
+                        de.quest.reputation.SocialReputationRules.ServiceKind.DISPATCH_START,
+                        data.socialReputation(), null).rewardPercent());
     }
 
     private static void claim(ServerLevel world, ServerPlayer player) {

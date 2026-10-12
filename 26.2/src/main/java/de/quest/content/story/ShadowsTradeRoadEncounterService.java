@@ -133,7 +133,13 @@ public final class ShadowsTradeRoadEncounterService {
     private ShadowsTradeRoadEncounterService() {}
 
     public record VillageMarker(String key, int centerX, int centerZ,
-                                int minX, int maxX, int minZ, int maxZ) {}
+                                int minX, int maxX, int minZ, int maxZ,
+                                List<de.quest.village.GuildCornerCandidateSearch.StructureFootprint> pieces) {
+        public VillageMarker { pieces = pieces == null ? List.of() : List.copyOf(pieces); }
+        public VillageMarker(String key, int centerX, int centerZ, int minX, int maxX, int minZ, int maxZ) {
+            this(key, centerX, centerZ, minX, maxX, minZ, maxZ, List.of());
+        }
+    }
     public record DistressTarget(BlockPos pos, Component label) {}
 
     private record WaveSpec(int zombies, int skeletons, int spiders, int traitors) {}
@@ -321,7 +327,11 @@ public final class ShadowsTradeRoadEncounterService {
         int centerX = (box.minX() + box.maxX()) / 2;
         int centerZ = (box.minZ() + box.maxZ()) / 2;
         return new VillageMarker(centerX + "_" + centerZ, centerX, centerZ,
-                box.minX(), box.maxX(), box.minZ(), box.maxZ());
+                box.minX(), box.maxX(), box.minZ(), box.maxZ(), start.getPieces().stream().map(piece -> {
+                    BoundingBox footprint = piece.getBoundingBox();
+                    return new de.quest.village.GuildCornerCandidateSearch.StructureFootprint(
+                            footprint.minX(), footprint.maxX(), footprint.minZ(), footprint.maxZ());
+                }).toList());
     }
 
     private static int distanceToRange(int value, int min, int max) {

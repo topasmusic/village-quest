@@ -69,7 +69,7 @@ public final class SmithSmeltingDailyQuest implements DailyQuestDefinition {
             }
         }
 
-        return Component.translatable("quest.village-quest.daily.smelt.stage.3").withStyle(ChatFormatting.GRAY);
+        return Component.translatable(DailyQuestService.smithSmeltRawDeliveryTarget() == 0 ? "reward.village-quest.smelt.stage.3" : "quest.village-quest.daily.smelt.stage.3").withStyle(ChatFormatting.GRAY);
     }
 
     @Override
@@ -122,6 +122,8 @@ public final class SmithSmeltingDailyQuest implements DailyQuestDefinition {
                 || hasTurnInItems(player)) {
             return null;
         }
+        if (rawDeliveryTarget == 0) return Texts.turnInMissing(Items.IRON_INGOT.getDefaultInstance().getDisplayName(),
+                DailyQuestService.countCompletionItem(world, player, Items.IRON_INGOT), ingotTarget);
         return Texts.turnInMissing(
                 Items.RAW_IRON.getDefaultInstance().getDisplayName(),
                 DailyQuestService.countCompletionItem(world, player, Items.RAW_IRON),

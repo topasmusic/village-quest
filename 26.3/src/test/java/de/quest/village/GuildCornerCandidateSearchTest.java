@@ -97,4 +97,53 @@ final class GuildCornerCandidateSearchTest {
         assertTrue(GuildCornerCandidateSearch.around(0, 4, 0, 4, 17, 5).isEmpty());
         assertTrue(GuildCornerCandidateSearch.insideThenAround(5, 4, 0, 4, 5, 5).isEmpty());
     }
+
+    @Test
+    void oversizedVillageBoundsDoNotPutTheCornerInTheEmptyForestBetweenHouses() {
+        var pieces = List.of(new GuildCornerCandidateSearch.StructureFootprint(130, 140, 20, 30),
+                new GuildCornerCandidateSearch.StructureFootprint(150, 160, 80, 90));
+        var candidates = GuildCornerCandidateSearch.nearStructures(0, 180, 0, 100, 7, 6, pieces);
+        assertTrue(!candidates.isEmpty());
+        for (var candidate : candidates) {
+            assertTrue(pieces.stream().anyMatch(piece -> distanceSqr(candidate, piece) <= 12L * 12L),
+                    "site must remain beside a real village piece: " + candidate);
+        }
+        assertTrue(candidates.getFirst().centerX() > 110, "empty bounding-box center must not win");
+    }
+
+    @Test
+    void nearStructureSearchIsDeterministicBoundedAndNearestFirst() {
+        var pieces = new java.util.ArrayList<GuildCornerCandidateSearch.StructureFootprint>();
+        for (int x = -200; x <= 200; x += 20) for (int z = -200; z <= 200; z += 20)
+            pieces.add(new GuildCornerCandidateSearch.StructureFootprint(x, x + 6, z, z + 8));
+        var candidates = GuildCornerCandidateSearch.nearStructures(-220, 220, -220, 220, 7, 6, pieces);
+        assertTrue(candidates.size() <= 96);
+        assertEquals(candidates.size(), new java.util.HashSet<>(candidates).size());
+        assertEquals(candidates, GuildCornerCandidateSearch.nearStructures(-220, 220, -220, 220, 7, 6, pieces));
+        long previous = -1;
+        for (var candidate : candidates) {
+            long nearest = pieces.stream().mapToLong(piece -> distanceSqr(candidate, piece)).min().orElseThrow();
+            assertTrue(nearest >= previous);
+            previous = nearest;
+        }
+    }
+
+    @Test
+    void markersWithoutStructurePiecesKeepExistingFallbackButInvalidPiecesCannotPlace() {
+        assertEquals(GuildCornerCandidateSearch.insideThenAround(0, 40, 0, 40, 7, 6),
+                GuildCornerCandidateSearch.nearStructures(0, 40, 0, 40, 7, 6, List.of()));
+        assertTrue(GuildCornerCandidateSearch.nearStructures(0, 40, 0, 40, 7, 6,
+                List.of(new GuildCornerCandidateSearch.StructureFootprint(60, 70, 60, 70))).isEmpty());
+        assertTrue(GuildCornerCandidateSearch.nearStructures(0, 40, 0, 40, 17, 6,
+                List.of(new GuildCornerCandidateSearch.StructureFootprint(10, 20, 10, 20))).isEmpty());
+    }
+
+    private static long distanceSqr(GuildCornerCandidateSearch.Candidate candidate,
+                                    GuildCornerCandidateSearch.StructureFootprint piece) {
+        long dx = Math.max(0L, Math.max((long) piece.minX() - candidate.centerX(),
+                (long) candidate.centerX() - piece.maxX()));
+        long dz = Math.max(0L, Math.max((long) piece.minZ() - candidate.centerZ(),
+                (long) candidate.centerZ() - piece.maxZ()));
+        return dx * dx + dz * dz;
+    }
 }

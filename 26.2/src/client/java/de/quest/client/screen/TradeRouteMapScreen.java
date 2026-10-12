@@ -1,5 +1,6 @@
 package de.quest.client.screen;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import de.quest.client.config.VillageQuestClientConfig;
 import de.quest.VillageQuest;
 import de.quest.client.ui.SurfaceMapRenderer;
@@ -135,7 +136,7 @@ public final class TradeRouteMapScreen extends CompatScreen {
     private void returnToJournal() {
         notifyClosed();
         if (minecraft != null && minecraft.player != null && minecraft.player.connection != null) {
-            minecraft.player.connection.sendCommand("vq journal open");
+            UiTestTour.command("vq journal open");
             return;
         }
         super.onClose();
@@ -156,8 +157,7 @@ public final class TradeRouteMapScreen extends CompatScreen {
             int left = (width - WINDOW_WIDTH) / 2;
             int top = (height - WINDOW_HEIGHT) / 2;
             VillageUiTheme.drawPanelShadow(graphics, left, top, WINDOW_WIDTH, WINDOW_HEIGHT);
-            graphics.blit(RenderPipelines.GUI_TEXTURED, BOARD_TEXTURE, left, top, 0.0f, 0.0f,
-                    WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH, WINDOW_HEIGHT);
+            VillageUiTheme.drawMapBoard(graphics, BOARD_TEXTURE, left, top, WINDOW_WIDTH, WINDOW_HEIGHT);
             drawTabs(graphics, left, top, uiMouseX, uiMouseY);
             drawHeader(graphics, left, top);
             switch (viewMode) {
@@ -173,9 +173,9 @@ public final class TradeRouteMapScreen extends CompatScreen {
     }
 
     @Override
-    public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
-        if (click.button() != 0) {
-            return super.mouseClicked(click, doubled);
+    protected boolean handleMouseClicked(MouseButtonEvent click, boolean doubled) {
+        if (click.button() != InputConstants.MOUSE_BUTTON_LEFT) {
+            return super.handleMouseClicked(click, doubled);
         }
         int left = (width - WINDOW_WIDTH) / 2;
         int top = (height - WINDOW_HEIGHT) / 2;
@@ -199,18 +199,18 @@ public final class TradeRouteMapScreen extends CompatScreen {
                     mapDragging = true;
                     yield true;
                 }
-                yield super.mouseClicked(click, doubled);
+                yield super.handleMouseClicked(click, doubled);
             }
-            case ROUTES -> handleRoutesClick(mouseX, mouseY, left, top) || super.mouseClicked(click, doubled);
+            case ROUTES -> handleRoutesClick(mouseX, mouseY, left, top) || super.handleMouseClicked(click, doubled);
             case BONDS -> handleBondsClick(mouseX, mouseY, left, top)
-                    || super.mouseClicked(click, doubled);
-            case GUIDE -> super.mouseClicked(click, doubled);
+                    || super.handleMouseClicked(click, doubled);
+            case GUIDE -> super.handleMouseClicked(click, doubled);
         };
     }
 
     @Override
     public boolean mouseDragged(MouseButtonEvent click, double dragX, double dragY) {
-        if (mapDragging && click.button() == 0 && viewMode == ViewMode.MAP) {
+        if (mapDragging && click.button() == InputConstants.MOUSE_BUTTON_LEFT && viewMode == ViewMode.MAP) {
             Bounds bounds = displayBounds();
             centerX -= responsiveDrag(dragX, WINDOW_WIDTH, WINDOW_HEIGHT)
                     * (bounds.maxX - bounds.minX) / VIEW_WIDTH;
@@ -223,7 +223,7 @@ public final class TradeRouteMapScreen extends CompatScreen {
 
     @Override
     public boolean mouseReleased(MouseButtonEvent click) {
-        if (click.button() == 0 && mapDragging) {
+        if (click.button() == InputConstants.MOUSE_BUTTON_LEFT && mapDragging) {
             mapDragging = false;
             return true;
         }
@@ -291,6 +291,8 @@ public final class TradeRouteMapScreen extends CompatScreen {
                 bounds.minX, bounds.maxX, bounds.minZ, bounds.maxZ, !mapDragging);
         drawRoutesOnMap(graphics, bounds, left, top, mouseX, mouseY);
         graphics.disableScissor();
+        VillageUiTheme.drawEmbeddedMapRim(graphics, BOARD_TEXTURE, left, top, WINDOW_WIDTH, WINDOW_HEIGHT,
+                VIEW_X, VIEW_Y, VIEW_WIDTH, VIEW_HEIGHT);
         drawMapControls(graphics, left, top, mouseX, mouseY);
         drawMapFooter(graphics, left, top, mouseX, mouseY);
     }
@@ -858,7 +860,7 @@ public final class TradeRouteMapScreen extends CompatScreen {
     }
 
     private void sendAction(int action, int routeIndex) {
-        ClientPlayNetworking.send(new Payloads.TradeRouteActionPayload(action, routeIndex));
+        UiTestTour.send(new Payloads.TradeRouteActionPayload(action, routeIndex));
     }
 
     private void setZoom(int value) {
@@ -1039,7 +1041,7 @@ public final class TradeRouteMapScreen extends CompatScreen {
             return;
         }
         notifyClosed();
-        minecraft.gui.setScreen(new ChatScreen("/vq routes rename " + (route.routeIndex() + 1) + " ", false));
+        UiTestTour.navigate(new ChatScreen("/vq routes rename " + (route.routeIndex() + 1) + " ", false));
     }
 
     private List<WorldPoint> routePath(Payloads.TradeRouteNodeData home,

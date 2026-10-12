@@ -85,6 +85,8 @@ public final class ReputationService {
     public record ReputationUnlock(ReputationTrack track, int requiredReputation, String titleKey) {}
 
     private static final Map<String, OfferUnlock> OFFER_UNLOCKS = List.of(
+            new OfferUnlock("proviantbeutel", ReputationTrack.FARMING, 25, "reward.village-quest.shop.proviantbeutel"),
+            new OfferUnlock("light_supplies", ReputationTrack.CRAFTING, 25, "reward.village-quest.shop.light_supplies"),
             new OfferUnlock("honigfass", ReputationTrack.FARMING, 25, "text.village-quest.shop.offer.honigfass.title"),
             new OfferUnlock("bienenwabe", ReputationTrack.FARMING, 60, "text.village-quest.shop.offer.bienenwabe.title"),
             new OfferUnlock("beekeepers_kit", ReputationTrack.FARMING, 120, "text.village-quest.shop.offer.beekeepers_kit.title"),
@@ -104,6 +106,8 @@ public final class ReputationService {
     ).stream().collect(Collectors.toUnmodifiableMap(OfferUnlock::offerId, unlock -> unlock));
 
     private static final List<ReputationUnlock> REPUTATION_UNLOCKS = List.of(
+            new ReputationUnlock(ReputationTrack.FARMING, 25, "reward.village-quest.shop.proviantbeutel"),
+            new ReputationUnlock(ReputationTrack.CRAFTING, 25, "reward.village-quest.shop.light_supplies"),
             new ReputationUnlock(ReputationTrack.FARMING, 25, "text.village-quest.shop.offer.honigfass.title"),
             new ReputationUnlock(ReputationTrack.FARMING, 60, "text.village-quest.shop.offer.bienenwabe.title"),
             new ReputationUnlock(ReputationTrack.FARMING, 120, "text.village-quest.shop.offer.beekeepers_kit.title"),

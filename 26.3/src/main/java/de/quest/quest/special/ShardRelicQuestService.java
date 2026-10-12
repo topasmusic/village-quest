@@ -403,7 +403,7 @@ public final class ShardRelicQuestService {
             return net.minecraft.world.InteractionResult.PASS;
         }
         if (!owner.get().equals(player.getUUID())) {
-            player.sendSystemMessage(Component.translatable("message.village-quest.questmaster.special.cache_locked").withStyle(ChatFormatting.RED), false);
+            player.sendSystemMessage(Component.translatable("message.village-quest.questmaster.special.cache_locked").withStyle(ChatFormatting.GRAY), false);
             return net.minecraft.world.InteractionResult.FAIL;
         }
         return net.minecraft.world.InteractionResult.PASS;

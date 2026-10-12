@@ -11,6 +11,7 @@ import de.quest.content.item.ShepherdFluteItem;
 import de.quest.content.item.StarreachRingItem;
 import de.quest.content.item.SurveyorCompassItem;
 import de.quest.content.item.CartographersLensItem;
+import de.quest.content.story.ShrinesBetweenRoadsStoryArc;
 import de.quest.content.item.ShrineRelicItem;
 import de.quest.content.item.GuildCourierSatchelItem;
 import de.quest.content.item.WayfarersSigilItem;
@@ -161,7 +162,7 @@ public final class ModItems {
         GUILD_MILESTONE = registerBlockItem("guild_milestone", ModBlocks.GUILD_MILESTONE, 64);
 
         WAYFARERS_SIGIL = registerSpecial("wayfarers_sigil", WayfarersSigilItem::new, 3);
-        CARTOGRAPHERS_LENS = registerSpecial("cartographers_lens", CartographersLensItem::new, 3);
+        CARTOGRAPHERS_LENS = registerSpecial("cartographers_lens", CartographersLensItem::new, cartographersLensLore());
         GUILD_COURIERS_SATCHEL = registerSpecial("guild_couriers_satchel", GuildCourierSatchelItem::new, 3);
         CRACKED_SHRINE_CORE = registerSpecial("cracked_shrine_core", properties -> new ShrineRelicItem(properties, false), 2);
         RESTORED_SHRINE_CORE = registerSpecial("restored_shrine_core", properties -> new ShrineRelicItem(properties, true), 2);
@@ -203,10 +204,25 @@ public final class ModItems {
     private static Item registerSpecial(String path,
                                         java.util.function.Function<Item.Properties, Item> factory,
                                         int loreLineCount) {
+        return registerSpecial(path, factory, loreLines("item." + VillageQuest.MOD_ID + "." + path + ".lore", loreLineCount));
+    }
+
+    static ItemLore cartographersLensLore() {
+        String key = "item.village-quest.cartographers_lens.lore.";
+        return new ItemLore(List.of(
+                Component.translatable(key + "1").withStyle(ChatFormatting.DARK_GRAY),
+                Component.translatable(key + "2").withStyle(ChatFormatting.DARK_GRAY),
+                Component.translatable(key + "3", ShrinesBetweenRoadsStoryArc.REQUIRED_VILLAGE_SURVEYS)
+                        .withStyle(ChatFormatting.DARK_GRAY)));
+    }
+
+    private static Item registerSpecial(String path,
+                                        java.util.function.Function<Item.Properties, Item> factory,
+                                        ItemLore itemLore) {
         Identifier itemId = id(path);
         ResourceKey<Item> itemKey = ResourceKey.create(Registries.ITEM, itemId);
         Item item = factory.apply(new Item.Properties().setId(itemKey).stacksTo(1)
-                .component(DataComponents.LORE, loreLines("item." + VillageQuest.MOD_ID + "." + path + ".lore", loreLineCount)));
+                .component(DataComponents.LORE, itemLore));
         Registry.register(BuiltInRegistries.ITEM, itemId, item);
         return item;
     }

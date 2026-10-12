@@ -57,7 +57,7 @@ public final class GuildConvoyService {
                 || !GuildTownProgress.hasReward(data, "concord_title")
                 || !TradeRouteService.isNearHome(world, player.getUUID(), player.blockPosition(), 20)) {
             player.sendSystemMessage(Component.translatable("message.village-quest.convoy.locked")
-                    .withStyle(ChatFormatting.YELLOW), false);
+                    .withStyle(ChatFormatting.GRAY), false);
             return 0;
         }
         List<UUID> connections = new ArrayList<>();

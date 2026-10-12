@@ -1,5 +1,6 @@
 package de.quest.pilgrim;
 
+import de.quest.reward.VanillaRewardService;
 import de.quest.archive.GuildArchiveService;
 import de.quest.archive.GuildArchiveService.ArchiveItem;
 import de.quest.data.PlayerQuestData;
@@ -104,6 +105,22 @@ public final class PilgrimContractService {
     ) {}
 
     public record PilgrimContractStatus(Component title, List<Component> lines) {}
+
+    /** Read-only UI-tour sample from the production definition, without player state or a payout. */
+    public static PilgrimContractView previewHedgerowContract() {
+        var type = PilgrimContractType.FANGS_BY_THE_HEDGEROW;
+        var definition = definition(type);
+        var completion = definition.buildCompletion();
+        return new PilgrimContractView(type.id(), definition.title(),
+                Component.translatable("screen.village-quest.ui_tour.sample.available"),
+                List.of(definition.offerParagraph1(), definition.offerParagraph2()),
+                List.of(Component.translatable("quest.village-quest.pilgrim.contract." + type.id() + ".progress.1", 0, FANGS_SPIDER_TARGET)),
+                List.of(Component.translatable("screen.village-quest.questmaster.reward.currency",
+                                CurrencyService.formatBalance(completion.currencyReward())),
+                        ReputationService.formatRewardLine(completion.reputationTrack(), completion.reputationAmount()),
+                        QuestExperienceService.rewardLine(completion.levels(), 0, QuestExperienceService.RewardType.PILGRIM)),
+                Component.translatable("screen.village-quest.ui_tour.sample.accept"), true, definition.previewStack());
+    }
 
     private record PilgrimContractCompletion(
             Component title,
@@ -625,7 +642,7 @@ public final class PilgrimContractService {
                     PilgrimExpeditionProgress.State state = readExpeditionState(world, player.getUUID());
                     int resources = Math.min(expeditionResourceAmount(type),
                             DailyQuestService.countInventoryItem(player, expeditionResource(type)));
-                    return List.of(Component.translatable(
+                    var lines = new ArrayList<Component>(); lines.add(Component.translatable(
                             "quest.village-quest.pilgrim.contract.expedition.progress",
                             state.entered() ? 1 : 0,
                             1,
@@ -638,6 +655,8 @@ public final class PilgrimContractService {
                             state.returned() ? 1 : 0,
                             1
                     ).withStyle(ChatFormatting.GRAY));
+                    if (requiresNewEndCity(data(world,player.getUUID()),type)) lines.add(Component.translatable("reward.village-quest.end_city", data(world,player.getUUID()).hasPilgrimFlag("reward.end_city_visited") ? 1 : 0));
+                    return List.copyOf(lines);
                 }
                 return List.of(progressLine(type, world, player.getUUID(), ChatFormatting.GRAY, objectives));
             }
@@ -646,7 +665,8 @@ public final class PilgrimContractService {
             public boolean isComplete(ServerLevel world, ServerPlayer player) {
                 if (objectiveMode(world, player.getUUID()) == DifficultyObjectiveMode.PEACEFUL) {
                     return PilgrimExpeditionProgress.complete(
-                            readExpeditionState(world, player.getUUID()), expeditionResourceReady(player, type));
+                            readExpeditionState(world, player.getUUID()), expeditionResourceReady(player, type))
+                            && (!requiresNewEndCity(data(world, player.getUUID()), type) || data(world, player.getUUID()).hasPilgrimFlag("reward.end_city_visited"));
                 }
                 UUID playerId = player.getUUID();
                 for (KillObjective objective : objectives) {
@@ -895,9 +915,20 @@ public final class PilgrimContractService {
         return rolled;
     }
 
+    public static boolean requiresNewEndCity(PlayerQuestData data, PilgrimContractType type) {
+        if (data == null || type != PilgrimContractType.STILLNESS_BEYOND_THE_GATE) return false;
+        var identity = data.vanillaRewards().currentIdentity("pilgrim");
+        var snapshot = data.vanillaRewards().snapshot("pilgrim", identity);
+        return snapshot.getStringOr("key", "").equals("pilgrim:" + type.id()) && snapshot.getIntOr("version", 0) >= 1;
+    }
+
     private static void acceptContract(ServerLevel world, ServerPlayer player, PilgrimContractType type) {
         PlayerQuestData data = data(world, player.getUUID());
         RepeatableTargetProfile profile = contractTargetProfile(data, type);
+        String extraKey = QuestPartyService.rewardPilgrimKey(world, player.getUUID(), type);
+        if (!de.quest.reward.VanillaRewardService.prepare(world, player, "pilgrim", extraKey,
+                data.vanillaRewards().nextIdentity("pilgrim", type.id()), profile,
+                () -> handleContractAction(world, player, type.id()))) return;
         data.clearPilgrimProgress();
         data.setPilgrimFlag(FLAG_READY, false);
         data.setPilgrimFlag(FLAG_SUPPRESS_OFFER, false);
@@ -972,6 +1003,9 @@ public final class PilgrimContractService {
                                                      ServerPlayer player,
                                                      PilgrimContractType type,
                                                      PilgrimContractCompletion completion) {
+        var rewardState = de.quest.reward.VanillaRewardService.state(world,player.getUUID());
+        if (rewardState.snapshot("pilgrim",rewardState.currentIdentity("pilgrim")).getStringOr("key", "").equals("pilgrim:" + type.id()))
+            de.quest.reward.VanillaRewardService.completeCurrent(world, player, "pilgrim");
         long actualCurrencyReward = ProsperityService.applyFestivalBonus(world, player.getUUID(),
                 completion.currencyReward() + VillageProjectService.bonusCurrency(world, player.getUUID(), completion.reputationTrack()));
         if (actualCurrencyReward > 0L) {
@@ -1112,7 +1146,7 @@ public final class PilgrimContractService {
                     QuestExperienceService.RewardType.PILGRIM
             ));
         }
-        return rewards;
+        return VanillaRewardService.withSaved(world,playerId,"pilgrim",rewards);
     }
 
     private static List<PilgrimContractType> eligibleContracts(ServerLevel world, ServerPlayer player) {
@@ -1276,6 +1310,13 @@ public final class PilgrimContractService {
         UUID playerId = player.getUUID();
         boolean overworldTarget = isOverworldContract(type);
         boolean inTarget = currentWorld.dimension() == expeditionDimension(type);
+        PlayerQuestData extraData = data(currentWorld, playerId);
+        if (inTarget && requiresNewEndCity(extraData, type) && !extraData.hasPilgrimFlag("reward.end_city_visited")) {
+            if (currentWorld.hasChunkAt(player.blockPosition()) && currentWorld.structureManager().getStructureWithPieceAt(player.blockPosition(),
+                    holder -> holder.is(net.minecraft.world.level.levelgen.structure.BuiltinStructures.END_CITY)).isValid()) {
+                extraData.setPilgrimFlag("reward.end_city_visited", true); setDirty(currentWorld);
+            }
+        }
         boolean inOverworld = currentWorld.dimension() == Level.OVERWORLD;
         PilgrimExpeditionProgress.State before = readExpeditionState(currentWorld, playerId);
         PilgrimExpeditionProgress.State after = PilgrimExpeditionProgress.tick(

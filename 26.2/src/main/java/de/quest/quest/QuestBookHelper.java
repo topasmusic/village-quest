@@ -54,25 +54,25 @@ public final class QuestBookHelper {
         boolean weeklyActive = weekly != null;
         Component weeklyTitle = weeklyActive ? weekly.title() : Component.empty();
         Component weeklyProgress = weeklyActive
-                ? Component.literal(String.join("\n", weekly.lines().stream().map(Component::getString).toList()))
+                ? de.quest.reward.VanillaRewardService.joinLines(weekly.lines())
                 : Component.empty();
         StoryQuestStatus story = StoryQuestService.openStatus(world, pid);
         boolean storyActive = story != null;
         Component storyTitle = storyActive ? story.title() : Component.empty();
         Component storyProgress = storyActive
-                ? Component.literal(String.join("\n", story.lines().stream().map(Component::getString).toList()))
+                ? de.quest.reward.VanillaRewardService.joinLines(story.lines())
                 : Component.empty();
         PilgrimContractService.PilgrimContractStatus pilgrim = PilgrimContractService.openStatus(world, pid);
         boolean pilgrimActive = pilgrim != null;
         Component pilgrimTitle = pilgrimActive ? pilgrim.title() : Component.empty();
         Component pilgrimProgress = pilgrimActive
-                ? Component.literal(String.join("\n", pilgrim.lines().stream().map(Component::getString).toList()))
+                ? de.quest.reward.VanillaRewardService.joinLines(pilgrim.lines())
                 : Component.empty();
         SpecialQuestStatus special = SpecialQuestService.openStatus(world, pid);
         boolean specialActive = special != null;
         Component specialTitle = specialActive ? special.title() : Component.empty();
         Component specialProgress = specialActive
-                ? Component.literal(String.join("\n", special.lines().stream().map(Component::getString).toList()))
+                ? de.quest.reward.VanillaRewardService.joinLines(special.lines())
                 : Component.empty();
 
         int total = DailyQuestService.getDailyQuestCount()

@@ -52,7 +52,7 @@ public class JournalScreen extends CompatScreen {
     private static final int CONTENT_Y = 40;
     private static final int CONTENT_WIDTH = 313;
     private static final int CONTENT_TOP = 56;
-    private static final int CONTENT_BOTTOM = 197;
+    private static final int CONTENT_BOTTOM = 185;
     private static final int CARD_GAP = 5;
     private static final int CARD_COLLAPSED_HEIGHT = 31;
     private static final int CARD_TEXT_INSET = 20;
@@ -60,8 +60,8 @@ public class JournalScreen extends CompatScreen {
     private static final float CARD_BODY_SCALE = 0.72f;
     private static final int CARD_DETAIL_STEP = 8;
     private static final int REPUTATION_PROGRESS_HEIGHT = 19;
-    private static final int BUTTON_HEIGHT = 18;
-    private static final int BUTTON_Y = 203;
+    private static final int BUTTON_HEIGHT = 16;
+    private static final int BUTTON_Y = 191;
     private static final int DONE_BUTTON_WIDTH = 78;
     private static final int FOOTER_RIGHT_INSET = 24;
     private static final int HEADER_WALLET_RIGHT_INSET = 40;
@@ -240,6 +240,7 @@ public class JournalScreen extends CompatScreen {
         super(Component.translatable("screen.village-quest.journal.title"));
         this.data = data;
     }
+    void selectTourSection(String state) { section = Section.valueOf(state.toUpperCase(java.util.Locale.ROOT)); }
 
     private int networkPage;
     private de.quest.reputation.ReputationViewService.View reputation;
@@ -273,7 +274,7 @@ public class JournalScreen extends CompatScreen {
             if (page > 0 && within(mouseX, mouseY, left + 326, top + 40, 24, 16)) page--;
             if ((page + 1) * 8 < reputation.villageTotal() && within(mouseX, mouseY, left + 355, top + 40, 24, 16)) page++;
             if (page != reputation.villagePage()) {
-                ClientPlayNetworking.send(new de.quest.network.ReputationPayloads.PagePayload(page)); scrollOffset = 0; return true;
+                UiTestTour.send(new de.quest.network.ReputationPayloads.PagePayload(page)); scrollOffset = 0; return true;
             }
         }
         return false;
@@ -416,7 +417,7 @@ public class JournalScreen extends CompatScreen {
         if (hovered >= 0) {
             atlasHoveredNode = hovered;
         } else if (previousDetail == null || !within(mouseX, mouseY,
-                previousDetail.x(), previousDetail.y(), ATLAS_DETAIL_WIDTH, ATLAS_DETAIL_HEIGHT)) {
+                previousDetail.x(), previousDetail.y(), ATLAS_DETAIL_WIDTH, atlasDetailHeight(nodes.get(atlasHoveredNode)))) {
             atlasHoveredNode = -1;
         }
         AtlasDetailPlacement detail = atlasDetailPlacement(left, top, nodes, atlasHoveredNode);
@@ -747,8 +748,9 @@ public class JournalScreen extends CompatScreen {
             x = centerX < left + WINDOW_WIDTH / 2 ? maxX : minX;
         }
         int minY = top + 52;
-        int maxY = top + 112;
-        int y = Math.max(minY, Math.min(maxY, centerY - ATLAS_DETAIL_HEIGHT / 2));
+        int detailHeight = atlasDetailHeight(nodes.get(nodeIndex));
+        int maxY = top + WINDOW_HEIGHT - 32 - detailHeight;
+        int y = Math.max(minY, Math.min(maxY, centerY - detailHeight / 2));
         return new AtlasDetailPlacement(x, y);
     }
 
@@ -760,7 +762,8 @@ public class JournalScreen extends CompatScreen {
         AtlasNode node = nodes.get(atlasHoveredNode);
         int x = placement.x();
         int y = placement.y();
-        drawAtlasTranslucentCard(graphics, x, y, ATLAS_DETAIL_WIDTH, ATLAS_DETAIL_HEIGHT);
+        int detailHeight = atlasDetailHeight(node);
+        drawAtlasTranslucentCard(graphics, x, y, ATLAS_DETAIL_WIDTH, detailHeight);
         drawScaledItem(graphics, node.previewStack(), x + 8, y + 6, 0.68f);
         VillageUiTheme.drawWrappedScaled(graphics, font, node.title().getString(),
                 x + 27, y + 6, ATLAS_DETAIL_WIDTH - 35, INK, 0.58f, 2);
@@ -785,13 +788,18 @@ public class JournalScreen extends CompatScreen {
         String abilityText = stripLeadingLabel(node.ability().getString(), abilityLabel);
         VillageUiTheme.drawStringScaled(graphics, font, abilityLabel, x + 8, y + 35, GOLD, 0.50f);
         int abilityLines = VillageUiTheme.drawWrappedScaled(graphics, font, abilityText,
-                x + 8, y + 43, ATLAS_DETAIL_WIDTH - 16, BODY, 0.44f, 2);
+                x + 8, y + 43, ATLAS_DETAIL_WIDTH - 16, BODY, 0.44f, Integer.MAX_VALUE);
         int requirementLabelY = y + 43 + Math.max(1, abilityLines) * 7 + 2;
         VillageUiTheme.drawStringScaled(graphics, font, requirementLabel, x + 8, requirementLabelY, GOLD, 0.50f);
         int requirementY = requirementLabelY + 8;
-        int availableLines = Math.max(1, (y + ATLAS_DETAIL_HEIGHT - 6 - requirementY) / 7);
         VillageUiTheme.drawWrappedScaled(graphics, font, node.requirement().getString(),
-                x + 8, requirementY, ATLAS_DETAIL_WIDTH - 16, MUTED, 0.42f, availableLines);
+                x + 8, requirementY, ATLAS_DETAIL_WIDTH - 16, MUTED, 0.42f, Integer.MAX_VALUE);
+    }
+
+    private int atlasDetailHeight(AtlasNode node) {
+        int abilityLines = VillageUiTheme.wrapScaledLines(font, node.ability().getString(), ATLAS_DETAIL_WIDTH - 16, 0.44f).size();
+        int chronicleLines = VillageUiTheme.wrapScaledLines(font, node.requirement().getString(), ATLAS_DETAIL_WIDTH - 16, 0.42f).size();
+        return Math.max(ATLAS_DETAIL_HEIGHT, 59 + (Math.max(1, abilityLines) + Math.max(1, chronicleLines)) * 7);
     }
 
     private static void drawAtlasTranslucentCard(GuiGraphics graphics, int x, int y,
@@ -918,7 +926,7 @@ public class JournalScreen extends CompatScreen {
         atlasHintChecked = true;
         if (InventoryJournalTutorialState.shouldShowAtlasDragHint()) {
             atlasHintUntilMs = System.currentTimeMillis() + ATLAS_HINT_DURATION_MS;
-            InventoryJournalTutorialState.markAtlasDragHintSeen();
+            if (!UiTestTour.active()) InventoryJournalTutorialState.markAtlasDragHintSeen();
         }
     }
 
@@ -927,7 +935,7 @@ public class JournalScreen extends CompatScreen {
             return;
         }
         atlasIntroChecked = true;
-        atlasIntroVisible = InventoryJournalTutorialState.shouldShowAtlasIntro();
+        atlasIntroVisible = !UiTestTour.active() && InventoryJournalTutorialState.shouldShowAtlasIntro();
     }
 
     private static String stripLeadingLabel(String text, String label) {
@@ -971,14 +979,18 @@ public class JournalScreen extends CompatScreen {
                           int cardHeight, int mouseX, int mouseY) {
         boolean expanded = card.id().equals(expandedCardId);
         boolean hovered = within(mouseX, mouseY, x, y, cardWidth, cardHeight);
-        VillageUiTheme.drawCard(graphics, x, y, cardWidth, cardHeight, hovered, expanded);
-        graphics.fill(x + 6, y + 6, x + 9, y + cardHeight - 6, card.accent());
+        VillageUiTheme.drawCard(graphics, x, y, cardWidth, cardHeight, hovered, false);
+        graphics.fill(x + 6, y + 6, x + 8, y + cardHeight - 6, card.accent());
         VillageUiTheme.drawStringScaled(graphics, font,
                 compact(card.title().getString(), cardWidth - CARD_TEXT_INSET - 28, CARD_TITLE_SCALE),
                 x + CARD_TEXT_INSET, y + 6, INK, CARD_TITLE_SCALE);
-        VillageUiTheme.drawStringScaled(graphics, font,
-                compact(card.subtitle().getString(), cardWidth - CARD_TEXT_INSET - 28, CARD_BODY_SCALE),
-                x + CARD_TEXT_INSET, y + 18, MUTED, CARD_BODY_SCALE);
+        List<String> subtitles = card.id().equals("overview_next")
+                ? wrapText(card.subtitle().getString(), Math.round((cardWidth - CARD_TEXT_INSET - 28) / CARD_BODY_SCALE))
+                : List.of(compact(card.subtitle().getString(), cardWidth - CARD_TEXT_INSET - 28, CARD_BODY_SCALE));
+        for (int i = 0; i < subtitles.size(); i++) {
+            VillageUiTheme.drawStringScaled(graphics, font, subtitles.get(i),
+                    x + CARD_TEXT_INSET, y + 18 + i * CARD_DETAIL_STEP, MUTED, CARD_BODY_SCALE);
+        }
         VillageUiTheme.blitScaled(graphics,
                 VillageUiTheme.control(expanded ? "chevron_up" : "chevron_down"),
                 x + cardWidth - 20, y + 7, 12, 12, 16, 16);
@@ -1000,7 +1012,16 @@ public class JournalScreen extends CompatScreen {
         if (!expanded) {
             return;
         }
-        int lineY = y + CARD_COLLAPSED_HEIGHT + (socialGuild ? 17 : 0);
+        int lineY = y + collapsedCardHeight(card, cardWidth) + (socialGuild ? 17 : 0);
+        if (card.id().equals("overview_progress")) {
+            for (int i = 0; i < card.details().size(); i++) {
+                VillageUiTheme.drawStringScaled(graphics, font,
+                        compact(card.details().get(i).getString(), (cardWidth - CARD_TEXT_INSET - 18) / 2, CARD_BODY_SCALE),
+                        x + CARD_TEXT_INSET + (i % 2) * (cardWidth - CARD_TEXT_INSET - 18) / 2,
+                        lineY + (i / 2) * CARD_DETAIL_STEP, BODY, CARD_BODY_SCALE);
+            }
+            return;
+        }
         ReputationService.ReputationTrack reputationTrack = reputationTrack(card);
         if (reputationTrack != null) {
             ReputationProgress progress = reputationProgress(reputationTrack);
@@ -1063,9 +1084,9 @@ public class JournalScreen extends CompatScreen {
     }
 
     @Override
-    public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
-        if (click.button() != 0) {
-            return super.mouseClicked(click, doubled);
+    protected boolean handleMouseClicked(MouseButtonEvent click, boolean doubled) {
+        if (click.button() != InputConstants.MOUSE_BUTTON_LEFT) {
+            return super.handleMouseClicked(click, doubled);
         }
         int left = (width - WINDOW_WIDTH) / 2;
         int top = (height - WINDOW_HEIGHT) / 2;
@@ -1086,7 +1107,7 @@ public class JournalScreen extends CompatScreen {
 
         if (section == Section.ATLAS) {
             return handleAtlasMouseClicked(mouseX, mouseY, left, top)
-                    || super.mouseClicked(click, doubled);
+                    || super.handleMouseClicked(click, doubled);
         }
 
         if (section == Section.NETWORK && handleNetworkTab(mouseX, mouseY, left, top)) return true;
@@ -1122,7 +1143,7 @@ public class JournalScreen extends CompatScreen {
             if (mouseY >= top + contentTop() && mouseY < top + CONTENT_BOTTOM && within(mouseX, mouseY, cardX, y, cardWidth, height)) {
                 if (card.cancelAction() >= 0
                         && within(mouseX, mouseY, cardX + cardWidth - 40, y + 3, 18, 19)) {
-                    ClientPlayNetworking.send(new JournalActionPayload(card.cancelAction()));
+                    UiTestTour.send(new JournalActionPayload(card.cancelAction()));
                     playClick();
                     return true;
                 }
@@ -1134,7 +1155,7 @@ public class JournalScreen extends CompatScreen {
             }
             y += height + CARD_GAP;
         }
-        return super.mouseClicked(click, doubled);
+        return super.handleMouseClicked(click, doubled);
     }
 
     private boolean handleAtlasMouseClicked(int mouseX, int mouseY, int left, int top) {
@@ -1144,8 +1165,10 @@ public class JournalScreen extends CompatScreen {
             if (within(mouseX, mouseY, introX + ATLAS_INTRO_WIDTH - 73,
                     introY + ATLAS_INTRO_HEIGHT - 23, 61, 16)) {
                 atlasIntroVisible = false;
-                InventoryJournalTutorialState.markAtlasIntroSeen();
-                InventoryJournalTutorialState.markAtlasDragHintSeen();
+                if (!UiTestTour.active()) {
+                    InventoryJournalTutorialState.markAtlasIntroSeen();
+                    InventoryJournalTutorialState.markAtlasDragHintSeen();
+                }
                 atlasHintChecked = true;
                 atlasHintUntilMs = 0L;
                 playClick();
@@ -1180,7 +1203,7 @@ public class JournalScreen extends CompatScreen {
         }
         AtlasDetailPlacement detail = atlasDetailPlacement(left, top, atlasNodes(), atlasHoveredNode);
         if (detail != null && within(mouseX, mouseY,
-                detail.x(), detail.y(), ATLAS_DETAIL_WIDTH, ATLAS_DETAIL_HEIGHT)) {
+                detail.x(), detail.y(), ATLAS_DETAIL_WIDTH, atlasDetailHeight(atlasNodes().get(atlasHoveredNode)))) {
             return true;
         }
         if (within(mouseX, mouseY, left + ATLAS_MAP_X, top + ATLAS_MAP_Y,
@@ -1194,7 +1217,7 @@ public class JournalScreen extends CompatScreen {
 
     @Override
     public boolean mouseDragged(MouseButtonEvent click, double dragX, double dragY) {
-        if (section == Section.ATLAS && atlasDragging && click.button() == 0) {
+        if (section == Section.ATLAS && atlasDragging && click.button() == InputConstants.MOUSE_BUTTON_LEFT) {
             double adjustedX = responsiveDrag(dragX, WINDOW_WIDTH, WINDOW_HEIGHT);
             double adjustedY = responsiveDrag(dragY, WINDOW_WIDTH, WINDOW_HEIGHT);
             int index = atlasPage.ordinal();
@@ -1210,7 +1233,7 @@ public class JournalScreen extends CompatScreen {
 
     @Override
     public boolean mouseReleased(MouseButtonEvent click) {
-        if (click.button() == 0 && atlasDragging) {
+        if (click.button() == InputConstants.MOUSE_BUTTON_LEFT && atlasDragging) {
             atlasDragging = false;
             return true;
         }
@@ -1446,10 +1469,17 @@ public class JournalScreen extends CompatScreen {
     private int cardHeight(JournalCard card, int width) {
         int socialExtra = card.id().equals("social_guild") ? 17 : 0;
         if (!card.id().equals(expandedCardId)) {
-            return CARD_COLLAPSED_HEIGHT + socialExtra;
+            return collapsedCardHeight(card, width) + socialExtra;
         }
         int extra = reputationTrack(card) == null ? 6 : REPUTATION_PROGRESS_HEIGHT + 4;
-        return CARD_COLLAPSED_HEIGHT + socialExtra + extra + compactDetails(card, width).size() * CARD_DETAIL_STEP;
+        int details = card.id().equals("overview_progress") ? (card.details().size() + 1) / 2 : compactDetails(card, width).size();
+        return collapsedCardHeight(card, width) + socialExtra + extra + details * CARD_DETAIL_STEP;
+    }
+
+    private int collapsedCardHeight(JournalCard card, int width) {
+        if (!card.id().equals("overview_next")) return CARD_COLLAPSED_HEIGHT;
+        int lines = wrapText(card.subtitle().getString(), Math.round((width - CARD_TEXT_INSET - 28) / CARD_BODY_SCALE)).size();
+        return CARD_COLLAPSED_HEIGHT + Math.max(0, lines - 1) * CARD_DETAIL_STEP;
     }
 
     private List<String> compactDetails(JournalCard card, int cardWidth) {
@@ -1492,7 +1522,7 @@ public class JournalScreen extends CompatScreen {
     private void openRouteMap() {
         if (minecraft == null || minecraft.player == null) return;
         navigating = true;
-        minecraft.player.connection.sendCommand("vq routes");
+        UiTestTour.command("vq routes");
         super.onClose();
     }
 
@@ -1509,26 +1539,26 @@ public class JournalScreen extends CompatScreen {
     private void openProsperity() {
         if (minecraft == null || minecraft.player == null) return;
         navigating = true;
-        minecraft.player.connection.sendCommand("vq prosperity");
+        UiTestTour.command("vq prosperity");
         super.onClose();
     }
 
     private void summonQuestMasterFromJournal() {
         if (minecraft == null || minecraft.player == null) return;
-        InventoryJournalTutorialState.markQuestMasterButtonHintSeen();
+        if (!UiTestTour.active()) InventoryJournalTutorialState.markQuestMasterButtonHintSeen();
         navigating = true;
-        minecraft.player.connection.sendCommand("vq questmaster");
+        UiTestTour.command("vq questmaster");
         super.onClose();
     }
 
     private void sendJournalClose() {
         if (minecraft != null && minecraft.player != null) {
-            minecraft.player.connection.sendCommand("vq journal close");
+            UiTestTour.command("vq journal close");
         }
     }
 
     private boolean shouldShowQuestMasterTutorial() {
-        return section == Section.OVERVIEW && InventoryJournalTutorialState.shouldShowQuestMasterButtonHint();
+        return !UiTestTour.active() && section == Section.OVERVIEW && InventoryJournalTutorialState.shouldShowQuestMasterButtonHint();
     }
 
     private void playClick() {

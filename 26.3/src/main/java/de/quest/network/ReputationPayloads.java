@@ -99,6 +99,13 @@ public final class ReputationPayloads {
                 buf -> new OpenPayload(buf.readVarInt(), buf.readBlockPos(), buf.readVarInt()));
         @Override public Type<? extends CustomPacketPayload> type() { return ID; }
     }
+    public record OpenFeedbackPayload(String reasonKey) implements CustomPacketPayload {
+        public static final Type<OpenFeedbackPayload> ID = id("reputation_open_feedback");
+        public static final StreamCodec<RegistryFriendlyByteBuf, OpenFeedbackPayload> CODEC = StreamCodec.of(
+                (buf, value) -> buf.writeUtf(value.reasonKey(), 128),
+                buf -> new OpenFeedbackPayload(buf.readUtf(128)));
+        @Override public Type<? extends CustomPacketPayload> type() { return ID; }
+    }
     public record ActionPayload(UUID session, UUID subject, long revision, int action, int material, int villagePage) implements CustomPacketPayload {
         public static final int CLOSE = 0, CHOOSE = 1, SUBMIT = 2, SUPPORT_ACCEPT = 3, SUPPORT_SUBMIT = 4, PAGE = 5;
         public static final Type<ActionPayload> ID = id("reputation_action");

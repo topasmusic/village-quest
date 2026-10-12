@@ -33,9 +33,9 @@ public final class ProsperityService {
     private static final int MAX_RANK = 3;
     private static final long[] RANK_COSTS = {
             0L,
+            CurrencyService.CROWN * 2L,
             CurrencyService.CROWN * 6L,
-            CurrencyService.CROWN * 12L,
-            CurrencyService.CROWN * 24L
+            CurrencyService.CROWN * 14L
     };
     private static final String RANK_PREFIX = "prosperity.rank.";
     private static final String COLLECTION_PREFIX = "prosperity.collection.";
@@ -50,8 +50,8 @@ public final class ProsperityService {
     private static final String STAT_SERVICES = "prosperity.stat.services";
     private static final String STAT_INVESTMENTS = "prosperity.stat.investments";
     private static final String STAT_COLLECTIONS = "prosperity.stat.collections";
-    static final long FESTIVAL_MINIMUM_BONUS = CurrencyService.SILVERMARK * 3L;
-    static final long CEREMONY_MINIMUM_BONUS = CurrencyService.SILVERMARK * 6L;
+    static final long FESTIVAL_MINIMUM_BONUS = CurrencyService.SILVERMARK * 4L;
+    static final long CEREMONY_MINIMUM_BONUS = CurrencyService.SILVERMARK * 8L;
 
     private ProsperityService() {}
 
@@ -167,7 +167,7 @@ public final class ProsperityService {
         if (!VillageProjectService.isUnlocked(world, player.getUUID(), branch.requiredProject())) {
             player.sendSystemMessage(Component.translatable("message.village-quest.prosperity.project_locked",
                     Component.translatable("quest.village-quest.project." + branch.requiredProject().id() + ".title"))
-                    .withStyle(ChatFormatting.RED), false);
+                    .withStyle(ChatFormatting.GRAY), false);
             return false;
         }
         int current = rank(world, player.getUUID(), branch);
@@ -248,7 +248,7 @@ public final class ProsperityService {
         PlayerQuestData playerData = data(world, player.getUUID());
         if (rank(world, player.getUUID(), ProsperityBranch.MARKET) < 1) {
             player.sendSystemMessage(Component.translatable("message.village-quest.prosperity.commission_locked")
-                    .withStyle(ChatFormatting.RED), false);
+                    .withStyle(ChatFormatting.GRAY), false);
             return false;
         }
         if (!playerData.getTradeRouteString(PENDING_COMMISSION).isBlank()) {
@@ -259,9 +259,20 @@ public final class ProsperityService {
         ShopOffer offer = ShopService.offer(offerId);
         if (offer == null || !ShopService.isOfferUnlocked(world, player.getUUID(), offerId)) return false;
         long price = safeAdd(shopPrice(world, player.getUUID(), offer), commissionFee(world, player.getUUID()));
+        var fixedPackage = de.quest.reward.RewardShopCatalog.get(offerId);
+        if (fixedPackage != null && !playerData.vanillaRewards().canAccept()) return false;
         if (!CurrencyService.removeBalance(world, player.getUUID(), price)) {
             notEnough(player, world, price);
             return false;
+        }
+        if (fixedPackage != null) {
+            var snapshot = new net.minecraft.nbt.CompoundTag(); snapshot.putInt("version",1); snapshot.putString("key","shop:" + offerId);
+            snapshot.put("items", de.quest.reward.RewardItems.encode(world,de.quest.reward.RewardItems.create(world,fixedPackage.goods())));
+            snapshot.put("summaryComponent", net.minecraft.network.chat.ComponentSerialization.CODEC.encodeStart(net.minecraft.nbt.NbtOps.INSTANCE, de.quest.reward.VanillaRewardService.summary(new de.quest.reward.VanillaRewardRegistry.Option("",0,fixedPackage.goods(),false))).getOrThrow());
+            if (!playerData.vanillaRewards().accept("shop",playerData.vanillaRewards().nextIdentity("shop",offerId),snapshot)) {
+                CurrencyService.addBalance(world,player.getUUID(),price); return false;
+            }
+            playerData.setMilestoneFlag("reward.shop_snapshot",true);
         }
         playerData.setTradeRouteString(PENDING_COMMISSION, offerId);
         playerData.setPilgrimInt(PENDING_COMMISSION_DAY, (int) TimeUtil.currentDay());
@@ -297,7 +308,7 @@ public final class ProsperityService {
         }
         if (service == VillageService.GUILD_CEREMONY && TradeGuildService.guildRank(world, player.getUUID()) < 3) {
             player.sendSystemMessage(Component.translatable("message.village-quest.prosperity.ceremony_locked")
-                    .withStyle(ChatFormatting.RED), false);
+                    .withStyle(ChatFormatting.GRAY), false);
             return false;
         }
         if (!CurrencyService.removeBalance(world, player.getUUID(), service.cost())) {
@@ -367,7 +378,7 @@ public final class ProsperityService {
         if (!owned) {
             if (!collectionUnlocked(world, player.getUUID(), reward)) {
                 player.sendSystemMessage(Component.translatable("message.village-quest.prosperity.collection_locked")
-                        .withStyle(ChatFormatting.RED), false);
+                        .withStyle(ChatFormatting.GRAY), false);
                 return false;
             }
             if (!CurrencyService.removeBalance(world, player.getUUID(), reward.cost())) {

@@ -49,6 +49,7 @@ public class VillageQuest implements ModInitializer {
         QuestService.registerEvents();
         QuestNetworking.register();
         QuestCommands.register();
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(de.quest.reward.VanillaRewardService::onTick);
         AdminCommands.register();
     }
 

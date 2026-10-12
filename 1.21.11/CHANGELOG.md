@@ -1,5 +1,11 @@
 # Changelog
 
+## Unpackaged localization corrections — 2026-10-12
+
+- Rechecked EN/DE/ES with quest and item context: consistent currencies, profession reputation, compass and ledger names; corrected the spider-fang contract, first-route project explanation, and applicable progression instructions. Added contextual localization regression guards.
+
+- Reviewed all EN/DE/ES entries and corrected German grammar and Spanish quest/item mistranslations. Translation keys, placeholders, quest quantities and existing release artifacts are preserved. No content port or new release build.
+
 ## 2.1.1 - Homesteads & Wayfinding
 
 Release date: 2026-08-09

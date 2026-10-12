@@ -36,6 +36,14 @@ final class ReputationPayloadsTest {
         buf.writeVarInt(99);
         assertThrows(IllegalArgumentException.class, () -> ReputationPayloads.ViewPayload.CODEC.decode(buf));
     }
+    @Test void blockedTrustReasonSurvivesTheNetworkRoundTrip() {
+        var buf = new RegistryFriendlyByteBuf(Unpooled.buffer(), registries);
+        var original = new ReputationPayloads.OpenFeedbackPayload("reputation.village-quest.open.unavailable");
+        ReputationPayloads.OpenFeedbackPayload.CODEC.encode(buf, original);
+        assertEquals(original, ReputationPayloads.OpenFeedbackPayload.CODEC.decode(buf));
+        assertEquals(0, buf.readableBytes());
+        buf.release();
+    }
     @Test void maliciousCollectionLengthIsRejectedInsteadOfClampedOrLeftUnread() {
         var buf = new RegistryFriendlyByteBuf(Unpooled.buffer(), registries);
         assertThrows(IllegalArgumentException.class, () -> ReputationPayloads.checkedCount(9, 8));

@@ -39,6 +39,8 @@ public final class QuestState extends SavedData {
     private CompoundTag questPartyState = new CompoundTag();
     private long socialServerTick;
     private net.minecraft.nbt.Tag preservedSocialRecords;
+    private net.minecraft.nbt.Tag preservedRewards;
+    private CompoundTag orphanRewards = new CompoundTag();
     private net.minecraft.nbt.Tag preservedProtectedVillages;
     private de.quest.reputation.ProtectedVillageIndex protectedVillages = new de.quest.reputation.ProtectedVillageIndex();
     public de.quest.reputation.ProtectedVillageIndex protectedVillages() { return protectedVillages; }
@@ -64,6 +66,9 @@ public final class QuestState extends SavedData {
         CompoundTag root = new CompoundTag();
         root.put("questManager", state.writeDailyQuestData());
         root.put("questPartyManager", state.questPartyState);
+        CompoundTag rewards = state.orphanRewards.copy();
+        state.players.forEach((id, data) -> { if (!state.orphanRewards.contains(id.toString())) rewards.put(id.toString(), data.vanillaRewards().toNbt()); });
+        root.put("vanillaRewards", state.preservedRewards == null ? rewards : state.preservedRewards.copy());
         root.putLong("socialServerTick", state.socialServerTick);
         root.put("protectedVillages", state.preservedProtectedVillages == null ? state.protectedVillages.toNbt() : state.preservedProtectedVillages.copy());
         return root;
@@ -83,6 +88,9 @@ public final class QuestState extends SavedData {
                 CompoundTag quarantine = new CompoundTag(); quarantine.putInt("schema", -1);
                 data.loadSocialReputation(quarantine);
             }
+            if (preservedRewards != null || orphanRewards.contains(id.toString())) {
+                CompoundTag quarantine = new CompoundTag(); quarantine.putInt("schema", -1); data.loadVanillaRewards(quarantine);
+            }
             return data;
         });
     }
@@ -96,7 +104,10 @@ public final class QuestState extends SavedData {
     }
 
     public void resetAllProgress() {
+        Map<UUID, CompoundTag> rewards = new HashMap<>();
+        players.forEach((id, data) -> { data.vanillaRewards().resetSlots(); rewards.put(id, data.vanillaRewards().toNbt()); });
         players.clear();
+        rewards.forEach((id, tag) -> getPlayerData(id).loadVanillaRewards(tag));
         modifiedTerrainRegions.clear();
         pilgrimNaturalSpawnCooldownUntil = 0L;
         questPartyState = new CompoundTag();
@@ -125,6 +136,18 @@ public final class QuestState extends SavedData {
         }
         CompoundTag daily = root.getCompoundOrEmpty("questManager");
         readDailyQuestData(daily);
+        var rawRewards = root.get("vanillaRewards");
+        preservedRewards = rawRewards != null && !(rawRewards instanceof CompoundTag) ? rawRewards.copy() : null;
+        orphanRewards = new CompoundTag();
+        CompoundTag rewards = root.getCompoundOrEmpty("vanillaRewards");
+        for (String owner : rewards.keySet()) {
+            try {
+                UUID id = UUID.fromString(owner);
+                if (rewards.get(owner) instanceof CompoundTag reward) getPlayerData(id).loadVanillaRewards(reward);
+                else { orphanRewards.put(owner,rewards.get(owner).copy()); CompoundTag quarantine = new CompoundTag(); quarantine.putInt("schema",-1); getPlayerData(id).loadVanillaRewards(quarantine); }
+            } catch (IllegalArgumentException malformed) { orphanRewards.put(owner,rewards.get(owner).copy()); }
+        }
+        if (preservedRewards != null) players.values().forEach(data -> { CompoundTag quarantine = new CompoundTag(); quarantine.putInt("schema",-1); data.loadVanillaRewards(quarantine); });
         questPartyState = root.getCompoundOrEmpty("questPartyManager");
         if (preservedSocialRecords != null) de.quest.VillageQuest.LOGGER.warn("Social reputation container is malformed; preserved read-only. Other quest progress remains available.");
         else players.forEach((id, data) -> { if (!data.socialReputation().writable()) de.quest.VillageQuest.LOGGER.warn("Social reputation for {} has an unknown or damaged schema; preserved read-only.", id); });

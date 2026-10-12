@@ -55,6 +55,7 @@ import net.minecraft.world.level.saveddata.maps.MapDecorationTypes;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 
 public final class ShrinesBetweenRoadsStoryArc implements StoryArcDefinition {
+    public static final int REQUIRED_VILLAGE_SURVEYS = 2;
     private static final String RESERVED_RUIN_X = "reserved_heartstone_ruin_x";
     private static final String RESERVED_RUIN_Y = "reserved_heartstone_ruin_y";
     private static final String RESERVED_RUIN_Z = "reserved_heartstone_ruin_z";
@@ -139,7 +140,7 @@ public final class ShrinesBetweenRoadsStoryArc implements StoryArcDefinition {
         protected int progress(ServerLevel world, UUID playerId, String key) { return StoryQuestService.getQuestInt(world, playerId, key); }
         protected boolean flag(ServerLevel world, UUID playerId, String key) { return StoryQuestService.hasStoryFlag(world, playerId, key); }
         protected Component title(int chapter) { return Component.translatable(key(chapter, "title")); }
-        protected Component offer(int chapter, int paragraph) { return Component.translatable(key(chapter, "offer." + paragraph)).withStyle(ChatFormatting.GRAY); }
+        protected Component offer(int chapter, int paragraph, Object... args) { return Component.translatable(key(chapter, "offer." + paragraph), args).withStyle(ChatFormatting.GRAY); }
         protected StoryChapterCompletion completion(int chapter, long currency, int levels, ReputationService.ReputationTrack track, int reputation, VillageProjectType project) {
             String prefix = key(chapter, "");
             return new StoryChapterCompletion(title(chapter), Component.translatable(prefix + ".complete.1").withStyle(ChatFormatting.GRAY),
@@ -155,11 +156,11 @@ public final class ShrinesBetweenRoadsStoryArc implements StoryArcDefinition {
 
     private static final class StonesThatRemember extends ShrineChapter {
         @Override public Component title() { return title(1); }
-        @Override public Component offerParagraph1() { return offer(1, 1); }
+        @Override public Component offerParagraph1() { return offer(1, 1, REQUIRED_VILLAGE_SURVEYS); }
         @Override public Component offerParagraph2() { return offer(1, 2); }
         @Override public void onAccepted(ServerLevel world, ServerPlayer player) { give(player, new ItemStack(ModItems.CARTOGRAPHERS_LENS)); }
-        @Override public List<Component> progressLines(ServerLevel world, UUID id) { return List.of(Component.translatable("quest.village-quest.story.shrines_between_roads.chapter_1.progress", progress(world, id, StoryQuestKeys.SHRINES_VILLAGES_INSPECTED), 2).withStyle(ChatFormatting.GRAY)); }
-        @Override public boolean isComplete(ServerLevel world, ServerPlayer player) { return progress(world, player.getUUID(), StoryQuestKeys.SHRINES_VILLAGES_INSPECTED) >= 2; }
+        @Override public List<Component> progressLines(ServerLevel world, UUID id) { return List.of(Component.translatable("quest.village-quest.story.shrines_between_roads.chapter_1.progress", progress(world, id, StoryQuestKeys.SHRINES_VILLAGES_INSPECTED), REQUIRED_VILLAGE_SURVEYS).withStyle(ChatFormatting.GRAY)); }
+        @Override public boolean isComplete(ServerLevel world, ServerPlayer player) { return progress(world, player.getUUID(), StoryQuestKeys.SHRINES_VILLAGES_INSPECTED) >= REQUIRED_VILLAGE_SURVEYS; }
         @Override public void onClaimed(ServerLevel world, ServerPlayer player) { VillageBondService.installLensInLedger(world, player); }
         @Override public StoryChapterCompletion buildCompletion() { return completion(1, CurrencyService.CROWN + 4, 9, ReputationService.ReputationTrack.TRADE, 12, null); }
     }

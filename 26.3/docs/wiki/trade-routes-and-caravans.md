@@ -40,6 +40,8 @@ Registration checks both sides of the destination: the player must be inside a r
 
 Normal use of the ledger, or `/vq routes`, opens the route map.
 
+The Caravan Master view uses an open parchment layout without a second inner window, with a centered progress badge in the header. It shows the current route and journey above a progress bar, arrival and road conditions in two columns, cargo, any incident and personal Guild standing. Hover the Master's name for their remark, or a shortened label for its full details. These hints wrap into compact boxes that stay on screen. **View route** opens the existing route overview when available. The route and close actions now sit inside the parchment footer, matching the Journal and Quest Board controls.
+
 ### Using a Player Base as the Home Node
 
 The `Market Charter` no longer forces the provisional first node to be inside a generated village. As soon as it grants the Caravan Ledger, stand on solid, dry Overworld ground at your base and run `/vq routes yard`, or sneak-use the ledger while no generated village can be registered. Repeat the action within `30 seconds` to confirm the exact place. The map marks it as a distinct `Homestead Trade Post` rather than pretending that the base is a village. No second unlock quest is required; the later `Caravan Yard` still matters because it expands the network from one route to five and enables incidents.
@@ -203,7 +205,7 @@ Deliveries add route earnings. The amount depends on:
 - road quality
 - the complete installed path length
 
-Ordinary delivery income is capped across the entire network at `8 Silvermarks` per Minecraft day for the provisional network and `60 Silvermarks` for the full Caravan Yard. When the owner is offline, earnings enter a capped trade-office escrow instead of silently filling the wallet. Opening or using the ledger collects it.
+Ordinary arrival income now earns one `Silvermark` of budget per four minutes of online simulation time, up to `15 SM` per online hour for the entire network. One or five routes share the same budget, including a provisional route. At most one hour of unspent credit is banked, and arrivals are also limited to `15 SM` in each saved online-hour window. Sleeping, world-day changes, reconnecting and offline catch-up do not replenish it. Offline arrivals generate no new passive currency. Existing trade-office escrow remains collectible when opening or using the ledger.
 
 This is deliberately a long-term infrastructure loop. A route begins uncertain, becomes safer through play, and can eventually flourish if the player maintains it.
 
@@ -217,7 +219,9 @@ This is deliberately a long-term infrastructure loop. A route begins uncertain, 
 2. Carry the listed cargo and run `/vq routes contracts supply`.
 3. Keep the assigned route active. Its next arrival within three real-world reset days completes the order.
 
-Contract payout increases modestly for long installed roads. A matching specialization adds `25%`; the final `Trade Office` upgrade adds another `25%`. Freight completion and its separate payout still occur when ordinary route income has already reached the network's daily cap.
+New contract payouts use cargo value plus a transport fee, with up to `3 SM` for installed-road distance, `2 SM` for a matching specialization, `2 SM` for a Trade Office and `2 SM` for a dangerous route. Bonuses apply to transport, not the entire cargo value. The accepted quote is saved; existing accepted contracts without a quote keep their original reward formula. Freight completion and its separate payout still occur when the passive budget is empty, including offline arrivals.
+
+Freight and Regional Dispatch share a limit of `3` new commissions per player per real daily reset across all routes. The slot is reserved on acceptance; cancellation and expiration do not restore it. Existing accepted work still completes normally. Regional Dispatch remains an eight-item, two-leg shipment; rewards vary with material and combined installed-road distance instead of always paying `12 SM`. Direct village requests keep their existing one-per-village daily reset and use the same material reference plus a local delivery fee. Wheat, bread and hay preserve their ingredient ratios.
 
 Every route arrival now also helps a recorded destination village and advances that village's Wayshrine-energy meter. Matching supplied freight has the stronger effect. Three energy steps generate a shared charge at a bound destination shrine, while failed incidents create bounded supply strain with a hard repair floor instead of destroying trust or story progress.
 
@@ -232,7 +236,7 @@ Permanent upgrades are purchased with `/vq routes upgrade <route> <upgrade>`:
 | `covers` | 35 SM | 2 | fewer weather/road delays overall |
 | `escorts` | 45 SM | 3 | substantially fewer incidents |
 | `insurance` | 50 SM | 4 | a failed incident no longer removes a past success |
-| `office` | 60 SM | 5 | `25%` higher freight-contract payout |
+| `office` | 60 SM | 5 | `2 SM` extra transport payment on new freight contracts |
 
 ## Roadwarden Horn
 
@@ -289,3 +293,9 @@ The ordinary complete data reset also removes route runtime entities, but it is 
 ## Caravan violence and reparation in2.5
 
 Crews and the pack mule now have persistent lives and are physically vulnerable by default. Confirmed personal attacks trigger warnings, measured trust losses and temporary work restrictions; guards defend only against proven attackers within the route leash. A real death interrupts the affected trip, keeps freight in safe saved claims and replaces the lost person only at a later safe departure. Cleanup/ferries/unload preserve living identities. Full rules and the reachable aid path are in [Social reputation](social-reputation.md). Caravan purchase limits now use the configured real Daily reset, with personal standing limits2/4/5/6 and case/ostracism0.
+
+## Dispatch board
+
+The current development sources use the same compact Notice Board frame and parchment style for Regional Dispatches. Before access is available, the page shows a heading, an icon and a wrapped explanation. Freight pages preserve their offers, Send buttons and claim action; shortened freight details remain available on hover.
+
+Notice Board and Dispatches keep the world running in singleplayer, as other interactive boards do. You can return to the Notice Board and use Trust again. These source fixes are not included in the existing .18 candidate JARs.

@@ -21,7 +21,7 @@ import net.minecraft.world.item.ItemStack;
  */
 public final class GuildPathScreen extends CompatScreen {
     private static final Identifier BOARD = Identifier.fromNamespaceAndPath(
-            VillageQuest.MOD_ID, "textures/gui/journal_board.png");
+            VillageQuest.MOD_ID, "textures/gui/guild_atlas_frame.png");
     private static final Identifier MAP_TEXTURE = Identifier.fromNamespaceAndPath(
             VillageQuest.MOD_ID, "textures/gui/guild_path_map.png");
     private static final int WIDTH = 416;
@@ -29,15 +29,12 @@ public final class GuildPathScreen extends CompatScreen {
     private static final int MAP_TEXTURE_WIDTH = 1774;
     private static final int MAP_TEXTURE_HEIGHT = 887;
     private static final int MAP_X = 10;
-    private static final int MAP_Y = 25;
+    private static final int MAP_Y = 18;
     private static final int MAP_WIDTH = 396;
-    private static final int MAP_HEIGHT = 193;
+    private static final int MAP_HEIGHT = 200;
     private static final int BASE_MAP_WIDTH = 780;
     private static final int BASE_MAP_HEIGHT = 390;
     private static final int MARKER_SIZE = 22;
-    private static final int FRAME_TOP_HEIGHT = 34;
-    private static final int FRAME_BOTTOM_Y = 214;
-    private static final int FRAME_SIDE_WIDTH = 16;
     private static final int INK = 0xFF2D1B12;
     private static final int BODY = 0xFF5B4635;
     private static final int MUTED = 0xFF8A7661;
@@ -103,8 +100,6 @@ public final class GuildPathScreen extends CompatScreen {
                 mapInitialized = true;
             }
             VillageUiTheme.drawPanelShadow(graphics, left, top, WIDTH, HEIGHT);
-            graphics.blit(RenderPipelines.GUI_TEXTURED, BOARD, left, top, 0, 0,
-                    WIDTH, HEIGHT, WIDTH, HEIGHT);
             drawMap(graphics, left, top, uiX, uiY);
             drawFrameOverlay(graphics, left, top);
             drawHeader(graphics, left, top);
@@ -150,15 +145,9 @@ public final class GuildPathScreen extends CompatScreen {
     }
 
     private void drawFrameOverlay(GuiGraphics graphics, int left, int top) {
+        // The transparent Atlas perimeter sits above the map, without a paper gap.
         graphics.blit(RenderPipelines.GUI_TEXTURED, BOARD, left, top, 0, 0,
-                WIDTH, FRAME_TOP_HEIGHT, WIDTH, HEIGHT);
-        graphics.blit(RenderPipelines.GUI_TEXTURED, BOARD, left, top + FRAME_BOTTOM_Y,
-                0, FRAME_BOTTOM_Y, WIDTH, HEIGHT - FRAME_BOTTOM_Y, WIDTH, HEIGHT);
-        graphics.blit(RenderPipelines.GUI_TEXTURED, BOARD, left, top + FRAME_TOP_HEIGHT,
-                0, FRAME_TOP_HEIGHT, FRAME_SIDE_WIDTH, FRAME_BOTTOM_Y - FRAME_TOP_HEIGHT, WIDTH, HEIGHT);
-        graphics.blit(RenderPipelines.GUI_TEXTURED, BOARD, left + WIDTH - FRAME_SIDE_WIDTH,
-                top + FRAME_TOP_HEIGHT, WIDTH - FRAME_SIDE_WIDTH, FRAME_TOP_HEIGHT,
-                FRAME_SIDE_WIDTH, FRAME_BOTTOM_Y - FRAME_TOP_HEIGHT, WIDTH, HEIGHT);
+                WIDTH, HEIGHT, WIDTH, HEIGHT);
     }
 
     private void drawMarker(GuiGraphics graphics, Payloads.GuildPathNodeData node,
@@ -254,8 +243,8 @@ public final class GuildPathScreen extends CompatScreen {
                 true, closeHover, false);
     }
 
-    @Override public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
-        if (click.button() != InputConstants.MOUSE_BUTTON_LEFT) return super.mouseClicked(click, doubled);
+    @Override protected boolean handleMouseClicked(MouseButtonEvent click, boolean doubled) {
+        if (click.button() != InputConstants.MOUSE_BUTTON_LEFT) return super.handleMouseClicked(click, doubled);
         int left = (width - WIDTH) / 2;
         int top = (height - HEIGHT) / 2;
         int mouseX = responsiveMouseX(click.x(), WIDTH, HEIGHT);
@@ -279,7 +268,7 @@ public final class GuildPathScreen extends CompatScreen {
             pressedNode = nodeAt(mouseX, mouseY, left, top);
             return true;
         }
-        return super.mouseClicked(click, doubled);
+        return super.handleMouseClicked(click, doubled);
     }
 
     @Override public boolean mouseDragged(MouseButtonEvent click, double dragX, double dragY) {
@@ -346,7 +335,7 @@ public final class GuildPathScreen extends CompatScreen {
     @Override public void onClose() {
         if (!sessionClosed && ClientPlayNetworking.canSend(Payloads.QuestMasterSessionPayload.ID)) {
             sessionClosed = true;
-            ClientPlayNetworking.send(new Payloads.QuestMasterSessionPayload(
+            UiTestTour.send(new Payloads.QuestMasterSessionPayload(
                     data.questMasterEntityId(), Payloads.QuestMasterSessionPayload.ACTION_CLOSE));
         }
         super.onClose();

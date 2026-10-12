@@ -62,6 +62,8 @@ All Village Quest crafting recipes share a dedicated tab in the vanilla recipe b
 - `Wayfarer's Sigil`: binds and activates Wayshrines; sneak-use it to inspect shrine bindings, milestones, and distance to the nearest surveyed route.
 - `Guild Courier's Satchel`: one dedicated cargo slot for the active freight contract. Use it to pack matching inventory goods; sneak-use to unload. Supplying a contract consumes its cargo first.
 
+Newly visited, unmodified generated villages can receive one Guild Corner automatically when a fully loaded, safe site is available. New corners search beside actual village buildings and paths: their candidate center must be within 12 horizontal blocks of a village structure piece, so an empty forest inside a large village bounding rectangle cannot win. If no safe nearby site is available, placement waits rather than using a distant clearing. Existing corners are not moved. Desert villages use the desert preset; other biome families use the generic preset. Older or edited villages require an explicit `/vq town retrofit` request and still need a safe site. Removing a generated corner never causes automatic respawning. The preview accepts both current and older template formats, correcting the 26.3 bug that prevented both bundled presets from spawning; restart the source client and revisit eligible villages to retry.
+
 ## Testing
 
 Administrators can prepare a route network and receive the shrine blocks, tools, Sigil, and satchel with:

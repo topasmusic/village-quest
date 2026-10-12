@@ -316,7 +316,7 @@ final class VillageNetworkCommands {
         if (progress.rank() < 2) {
             player.sendSystemMessage(Component.translatable(
                     "command.village-quest.network.specialization_rank_required")
-                    .withStyle(ChatFormatting.RED), false);
+                    .withStyle(ChatFormatting.GRAY), false);
             return false;
         }
         return true;

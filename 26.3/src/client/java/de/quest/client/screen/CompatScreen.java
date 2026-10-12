@@ -1,8 +1,10 @@
 package de.quest.client.screen;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import de.quest.client.compat.GuiGraphics;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
@@ -30,7 +32,21 @@ public abstract class CompatScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor extractor, int mouseX, int mouseY, float delta) {
-        render(new GuiGraphics(extractor), mouseX, mouseY, delta);
+        GuiGraphics graphics = new GuiGraphics(extractor);
+        render(graphics, mouseX, mouseY, delta);
+        UiTestTour.render(graphics, font, width, height, mouseX, mouseY);
+    }
+
+    @Override public final boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
+        if (click.button() == InputConstants.MOUSE_BUTTON_LEFT && UiTestTour.click(click.x(), click.y(), width, height)) return true;
+        return handleMouseClicked(click, doubled);
+    }
+    protected boolean handleMouseClicked(MouseButtonEvent click, boolean doubled) {
+        return super.mouseClicked(click, doubled);
+    }
+    @Override public void onClose() {
+        if (UiTestTour.active()) { UiTestTour.closed(); return; }
+        super.onClose();
     }
 
     public void render(GuiGraphics context, int mouseX, int mouseY, float delta) {
@@ -80,9 +96,12 @@ public abstract class CompatScreen extends Screen {
 
     private float responsivePanelScale(int panelWidth, int panelHeight) {
         float widthScale = this.width * MAX_PANEL_WIDTH_RATIO / Math.max(1, panelWidth);
-        float heightScale = this.height * MAX_PANEL_HEIGHT_RATIO / Math.max(1, panelHeight);
-        return Math.max(0.5f, Math.min(1.0f, Math.min(widthScale, heightScale)));
+        float heightScale = Math.max(40, this.height) * MAX_PANEL_HEIGHT_RATIO / Math.max(1, panelHeight);
+        return Math.max(0.5f, Math.min(1.0f, Math.min(widthScale, heightScale))) * panelSizeFactor();
     }
+
+    /** Shared by drawing, pointer conversion and dragging, including the UI tour. */
+    protected float panelSizeFactor() { return 1.0f; }
 
     private static GuiGraphicsExtractor unwrap(GuiGraphics context) {
         try {

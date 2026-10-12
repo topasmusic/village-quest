@@ -48,8 +48,11 @@ final class VillageBondServiceTest {
             VillageRequestType request = requests[i];
             assertEquals(i, request.id());
             assertEquals(expectedAmounts[i], request.amount());
-            assertTrue(request.reward() >= 24);
+            assertTrue(request.reward() > 0);
         }
+        // Farmable crops pay less than scarce/processed cargo; catalog size does not set a reward floor.
+        assertTrue(VillageRequestType.FORGE_IRON.reward() > VillageRequestType.GRANARY_WHEAT.reward());
+        assertTrue(VillageRequestType.PASTURE_FODDER.reward() > VillageRequestType.GRANARY_WHEAT.reward());
     }
 
     @Test

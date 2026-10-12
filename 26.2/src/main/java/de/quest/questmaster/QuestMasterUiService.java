@@ -186,6 +186,12 @@ public final class QuestMasterUiService {
             return;
         }
 
+        if (payload.entryId().startsWith(EarnedQuestRewards.PREFIX)) {
+            if (payload.action() == Payloads.QuestMasterActionPayload.ACTION_CLAIM && EarnedQuestRewards.owns(world,player,payload.entryId()))
+                de.quest.reward.VanillaRewardService.claimChoice(world,player,payload.entryId().substring(EarnedQuestRewards.PREFIX.length()));
+            refreshIfOpen(world,player); return;
+        }
+
         StoryArcType storyArc = storyArcFromEntryId(payload.entryId());
         if (storyArc != null) {
             handleStoryAction(world, player, payload.action(), storyArc);
@@ -374,6 +380,17 @@ public final class QuestMasterUiService {
         List<Payloads.QuestMasterEntryData> weeklyEntries = buildWeeklyEntries(world, player);
         List<Payloads.QuestMasterEntryData> storyEntries = buildStoryEntries(world, player);
         List<Payloads.QuestMasterEntryData> specialEntries = buildSpecialEntries(world, player);
+
+        dailyEntries = new ArrayList<>(dailyEntries); weeklyEntries = new ArrayList<>(weeklyEntries);
+        storyEntries = new ArrayList<>(storyEntries); specialEntries = new ArrayList<>(specialEntries);
+        for (var earned : EarnedQuestRewards.entries(world,player)) {
+            switch (earned.categoryId()) {
+                case CATEGORY_DAILY -> dailyEntries.add(earned);
+                case CATEGORY_WEEKLY -> weeklyEntries.add(earned);
+                case CATEGORY_STORY -> storyEntries.add(earned);
+                default -> specialEntries.add(earned);
+            }
+        }
 
         List<Payloads.QuestMasterCategoryData> categories = List.of(
                 new Payloads.QuestMasterCategoryData(CATEGORY_DAILY, Component.translatable("screen.village-quest.questmaster.category.daily"), displayCount(CATEGORY_DAILY, dailyEntries)),
@@ -1624,8 +1641,8 @@ public final class QuestMasterUiService {
                                           UUID playerId,
                                           DailyQuestService.DailyQuestType questType,
                                           boolean bonus) {
-        return rewardLines(world, playerId,
-                DailyQuestService.previewCompletion(world, playerId, questType, bonus));
+        return de.quest.reward.VanillaRewardService.withSaved(world,playerId,bonus ? "bonus" : "daily", rewardLines(world, playerId,
+                DailyQuestService.previewCompletion(world, playerId, questType, bonus)));
     }
 
     private static ActionSpec activeQuestAction(QuestCompletionMode completionMode, boolean ready, boolean blockedByItems) {
@@ -1739,7 +1756,7 @@ public final class QuestMasterUiService {
                     QuestExperienceService.RewardType.WEEKLY
             ));
         }
-        return rewards;
+        return de.quest.reward.VanillaRewardService.withSaved(world,playerId,"weekly",rewards);
     }
 
     private static List<Component> appendQuestEcho(ServerLevel world,

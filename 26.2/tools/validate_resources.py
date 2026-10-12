@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 import re
 import sys
+from localization_context import DAMAGED_UNICODE, validate_catalog_context
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -61,6 +62,10 @@ def validate() -> tuple[dict[str, object], list[str]]:
             errors.append(f"{path.relative_to(ROOT)}: localization root must be an object")
             continue
         catalogs[language] = value
+        errors.extend(validate_catalog_context(language,value))
+        for key,text in value.items():
+            if not isinstance(text,str) or DAMAGED_UNICODE.search(text):
+                errors.append(f"{language}: invalid or damaged locale text for {key}")
 
     english = catalogs.get("en_us", {})
     for language in LANGUAGES[1:]:

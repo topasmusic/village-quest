@@ -1,5 +1,6 @@
 package de.quest.client.screen;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import de.quest.VillageQuest;
 import de.quest.client.ui.VillageUiTheme;
 import de.quest.economy.CurrencyService;
@@ -38,7 +39,7 @@ public final class ProsperityScreen extends CompatScreen {
     private static final int DETAIL_HEIGHT = 132;
     private static final int ACTION_Y = 166;
     private static final int ACTION_HEIGHT = 18;
-    private static final int FOOTER_Y = 203;
+    private static final int FOOTER_Y = 191;
     private static final int ROUTE_SELECTOR_Y = FOOTER_Y - 4;
     private static final int HEADER_WALLET_RIGHT_INSET = 40;
     private static final int HEADER_WALLET_TOP = 10;
@@ -67,6 +68,12 @@ public final class ProsperityScreen extends CompatScreen {
     public ProsperityScreen(Payloads.EconomyPayload data) {
         super(Component.translatable("screen.village-quest.prosperity.title"));
         this.data = data;
+    }
+
+    void selectTourSection(String sectionId) {
+        restoreSection(sectionId);
+        selectedEntryIndex = listScroll = 0;
+        clampState();
     }
 
     public void updateData(Payloads.EconomyPayload data) {
@@ -271,8 +278,8 @@ public final class ProsperityScreen extends CompatScreen {
     }
 
     @Override
-    public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
-        if (click.button() != 0) return super.mouseClicked(click, doubled);
+    protected boolean handleMouseClicked(MouseButtonEvent click, boolean doubled) {
+        if (click.button() != InputConstants.MOUSE_BUTTON_LEFT) return super.handleMouseClicked(click, doubled);
         int left = (width - WINDOW_WIDTH) / 2;
         int top = (height - WINDOW_HEIGHT) / 2;
         int mouseX = responsiveMouseX(click.x(), WINDOW_WIDTH, WINDOW_HEIGHT);
@@ -320,7 +327,7 @@ public final class ProsperityScreen extends CompatScreen {
             if ((action.startsWith("service:") || action.startsWith("collection:")) && !data.routeNames().isEmpty()) {
                 action += ":" + selectedRouteIndex;
             }
-            ClientPlayNetworking.send(new Payloads.EconomyActionPayload(action));
+            UiTestTour.send(new Payloads.EconomyActionPayload(action));
             playClick();
             return true;
         }
@@ -329,7 +336,7 @@ public final class ProsperityScreen extends CompatScreen {
             returnToJournal();
             return true;
         }
-        return super.mouseClicked(click, doubled);
+        return super.handleMouseClicked(click, doubled);
     }
 
     private void returnToJournal() {
@@ -337,7 +344,7 @@ public final class ProsperityScreen extends CompatScreen {
             onClose();
             return;
         }
-        minecraft.player.connection.sendCommand("vq journal open");
+        UiTestTour.command("vq journal open");
     }
 
     @Override

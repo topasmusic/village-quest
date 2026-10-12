@@ -2,11 +2,11 @@
 
 Village Quest uses a single-active-line development policy.
 
-## 2.5.0 withdrawn
+## 2.5.0 current release
 
-`Village Quest 2.5.0 - Roads of Concord` targets Minecraft `26.3` and `26.2` with the same gameplay content. Both 2.5.0 releases were withdrawn on 2026-10-04. Stable is 2.4.2 for both targets. The 26.2 content port and original release were explicitly authorized; future content is still developed only on 26.3.
+`Village Quest 2.5.0 — Bonds & Bounty` is released on 2026-10-12 for Minecraft `26.3` and `26.2` with matching content and native APIs/dependencies. The 26.2 port and release were explicitly authorized; future content is still developed only on 26.3. The earlier Roads of Concord publication was withdrawn on 2026-10-04 and is retained only as historical context.
 
-## 2.4.2 current release
+## 2.4.2 release
 
 `Village Quest 2.4.2` is the published caravan route reliability hotfix for Minecraft `26.3` and `26.2`. It preserves the 2.4.1 gameplay content. This does not change the single-active-line policy.
 
@@ -39,7 +39,7 @@ The release contains the same intended features, fixes, documentation, and resou
 ## Current support policy
 
 - Minecraft `26.3` is the only active content-development line.
-- Minecraft `26.2` remains available as the previous maintenance line on Stable 2.4.2. Its 2.5.0 source port is retained for development.
+- Minecraft `26.2` remains available as the previous maintenance line on Stable 2.5.0 through the explicitly authorized content port.
 - New quests, systems, items, interfaces, balancing passes, visual redesigns, and other content updates are not automatically backported to previous lines.
 - The released `2.1.x` builds for older Minecraft versions remain available for download.
 - Older lines may receive deliberately scoped maintenance releases for confirmed bug fixes, crash prevention, save-safety fixes, severe exploits, and meaningful performance improvements.

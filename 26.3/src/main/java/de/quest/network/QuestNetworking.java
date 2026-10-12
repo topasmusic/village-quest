@@ -20,6 +20,8 @@ public final class QuestNetworking {
 
     public static void register() {
         Payloads.register();
+        ServerPlayNetworking.registerGlobalReceiver(RewardPayloads.Action.ID, (payload, context) ->
+                context.server().execute(() -> de.quest.reward.VanillaRewardService.handle(context.player(), payload)));
         ServerPlayNetworking.registerGlobalReceiver(ReputationPayloads.PagePayload.ID, (payload, context) ->
                 context.server().execute(() -> de.quest.reputation.ReputationInteractionService.page(context.player(), payload)));
         ServerPlayNetworking.registerGlobalReceiver(ReputationPayloads.OpenPayload.ID, (payload, context) ->

@@ -73,8 +73,8 @@ public class PilgrimTradeScreen extends CompatScreen {
     private static final int BODY = 0xFF5C402C;
     private static final int ACCENT = 0xFF8C5A2E;
     private static final int ACCENT_BRIGHT = 0xFFD6B16A;
-    private static final int AFFORD = 0xFF396D2E;
-    private static final int TOO_EXPENSIVE = 0xFF8E312D;
+    private static final int AFFORD = 0xFF5C402C;
+    private static final int TOO_EXPENSIVE = 0xFF854332;
     private static final int MUTED = 0xFF8C7C6A;
     private static final int TOOLTIP_BG = 0xFFF6E8C8;
     private static final int TOOLTIP_SHADOW = 0x66000000;
@@ -93,16 +93,15 @@ public class PilgrimTradeScreen extends CompatScreen {
     private static final int HEADER_TITLE_TOP = 3;
     private static final int HEADER_TITLE_HEIGHT = 26;
     private static final int HEADER_WALLET_RIGHT_INSET = 32;
-    private static final int HEADER_WALLET_TOP = 5;
-    private static final int HEADER_CONTRACT_TOP = 7;
-    private static final int FOOTER_LEFT_INSET = 22;
+    private static final int HEADER_WALLET_TOP = 9;
+    private static final int HEADER_CONTRACT_TOP = 10;
+    private static final int FOOTER_LEFT_INSET = 32;
     private static final int FOOTER_RIGHT_INSET = 35;
     private static final int FOOTER_TEXT_Y_OFFSET = WINDOW_HEIGHT - 16;
     private static final float DETAIL_PRICE_COIN_SCALE = 1.08f;
-    private static final int RUMOR_TAB_WIDTH = 58;
-    private static final int RUMOR_TAB_HEIGHT = 16;
-    private static final int CONTRACT_OPTION_HEIGHT = 24;
-    private static final int CONTRACT_OPTION_GAP = 1;
+    private static final int RUMOR_TAB_WIDTH = 48;
+    private static final int RUMOR_TAB_HEIGHT = 13;
+    private static final int CONTRACT_OPTION_HEIGHT = 20;
     private static final float CONTRACT_OPTION_TEXT_SCALE = 0.84f;
 
     public record TradeView(
@@ -140,6 +139,8 @@ public class PilgrimTradeScreen extends CompatScreen {
     private boolean closeNotified = false;
     private long countdownSyncMillis = 0L;
     private boolean showContract = false;
+    private boolean tourContract;
+    void selectTourContract(boolean value) { tourContract = value; }
     private int selectedContractIndex = 0;
     private int shopDetailScrollOffset = 0;
     private int shopDetailScrollMax = 0;
@@ -179,7 +180,7 @@ public class PilgrimTradeScreen extends CompatScreen {
         ensureSelectedOfferVisible();
         this.closeNotified = false;
         this.countdownSyncMillis = System.currentTimeMillis();
-        this.showContract = false;
+        this.showContract = tourContract;
         this.selectedContractIndex = 0;
         this.shopDetailScrollOffset = 0;
         this.shopDetailScrollMax = 0;
@@ -232,9 +233,9 @@ public class PilgrimTradeScreen extends CompatScreen {
     }
 
     @Override
-    public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
+    protected boolean handleMouseClicked(MouseButtonEvent click, boolean doubled) {
         if (click.button() != InputConstants.MOUSE_BUTTON_LEFT) {
-            return super.mouseClicked(click, doubled);
+            return super.handleMouseClicked(click, doubled);
         }
 
         int left = (this.width - WINDOW_WIDTH) / 2;
@@ -280,7 +281,7 @@ public class PilgrimTradeScreen extends CompatScreen {
             return true;
         }
 
-        return super.mouseClicked(click, doubled);
+        return super.handleMouseClicked(click, doubled);
     }
 
     @Override
@@ -294,6 +295,13 @@ public class PilgrimTradeScreen extends CompatScreen {
                 left + GOODS_X + 6, top + GOODS_Y + 6, GOODS_WIDTH - 12, GOODS_HEIGHT - 12)) {
             this.goodsScrollIndex -= (int) Math.signum(verticalAmount);
             clampGoodsScroll();
+            return true;
+        }
+        if (this.showContract && hasMultipleContracts()
+                && isWithin(uiMouseX, uiMouseY, getContractOptionsX(left), getContractOptionsY(top),
+                getContractOptionsWidth(), CONTRACT_OPTION_HEIGHT)) {
+            selectedContractIndex = Math.floorMod(selectedContractIndex - (int) Math.signum(verticalAmount), data.contracts().size());
+            contractScrollOffset = 0;
             return true;
         }
         int bodyTop = getContractBodyTop(top);
@@ -339,6 +347,20 @@ public class PilgrimTradeScreen extends CompatScreen {
                 BOARD_TEXTURE_WIDTH,
                 BOARD_TEXTURE_HEIGHT
         );
+        // Replace the old baked inner frames with clean parchment, then use the
+        // same fixed-corner card renderer as the Quest Board. All four edges
+        // remain visible and the list viewport cannot crop the panel rim.
+        var pose = context.pose(); pose.pushMatrix(); pose.translate(left + 16, top + 24);
+        pose.scale(2.8f, 161f / 124f);
+        context.blit(RenderPipelines.GUI_TEXTURED, BOARD_TEXTURE, 0, 0, 28f, 40f,
+                100, 124, BOARD_TEXTURE_WIDTH, BOARD_TEXTURE_HEIGHT);
+        pose.popMatrix();
+        // The title plaque overhangs the wood; restore it over the continuous paper.
+        context.blit(RenderPipelines.GUI_TEXTURED, BOARD_TEXTURE, left + 94, top, 94f, 0f,
+                122, 27, BOARD_TEXTURE_WIDTH, BOARD_TEXTURE_HEIGHT);
+        VillageUiTheme.drawCard(context, left + GOODS_X, top + GOODS_Y, GOODS_WIDTH, GOODS_HEIGHT, false, false);
+        VillageUiTheme.drawCard(context, left + DETAIL_X, top + DETAIL_Y, DETAIL_WIDTH, 34, false, false);
+        VillageUiTheme.drawCard(context, left + DETAIL_X, top + DETAIL_Y + 36, DETAIL_WIDTH, DETAIL_HEIGHT - 36, false, false);
     }
 
     private void drawHeader(GuiGraphics context, int left, int top, int mouseX, int mouseY) {
@@ -350,10 +372,10 @@ public class PilgrimTradeScreen extends CompatScreen {
                 top + HEADER_TITLE_TOP + (HEADER_TITLE_HEIGHT - titleHeight) / 2.0f,
                 TITLE, HEADER_TITLE_SCALE);
 
-        int sectionTitleY = top + GOODS_Y - 5;
-        context.drawString(this.font, Component.translatable("screen.village-quest.pilgrim.goods"), left + GOODS_X + 8, sectionTitleY, ACCENT, false);
+        int sectionTitleY = top + GOODS_Y - 13;
+        context.drawString(this.font, Component.translatable("screen.village-quest.pilgrim.goods"), left + GOODS_X + 8, sectionTitleY + 2, ACCENT, false);
         context.drawString(this.font, Component.translatable("screen.village-quest.pilgrim.offer"),
-                left + DETAIL_X + 8, sectionTitleY, ACCENT, false);
+                left + DETAIL_X + 8, sectionTitleY + 2, ACCENT, false);
         if (hasContract()) {
             drawContractTab(context, left, top, mouseX, mouseY);
         }
@@ -376,21 +398,17 @@ public class PilgrimTradeScreen extends CompatScreen {
 
         int startX = getContractOptionsX(left);
         int y = getContractOptionsY(top);
-        for (int i = 0; i < contracts.size(); i++) {
-            PilgrimContractView contract = contracts.get(i);
-            int optionY = y + (i * (CONTRACT_OPTION_HEIGHT + CONTRACT_OPTION_GAP));
-            boolean selected = i == this.selectedContractIndex;
-            boolean hovered = isWithin(mouseX, mouseY, startX, optionY, getContractOptionsWidth(), CONTRACT_OPTION_HEIGHT);
-            int fill = selected
-                    ? (hovered ? ENTRY_SELECTED_HOVER : ENTRY_SELECTED)
-                    : (hovered ? ENTRY_HOVER : ENTRY_BG);
-            drawFrame(context, startX, optionY, getContractOptionsWidth(), CONTRACT_OPTION_HEIGHT, FRAME_DARK, FRAME_LIGHT, fill);
-            String label = ellipsizeToScale(contract.title().getString(), getContractOptionsWidth() - 10, CONTRACT_OPTION_TEXT_SCALE);
-            int textWidth = Math.round(this.font.width(label) * CONTRACT_OPTION_TEXT_SCALE);
-            int textX = startX + (getContractOptionsWidth() - textWidth) / 2;
-            int scaledHeight = Math.round((this.font.lineHeight + 1) * CONTRACT_OPTION_TEXT_SCALE);
-            int textY = optionY + Math.max(3, (CONTRACT_OPTION_HEIGHT - scaledHeight) / 2 - 1);
-            drawScaledText(context, label, textX, textY, contractColor(contract), CONTRACT_OPTION_TEXT_SCALE);
+        PilgrimContractView contract = getSelectedContract();
+        boolean hovered = isWithin(mouseX, mouseY, startX, y, getContractOptionsWidth(), CONTRACT_OPTION_HEIGHT);
+        drawFrame(context, startX, y, getContractOptionsWidth(), CONTRACT_OPTION_HEIGHT,
+                FRAME_DARK, FRAME_LIGHT, hovered ? ENTRY_SELECTED_HOVER : ENTRY_SELECTED);
+        int navigationSpace = hasMultipleContracts() ? 28 : 10;
+        String label = ellipsizeToScale(contract.title().getString(), getContractOptionsWidth() - navigationSpace, CONTRACT_OPTION_TEXT_SCALE);
+        int textX = startX + (getContractOptionsWidth() - Math.round(font.width(label) * CONTRACT_OPTION_TEXT_SCALE)) / 2;
+        drawScaledText(context, label, textX, y + 6, contractColor(contract), CONTRACT_OPTION_TEXT_SCALE);
+        if (hasMultipleContracts()) {
+            drawScaledText(context, "<", startX + 4, y + 6, TITLE, CONTRACT_OPTION_TEXT_SCALE);
+            drawScaledText(context, ">", startX + getContractOptionsWidth() - 9, y + 6, TITLE, CONTRACT_OPTION_TEXT_SCALE);
         }
     }
 
@@ -412,7 +430,7 @@ public class PilgrimTradeScreen extends CompatScreen {
 
         List<ContractDetailLine> lines = buildContractDetailLines(contract, contentWidth, true);
         int viewportHeight = Math.max(0, contentBottom - currentY);
-        int contentHeight = measureContractContentHeight(lines);
+        int contentHeight = measureContractContentHeight(lines) + 1;
         this.contractScrollMax = Math.max(0, contentHeight - viewportHeight);
         clampContractScroll();
 
@@ -425,7 +443,7 @@ public class PilgrimTradeScreen extends CompatScreen {
                 continue;
             }
             int lineHeight = scaledLineHeight(line.scale());
-            if (cursorY + lineHeight >= scissorTop && cursorY <= contentBottom) {
+            if (cursorY >= scissorTop && cursorY + lineHeight <= contentBottom) {
                 drawScaledText(context, line.text(), contentX, cursorY, line.color(), line.scale());
             }
             cursorY += lineHeight;
@@ -475,10 +493,6 @@ public class PilgrimTradeScreen extends CompatScreen {
             boolean hovered = isWithin(mouseX, mouseY, entryX, entryY, GOODS_ENTRY_WIDTH, GOODS_ENTRY_HEIGHT - 2);
             VillageUiTheme.drawCard(context, entryX, entryY,
                     GOODS_ENTRY_WIDTH, GOODS_ENTRY_HEIGHT - 2, hovered, i == selectedIndex);
-            if (i == selectedIndex) {
-                context.fill(entryX + 6, entryY + 5, entryX + 9,
-                        entryY + GOODS_ENTRY_HEIGHT - 7, ACCENT_BRIGHT);
-            }
 
             if (offer.previewStack() != null && !offer.previewStack().isEmpty()) {
                 drawFrame(context, entryX + 5, entryY + 5, 18, 18, FRAME_MID, FRAME_LIGHT, 0x00000000);
@@ -487,14 +501,15 @@ public class PilgrimTradeScreen extends CompatScreen {
 
             String title = ellipsizeToScale(offer.title().getString(), GOODS_TEXT_WIDTH, LIST_TITLE_SCALE);
             drawScaledText(context, title, entryX + GOODS_TEXT_X_OFFSET, entryY + 6, TITLE, LIST_TITLE_SCALE);
-            drawScaledText(
-                    context,
-                    ellipsizeToScale(CurrencyService.formatBalance(offer.price()).getString(), GOODS_TEXT_WIDTH, LIST_PRICE_SCALE),
-                    entryX + GOODS_TEXT_X_OFFSET,
-                    entryY + 15,
-                    canAfford(offer) ? AFFORD : TOO_EXPENSIVE,
-                    LIST_PRICE_SCALE
-            );
+            int priceX = entryX + GOODS_TEXT_X_OFFSET;
+            long crowns = offer.price() / CurrencyService.CROWN;
+            long silver = offer.price() % CurrencyService.CROWN;
+            drawScaledItem(context, new ItemStack(ModItems.CROWN), priceX, entryY + 15, .5f);
+            String crownText = Long.toString(crowns);
+            drawScaledText(context, crownText, priceX + 10, entryY + 16, BODY, .65f);
+            int silverX = priceX + 14 + Math.round(font.width(crownText) * .65f);
+            drawScaledItem(context, new ItemStack(ModItems.SILVERMARK), silverX, entryY + 15, .5f);
+            drawScaledText(context, Long.toString(silver), silverX + 10, entryY + 16, BODY, .65f);
         }
         context.disableScissor();
         VillageUiTheme.drawScrollBar(
@@ -535,14 +550,14 @@ public class PilgrimTradeScreen extends CompatScreen {
             return;
         }
 
-        int tradeY = panelY + 8;
+        int tradeY = panelY + 4;
         drawTradeSlot(context, contentX + 6, tradeY, getPricePreviewStack(offer.price()), DETAIL_PRICE_COIN_SCALE);
         drawTradeSlot(context, contentX + 86, tradeY, offer.previewStack(), 1.0f);
 
         int textX = contentX;
         // The lower parchment card begins below the trade-slot panel. Keep its
         // heading clear of the fixed five-pixel frame before drawing any text.
-        currentY = panelY + 46;
+        currentY = panelY + 44;
         currentY = drawWrappedScaledLines(
                 context,
                 offer.title().getString(),
@@ -617,15 +632,15 @@ public class PilgrimTradeScreen extends CompatScreen {
     private void drawFooter(GuiGraphics context, int left, int top) {
         String hint = Component.translatable("screen.village-quest.pilgrim.close_hint").getString();
         drawScaledText(context, hint, left + FOOTER_LEFT_INSET, top + FOOTER_TEXT_Y_OFFSET,
-                VillageUiTheme.LIGHT_TEXT, 0.85f);
+                BUTTON_TEXT, 0.62f);
 
         String timerText = Component.translatable(
                 "screen.village-quest.pilgrim.timer",
                 formatRemainingTime(getRemainingDespawnTicks())
         ).getString();
-        int timerX = left + WINDOW_WIDTH - FOOTER_RIGHT_INSET - Math.round(this.font.width(timerText) * 0.85f);
+        int timerX = left + WINDOW_WIDTH - FOOTER_RIGHT_INSET - Math.round(this.font.width(timerText) * 0.62f);
         drawScaledText(context, timerText, timerX, top + FOOTER_TEXT_Y_OFFSET,
-                0xFFE2CFAD, 0.85f);
+                BUTTON_TEXT, 0.62f);
     }
 
     private void drawTradeSlot(GuiGraphics context, int x, int y, ItemStack stack, float iconScale) {
@@ -689,7 +704,7 @@ public class PilgrimTradeScreen extends CompatScreen {
         if (offer == null || data.entityId() < 0) {
             return;
         }
-        ClientPlayNetworking.send(new Payloads.PilgrimTradeActionPayload(data.entityId(), offer.offerId()));
+        UiTestTour.send(new Payloads.PilgrimTradeActionPayload(data.entityId(), offer.offerId()));
     }
 
     private void activateContract() {
@@ -697,7 +712,7 @@ public class PilgrimTradeScreen extends CompatScreen {
         if (!hasContract() || data.entityId() < 0 || contract == null || !contract.actionEnabled()) {
             return;
         }
-        ClientPlayNetworking.send(new Payloads.PilgrimTradeActionPayload(
+        UiTestTour.send(new Payloads.PilgrimTradeActionPayload(
                 data.entityId(),
                 "__pilgrim_contract__:" + contract.contractId()
         ));
@@ -708,7 +723,7 @@ public class PilgrimTradeScreen extends CompatScreen {
             return;
         }
         this.closeNotified = true;
-        ClientPlayNetworking.send(new Payloads.PilgrimTradeSessionPayload(
+        UiTestTour.send(new Payloads.PilgrimTradeSessionPayload(
                 data.entityId(),
                 Payloads.PilgrimTradeSessionPayload.ACTION_CLOSE
         ));
@@ -834,7 +849,7 @@ public class PilgrimTradeScreen extends CompatScreen {
     }
 
     private int getBuyButtonY(int top) {
-        // Align both label and hitbox with the dark inset in the generated board.
+        // Keep the action and hitbox inside the runtime card, clear of its bottom rim.
         return top + DETAIL_Y + DETAIL_HEIGHT - BUY_HEIGHT - 8;
     }
 
@@ -847,19 +862,19 @@ public class PilgrimTradeScreen extends CompatScreen {
     }
 
     private int getContractBodyTop(int top) {
-        return top + DETAIL_Y + CONTRACT_BODY_MIN_Y_OFFSET;
+        return top + DETAIL_Y + 44;
     }
 
     private int getContractOptionsX(int left) {
-        return left + DETAIL_X + 2;
+        return left + DETAIL_X + 10;
     }
 
     private int getContractOptionsY(int top) {
-        return top + DETAIL_Y + 1;
+        return top + DETAIL_Y + 6;
     }
 
     private int getContractOptionsWidth() {
-        return DETAIL_WIDTH - 4;
+        return DETAIL_WIDTH - 20;
     }
 
     private boolean isHoveringBuyButton(int mouseX, int mouseY, int left, int top) {
@@ -877,11 +892,10 @@ public class PilgrimTradeScreen extends CompatScreen {
         }
         int startX = getContractOptionsX(left);
         int y = getContractOptionsY(top);
-        for (int i = 0; i < contracts.size(); i++) {
-            int optionY = y + (i * (CONTRACT_OPTION_HEIGHT + CONTRACT_OPTION_GAP));
-            if (isWithin(mouseX, mouseY, startX, optionY, getContractOptionsWidth(), CONTRACT_OPTION_HEIGHT)) {
-                return i;
-            }
+        if (isWithin(mouseX, mouseY, startX, y, getContractOptionsWidth(), CONTRACT_OPTION_HEIGHT)) {
+            if (mouseX < startX + 14) return Math.floorMod(selectedContractIndex - 1, contracts.size());
+            if (mouseX >= startX + getContractOptionsWidth() - 14) return (selectedContractIndex + 1) % contracts.size();
+            return selectedContractIndex;
         }
         return -1;
     }

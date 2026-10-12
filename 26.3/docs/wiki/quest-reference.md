@@ -172,3 +172,5 @@ Its finale unlocks the permanent `Caravan Yard` project and `Caravan Ledger` tra
 - Daily and Weekly notices use their reset day or week as the persistent identity. Story notices use the exact arc and chapter, including the chapter revealed after a cooldown.
 - `The Questmaster Listens` is an informational Story entry: it remains openable, shows the one-hour countdown, and deliberately contributes `0` to the category badge.
 - Quest audio follows one hierarchy: acceptance, ordinary progress, completed objective, stage transition, then the existing final reward sound.
+
+Village Quest 2.5 adds [chosen Vanilla reward packages and saved collection](vanilla-rewards.md), including `/vq rewards claim`. Existing accepted contracts and prepaid orders retain their original conditions.

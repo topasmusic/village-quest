@@ -353,6 +353,8 @@ public final class GuildTownService {
         if (!GuildTownProgress.beginStory(data, story, village.index(), variant)) {
             return fail(player, "message.village-quest.guild_town.story.accept_failed");
         }
+        if (GuildTownProgress.storyCompleted(data, story)) data.vanillaRewards().first("town_story:" + story.key());
+        data.setMilestoneFlag("reward.new_town_story", true);
         QuestState.get(world.getServer()).setDirty();
         GuildTownProgress.addPersonalChronicle(data, identity(player.getUUID(), village),
                 "story.accepted." + story.key(), false, world.getGameTime());
@@ -374,7 +376,7 @@ public final class GuildTownService {
                 || GuildTownProgress.storyState(data, story) != GuildTownProgress.ACTIVE
                 || !isNearStoryVillage(world, player, data)
                 || GuildTownProgress.storyProgress(data, story, 1) < GRANARY_TARGET) {
-            return fail(player, "message.village-quest.guild_town.story.choice_locked");
+            return locked(player, "message.village-quest.guild_town.story.choice_locked");
         }
         int selected = "reserve".equalsIgnoreCase(choice) ? 1 : "share".equalsIgnoreCase(choice) ? 2 : 0;
         if (selected == 0) return fail(player, "message.village-quest.guild_town.story.choice_invalid");
@@ -416,6 +418,8 @@ public final class GuildTownService {
         if (!completeStoryWithChronicle(data, story, chronicleVillage, world.getGameTime())) {
             return fail(player, "message.village-quest.guild_town.story.complete_failed");
         }
+        if (data.hasMilestoneFlag("reward.new_town_story")) de.quest.reward.VanillaRewardService.firstBonus(world, player, "town_story:" + story.key());
+        data.setMilestoneFlag("reward.new_town_story", false);
         giveStoryMemory(player, data, story);
         var socialVillage = new de.quest.village.VillageLifeState.VillageKey(world.dimension().identifier().toString(),
                 chronicleVillage.x(), chronicleVillage.z());
@@ -469,11 +473,11 @@ public final class GuildTownService {
         UUID owner = networkOwner == null ? player.getUUID() : networkOwner;
         if (!canUseNetwork(world, player.getUUID(), owner)) return fail(player, "message.village-quest.guild_town.commission.owner_denied");
         VillagePair pair = findConnectedPair(world, owner, commission);
-        if (pair == null) return fail(player, "message.village-quest.guild_town.commission.routes_missing");
+        if (pair == null) return locked(player, "message.village-quest.guild_town.commission.routes_missing");
         PlayerQuestData data = data(world, player.getUUID());
         if (!GuildTownProgress.storyCompleted(data, GuildTownStory.forVillage(commission.first()))
                 || !GuildTownProgress.storyCompleted(data, GuildTownStory.forVillage(commission.second()))) {
-            return fail(player, "message.village-quest.guild_town.commission.stories_missing");
+            return locked(player, "message.village-quest.guild_town.commission.stories_missing");
         }
         if (!GuildTownProgress.beginCommission(data, commission,
                 identity(owner, pair.first()), pair.first().index(),
@@ -481,6 +485,8 @@ public final class GuildTownService {
             return fail(player, "message.village-quest.guild_town.commission.accept_failed");
         }
         QuestState.get(world.getServer()).setDirty();
+        if (GuildTownProgress.commissionCompleted(data, commission)) data.vanillaRewards().first("commission:" + commission.key());
+        data.setMilestoneFlag("reward.new_commission", true);
         Component ownerLabel = owner.equals(player.getUUID()) ? player.getName()
                 : networkOwnerName == null ? Component.literal(owner.toString()) : networkOwnerName;
         player.sendSystemMessage(Component.translatable("message.village-quest.guild_town.commission.accepted",
@@ -555,6 +561,7 @@ public final class GuildTownService {
         }
         GuildTownProgress.VillageIdentity first = GuildTownProgress.commissionFirstIdentity(data);
         GuildTownProgress.VillageIdentity second = GuildTownProgress.commissionSecondIdentity(data);
+        boolean extraCommissionEligible = data.hasMilestoneFlag("reward.new_commission");
         if (!GuildTownProgress.completeCommission(data, commission)) {
             return fail(player, "message.village-quest.guild_town.commission.complete_failed");
         }
@@ -565,6 +572,8 @@ public final class GuildTownService {
         giveCommissionSeal(player, data, commission);
         grantMilestoneRewards(player, data);
         QuestState.get(world.getServer()).setDirty();
+        if (extraCommissionEligible) de.quest.reward.VanillaRewardService.firstBonus(world, player, "commission:" + commission.key());
+        data.setMilestoneFlag("reward.new_commission", false);
         player.sendSystemMessage(Component.translatable("message.village-quest.guild_town.commission.completed",
                 commission.title()).withStyle(ChatFormatting.GREEN), false);
         refresh(world, player);
@@ -620,13 +629,17 @@ public final class GuildTownService {
 
     public static int claimConcord(ServerLevel world, ServerPlayer player) {
         PlayerQuestData data = data(world, player.getUUID());
-        if (!finaleEligible(world, player.getUUID())) return fail(player, "message.village-quest.guild_town.concord.locked");
+        if (!finaleEligible(world, player.getUUID())) return locked(player, "message.village-quest.guild_town.concord.locked");
+        if (GuildTownProgress.finaleClaimed(data)) return fail(player, "message.village-quest.guild_town.concord.claimed_already");
+        if (!de.quest.reward.VanillaRewardService.prepare(world, player, "concord", "concord", "concord",
+                de.quest.quest.repeatable.RepeatableTargetProfile.NORMAL, () -> claimConcord(world, player))) return 0;
         if (!GuildTownProgress.markFinaleClaimed(data)) return fail(player, "message.village-quest.guild_town.concord.claimed_already");
         giveNamed(player, ModItems.GUILD_MILESTONE, "item.village-quest.concord_plaque",
                 "item.village-quest.concord_plaque.lore", Component.empty());
         giveNamed(player, vanillaItem("white_banner", Items.SHIELD), "item.village-quest.guild_standard",
                 "item.village-quest.guild_standard.lore", Component.empty());
         GuildTownProgress.grantReward(data, "concord_title");
+        de.quest.reward.VanillaRewardService.complete(world, player, "concord", "concord");
         QuestState.get(world.getServer()).setDirty();
         player.sendSystemMessage(Component.translatable("message.village-quest.guild_town.concord.completed")
                 .withStyle(ChatFormatting.GOLD), false);
@@ -1251,6 +1264,11 @@ public final class GuildTownService {
 
     private static int fail(ServerPlayer player, String key) {
         player.sendSystemMessage(Component.translatable(key).withStyle(ChatFormatting.RED), false);
+        return 0;
+    }
+
+    private static int locked(ServerPlayer player, String key) {
+        player.sendSystemMessage(Component.translatable(key).withStyle(ChatFormatting.GRAY), false);
         return 0;
     }
 

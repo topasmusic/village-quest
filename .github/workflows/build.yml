@@ -24,16 +24,8 @@ jobs:
             echo "Private agent-related filenames must not be committed."
             exit 1
           fi
-      - name: Validate resources and translations per supported line
-        shell: bash
-        run: |
-          for project in 26.3 26.2 26.1.2 1.21.11; do
-            python3 tools/validate_resources.py --line "$project"
-          done
-      - name: Validate documentation paths, navigation and Stable declarations
-        run: |
-          python3 tools/tests/test_validate_docs.py
-          python3 tools/validate_docs.py
+      - name: Gate language, context, glossary, validator regressions and documentation
+        run: python3 -B tools/quality_gate.py
 
   build:
     needs: validate

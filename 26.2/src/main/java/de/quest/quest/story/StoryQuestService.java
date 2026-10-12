@@ -1,5 +1,6 @@
 package de.quest.quest.story;
 
+import de.quest.reward.VanillaRewardService;
 import de.quest.caravan.TradeRouteService;
 import de.quest.content.story.FailingHarvestStoryArc;
 import de.quest.content.story.MarketRoadTroublesStoryArc;
@@ -224,6 +225,9 @@ public final class StoryQuestService {
             return false;
         }
 
+        if (chapterIndex == arcType.chapterCount() - 1 && !de.quest.reward.VanillaRewardService.prepare(world, player, "story",
+                QuestPartyService.rewardStoryKey(world, player.getUUID(), arcType, chapterIndex), arcType.id() + ":" + chapterIndex,
+                de.quest.quest.repeatable.RepeatableTargetProfile.NORMAL, () -> acceptQuest(world, player, arcType))) return false;
         data.clearStoryProgress();
         data.setActiveStoryArc(arcType);
         data.setStoryDiscovered(arcType.id(), true);
@@ -472,7 +476,7 @@ public final class StoryQuestService {
                     QuestExperienceService.RewardType.STORY
             ));
         }
-        return rewards;
+        return VanillaRewardService.withSaved(world,playerId,"story",rewards);
     }
 
     public static List<Component> buildOverview(ServerLevel world, UUID playerId) {
@@ -705,6 +709,9 @@ public final class StoryQuestService {
     }
 
     private static void deliverCompletion(ServerLevel world, ServerPlayer player, StoryChapterCompletion completion) {
+        var extraData = data(world, player.getUUID()); var extraArc = extraData.getActiveStoryArc();
+        if (extraArc != null && chapterIndex(world, player.getUUID(), extraArc) == extraArc.chapterCount() - 1)
+            de.quest.reward.VanillaRewardService.complete(world, player, "story", extraArc.id() + ":" + (extraArc.chapterCount() - 1));
         boolean unlockedProject = completion.unlockedProject() != null
                 && VillageProjectService.unlock(world, player.getUUID(), completion.unlockedProject());
         if (unlockedProject) {

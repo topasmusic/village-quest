@@ -36,10 +36,14 @@ final class GuildCornerTemplateContract {
         List<String> paletteNames = new ArrayList<>(palette.size());
         for (int index = 0; index < palette.size(); index++) {
             CompoundTag state = palette.getCompoundOrEmpty(index);
-            String blockName = state.getStringOr("Name", "");
+            // StructureTemplate.save uses id/properties on 26.3; authored older NBT
+            // may still use Name/Properties before Minecraft's structure data fixer runs.
+            String blockName = state.getStringOr("id", state.getStringOr("Name", ""));
             paletteNames.add(blockName);
             if (NOTICE_POST.equals(blockName)) {
-                if (!"north".equals(state.getCompoundOrEmpty("Properties").getStringOr("facing", ""))) return false;
+                CompoundTag properties = state.contains("properties")
+                        ? state.getCompoundOrEmpty("properties") : state.getCompoundOrEmpty("Properties");
+                if (!"north".equals(properties.getStringOr("facing", ""))) return false;
                 postStates.add(index);
             } else if (blockName.isBlank() || blockEntityState.test(blockName)) return false;
         }
