@@ -1,0 +1,51 @@
+[
+  {
+    "file": "Journal 2.6.png",
+    "title": "Journal — Living Kingdoms 2.6",
+    "description": "Your next quest, discoveries, villages and Chronicle together in the medieval-styled Journal.",
+    "ordering": -7,
+    "sha256": "a2b9df6859c9129858af7d7111b6a1948a8d4996e99727cf77b34c24fd270693"
+  },
+  {
+    "file": "Quest Board 2.6.png",
+    "title": "Quest Board — Living Kingdoms 2.6",
+    "description": "Choose your next assignment with illustrated quests, clear objectives and rewards at the Questmaster.",
+    "ordering": -6,
+    "sha256": "b91b9cf6dadba46b1f326b838f37c18af4df01819c081c62095891af0358a8b8"
+  },
+  {
+    "file": "Guild Atlas 2.6.png",
+    "title": "Guild Atlas — Living Kingdoms 2.6",
+    "description": "Follow your reputation disciplines, current ranks and the next unlocks in the Guild Atlas.",
+    "ordering": -5,
+    "sha256": "2e953c67bafb6230d2118547c1166f1ba0b344829797731ebe0078545430bbdc"
+  },
+  {
+    "file": "Council Seat 2.6.png",
+    "title": "Council Seat — Living Kingdoms 2.6",
+    "description": "Check the furnishings, found your settlement and work toward inhabited-village recognition.",
+    "ordering": -4,
+    "sha256": "7efa34e0055a03e24637eacc941743c9fb9aa545790e02f0a7accbe213352c15"
+  },
+  {
+    "file": "Market 2.6.png",
+    "title": "Village Market — Living Kingdoms 2.6",
+    "description": "Browse a visiting trader’s regional goods, available stock, village demand and quoted prices.",
+    "ordering": -3,
+    "sha256": "9091bb86f1a00b2f97c63de16b4e4a2dc29421f90dbf406b176f3a45cc79b37f"
+  },
+  {
+    "file": "New Items 2.6.png",
+    "title": "Tools and Building Anchors — Living Kingdoms 2.6",
+    "description": "Village building anchors and the illustrated collection of Village Quest tools and relics.",
+    "ordering": -2,
+    "sha256": "f9c2e0538e195114ab0f0dcc843b9e9a7f03eb345c7dfaf8908940d6d128025b"
+  },
+  {
+    "file": "New NPCs 2.6.png",
+    "title": "Village Characters — Living Kingdoms 2.6",
+    "description": "Meet some of the characters who bring Village Quest’s settlements and journeys to life.",
+    "ordering": -1,
+    "sha256": "b0f1b4866abf1a14a6cb08c83b20d6e9604175e09d51521eade7f1bad5ffcfda"
+  }
+]
