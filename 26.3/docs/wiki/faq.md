@@ -14,6 +14,12 @@ an empty settlement. The first recognition project separately needs three adults
 three assigned reachable beds and a matching assigned reachable workplace.
 [Building guide](kingdom-buildings.md).
 
+**Can I connect a village I built myself?** In 2.6 for Minecraft 26.3, found it
+through a confirmed Council Seat and meet its normal inhabited/active-village
+requirements. Register it with the Caravan Ledger inside the confirmed area;
+Guild Notice Posts use that same settlement identity. Route unlocks still apply.
+[Trade routes](trade-routes-and-caravans.md).
+
 **Why is the inn quiet?** It has a 40 loaded-minute opening period. Rare guests
 also need a populated managed village and a suitable inn; they are occasional,
 not guaranteed. [Guests](travelling-npcs.md).

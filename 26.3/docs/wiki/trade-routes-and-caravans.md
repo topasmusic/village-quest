@@ -25,28 +25,36 @@ The route network is player-owned. Story and route events remain solo content an
 
 ## Registering Villages
 
-Stand inside or close to a generated village, then either:
+Stand inside a generated inhabited village **or a player-built settlement founded
+through a confirmed Council Seat**, then sneak-use the Caravan Ledger or run
+`/vq routes register`. Normal route unlocks and capacity limits still apply.
+The first registered village becomes the home hub; later villages become its
+route destinations. Duplicate registrations are ignored.
 
-- sneak-use the `Caravan Ledger`
-- run `/vq routes register`
+For a player-built village, follow **A Place at the Table**, confirm the furnished
+council and choose **Found village** to give it a name. Registration alone does
+not make an empty settlement inhabited: add real residents and satisfy the normal
+active-village checks. Use the ledger and Guild Notice Post inside the confirmed
+building area. Arbitrary groups of villagers or unregistered coordinates do not
+become a Village Quest settlement automatically. See [Buildings](kingdom-buildings.md).
 
-The first registered village becomes the home hub. Further registrations create routes from the hub until all five route slots are occupied. Duplicate villages are ignored.
+Generated villages use their actual structure footprint plus a small margin.
+CTOV works through the standard `#minecraft:village` structure tag and is optional.
+Empty/zombie or abandoned destinations cannot operate as ordinary active partners;
+uncertain unloaded population evidence is not accepted as proof. If your position
+cannot be identified, move within the village's confirmed area and check again.
 
-After a personal Homestead has been confirmed, one sneak-use at the destination is enough to register a route; it does not need the Homestead's two-step confirmation. Village detection covers the complete horizontal structure footprint plus a small edge margin, including paths and gaps between individual buildings. If the ledger instead offers to confirm or move the Homestead, Minecraft did not report a supported generated village structure at that position. Move farther into the settlement and try again; a modded settlement also needs to publish its structures through the standard `#minecraft:village` tag.
-
-Registration checks both sides of the destination: the player must be inside a real generated village structure, and that village must still contain at least one living normal villager. Naturally abandoned/zombie villages and villages whose population has died are rejected instead of becoming misleading trade nodes.
-
-`ChoiceTheorem's Overhauled Village` (`CTOV`) is supported without becoming a required dependency. CTOV publishes its small, medium, and large settlements through the standard `#minecraft:village` structure tag that Village Quest already consumes. The population scan follows the detected structure's complete bounding footprint plus a small edge margin, so a villager placed in the outer district of a large CTOV settlement still proves that village is inhabited. Empty and zombie CTOV variants remain ineligible.
-
-Normal use of the ledger, or `/vq routes`, opens the route map.
+After confirming a Homestead, a single registration at a qualifying destination
+creates its route; the Homestead's two-step confirmation is not repeated.
+Normal ledger use or `/vq routes` opens the map.
 
 The Caravan Master view uses an open parchment layout without a second inner window, with a centered progress badge in the header. It shows the current route and journey above a progress bar, arrival and road conditions in two columns, cargo, any incident and personal Guild standing. Hover the Master's name for their remark, or a shortened label for its full details. These hints wrap into compact boxes that stay on screen. **View route** opens the existing route overview when available. The route and close actions now sit inside the parchment footer, matching the Journal and Quest Board controls.
 
 ### Using a Player Base as the Home Node
 
-The `Market Charter` no longer forces the provisional first node to be inside a generated village. As soon as it grants the Caravan Ledger, stand on solid, dry Overworld ground at your base and run `/vq routes yard`, or sneak-use the ledger while no generated village can be registered. Repeat the action within `30 seconds` to confirm the exact place. The map marks it as a distinct `Homestead Trade Post` rather than pretending that the base is a village. No second unlock quest is required; the later `Caravan Yard` still matters because it expands the network from one route to five and enables incidents.
+The `Market Charter` no longer forces the provisional first node to be inside a generated village. As soon as it grants the Caravan Ledger, stand on solid, dry Overworld ground at your base and run `/vq routes yard`, or sneak-use the ledger where no generated or founded village can be registered. Repeat the action within `30 seconds` to confirm the exact place. The map marks it as a distinct `Homestead Trade Post` rather than pretending that the base is a village. No second unlock quest is required; the later `Caravan Yard` still matters because it expands the network from one route to five and enables incidents.
 
-This deliberately changes only the home node. Every route destination must still be a real generated, inhabited vanilla or CTOV village. Zombie villages, abandoned villages, arbitrary coordinates, and test markers cannot become trade partners. A network with installed routes must remove them before relocating its home, preventing existing paths and caravans from silently pointing at a different origin.
+A Homestead changes only the home node. Destinations must be qualifying inhabited generated villages or properly founded player-built settlements. Arbitrary coordinates and test markers do not qualify. Remove installed routes before relocating the home, so existing journeys cannot silently change their origin.
 
 ## The Route Map
 
