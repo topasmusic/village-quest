@@ -1,72 +1,13 @@
-# Village Quest Third-Party Assets
+# Asset attribution and provenance
 
-This inventory applies to the Village Quest `2.0.0` package. Paths are relative
-to a maintained version line. The same listed resources are mirrored across the
-`1.21.11`, `26.1.2`, and `26.2` lines unless noted otherwise.
+Use the inventory for the Minecraft line you are building or downloading:
 
-An `unknown` or `unresolved` entry is a provenance warning, not permission to
-copy, modify, or redistribute the file. Such material is excluded from both the
-Village Quest All Rights Reserved declaration and `LGPL-3.0-only`.
+- [Minecraft 26.3 — Living Kingdoms 2.6](26.3/THIRD_PARTY_ASSETS.md)
+- [Minecraft 26.2 — Bonds & Bounty 2.5](26.2/THIRD_PARTY_ASSETS.md)
+- [Minecraft 26.1.2](26.1.2/THIRD_PARTY_ASSETS.md)
+- [Minecraft 1.21.11](1.21.11/THIRD_PARTY_ASSETS.md)
 
-## Unresolved legacy entity skins
-
-The following medieval-style Minecraft skins were originally downloaded from a
-public skin website. The original page, creator, and license are no longer known.
-Some caravan variants were later recolored for route identity, but that does not
-establish ownership of the underlying skin.
-
-| File | Recorded origin | Creator | License or permission | Status |
-| --- | --- | --- | --- | --- |
-| `src/main/resources/assets/village-quest/textures/entity/caravan.png` | Public Minecraft skin website | Unknown | Unknown | Unresolved legacy file shipped in `2.0.0`; no reuse rights asserted or granted |
-| `src/main/resources/assets/village-quest/textures/entity/caravan_burgundy.png` | Derived recolor of an unresolved caravan skin | Unknown | Unknown | Unresolved derivative |
-| `src/main/resources/assets/village-quest/textures/entity/caravan_forest.png` | Derived recolor of an unresolved caravan skin | Unknown | Unknown | Unresolved derivative |
-| `src/main/resources/assets/village-quest/textures/entity/caravan_ochre.png` | Derived recolor of an unresolved caravan skin | Unknown | Unknown | Unresolved derivative |
-| `src/main/resources/assets/village-quest/textures/entity/caravan_violet.png` | Derived recolor of an unresolved caravan skin | Unknown | Unknown | Unresolved derivative |
-| `src/main/resources/assets/village-quest/textures/entity/pilgrim.png` | Public Minecraft skin website | Unknown | Unknown | Unresolved legacy file shipped in `2.0.0`; no reuse rights asserted or granted |
-| `src/main/resources/assets/village-quest/textures/entity/quest_master.png` | Public Minecraft skin website | Unknown | Unknown | Unresolved legacy file shipped in `2.0.0`; no reuse rights asserted or granted |
-| `src/main/resources/assets/village-quest/textures/entity/traitor.png` | Public Minecraft skin website | Unknown | Unknown | Unresolved legacy file shipped in `2.0.0`; no reuse rights asserted or granted |
-
-The maintainer explicitly authorized the `2.0.0` publication with these warnings
-intact. That decision does not establish ownership or permission: the files must
-not be described as owned by Village Quest merely because their filenames are
-known or because some colors were changed. Replacement or source clearance
-remains priority follow-up work.
-
-## Spanish localization contribution
-
-| File | Contributor | Provenance and terms | Modifications |
-| --- | --- | --- | --- |
-| `src/main/resources/assets/village-quest/lang/es_es.json` | `Lutte` | Original Spanish translation contributed to the pre-2.0 MIT-licensed project; retained with attribution and the historical MIT notice in `LICENSE-MIT` | Later missing keys, placeholders, and maintenance corrections completed by the Village Quest maintainer and project tools |
-
-## Project-generated art with third-party references
-
-The following painting files were generated or prepared for Village Quest under
-the maintainer's direction. The project claims rights only in protectable original
-expression, not in underlying memes, characters, trademarks, photographs, or
-other third-party subject matter:
-
-- `textures/painting/good_doge.png`
-- `textures/painting/happy_doge.png`
-- `textures/painting/pepe_the_almighty.png`
-- `textures/painting/something_is_sus.png`
-- other project-generated painting or promotional art where an underlying
-  third-party reference is recognizable
-
-This provenance note does not grant permission to reuse those files separately.
-
-## Original project-generated item art
-
-The `26.2` line's `2.1.1` item-art pass was generated specifically for Village Quest under the maintainer's direction without an external character, logo, photograph, or third-party artwork as a visual reference. Production sources and conversion records are retained privately and are not part of the public repository; shipped derivatives are the active special-item textures under `assets/village-quest/textures/item/`. These files fall under the repository's original-assets terms rather than the unresolved legacy-skin entries above.
-
-## Items not shipped by Village Quest
-
-The `mini_blocks` resource pack and datapack found in local test environments are
-not part of the Village Quest source or release JAR. They are therefore not
-licensed or redistributed by this project and are not included as package assets
-in this inventory.
-
-## Updating this inventory
-
-When an unresolved asset is replaced or its source is recovered, record the exact
-file, creator, source URL, license or written permission, attribution text,
-modifications, and the date on which the record was verified.
+Those inventories retain asset-specific ownership, contribution credits and
+legacy provenance warnings. They are included in their matching release JARs.
+See [LICENSE](LICENSE) and [third-party notices](THIRD_PARTY_NOTICES.md) for the
+applicable terms. This index grants no additional reuse rights.
