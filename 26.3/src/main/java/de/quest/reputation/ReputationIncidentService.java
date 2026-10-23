@@ -38,14 +38,11 @@ public final class ReputationIncidentService {
         VillageKey crimeVillage = previous == null ? evidence.village() : previous.village();
         boolean weak = evidence.acceptedDamage() <= 4 && !evidence.fatal();
         if (weak && data.activeCase() == null) {
-            if (data.warningTick() < 0 || tick >= data.warningTick() && tick - data.warningTick() >= 12_000) {
+            if (tick == data.warningTick()) return ignored(data,evidence.attacker());
+            if (data.warningTick()<0 || tick>=data.warningTick() && tick-data.warningTick()>=1200 || data.warningCount()<2) {
                 data.warnAt(tick);
-                data.recordAttack(evidence.logicalVictim(), new AttackRecord(UUID.randomUUID(), crimeVillage, tick, 0, 0, false), false, tick);
-                return new IncidentResult(Outcome.WARN, evidence.attacker(), null, 0, Map.of(), data.revision());
-            }
-            if (tick == data.warningTick()) {
-                if (previous == null) data.recordAttack(evidence.logicalVictim(), new AttackRecord(UUID.randomUUID(), crimeVillage, tick, 0, 0, false), false, tick);
-                return ignored(data, evidence.attacker());
+                data.recordAttack(evidence.logicalVictim(),new AttackRecord(UUID.randomUUID(),crimeVillage,tick,0,0,false,data.warningCount()>=2 || data.traderWarningActive(evidence.logicalVictim(),tick)),false,tick);
+                return new IncidentResult(Outcome.WARN,evidence.attacker(),null,0,Map.of(),data.revision());
             }
         }
         Offence offence = !evidence.fatal() ? Offence.ASSAULT : switch (evidence.kind()) {

@@ -26,6 +26,7 @@ public final class CaravanMerchantEntityRenderer extends MobRenderer<CaravanMerc
             new ModelLayerLocation(Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "caravan_merchant"), "main");
     private static final String[] LIVERIES = {"burgundy", "forest", "neutral", "ochre", "violet"};
     private static final PlayerSkin[][] SKINS = createRoleSkins();
+    private static final PlayerSkin FEMALE_SKIN=skin(texture("living_kingdoms/caravan_f_01.png"));
     private final ItemModelResolver itemModelManager;
     private final boolean heldItemRenderingEnabled;
 
@@ -62,7 +63,7 @@ public final class CaravanMerchantEntityRenderer extends MobRenderer<CaravanMerc
         }
         // One livery identifies the route; each synchronized role has its own outfit.
         CaravanRole role = entity.isCourier() ? CaravanRole.COURIER : entity.getCrewRole();
-        state.skin = SKINS[Math.floorMod(entity.getLiveryIndex(), SKINS.length)][role.ordinal()];
+        state.skin = entity.isFemale()?FEMALE_SKIN:SKINS[Math.floorMod(entity.getLiveryIndex(), SKINS.length)][role.ordinal()];
     }
 
     @Override

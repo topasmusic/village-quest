@@ -16,6 +16,9 @@ import java.util.Map;
 import java.util.Set;
 
 public final class PlayerQuestData {
+    private de.quest.kingdom.MarketWalletJournal marketWallet=new de.quest.kingdom.MarketWalletJournal();
+    public de.quest.kingdom.MarketWalletJournal marketWallet() { return marketWallet; }
+    void loadMarketWallet(net.minecraft.nbt.Tag payload) { marketWallet=de.quest.kingdom.MarketWalletJournal.fromNbt(payload); }
     private de.quest.reward.PlayerRewardState vanillaRewards = new de.quest.reward.PlayerRewardState();
     public de.quest.reward.PlayerRewardState vanillaRewards() { return vanillaRewards; }
     void loadVanillaRewards(net.minecraft.nbt.CompoundTag tag) {
@@ -293,6 +296,22 @@ public final class PlayerQuestData {
 
     public Map<String, String> getTradeRouteStringState() {
         return Collections.unmodifiableMap(tradeRouteStringState);
+    }
+
+    /** Restore the original personal NPC ledger when loading a retired temporary tour. */
+    boolean restoreRetiredNpcTest() {
+        String prefix="temp.npctest.", backup=prefix+"backup.";
+        int step=getTradeRouteInt(prefix+"step");
+        if(step<1 || step>7)return false;
+        var ints=new HashMap<>(tradeRouteIntState);
+        var strings=new HashMap<>(tradeRouteStringState);
+        tradeRouteIntState.keySet().removeIf(key->key.startsWith("friends.") || key.startsWith(prefix));
+        tradeRouteStringState.keySet().removeIf(key->key.startsWith("friends.") || key.startsWith(prefix));
+        for(var entry:ints.entrySet())if(entry.getKey().startsWith(backup+"friends."))
+            setTradeRouteInt(entry.getKey().substring(backup.length()),entry.getValue());
+        for(var entry:strings.entrySet())if(entry.getKey().startsWith(backup+"friends."))
+            setTradeRouteString(entry.getKey().substring(backup.length()),entry.getValue());
+        return true;
     }
 
     public int getPilgrimInt(String key) {

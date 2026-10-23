@@ -246,6 +246,8 @@ public final class MerchantSealQuestService {
 
         pilgrim.setOfferIds(rerolledOffers);
         boolean rerolledContract = PilgrimContractService.rerollOffer(world, player);
+        if(!Objects.equals(currentOffers,rerolledOffers) || rerolledContract)
+            de.quest.kingdom.ArtifactJourneyService.confirmed(world,player,de.quest.kingdom.ArtifactJourneyProgress.Deed.SEAL,pilgrim.blockPosition());
         return finalizeSealUse(world, player, rerolledContract);
     }
 
@@ -266,8 +268,14 @@ public final class MerchantSealQuestService {
             return InteractionResult.SUCCESS;
         }
 
+        var oldOffers=trader.getOffers().stream().map(o -> List.of(o.getResult().copy(),o.getCostA().copy(),o.getCostB().copy())).toList();
         ((MerchantEntityAccessor) trader).villageQuest$setOffers(null);
         ((WanderingTraderEntityInvoker) trader).villageQuest$invokeFillRecipes(world);
+        var newOffers=trader.getOffers().stream().map(o -> List.of(o.getResult().copy(),o.getCostA().copy(),o.getCostB().copy())).toList();
+        boolean changed=oldOffers.size()!=newOffers.size();
+        for(int i=0;i<Math.min(oldOffers.size(),newOffers.size());i++) for(int part=0;part<3;part++)
+            if(!ItemStack.matches(oldOffers.get(i).get(part),newOffers.get(i).get(part))) changed=true;
+        if(changed) de.quest.kingdom.ArtifactJourneyService.confirmed(world,player,de.quest.kingdom.ArtifactJourneyProgress.Deed.SEAL,trader.blockPosition());
         return finalizeSealUse(world, player, false);
     }
 

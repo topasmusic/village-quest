@@ -10,7 +10,7 @@ import de.quest.quest.story.StoryQuestService;
 import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.questmaster.QuestMasterProgressionService;
 import de.quest.questmaster.QuestMasterUiService;
-import de.quest.util.TimeUtil;
+import de.quest.util.QuestCalendarService;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
@@ -73,7 +73,7 @@ public final class QuestAvailabilityNotifier {
     }
 
     private static boolean notifyDaily(ServerLevel world, ServerPlayer player, PlayerQuestData data) {
-        long day = TimeUtil.currentDay();
+        long day = QuestCalendarService.currentDay();
         if (data.getDailyOfferNoticeDay() == day
                 || !DailyQuestService.canShowDailyOffer(world, player.getUUID())
                 || DailyQuestService.previewQuestChoice(world, player.getUUID()) == null) {
@@ -84,7 +84,7 @@ public final class QuestAvailabilityNotifier {
     }
 
     private static boolean notifyWeekly(ServerLevel world, ServerPlayer player, PlayerQuestData data) {
-        long cycle = TimeUtil.currentWeekCycle();
+        long cycle = QuestCalendarService.currentWeekCycle();
         if (data.getWeeklyOfferNoticeCycle() == cycle
                 || WeeklyQuestService.isAcceptedThisWeek(world, player.getUUID())
                 || WeeklyQuestService.hasCompletedThisWeek(world, player.getUUID())

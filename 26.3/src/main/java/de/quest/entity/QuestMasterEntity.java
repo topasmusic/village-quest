@@ -491,12 +491,7 @@ public final class QuestMasterEntity extends PathfinderMob {
             return;
         }
         String key = keys[this.getRandom().nextInt(keys.length)];
-        player.sendSystemMessage(
-                this.getDisplayName().copy().withStyle(ChatFormatting.GOLD)
-                        .append(Component.literal(": ").withStyle(ChatFormatting.DARK_GRAY))
-                        .append(Component.translatable(key).withStyle(textColor)),
-                false
-        );
+        de.quest.kingdom.NpcSpeechService.privateLine(player,this,Component.translatable(key).withStyle(textColor));
         this.speechCooldownTicks = SPEECH_COOLDOWN_TICKS;
     }
 

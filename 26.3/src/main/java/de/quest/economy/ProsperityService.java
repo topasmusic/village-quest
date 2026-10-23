@@ -195,9 +195,18 @@ public final class ProsperityService {
     public static long shopPrice(ServerLevel world, UUID playerId, ShopOffer offer) {
         if (offer == null) return 0L;
         ProsperityBranch branch = branchForOffer(offer);
-        int discountPercent = rank(world, playerId, branch) * 5;
-        if (discountPercent <= 0) return offer.price();
-        return Math.max(1L, (offer.price() * (100L - discountPercent) + 99L) / 100L);
+        return discountedShopPrice(offer.price(),rank(world, playerId, branch));
+    }
+
+    /** Lowest attainable permanent shop price, independent of the currently trading player. */
+    public static long minimumShopPrice(long listPrice) {
+        if(listPrice<0 || listPrice>1_000_000_000L) throw new IllegalArgumentException("Unbounded shop price");
+        return Math.min(listPrice,discountedShopPrice(listPrice,MAX_RANK));
+    }
+    private static long discountedShopPrice(long listPrice,int rank) {
+        int discountPercent=rank*5;
+        if(discountPercent<=0) return listPrice;
+        return Math.max(1L,(listPrice*(100L-discountPercent)+99L)/100L);
     }
 
     private static ProsperityBranch branchForOffer(ShopOffer offer) {

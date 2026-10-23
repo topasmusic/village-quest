@@ -285,13 +285,7 @@ final class TradeRouteSurfaceResolver {
     }
 
     static boolean supportsFooting(VoxelShape shape) {
-        if (shape == null || shape.isEmpty()) {
-            return false;
-        }
-        double top = shape.max(Direction.Axis.Y);
-        return top >= 0.45 && top <= 1.0
-                && shape.max(Direction.Axis.X) - shape.min(Direction.Axis.X) >= 0.6
-                && shape.max(Direction.Axis.Z) - shape.min(Direction.Axis.Z) >= 0.6;
+        return de.quest.village.BlockFootingPolicy.supportsFooting(shape);
     }
 
     private static boolean isSafeFeetPosition(ServerLevel world, BlockPos feet) {

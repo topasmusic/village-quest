@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "cloth=0": {
+      "model": "village-quest:block/market_stall"
+    },
+    "cloth=1": {
+      "model": "village-quest:block/market_stall_red"
+    },
+    "cloth=2": {
+      "model": "village-quest:block/market_stall_blue"
+    },
+    "cloth=3": {
+      "model": "village-quest:block/market_stall_yellow"
+    },
+    "cloth=4": {
+      "model": "village-quest:block/market_stall_lime"
+    }
+  }
+}

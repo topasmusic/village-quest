@@ -7,12 +7,10 @@ import net.minecraft.util.Mth;
 
 public final class TutorialHintRenderer {
     private static final int SCREEN_PADDING = 6;
-    private static final int BOX_PADDING = 4;
+    private static final int BOX_PADDING = 8;
     private static final int GAP = 10;
-    private static final int OUTER = 0xFFF0D7A7;
-    private static final int INNER = 0xEE2C1E12;
-    private static final int ACCENT = 0xCC5A3D23;
-    private static final int TEXT = 0xFFF8EED8;
+    private static final int OUTER = VillageUiTheme.GOLD;
+    private static final int TEXT = VillageUiTheme.INK;
     private static final int ARROW_SHADOW = 0xAA1B130C;
     private static final int TARGET_OUTER = 0x99F0D7A7;
     private static final int TARGET_ACCENT = 0xCCB88A46;
@@ -34,8 +32,15 @@ public final class TutorialHintRenderer {
             int bobOffset
     ) {
         String text = label.getString();
-        int boxWidth = font.width(text) + (BOX_PADDING * 2);
-        int boxHeight = font.lineHeight + (BOX_PADDING * 2);
+        var lines=new java.util.ArrayList<String>();
+        for(var sequence:font.split(label,Math.max(24,Math.min(240,screenWidth-SCREEN_PADDING*2-BOX_PADDING*2)))) {
+            var line=new StringBuilder();
+            sequence.accept((index,style,cp) -> { line.appendCodePoint(cp);return true; });
+            lines.add(line.toString());
+        }
+        if(lines.isEmpty()) return;
+        int boxWidth = lines.stream().mapToInt(font::width).max().orElse(0) + (BOX_PADDING * 2);
+        int boxHeight = lines.size()*(font.lineHeight+2) + (BOX_PADDING * 2);
         Placement placement = resolvePlacement(preferredPlacement, screenWidth, screenHeight, targetX, targetY, targetWidth, targetHeight, boxWidth, boxHeight);
 
         int boxX;
@@ -71,10 +76,8 @@ public final class TutorialHintRenderer {
             drawTargetHighlight(context, targetX, targetY, targetWidth, targetHeight);
         }
 
-        context.fill(boxX, boxY, boxX + boxWidth, boxY + boxHeight, OUTER);
-        context.fill(boxX + 1, boxY + 1, boxX + boxWidth - 1, boxY + boxHeight - 1, INNER);
-        context.fill(boxX + 2, boxY + 2, boxX + boxWidth - 2, boxY + 3, ACCENT);
-        context.drawString(font, text, boxX + BOX_PADDING, boxY + BOX_PADDING, TEXT, false);
+        VillageUiTheme.drawPaper(context,boxX,boxY,boxWidth,boxHeight);
+        for(int i=0;i<lines.size();i++) context.drawString(font,lines.get(i),boxX+BOX_PADDING,boxY+BOX_PADDING+i*(font.lineHeight+2),TEXT,false);
 
         switch (placement) {
             case LEFT -> drawRightPointingArrow(context, targetX, boxY + (boxHeight / 2), boxX + boxWidth);

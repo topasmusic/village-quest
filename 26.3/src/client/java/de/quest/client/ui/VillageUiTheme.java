@@ -35,16 +35,20 @@ public final class VillageUiTheme {
 
     public static final int INK = 0xFF2D1B12;
     public static final int BODY = 0xFF5B4635;
-    public static final int MUTED = 0xFF88725D;
+    public static final int MUTED = 0xFF70543B;
     public static final int GOLD = 0xFF9A6620;
-    public static final int TEAL = 0xFF236B68;
+    public static final int TEAL = 0xFF365E59;
+    public static final int PAPER = 0xFFF1D8A2;
+    public static final int WOOD = 0xFF4B2C17;
+    public static final int PANEL_PADDING = 12;
     public static final int LIGHT_TEXT = 0xFFF7E8CB;
-    public static final int DISABLED_TEXT = 0xFFC5B296;
+    public static final int DISABLED_TEXT = 0xFF725E47;
     public static final int SCREEN_SHADE = 0x4018120D;
 
-    private static final Identifier TAB_NORMAL = texture("tab_normal");
-    private static final Identifier TAB_SELECTED = texture("tab_selected");
     private static final Identifier CARD = texture("card");
+    private static final Identifier FRAME_V3 = texture("v3/frame");
+    private static final Identifier LANTERN_V3 = texture("v3/lantern");
+    public static final Identifier JOURNAL_HERO = texture("v3/journal_hero");
     private static final Identifier SCROLL_TRACK = texture("scroll_track");
     private static final Identifier SCROLL_THUMB = texture("scroll_thumb");
     private static final int SCROLL_TRACK_TEXTURE_WIDTH = 12;
@@ -62,7 +66,12 @@ public final class VillageUiTheme {
     private VillageUiTheme() {}
 
     public static Identifier icon(String name) {
-        return texture("icon_" + name);
+        return switch (name) {
+            case "dispatch" -> texture("icon_story");
+            case "wayshrine" -> marker("shrine");
+            case "guildpath" -> texture("icon_guide");
+            default -> texture("icon_" + name);
+        };
     }
 
     public static Identifier marker(String name) {
@@ -93,16 +102,35 @@ public final class VillageUiTheme {
 
     public static void drawButton(GuiGraphics graphics, Font font, int x, int y, int width, int height,
                                   String label, boolean enabled, boolean hovered, boolean active) {
-        ButtonState state = !enabled ? ButtonState.DISABLED
-                : active ? ButtonState.ACTIVE
-                : hovered ? ButtonState.HOVER
-                : ButtonState.NORMAL;
-        drawButtonSurface(graphics, state.texture, x, y, width, height);
-        // Active actions retain their teal identity while giving the same warm hover cue.
+        drawButton(graphics,font,x,y,width,height,label,enabled,hovered,active,ButtonTone.TEAL);
+    }
+    public enum ButtonTone { TEAL, OAK, PAPER }
+    public static void drawButton(GuiGraphics graphics, Font font, int x, int y, int width, int height,
+                                  String label, boolean enabled, boolean hovered, boolean active, ButtonTone tone) {
+        if ("×".equals(label)) {
+            JournalV3Visuals.close(graphics,x,y,width,height,hovered);
+            return;
+        }
+        if (!enabled) {
+            graphics.fill(x,y,x+width,y+height,0xFFB69A62);
+            graphics.fill(x+1,y+1,x+width-1,y+height-1,0xFFE4CFAB);
+            graphics.fill(x+2,y+2,x+width-2,y+3,0xFFF4E5CA);
+        } else {
+            graphics.fill(x,y,x+width,y+height,0xFF9A662C);
+            graphics.fill(x+1,y+1,x+width-1,y+height-1,0xFFF0C775);
+            graphics.fill(x+2,y+2,x+width-2,y+height-2,tone==ButtonTone.PAPER?(hovered?0xFFF0D6A6:0xFFE3C795):tone==ButtonTone.OAK?(hovered?0xFF795437:0xFF5C3B25):(hovered?0xFF346D65:0xFF234E4C));
+            graphics.fill(x+3,y+3,x+width-3,y+4,tone==ButtonTone.TEAL?0xFF527D71:0xFFB79661);
+        }
+        if (enabled && active) {
+            graphics.fill(x+2,y+2,x+4,y+height-2,0xFFF5D486);
+            graphics.fill(x+4,y+height-3,x+width-3,y+height-2,0xFFD1AA59);
+            graphics.fill(x + 3, y + 3, x + width - 3, y + height - 3, tone==ButtonTone.TEAL?0x66365E59:0x22B88B44);
+        }
+        // The selected edge and warm hover cue remain visible in every palette.
         if (enabled && active && hovered) {
             graphics.fill(x + 2, y + 2, x + width - 2, y + height - 2, 0x33FFC66D);
         }
-        float textScale = height <= 18 ? 0.75f : 0.85f;
+        float textScale = height < 18 ? 0.78f : 0.92f;
         int available = Math.max(4, Math.round((width - 12) / textScale));
         String visible = ellipsize(font, label, available);
         float renderedWidth = font.width(visible) * textScale;
@@ -110,16 +138,71 @@ public final class VillageUiTheme {
         drawStringScaled(graphics, font, visible,
                 x + (width - renderedWidth) / 2.0f,
                 y + (height - renderedHeight) / 2.0f,
-                enabled ? LIGHT_TEXT : DISABLED_TEXT, textScale);
+                enabled ? tone==ButtonTone.PAPER?INK:LIGHT_TEXT : DISABLED_TEXT, textScale);
+    }
+
+    /** Local navigation uses a permanent selected edge, independent of hover. */
+    public static void drawNavigationTab(GuiGraphics g, Font font, int x, int y, int w, int h,
+                                          String label, boolean enabled, boolean hover, boolean selected) {
+        if (selected) {
+            drawButton(g,font,x,y,w,h,label,enabled,hover,false);
+            g.fill(x+2,y+h-3,x+w-2,y+h-1,0xFFFFD486);
+            g.fill(x+2,y+2,x+4,y+h-3,0xFFFFD486);
+        } else JournalV3Visuals.secondary(g,font,label,x,y,w,h,hover);
     }
 
     public static void drawTab(GuiGraphics graphics, int x, int y, int width, int height,
                                boolean selected, boolean hovered) {
-        Identifier texture = selected ? TAB_SELECTED : TAB_NORMAL;
-        blitScaled(graphics, texture, x, y, width, height, 48, 48);
+        drawButtonSurface(graphics, selected ? ButtonState.ACTIVE.texture : ButtonState.NORMAL.texture,
+                x, y, width, height);
+        if (selected) graphics.fill(x + 3, y + 3, x + width - 3, y + height - 3, 0x66365E59);
         if (hovered && !selected) {
             graphics.fill(x + 4, y + 4, x + width - 4, y + height - 4, 0x22FFF1C7);
         }
+    }
+
+    /** Quiet paper and fixed-size gilded edges; also used for title and detail plates. */
+    public static void drawPaper(GuiGraphics graphics, int x, int y, int width, int height) {
+        JournalV3Visuals.paper(graphics,x,y,width,height);
+    }
+
+    /** Compact VQ overlays share the palette while retaining configurable background opacity. */
+    public static void drawHudPaper(GuiGraphics g, int x, int y, int width, int height, float opacity) {
+        int alpha = Math.round(Math.max(0, Math.min(1, opacity)) * 255);
+        g.fill(x + 2, y + 2, x + width + 2, y + height + 2, (alpha / 3) << 24 | 0x18120D);
+        g.fill(x, y, x + width, y + height, alpha << 24 | WOOD & 0xFFFFFF);
+        g.fill(x + 1, y + 1, x + width - 1, y + height - 1, alpha << 24 | GOLD & 0xFFFFFF);
+        g.fill(x + 2, y + 2, x + width - 2, y + height - 2, alpha << 24 | PAPER & 0xFFFFFF);
+    }
+
+    /** Transparent wood frame. Only straight rails stretch, never corner hardware. */
+    public static void drawFrame(GuiGraphics graphics, int x, int y, int width, int height) {
+        blitNineSlice(graphics, FRAME_V3, x, y, width, height, 416, 234, 32, 32, false);
+    }
+
+    public static void drawBoard(GuiGraphics graphics, int x, int y, int width, int height) {
+        drawPaper(graphics, x + 12, y + 20, width - 24, height - 32);
+        drawFrame(graphics, x, y, width, height);
+        JournalV3Visuals.ornaments(graphics,x,y,width,height);
+    }
+
+    /** Optional outer-corner ornament; callers reserve its space outside live content. */
+    public static void drawLantern(GuiGraphics graphics, int x, int y) {
+        blitScaled(graphics, LANTERN_V3, x, y, 32, 40, 32, 40);
+    }
+
+    /** Titles are live Minecraft text; the plaque never contains generated lettering. */
+    public static void drawTitle(GuiGraphics graphics, Font font, String label, String icon,
+                                 int x, int y, int width) {
+        JournalV3Visuals.titlePlate(graphics,x,y,width);
+        float scale=Math.min(1.5f,Math.max(.9f,(width-40f)/Math.max(1,font.width(label))));
+        String visible=ellipsize(font,label,Math.max(1,(int)((width-40)/scale)));
+        float groupWidth=23+6+font.width(visible)*scale;
+        int start=x+Math.round((width-groupWidth)/2);
+        if(icon.equals("wayshrine")) JournalV3Visuals.sprite(graphics,icon,start+2,y+3,19,19);
+        else drawIcon(graphics,icon(icon),start,y+(icon.equals("quests")?-2:1),23);
+        JournalV3Visuals.heading(graphics,font,visible,start+29,y+(30-font.lineHeight*scale)/2-2,
+                Math.round(font.width(visible)*scale)+2,scale,INK);
     }
 
     private static void drawButtonSurface(GuiGraphics graphics, Identifier texture, int x, int y, int width, int height) {
@@ -154,10 +237,11 @@ public final class VillageUiTheme {
         // to more than twenty pixels horizontally, which pushed labels into the
         // painted border. Keep corners and edges at a fixed size and only stretch
         // the parchment centre.
-        blitNineSlice(graphics, CARD, x, y, width, height,
-                CARD_TEXTURE_SIZE, CARD_TEXTURE_SIZE,
-                CARD_SOURCE_BORDER, CARD_RENDER_BORDER);
+        JournalV3Visuals.paper(graphics,x,y,width,height);
         if (selected) {
+            graphics.fill(x+2,y+2,x+width-2,y+height-2,0x24365E59);
+            graphics.fill(x+1,y+1,x+width-1,y+2,0xFF365E59);
+            graphics.fill(x+1,y+height-2,x+width-1,y+height-1,0xFF365E59);
             graphics.fill(x + 4, y + 4, x + 7, y + height - 4, 0xCC236B68);
         } else if (hovered) {
             graphics.fill(x + 4, y + 4, x + width - 4, y + height - 4, 0x12FFFFFF);
@@ -165,7 +249,8 @@ public final class VillageUiTheme {
     }
 
     public static void drawIcon(GuiGraphics graphics, Identifier icon, int x, int y, int size) {
-        blitScaled(graphics, icon, x, y, size, size, 32, 32);
+        int source = icon.getPath().contains("/map_") ? 48 : 32;
+        blitScaled(graphics, icon, x, y, size, size, source, source);
     }
 
     public static void drawMarker(GuiGraphics graphics, String marker, int centerX, int centerY, int size) {
@@ -178,21 +263,31 @@ public final class VillageUiTheme {
         if (contentHeight <= viewportHeight || height <= 12) {
             return;
         }
-        blitScaled(graphics, SCROLL_TRACK, x, y, SCROLL_TRACK_RENDER_WIDTH, height,
-                SCROLL_TRACK_TEXTURE_WIDTH, SCROLL_TRACK_TEXTURE_HEIGHT);
-        int thumbHeight = Math.max(24, (int) Math.round((double) viewportHeight / contentHeight * height));
-        thumbHeight = Math.min(height, thumbHeight);
-        int travel = Math.max(0, height - thumbHeight);
+        // One continuous recessed track; the thumb is visually distinct from its end caps.
+        graphics.fill(x-1,y,x+4,y+height,0xFF9A662C);
+        graphics.fill(x,y+1,x+3,y+height-1,0xFF4B2C17);
+        int thumbHeight = Math.max(12, (int) Math.round((double) viewportHeight / contentHeight * (height-4)));
+        thumbHeight = Math.min(height-4, thumbHeight);
+        int travel = Math.max(0, height - 4 - thumbHeight);
         int thumbOffset = maxOffset <= 0 ? 0
                 : (int) Math.round((double) Math.max(0, Math.min(offset, maxOffset)) / maxOffset * travel);
         int thumbX = x - (SCROLL_THUMB_RENDER_WIDTH - SCROLL_TRACK_RENDER_WIDTH) / 2;
-        blitScrollThumb(graphics, thumbX, y + thumbOffset, SCROLL_THUMB_RENDER_WIDTH, thumbHeight);
+        int thumbY=y+2+thumbOffset;
+        graphics.fill(thumbX,thumbY,thumbX+SCROLL_THUMB_RENDER_WIDTH,thumbY+thumbHeight,0xFF9A662C);
+        graphics.fill(thumbX+1,thumbY+1,thumbX+SCROLL_THUMB_RENDER_WIDTH-1,thumbY+thumbHeight-1,TEAL);
+        graphics.fill(thumbX+2,thumbY+2,thumbX+SCROLL_THUMB_RENDER_WIDTH-2,thumbY+3,0xFF84AB94);
     }
 
     /** Draws the shared compact icon wallet used in every Village Quest wood header. */
     public static void drawWalletStrip(GuiGraphics graphics, Font font,
                                        int left, int top, int windowWidth, long balance,
                                        int rightInset, int topOffset) {
+        drawWalletStrip(graphics,font,left,top,windowWidth,balance,rightInset,topOffset,false);
+    }
+    public static void drawPaperWalletStrip(GuiGraphics graphics,Font font,int left,int top,int windowWidth,long balance,int rightInset,int topOffset) {
+        drawWalletStrip(graphics,font,left,top,windowWidth,balance,rightInset,topOffset,true);
+    }
+    private static void drawWalletStrip(GuiGraphics graphics,Font font,int left,int top,int windowWidth,long balance,int rightInset,int topOffset,boolean paper) {
         long crownAmount = balance / CurrencyService.CROWN;
         long silverAmount = balance % CurrencyService.CROWN;
         String crownText = compactWalletAmount(crownAmount);
@@ -201,10 +296,11 @@ public final class VillageUiTheme {
         int silverWidth = walletEntryWidth(font, silverText);
         int totalWidth = crownWidth + silverWidth + WALLET_GAP;
         int startX = left + windowWidth - rightInset - totalWidth;
+        if(paper) JournalV3Visuals.paper(graphics,startX-5,top+topOffset-3,totalWidth+10,20);
         drawWalletEntry(graphics, font, startX, top + topOffset, crownWidth,
-                new ItemStack(ModItems.CROWN), crownText, crownAmount > 0L, 0xFFFFD27A, 0.74f);
+                new ItemStack(ModItems.CROWN), crownText, paper || crownAmount > 0L, paper?INK:0xFFFFD27A, 0.74f);
         drawWalletEntry(graphics, font, startX + crownWidth + WALLET_GAP, top + topOffset, silverWidth,
-                new ItemStack(ModItems.SILVERMARK), silverText, silverAmount > 0L, 0xFFD9E2F0, 0.68f);
+                new ItemStack(ModItems.SILVERMARK), silverText, paper || silverAmount > 0L, paper?BODY:0xFFD9E2F0, 0.68f);
     }
 
     /** Wallet constrained to a small plate, including icons and text. */
@@ -215,11 +311,12 @@ public final class VillageUiTheme {
         int crownWidth = 11 + Math.round(font.width(crowns) * .72f);
         int silverWidth = 11 + Math.round(font.width(silver) * .72f);
         int x = right - crownWidth - silverWidth - 4;
+        JournalV3Visuals.paper(graphics,x-5,top-4,right-x+10,20);
         drawScaledItem(graphics, new ItemStack(ModItems.CROWN), x, top, .5f);
-        drawStringScaled(graphics, font, crowns, x + 10, top + 2, 0xFFFFD27A, .72f);
+        drawStringScaled(graphics, font, crowns, x + 10, top + 2, INK, .72f);
         x += crownWidth + 4;
         drawScaledItem(graphics, new ItemStack(ModItems.SILVERMARK), x, top, .5f);
-        drawStringScaled(graphics, font, silver, x + 10, top + 2, 0xFFD9E2F0, .72f);
+        drawStringScaled(graphics, font, silver, x + 10, top + 2, BODY, .72f);
     }
 
     /** Reuses the accepted board artwork without stretching its vertical ornaments. */
@@ -247,6 +344,14 @@ public final class VillageUiTheme {
         blitRegionScaled(g, board, x + 26, y + 32, width - 52, height - 58,
                 26, 32, width - 52, height - 58, width, height);
         blitScaled(g, frame, x, y, width, height, 416, 234);
+    }
+
+    /** Thin gilded lip around live terrain; never paints over the map's interior. */
+    public static void drawMapRim(GuiGraphics g,int x,int y,int width,int height) {
+        g.fill(x-2,y-2,x+width+2,y,0xFFB18A47);
+        g.fill(x-2,y+height,x+width+2,y+height+2,0xFF73532D);
+        g.fill(x-2,y,x,y+height,0xFFC7AA6B);
+        g.fill(x+width,y,x+width+2,y+height,0xFF73532D);
     }
 
     /** Draw the native parchment lip above the live map, with its inner contact shadow. */
@@ -313,7 +418,7 @@ public final class VillageUiTheme {
         return String.format(Locale.ROOT, pattern, value, suffix);
     }
 
-    private static void drawScaledItem(GuiGraphics graphics, ItemStack stack, int x, int y, float scale) {
+    public static void drawScaledItem(GuiGraphics graphics, ItemStack stack, int x, int y, float scale) {
         if (stack == null || stack.isEmpty()) {
             return;
         }
@@ -343,6 +448,14 @@ public final class VillageUiTheme {
                                       int x, int y, int width, int height,
                                       int textureWidth, int textureHeight,
                                       int sourceBorder, int renderBorder) {
+        blitNineSlice(graphics, texture, x, y, width, height, textureWidth, textureHeight,
+                sourceBorder, renderBorder, true);
+    }
+
+    private static void blitNineSlice(GuiGraphics graphics, Identifier texture,
+                                      int x, int y, int width, int height,
+                                      int textureWidth, int textureHeight,
+                                      int sourceBorder, int renderBorder, boolean drawCenter) {
         if (width <= 0 || height <= 0) {
             return;
         }
@@ -366,7 +479,7 @@ public final class VillageUiTheme {
 
         blitRegionScaled(graphics, texture, x, y + top, left, centerHeight,
                 0, sourceBorder, sourceBorder, sourceCenterHeight, textureWidth, textureHeight);
-        blitRegionScaled(graphics, texture, x + left, y + top, centerWidth, centerHeight,
+        if (drawCenter) blitRegionScaled(graphics, texture, x + left, y + top, centerWidth, centerHeight,
                 sourceBorder, sourceBorder, sourceCenterWidth, sourceCenterHeight,
                 textureWidth, textureHeight);
         blitRegionScaled(graphics, texture, x + width - right, y + top, right, centerHeight,
@@ -445,6 +558,8 @@ public final class VillageUiTheme {
             if (i == visibleLines - 1 && lines.size() > maxLines) {
                 visible = ellipsize(font, visible + " ...", unscaledWidth);
             }
+            // Word wrapping alone cannot bound a long localized compound or external title.
+            visible = ellipsize(font, visible, unscaledWidth);
             drawStringScaled(graphics, font, visible, x, y + i * lineStep, color, scale);
         }
         return visibleLines;

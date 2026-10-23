@@ -7,7 +7,7 @@ import java.util.List;
 
 /** One source of geometry for drawing and clicking the village story actions. */
 final class NoticeJourneyLayout {
-    static final int WIDTH = 360, HEIGHT = 186;
+    static final int WIDTH = 560, HEIGHT = 315;
     static final int CLOSE = -1, TRUST = -2, REQUESTS = -3, QUESTMASTER = -4;
     record Button(int x, int y, int width, int height, String key, int action, boolean primary) {
         boolean contains(double mx, double my) { return mx >= x && mx < x + width && my >= y && my < y + height; }
@@ -16,8 +16,8 @@ final class NoticeJourneyLayout {
         var result = new ArrayList<Button>();
         var footer = new ArrayList<Button>();
         if (stage == NoticeJourneyPayload.CHOOSE) {
-            result.add(new Button(43, 142, 134, 14, "screen.village-quest.notice_journey.reserve", NoticeJourneyActionPayload.RESERVE, true));
-            result.add(new Button(183, 142, 134, 14, "screen.village-quest.notice_journey.share", NoticeJourneyActionPayload.SHARE, true));
+            result.add(new Button(36, 233, 240, 22, "screen.village-quest.notice_journey.reserve", NoticeJourneyActionPayload.RESERVE, true));
+            result.add(new Button(284, 233, 240, 22, "screen.village-quest.notice_journey.share", NoticeJourneyActionPayload.SHARE, true));
         } else {
             String key; int action;
             switch (stage) {
@@ -29,20 +29,20 @@ final class NoticeJourneyLayout {
                 case NoticeJourneyPayload.PAUSED -> { key = "screen.village-quest.notice_journey.resume"; action = NoticeJourneyActionPayload.RESUME; }
                 default -> { key = "screen.village-quest.notice_journey.refresh"; action = NoticeJourneyActionPayload.REFRESH; }
             }
-            footer.add(new Button(0, 0, 0, 0, key, action, true));
+            boolean primary = action != NoticeJourneyActionPayload.REFRESH;
+            // Welcome has no objective cards; keep its next action beside the introduction.
+            result.add(new Button(36,stage==NoticeJourneyPayload.QUESTMASTER?195:233,488,22,key,action,primary));
         }
         if (requests) footer.add(new Button(0, 0, 0, 0, "screen.village-quest.notice_journey.requests", REQUESTS, false));
         footer.add(new Button(0, 0, 0, 0, "screen.village-quest.dispatch.tab", NoticeJourneyActionPayload.DISPATCH, false));
         footer.add(new Button(0, 0, 0, 0, "screen.village-quest.reputation.title", TRUST, false));
         footer.add(new Button(0, 0, 0, 0, "screen.village-quest.notice_board.close", CLOSE, false));
         int gap = 5;
-        int[] widths = stage == NoticeJourneyPayload.CHOOSE
-                ? (requests ? new int[] {80, 115, 57, 57} : new int[] {148, 83, 83})
-                : (requests ? new int[] {90, 80, 58, 38, 38} : new int[] {115, 98, 48, 48});
-        int x = 18;
+        int[] widths = requests ? new int[] {132,147,98,96} : new int[] {228,124,124};
+        int x = 36;
         for (int i = 0; i < footer.size(); i++) {
             var button = footer.get(i);
-            result.add(new Button(x, 162, widths[i], 14, button.key(), button.action(), button.primary()));
+            result.add(new Button(x, 257, widths[i], 18, button.key(), button.action(), button.primary()));
             x += widths[i] + gap;
         }
         return List.copyOf(result);

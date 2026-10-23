@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "group": "village_quest",
+  "pattern": [
+    "WWW",
+    "PPP",
+    "S S"
+  ],
+  "key": {
+    "W": "minecraft:white_wool",
+    "P": "minecraft:oak_planks",
+    "S": "minecraft:stick"
+  },
+  "result": {
+    "id": "village-quest:market_stall",
+    "count": 1
+  }
+}

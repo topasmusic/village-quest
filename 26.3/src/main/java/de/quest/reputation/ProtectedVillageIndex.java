@@ -15,6 +15,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
 
 /** Physical registered anchors, not owner-qualified route slots. Queries touch only nine 64-block cells. */
@@ -59,10 +60,8 @@ public final class ProtectedVillageIndex {
                 long distance = dx * dx + dz * dz; if (distance > 64L * 64) continue;
                 Integer y = heights.get(key);
                 if (y == null && world != null) {
-                    BlockPos anchor = new BlockPos(key.anchorX(), position.getY(), key.anchorZ());
-                    if (!world.hasChunkAt(anchor)) continue;
-                    y = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, key.anchorX(), key.anchorZ());
-                    upsert(key, y); QuestState.get(world.getServer()).setDirty();
+                    if (captureHeight(world, key)) QuestState.get(world.getServer()).setDirty();
+                    y = heights.get(key);
                 }
                 if (y == null || Math.abs((long) position.getY() - y) > 32) continue;
                 if (distance < best || distance == best && (result == null || key.compareTo(result) < 0)) { best = distance; result = key; }
@@ -106,17 +105,23 @@ public final class ProtectedVillageIndex {
         if (changed) state.setDirty();
     }
     private boolean captureHeight(ServerLevel world, VillageKey key) {
-        if (preserved != null || !world.dimension().identifier().toString().equals(key.dimension())
-                || !world.hasChunkAt(new BlockPos(key.anchorX(), 0, key.anchorZ()))) return false;
-        return upsert(key, world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, key.anchorX(), key.anchorZ()));
+        if (preserved != null || !world.dimension().identifier().toString().equals(key.dimension())) return false;
+        LevelChunk chunk = world.getChunkSource().getChunkNow(key.anchorX() >> 4, key.anchorZ() >> 4);
+        return chunk != null && captureHeight(world, key, chunk);
     }
-    /** Repair only pending anchors in this already-loaded chunk; never request a chunk load. */
-    public static void onChunkLoad(ServerLevel world, net.minecraft.world.level.ChunkPos chunk) {
+    private boolean captureHeight(ServerLevel world, VillageKey key, LevelChunk chunk) {
+        if (preserved != null || !world.dimension().identifier().toString().equals(key.dimension())
+                || chunk.getPos().x() != (key.anchorX() >> 4) || chunk.getPos().z() != (key.anchorZ() >> 4)) return false;
+        // Match Level#getHeight's first-free Y, using the chunk's own local heightmap.
+        return upsert(key, chunk.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, key.anchorX() & 15, key.anchorZ() & 15) + 1);
+    }
+    /** The event's chunk is not necessarily published in ServerChunkCache yet. Never request it again. */
+    public static void onChunkLoad(ServerLevel world, LevelChunk chunk) {
         QuestState state = QuestState.get(world.getServer()); var index = state.protectedVillages();
-        var pending = index.pendingHeights.get(new AnchorChunk(world.dimension().identifier().toString(), chunk.x(), chunk.z()));
+        var pending = index.pendingHeights.get(new AnchorChunk(world.dimension().identifier().toString(), chunk.getPos().x(), chunk.getPos().z()));
         if (pending == null) return;
         boolean changed = false;
-        for (VillageKey key : Set.copyOf(pending)) changed |= index.captureHeight(world, key);
+        for (VillageKey key : Set.copyOf(pending)) changed |= index.captureHeight(world, key, chunk);
         if (changed) state.setDirty();
     }
     public static void primeHistorical(MinecraftServer server) {

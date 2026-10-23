@@ -28,15 +28,25 @@ public final class VillageQuestRecipeBookService {
 
     public static void unlockEligibleRecipes(ServerPlayer player) {
         if (player == null) return;
+        var state=de.quest.data.QuestState.get(player.level().getServer());
+        var data=state.getPlayerData(player.getUUID());
+        if (de.quest.kingdom.KingdomStoryProgress.restoreUnlocks(data)) state.setDirty();
         List<RecipeHolder<?>> unlocked = new ArrayList<>();
         for (RecipeUnlock unlock : unlocks()) {
             if (!player.getRecipeBook().contains(unlock.key()) && hasAll(player, unlock.requirements())) {
                 player.level().getServer().getRecipeManager().byKey(unlock.key()).ifPresent(unlocked::add);
             }
         }
+        if (data.hasMilestoneFlag(de.quest.kingdom.KingdomBuildingService.COUNCIL_UNLOCK)) addStoryRecipe(player,unlocked,"council_seat");
+        if (data.hasMilestoneFlag(de.quest.kingdom.KingdomBuildingService.BUILDINGS_UNLOCK))
+            for(String path:List.of("inn_barrel","market_desk","storehouse_anchor","market_stall")) addStoryRecipe(player,unlocked,path);
         if (!unlocked.isEmpty()) {
             player.awardRecipes(unlocked);
         }
+    }
+    private static void addStoryRecipe(ServerPlayer player,List<RecipeHolder<?>> unlocked,String path) {
+        var key=ResourceKey.<Recipe<?>>create(Registries.RECIPE,Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID,path));
+        if (!player.getRecipeBook().contains(key)) player.level().getServer().getRecipeManager().byKey(key).ifPresent(unlocked::add);
     }
 
     private static List<RecipeUnlock> unlocks() {

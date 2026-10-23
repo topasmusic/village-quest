@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "group": "village_quest",
+  "pattern": [
+    "PBP",
+    "PPP",
+    "S S"
+  ],
+  "key": {
+    "P": "minecraft:spruce_planks",
+    "B": "minecraft:book",
+    "S": "minecraft:stick"
+  },
+  "result": {
+    "id": "village-quest:council_seat",
+    "count": 1
+  }
+}

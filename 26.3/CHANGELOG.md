@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.6.0 — Living Kingdoms
+
+- **Give your village a name and a future.** Follow A Place at the Table, establish a Council Seat, inn, market and storehouse, and earn five stages of village recognition through real work. Build the places yourself and use their checklists to make them ready.
+- **Meet the people behind the buildings.** Named leaders, innkeepers and storekeepers remember their village and its achievements. Staff rest, move around their buildings and seek safety when danger approaches. Rare inn guests bring new faces and personal adventures.
+- **Trade at a market of your own.** Assign up to five trader places, welcome visitors from connected villages and discover regional assortments. Home needs, village bonds and personal trust shape the prices and goods on offer.
+- **Bring communities together.** Negotiate trade, supply and friendship agreements, host visiting leaders and help settle shortages. Real deliveries can strengthen a trading relationship; difficult loyalty choices have consequences that you can work to repair.
+- **Travel with Simon, Lutte and Marius.** Gather herbs and stories for Simon, chart coastal signals with Lutte, or stand watch with Marius. Earn a Golden Weather Tonic, choose Lutte's crafted weapon or pickaxe, and claim your personal Village Watch Seal. Raphael joins the inn visitors with conversations of his own.
+- **Rediscover your earned tools.** The Village Seal helps inspect your buildings. The Unwritten Promise takes experienced adventurers on a five-chapter journey using their personally earned guild tools, with a lasting charter choice at its end.
+- **Make the adventure suit your world.** Optional journal settings let owners choose real-time or Minecraft-day Daily/Weekly resets, adventure difficulty, the story pause and caravan presentation. Personal tracker, minimap, sound and speech settings remain yours to choose.
+
+## Bug fixes and improvements
+
+- Enjoy refreshed parchment, wood and brass screens, illustrated quest entries, clearer objectives and rewards, readable village reports and more useful maps. The familiar Journal remains at the heart of your adventure.
+- Keep track of active quests with a paged tracker and quieter combined world news. Routine arrivals and guest reports give the Journal room to breathe; urgent events still speak up.
+- Continue existing worlds with their earned progression. Building repairs and relocation retain village identity, lost earned tools remain recoverable, and reward collection keeps gifts available when your inventory is full.
+- Benefit from clearer trade confirmations, safer interrupted transactions, more reliable guest and coastal-signal progress, and fixes to saved signal loading and minimap restoration.
+- Find revised English, German and Spanish dialogue, instructions and item descriptions throughout the new adventure.
+
+- Refine Raphael’s face and beard, align remaining title icons, and retire the temporary administrator quest tour while preserving saved NPC records.
+
 ## 2.5.0 — Bonds & Bounty
 
 Release date: 2026-10-12
@@ -1520,7 +1540,6 @@ Release date: 2026-04-03
   - `Wayfinder's Compass` now also requires mined `Lapis Lazuli` alongside `Redstone`.
 - Tracked mining drops were expanded so `Raw Gold` and `Lapis Lazuli` count correctly with the same self-earned mining logic.
 - Pilgrim offers are now single-use per spawned pilgrim: once bought, that offer stays unavailable until a new pilgrim appears.
-- The internal `Admin: Core Systems Test` was expanded to cover the new risky hook paths such as taming, crafted honey blocks, villager purchases, and the added mining-drop routes.
 - The admin wallet commands no longer print duplicate chat feedback when an admin adjusts their own wallet.
 - English and German quest texts were updated to match the new objectives and progress labels.
 
@@ -1818,3 +1837,28 @@ Release date: 2026-03-29
 ## 1.0.0 - Baseline
 
 - Baseline release on Minecraft `1.21.11`.
+
+## Journal-only reference follow-up (sources; package pending)
+
+- Recompose Journal Home around the approved V3 reference: six labeled navigation
+  targets, an open-book title medallion and ivy, a larger journey landscape,
+  four illustrated shortcuts, the real next quest, scrollable active quests and
+  a Guild Chronicle panel. Add new generated sprites with recorded originals.
+- Use fine gold-edged paper and petrol primary actions only within the Journal.
+  Preserve quest priority, live Atlas nodes/panning, villages/trust/history,
+  cancellation, gated map/prosperity access and the old statistics in Guide.
+- Existing unreleased.28 JARs do not contain this follow-up. A new numbered test
+  package awaits revision approval; new Minecraft visual acceptance is NOT RUN.
+
+## Market and Questboard V3 families (sources; no new package)
+
+- Add two Imagegen design references matching Journal V3, plus the separate market
+  illustration and generation provenance. Reuse V3 ivy, lantern, paper and petrol.
+- Recompose Market into aligned goods/stock/owned/buy/sell columns, two wallets,
+  a paginated inline price-detail panel and fixed feedback/refresh controls.
+  Clicking goods changes the price explanation; Escape closes directly.
+- Add labeled quest categories, illustrated list rows, a larger scrolling detail
+  area, readable state badges and a distinct primary action. Preserve real
+  objectives/rewards, party controls, trust access and timer explanations.
+- Correct the preview tour's active/locked Accept availability. Live quest
+  actions remain server-owned. Existing unreleased.28 packages predate this work.

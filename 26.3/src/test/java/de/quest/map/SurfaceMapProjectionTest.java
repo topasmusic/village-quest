@@ -6,6 +6,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
 final class SurfaceMapProjectionTest {
+    @Test void tileCoverageStaysWithinTheNativeTextureCapAtTheLargestSupportedViewport() {
+        for (int size : new int[]{2, 4, 8, 64, 1024}) {
+            var coverage = SurfaceMapProjection.tileCoverage(-31, -31 + 96 * size, -17, -17 + 64 * size, size);
+            assertTrue(coverage.contains(-31, -31 + 96 * size, -17, -17 + 64 * size));
+            assertTrue(coverage.cellWidth() * SurfaceMapProjection.PIXELS_PER_CELL <= 1024);
+            assertTrue(coverage.cellHeight() * SurfaceMapProjection.PIXELS_PER_CELL <= 768);
+        }
+    }
     @Test
     void coverageIsWorldAlignedAndBufferedBeyondTheViewport() {
         SurfaceMapProjection.Coverage coverage = SurfaceMapProjection.bufferedCoverage(

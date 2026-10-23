@@ -3,6 +3,9 @@ package de.quest.client.screen;
 import com.mojang.blaze3d.platform.InputConstants;
 import de.quest.VillageQuest;
 import de.quest.client.ui.VillageUiTheme;
+import de.quest.client.ui.QuestArtwork;
+import de.quest.client.ui.JournalV3Visuals;
+import de.quest.client.ui.KingdomUiAssets;
 import de.quest.economy.CurrencyService;
 import de.quest.network.Payloads;
 import de.quest.registry.ModItems;
@@ -22,32 +25,34 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class PilgrimTradeScreen extends CompatScreen {
-    private record ContractDetailLine(String text, int color, float scale, boolean spacer) {}
+    private record ContractDetailLine(String text, int color, float scale, boolean spacer, boolean heading) {
+        ContractDetailLine(String text,int color,float scale,boolean spacer) {this(text,color,scale,spacer,false);}
+    }
 
     private static final Identifier BOARD_TEXTURE = Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "textures/gui/pilgrim_board_v2.png");
     private static final Identifier RUMOR_BOARD_TEXTURE = BOARD_TEXTURE;
     private static final int BOARD_TEXTURE_WIDTH = 310;
     private static final int BOARD_TEXTURE_HEIGHT = 205;
 
-    private static final int WINDOW_WIDTH = 310;
-    private static final int WINDOW_HEIGHT = 205;
+    private static final int WINDOW_WIDTH = 560;
+    private static final int WINDOW_HEIGHT = 315;
 
-    private static final int GOODS_X = 16;
-    private static final int GOODS_Y = 46;
-    private static final int GOODS_WIDTH = 126;
-    private static final int GOODS_HEIGHT = 132;
-    private static final int GOODS_ENTRY_HEIGHT = 30;
+    private static final int GOODS_X = 32;
+    private static final int GOODS_Y = 61;
+    private static final int GOODS_WIDTH = 222;
+    private static final int GOODS_HEIGHT = 190;
+    private static final int GOODS_ENTRY_HEIGHT = 44;
     private static final int GOODS_VISIBLE_ENTRIES = 4;
     private static final int GOODS_ENTRY_WIDTH = GOODS_WIDTH - 16;
-    private static final int GOODS_TEXT_X_OFFSET = 28;
-    private static final int GOODS_TEXT_WIDTH = 72;
+    private static final int GOODS_TEXT_X_OFFSET = 36;
+    private static final int GOODS_TEXT_WIDTH = 168;
 
-    private static final int DETAIL_X = 154;
-    private static final int DETAIL_Y = 46;
-    private static final int DETAIL_WIDTH = 140;
-    private static final int DETAIL_HEIGHT = 132;
+    private static final int DETAIL_X = 264;
+    private static final int DETAIL_Y = 61;
+    private static final int DETAIL_WIDTH = 264;
+    private static final int DETAIL_HEIGHT = 190;
 
-    private static final int BUY_WIDTH = 108;
+    private static final int BUY_WIDTH = 192;
     private static final int BUY_HEIGHT = 18;
     private static final int CONTRACT_BODY_MIN_Y_OFFSET = 68;
 
@@ -94,13 +99,13 @@ public class PilgrimTradeScreen extends CompatScreen {
     private static final int HEADER_TITLE_HEIGHT = 26;
     private static final int HEADER_WALLET_RIGHT_INSET = 32;
     private static final int HEADER_WALLET_TOP = 9;
-    private static final int HEADER_CONTRACT_TOP = 10;
+    private static final int HEADER_CONTRACT_TOP = 39;
     private static final int FOOTER_LEFT_INSET = 32;
     private static final int FOOTER_RIGHT_INSET = 35;
-    private static final int FOOTER_TEXT_Y_OFFSET = WINDOW_HEIGHT - 16;
+    private static final int FOOTER_TEXT_Y_OFFSET = WINDOW_HEIGHT - 49;
     private static final float DETAIL_PRICE_COIN_SCALE = 1.08f;
-    private static final int RUMOR_TAB_WIDTH = 48;
-    private static final int RUMOR_TAB_HEIGHT = 13;
+    private static final int RUMOR_TAB_WIDTH = 96;
+    private static final int RUMOR_TAB_HEIGHT = 18;
     private static final int CONTRACT_OPTION_HEIGHT = 20;
     private static final float CONTRACT_OPTION_TEXT_SCALE = 0.84f;
 
@@ -242,10 +247,14 @@ public class PilgrimTradeScreen extends CompatScreen {
         int top = (this.height - WINDOW_HEIGHT) / 2;
         int mouseX = responsiveMouseX(click.x(), WINDOW_WIDTH, WINDOW_HEIGHT);
         int mouseY = responsiveMouseY(click.y(), WINDOW_WIDTH, WINDOW_HEIGHT);
+        if (KingdomUiAssets.closeBounds(left, top, WINDOW_WIDTH, WINDOW_HEIGHT).contains(mouseX, mouseY)) {
+            onClose();
+            return true;
+        }
 
         int firstOffer = this.goodsScrollIndex;
         int lastOffer = Math.min(data.offers().size(), firstOffer + GOODS_VISIBLE_ENTRIES);
-        for (int i = firstOffer; i < lastOffer; i++) {
+        for (int i = firstOffer; !showContract && i < lastOffer; i++) {
             int entryX = left + GOODS_X + 8;
             int entryY = top + GOODS_Y + 8 + ((i - firstOffer) * GOODS_ENTRY_HEIGHT);
             if (isWithin(mouseX, mouseY, entryX, entryY, GOODS_ENTRY_WIDTH, GOODS_ENTRY_HEIGHT - 2)) {
@@ -258,6 +267,9 @@ public class PilgrimTradeScreen extends CompatScreen {
             }
         }
 
+        if(isWithin(mouseX,mouseY,left+GOODS_X+8,top+HEADER_CONTRACT_TOP,112,RUMOR_TAB_HEIGHT)) {
+            this.showContract=false; this.contractScrollOffset=0; playClickSound(); return true;
+        }
         if (hasContract() && isHoveringContractTab(mouseX, mouseY, left, top)) {
             this.showContract = !this.showContract;
             this.contractScrollOffset = 0;
@@ -290,7 +302,7 @@ public class PilgrimTradeScreen extends CompatScreen {
         int top = (this.height - WINDOW_HEIGHT) / 2;
         int uiMouseX = responsiveMouseX(mouseX, WINDOW_WIDTH, WINDOW_HEIGHT);
         int uiMouseY = responsiveMouseY(mouseY, WINDOW_WIDTH, WINDOW_HEIGHT);
-        if (maxGoodsScrollIndex() > 0
+        if (!showContract && maxGoodsScrollIndex() > 0
                 && isWithin(uiMouseX, uiMouseY,
                 left + GOODS_X + 6, top + GOODS_Y + 6, GOODS_WIDTH - 12, GOODS_HEIGHT - 12)) {
             this.goodsScrollIndex -= (int) Math.signum(verticalAmount);
@@ -317,7 +329,7 @@ public class PilgrimTradeScreen extends CompatScreen {
         }
         if (!this.showContract
                 && this.shopDetailScrollMax > 0
-                && isWithin(uiMouseX, uiMouseY, left + DETAIL_X + 8, top + DETAIL_Y + 70, DETAIL_WIDTH - 16, Math.max(0, getBuyButtonY(top) - 10 - (top + DETAIL_Y + 70)))) {
+                && isWithin(uiMouseX, uiMouseY, left + DETAIL_X + 8, top + DETAIL_Y + 124, DETAIL_WIDTH - 16, Math.max(0, getBuyButtonY(top) - 10 - (top + DETAIL_Y + 124)))) {
             int step = Math.max(8, Math.round((this.font.lineHeight + 2) * DETAIL_BODY_SCALE) * 2);
             this.shopDetailScrollOffset -= (int) Math.signum(verticalAmount) * step;
             clampShopDetailScroll();
@@ -327,55 +339,22 @@ public class PilgrimTradeScreen extends CompatScreen {
     }
 
     private void drawBoard(GuiGraphics context, int left, int top) {
-        // The generated board keeps transparent pixels along the inner top-left
-        // wood joint. Back only that joint so the world cannot show through it.
-        context.fill(left + 93, top + 3, left + 96, top + 18, 0xFF41200B);
-        context.fill(left + 9, top + 18, left + 96, top + 19, 0xFF2E1606);
-        context.fill(left + 9, top + 19, left + 96, top + 20, 0xFF241001);
-        context.fill(left + 9, top + 20, left + 96, top + 21, 0xFF140B00);
-        context.fill(left + 11, top + 21, left + 12, top + 184, 0xFF321807);
-        context.fill(left + 12, top + 21, left + 13, top + 184, 0xFF180B02);
-        context.blit(
-                RenderPipelines.GUI_TEXTURED,
-                this.showContract && hasContract() ? RUMOR_BOARD_TEXTURE : BOARD_TEXTURE,
-                left,
-                top,
-                0.0f,
-                0.0f,
-                WINDOW_WIDTH,
-                WINDOW_HEIGHT,
-                BOARD_TEXTURE_WIDTH,
-                BOARD_TEXTURE_HEIGHT
-        );
-        // Replace the old baked inner frames with clean parchment, then use the
-        // same fixed-corner card renderer as the Quest Board. All four edges
-        // remain visible and the list viewport cannot crop the panel rim.
-        var pose = context.pose(); pose.pushMatrix(); pose.translate(left + 16, top + 24);
-        pose.scale(2.8f, 161f / 124f);
-        context.blit(RenderPipelines.GUI_TEXTURED, BOARD_TEXTURE, 0, 0, 28f, 40f,
-                100, 124, BOARD_TEXTURE_WIDTH, BOARD_TEXTURE_HEIGHT);
-        pose.popMatrix();
-        // The title plaque overhangs the wood; restore it over the continuous paper.
-        context.blit(RenderPipelines.GUI_TEXTURED, BOARD_TEXTURE, left + 94, top, 94f, 0f,
-                122, 27, BOARD_TEXTURE_WIDTH, BOARD_TEXTURE_HEIGHT);
-        VillageUiTheme.drawCard(context, left + GOODS_X, top + GOODS_Y, GOODS_WIDTH, GOODS_HEIGHT, false, false);
+        de.quest.client.ui.JournalV3Visuals.insetBoard(context, left, top, WINDOW_WIDTH, WINDOW_HEIGHT);
+        VillageUiTheme.drawCard(context, left + GOODS_X, top + GOODS_Y, GOODS_WIDTH, showContract ? GOODS_HEIGHT : Math.min(GOODS_HEIGHT,16+Math.max(1,Math.min(GOODS_VISIBLE_ENTRIES,data.offers().size()))*GOODS_ENTRY_HEIGHT), false, false);
         VillageUiTheme.drawCard(context, left + DETAIL_X, top + DETAIL_Y, DETAIL_WIDTH, 34, false, false);
-        VillageUiTheme.drawCard(context, left + DETAIL_X, top + DETAIL_Y + 36, DETAIL_WIDTH, DETAIL_HEIGHT - 36, false, false);
+        VillageUiTheme.drawCard(context, left + DETAIL_X, top + DETAIL_Y + 36, DETAIL_WIDTH, getBuyButtonY(top)-top-DETAIL_Y+BUY_HEIGHT+8-36, false, false);
     }
 
     private void drawHeader(GuiGraphics context, int left, int top, int mouseX, int mouseY) {
-        String screenTitle = this.title.getString();
-        float titleWidth = this.font.width(screenTitle) * HEADER_TITLE_SCALE;
-        float titleHeight = this.font.lineHeight * HEADER_TITLE_SCALE;
-        VillageUiTheme.drawStringScaled(context, this.font, screenTitle,
-                left + (WINDOW_WIDTH - titleWidth) / 2.0f,
-                top + HEADER_TITLE_TOP + (HEADER_TITLE_HEIGHT - titleHeight) / 2.0f,
-                TITLE, HEADER_TITLE_SCALE);
+        VillageUiTheme.drawTitle(context, font, title.getString(), "special", left + 158, top + 3, 244);
+        KingdomUiAssets.closeButton(context,left,top,WINDOW_WIDTH,WINDOW_HEIGHT,
+                KingdomUiAssets.closeBounds(left,top,WINDOW_WIDTH,WINDOW_HEIGHT).contains(mouseX,mouseY));
 
         int sectionTitleY = top + GOODS_Y - 13;
-        context.drawString(this.font, Component.translatable("screen.village-quest.pilgrim.goods"), left + GOODS_X + 8, sectionTitleY + 2, ACCENT, false);
-        context.drawString(this.font, Component.translatable("screen.village-quest.pilgrim.offer"),
-                left + DETAIL_X + 8, sectionTitleY + 2, ACCENT, false);
+        VillageUiTheme.drawNavigationTab(context,font,left+GOODS_X+8,top+HEADER_CONTRACT_TOP,112,RUMOR_TAB_HEIGHT,
+                Component.translatable("screen.village-quest.pilgrim.goods").getString(),true,
+                isWithin(mouseX,mouseY,left+GOODS_X+8,top+HEADER_CONTRACT_TOP,112,RUMOR_TAB_HEIGHT),!showContract);
+        JournalV3Visuals.heading(context,font,Component.translatable(showContract?"screen.village-quest.pilgrim.contract.details":"screen.village-quest.pilgrim.offer").getString(),left+DETAIL_X+8,sectionTitleY+2,DETAIL_WIDTH-16,1f,TITLE);
         if (hasContract()) {
             drawContractTab(context, left, top, mouseX, mouseY);
         }
@@ -386,7 +365,7 @@ public class PilgrimTradeScreen extends CompatScreen {
         int y = getContractTabY(top);
         String label = Component.translatable("screen.village-quest.pilgrim.contract.tab").getString();
         boolean hovered = isHoveringContractTab(mouseX, mouseY, left, top);
-        VillageUiTheme.drawButton(context, this.font, x, y, RUMOR_TAB_WIDTH, RUMOR_TAB_HEIGHT,
+        VillageUiTheme.drawNavigationTab(context, this.font, x, y, RUMOR_TAB_WIDTH, RUMOR_TAB_HEIGHT,
                 label, true, hovered, this.showContract);
     }
 
@@ -400,8 +379,8 @@ public class PilgrimTradeScreen extends CompatScreen {
         int y = getContractOptionsY(top);
         PilgrimContractView contract = getSelectedContract();
         boolean hovered = isWithin(mouseX, mouseY, startX, y, getContractOptionsWidth(), CONTRACT_OPTION_HEIGHT);
-        drawFrame(context, startX, y, getContractOptionsWidth(), CONTRACT_OPTION_HEIGHT,
-                FRAME_DARK, FRAME_LIGHT, hovered ? ENTRY_SELECTED_HOVER : ENTRY_SELECTED);
+        VillageUiTheme.drawCard(context, startX, y, getContractOptionsWidth(), CONTRACT_OPTION_HEIGHT,
+                hovered, true);
         int navigationSpace = hasMultipleContracts() ? 28 : 10;
         String label = ellipsizeToScale(contract.title().getString(), getContractOptionsWidth() - navigationSpace, CONTRACT_OPTION_TEXT_SCALE);
         int textX = startX + (getContractOptionsWidth() - Math.round(font.width(label) * CONTRACT_OPTION_TEXT_SCALE)) / 2;
@@ -421,7 +400,7 @@ public class PilgrimTradeScreen extends CompatScreen {
         int panelX = left + DETAIL_X;
         int panelY = top + DETAIL_Y;
         int contentX = panelX + 10;
-        int contentWidth = DETAIL_WIDTH - 20;
+        int contentWidth = DETAIL_WIDTH - 32;
         int contentBottom = getBuyButtonY(top) - 10;
         int currentY = panelY + 8;
 
@@ -430,6 +409,10 @@ public class PilgrimTradeScreen extends CompatScreen {
 
         List<ContractDetailLine> lines = buildContractDetailLines(contract, contentWidth, true);
         int viewportHeight = Math.max(0, contentBottom - currentY);
+        var artwork = QuestArtwork.forQuest(contract.contractId(), contract.title()).filter(QuestArtwork.Motif::hasIllustration);
+        // The illustration belongs to the left family card, never before the reading viewport.
+        if (artwork.isPresent()) JournalV3Visuals.illustration(context,artwork.get().largeTexture(),
+                left+GOODS_X+10,top+GOODS_Y+103,GOODS_WIDTH-20,80);
         int contentHeight = measureContractContentHeight(lines) + 1;
         this.contractScrollMax = Math.max(0, contentHeight - viewportHeight);
         clampContractScroll();
@@ -444,7 +427,8 @@ public class PilgrimTradeScreen extends CompatScreen {
             }
             int lineHeight = scaledLineHeight(line.scale());
             if (cursorY >= scissorTop && cursorY + lineHeight <= contentBottom) {
-                drawScaledText(context, line.text(), contentX, cursorY, line.color(), line.scale());
+                if(line.heading()) JournalV3Visuals.heading(context,font,line.text(),contentX,cursorY,contentWidth,line.scale(),TITLE);
+                else drawScaledText(context, line.text(), contentX+3, cursorY, line.color(), line.scale());
             }
             cursorY += lineHeight;
         }
@@ -455,11 +439,20 @@ public class PilgrimTradeScreen extends CompatScreen {
     }
 
     private void drawWalletStrip(GuiGraphics context, int left, int top) {
-        VillageUiTheme.drawWalletStrip(context, this.font, left, top, WINDOW_WIDTH, data.balance(),
-                HEADER_WALLET_RIGHT_INSET, HEADER_WALLET_TOP);
+        VillageUiTheme.drawWalletStrip(context,font,left,top,WINDOW_WIDTH,data.balance(),40,10);
     }
 
     private void drawGoodsPanel(GuiGraphics context, int left, int top, int mouseX, int mouseY) {
+        if (showContract && hasContract()) {
+            PilgrimContractView contract=getSelectedContract();
+            JournalV3Visuals.section(context,font,Component.translatable("screen.village-quest.pilgrim.contract.tab").getString(),
+                    left+GOODS_X+8,top+GOODS_Y+8,GOODS_WIDTH-16,.95f,"special");
+            drawWrappedScaledLines(context,contract.title().getString(),left+GOODS_X+12,top+GOODS_Y+36,
+                    GOODS_WIDTH-24,TITLE,1.05f,3);
+            drawWrappedScaledLines(context,contract.status().getString(),left+GOODS_X+12,top+GOODS_Y+69,
+                    GOODS_WIDTH-24,TITLE,.9f,2);
+            return;
+        }
         List<TradeView> offers = data.offers();
         if (offers == null || offers.isEmpty()) {
             drawWrappedLines(
@@ -504,12 +497,12 @@ public class PilgrimTradeScreen extends CompatScreen {
             int priceX = entryX + GOODS_TEXT_X_OFFSET;
             long crowns = offer.price() / CurrencyService.CROWN;
             long silver = offer.price() % CurrencyService.CROWN;
-            drawScaledItem(context, new ItemStack(ModItems.CROWN), priceX, entryY + 15, .5f);
+            drawScaledItem(context, new ItemStack(ModItems.CROWN), priceX, entryY + 15, .65f);
             String crownText = Long.toString(crowns);
-            drawScaledText(context, crownText, priceX + 10, entryY + 16, BODY, .65f);
-            int silverX = priceX + 14 + Math.round(font.width(crownText) * .65f);
-            drawScaledItem(context, new ItemStack(ModItems.SILVERMARK), silverX, entryY + 15, .5f);
-            drawScaledText(context, Long.toString(silver), silverX + 10, entryY + 16, BODY, .65f);
+            drawScaledText(context, crownText, priceX + 13, entryY + 16, BODY, .8f);
+            int silverX = priceX + 20 + Math.round(font.width(crownText) * .8f);
+            drawScaledItem(context, new ItemStack(ModItems.SILVERMARK), silverX, entryY + 15, .65f);
+            drawScaledText(context, Long.toString(silver), silverX + 13, entryY + 16, BODY, .8f);
         }
         context.disableScissor();
         VillageUiTheme.drawScrollBar(
@@ -551,13 +544,16 @@ public class PilgrimTradeScreen extends CompatScreen {
         }
 
         int tradeY = panelY + 4;
-        drawTradeSlot(context, contentX + 6, tradeY, getPricePreviewStack(offer.price()), DETAIL_PRICE_COIN_SCALE);
-        drawTradeSlot(context, contentX + 86, tradeY, offer.previewStack(), 1.0f);
+        int tradeX=panelX+(DETAIL_WIDTH-148)/2;
+        KingdomUiAssets.moneyCentered(context,font,offer.price(),tradeX,tradeY+7,72,false);
+        drawTradeSlot(context, tradeX + 110, tradeY, offer.previewStack(), 1.0f);
+        VillageUiTheme.drawStringScaled(context,font,"›",tradeX+84,tradeY+9,TITLE,1.3f);
 
+        JournalV3Visuals.illustration(context,QuestArtwork.forComponent(offer.title()).orElse(QuestArtwork.Motif.MARKET).largeTexture(),contentX,panelY+42,DETAIL_WIDTH-20,45);
         int textX = contentX;
         // The lower parchment card begins below the trade-slot panel. Keep its
         // heading clear of the fixed five-pixel frame before drawing any text.
-        currentY = panelY + 44;
+        currentY = panelY + 92;
         currentY = drawWrappedScaledLines(
                 context,
                 offer.title().getString(),
@@ -568,20 +564,20 @@ public class PilgrimTradeScreen extends CompatScreen {
                 DETAIL_TITLE_SCALE,
                 1
         );
-        currentY -= 1;
+        currentY = panelY + 107;
         String priceText = Component.translatable("screen.village-quest.pilgrim.price", CurrencyService.formatBalance(offer.price())).getString();
         float priceScale = fitScaleToWidth(priceText, DETAIL_WIDTH - 20, DETAIL_SUBTEXT_SCALE, 0.68f);
         currentY = drawSingleScaledLine(
                 context,
                 priceText,
-                textX,
+                contentX,
                 currentY,
                 DETAIL_WIDTH - 20,
                 canAfford(offer) ? AFFORD : TOO_EXPENSIVE,
                 priceScale
         );
 
-        currentY = panelY + 68;
+        currentY = panelY + 124;
 
         int descriptionBottom = getBuyButtonY(top) - 10;
         int descriptionLineHeight = scaledLineHeight(DETAIL_BODY_SCALE);
@@ -626,13 +622,14 @@ public class PilgrimTradeScreen extends CompatScreen {
             enabled = active && offer != null;
         }
         VillageUiTheme.drawButton(context, this.font, x, y, BUY_WIDTH, BUY_HEIGHT,
-                label, enabled, hovered && enabled, false);
+                label, enabled, hovered && enabled, true);
     }
 
     private void drawFooter(GuiGraphics context, int left, int top) {
+        VillageUiTheme.drawPaper(context,left+28,top+FOOTER_TEXT_Y_OFFSET-4,WINDOW_WIDTH-56,14);
         String hint = Component.translatable("screen.village-quest.pilgrim.close_hint").getString();
         drawScaledText(context, hint, left + FOOTER_LEFT_INSET, top + FOOTER_TEXT_Y_OFFSET,
-                BUTTON_TEXT, 0.62f);
+                VillageUiTheme.INK, 0.62f);
 
         String timerText = Component.translatable(
                 "screen.village-quest.pilgrim.timer",
@@ -640,7 +637,7 @@ public class PilgrimTradeScreen extends CompatScreen {
         ).getString();
         int timerX = left + WINDOW_WIDTH - FOOTER_RIGHT_INSET - Math.round(this.font.width(timerText) * 0.62f);
         drawScaledText(context, timerText, timerX, top + FOOTER_TEXT_Y_OFFSET,
-                BUTTON_TEXT, 0.62f);
+                VillageUiTheme.INK, 0.62f);
     }
 
     private void drawTradeSlot(GuiGraphics context, int x, int y, ItemStack stack, float iconScale) {
@@ -672,6 +669,7 @@ public class PilgrimTradeScreen extends CompatScreen {
     }
 
     private void drawOfferTooltip(GuiGraphics context, int left, int top, int mouseX, int mouseY) {
+        if(showContract) return;
         TradeView hoveredOffer = getHoveredOffer(left, top, mouseX, mouseY);
         if (hoveredOffer == null) {
             return;
@@ -850,11 +848,18 @@ public class PilgrimTradeScreen extends CompatScreen {
 
     private int getBuyButtonY(int top) {
         // Keep the action and hitbox inside the runtime card, clear of its bottom rim.
-        return top + DETAIL_Y + DETAIL_HEIGHT - BUY_HEIGHT - 8;
+        int bottom=top+DETAIL_Y+DETAIL_HEIGHT-BUY_HEIGHT-8;
+        TradeView offer=getSelectedOffer();
+        if(!showContract && offer!=null && font!=null) {
+            String description=offer.description()==null?"":offer.description().getString();
+            int lines=wrapTextToScale(description,DETAIL_WIDTH-20,DETAIL_BODY_SCALE).size();
+            bottom=Math.min(bottom,top+DETAIL_Y+124+Math.max(1,lines)*scaledLineHeight(DETAIL_BODY_SCALE)+12);
+        }
+        return bottom;
     }
 
     private int getContractTabX(int left) {
-        return left + 22;
+        return left + 150;
     }
 
     private int getContractTabY(int top) {
@@ -1048,7 +1053,7 @@ public class PilgrimTradeScreen extends CompatScreen {
         if (!lines.isEmpty()) {
             lines.add(new ContractDetailLine("", bodyColor, bodyScale, true));
         }
-        lines.add(new ContractDetailLine(heading.getString(), headingColor, headingScale, false));
+        lines.add(new ContractDetailLine(heading.getString(), TITLE, Math.max(.9f,headingScale), false, true));
         for (String wrapped : collectWrappedScaledLines(content, maxWidth - 2, bodyScale)) {
             lines.add(new ContractDetailLine(wrapped, bodyColor, bodyScale, false));
         }
@@ -1152,9 +1157,7 @@ public class PilgrimTradeScreen extends CompatScreen {
     }
 
     private void drawFrame(GuiGraphics context, int x, int y, int width, int height, int outer, int inner, int fill) {
-        context.fill(x, y, x + width, y + height, outer);
-        context.fill(x + 1, y + 1, x + width - 1, y + height - 1, inner);
-        context.fill(x + 3, y + 3, x + width - 3, y + height - 3, fill);
+        VillageUiTheme.drawPaper(context,x,y,width,height);
     }
 
     private ItemStack getPricePreviewStack(long price) {

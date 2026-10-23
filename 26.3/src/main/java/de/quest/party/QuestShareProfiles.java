@@ -323,6 +323,9 @@ public final class QuestShareProfiles {
                 Set.of()
         ));
 
+        for (int chapter=0; chapter<StoryArcType.LIVING_KINGDOMS.chapterCount(); chapter++)
+            STORY.put(storyKey(StoryArcType.LIVING_KINGDOMS,chapter),profile(Set.of(),Set.of(),Set.of()));
+
         PILGRIM.put(PilgrimContractType.QUENCH_FOR_THE_HALL, profile(
                 pilgrimInts("pilgrim_lantern_skeletons"),
                 Set.of(),
@@ -414,7 +417,8 @@ public final class QuestShareProfiles {
     public static boolean isStoryShareable(StoryArcType type) {
         return type != null
                 && type != StoryArcType.SHADOWS_ON_THE_TRADE_ROAD
-                && type != StoryArcType.THE_EMPTY_CARAVAN;
+                && type != StoryArcType.THE_EMPTY_CARAVAN
+                && type != StoryArcType.ARTIFACT_JOURNEY;
     }
 
     public static boolean sharesStoryInt(StoryArcType type, int chapterIndex, String key) {

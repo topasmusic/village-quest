@@ -73,6 +73,7 @@ final class VillageNoticeBoardService {
                 int stage = life == VillageLifeState.Status.ABANDONED
                         ? VillageNetworkPayloads.NoticeJourneyPayload.RESETTLEMENT
                         : VillageNetworkPayloads.NoticeJourneyPayload.RECOVERING;
+                int populationTarget = life == VillageLifeState.Status.ABANDONED ? 2 : 3;
                 Component detail = Component.translatable(!progress.fullyLoaded()
                         ? "screen.village-quest.village_life.load_village"
                         : life == VillageLifeState.Status.ABANDONED
@@ -80,13 +81,13 @@ final class VillageNoticeBoardService {
                         : "screen.village-quest.village_life.recovering_detail");
                 ServerPlayNetworking.send(player, new VillageNetworkPayloads.NoticeJourneyPayload(
                         pos.getX(), pos.getY(), pos.getZ(), stage,
-                        Component.translatable("text.village-quest.village_life.settlement",
-                                marker.centerX(), marker.centerZ()),
+                        de.quest.kingdom.KingdomVillageService.name(world, marker.centerX(), marker.centerZ(),
+                                Component.translatable("text.village-quest.village_life.settlement", marker.centerX(), marker.centerZ())),
                         Component.translatable(life == VillageLifeState.Status.ABANDONED
                                 ? "screen.village-quest.village_life.resettlement_title"
                                 : "screen.village-quest.village_life.recovering_title"),
-                        detail, Math.min(2, progress.adults()), 2,
-                        Math.min(2, progress.beds()), 2, false, ItemStack.EMPTY, 0, null, false));
+                        detail, Math.min(populationTarget, progress.adults()), populationTarget,
+                        Math.min(populationTarget, progress.beds()), populationTarget, false, ItemStack.EMPTY, 0, null, false));
                 return;
             }
         }
@@ -96,8 +97,9 @@ final class VillageNoticeBoardService {
         GuildTownService.NoticePostStoryResolution resolution = use(interaction);
         int stage = VillageNetworkPayloads.NoticeJourneyPayload.INTRO;
         Component village = view == null ? Component.translatable("screen.village-quest.notice_journey.village")
-                : view.type().label();
-        if (view == null && resolution != null) village = resolution.story().villageType().label();
+                : de.quest.kingdom.KingdomVillageService.identityLabel(world, view.x(), view.z(), view.type().label());
+        if (view == null && resolution != null) village = marker == null ? resolution.story().villageType().label()
+                : de.quest.kingdom.KingdomVillageService.identityLabel(world, marker.centerX(), marker.centerZ(), resolution.story().villageType().label());
         Component title = Component.translatable("screen.village-quest.notice_journey.welcome");
         Component detail;
         int first = 0, firstTarget = 0, second = 0, secondTarget = 0, deliveryCount = 0;
@@ -318,7 +320,8 @@ final class VillageNoticeBoardService {
             nextThreshold = 0;
         }
         return new VillageNetworkPayloads.NoticeBoardPayload(
-                pos.getX(), pos.getY(), pos.getZ(), view.type().label(), view.level().label(),
+                pos.getX(), pos.getY(), pos.getZ(),
+                de.quest.kingdom.KingdomVillageService.identityLabel(world, view.x(), view.z(), view.type().label()), view.level().label(),
                 view.network().condition().label(), view.network().need().label(), view.network().support(),
                 primary.request().title(), new ItemStack(primary.request().item()), primary.amount(), carried,
                 primary.reward(), CurrencyService.getBalance(world, player.getUUID()), view.completions(),

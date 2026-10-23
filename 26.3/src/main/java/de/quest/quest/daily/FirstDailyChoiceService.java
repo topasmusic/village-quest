@@ -55,7 +55,7 @@ public final class FirstDailyChoiceService {
                 () -> accept(world, player, choice))) return false;
         data.setTradeRouteFlag(ACTIVE, true);
         data.setDailyChoice(choice);
-        data.setDailyChoiceDay(de.quest.util.TimeUtil.currentDay());
+        data.setDailyChoiceDay(de.quest.util.QuestCalendarService.currentDay());
         data.setDailyTargetProfile(RepeatableTargetProfile.LIGHT);
         QuestState.get(world.getServer()).setDirty();
         DailyQuestService.acceptQuest(world, player);

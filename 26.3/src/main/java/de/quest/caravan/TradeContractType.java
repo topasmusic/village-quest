@@ -12,7 +12,12 @@ public enum TradeContractType {
     WINTER_FODDER(Items.HAY_BLOCK, 24, 34, 3, TradeRouteSpecialization.LIVESTOCK, "fodder"),
     APIARY_CRATES(Items.HONEY_BOTTLE, 12, 38, 3, TradeRouteSpecialization.PROVISIONS, "apiary"),
     WATCH_SUPPLIES(Items.ARROW, 48, 44, 4, TradeRouteSpecialization.GUARDED, "watch"),
-    FESTIVAL_BREAD(Items.BREAD, 48, 50, 5, TradeRouteSpecialization.PROVISIONS, "festival");
+    FESTIVAL_BREAD(Items.BREAD, 48, 50, 5, TradeRouteSpecialization.PROVISIONS, "festival"),
+    // Append only: existing saved contract/refund IDs use ordinal + 1.
+    FORGE_FUEL(Items.COAL, 64, 22, 1, TradeRouteSpecialization.FORGE, "forge_fuel"),
+    LEATHER_BALES(Items.LEATHER, 24, 26, 1, TradeRouteSpecialization.LIVESTOCK, "leather_bales"),
+    WAX_RESERVES(Items.HONEYCOMB, 32, 24, 1, TradeRouteSpecialization.PROVISIONS, "wax_reserves"),
+    WRITERS_PAPER(Items.PAPER, 64, 22, 1, TradeRouteSpecialization.COURIER, "writers_paper");
 
     private final Item item;
     private final int amount;

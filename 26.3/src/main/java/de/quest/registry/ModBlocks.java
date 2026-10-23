@@ -30,6 +30,7 @@ public final class ModBlocks {
     public static Block GUILD_NOTICE_POST;
     public static Block EMBERGLASS_LANTERN;
     public static Block GUILD_MILESTONE;
+    public static Block COUNCIL_SEAT, INN_BARREL, MARKET_DESK, STOREHOUSE_ANCHOR, MARKET_STALL;
 
     private ModBlocks() {}
 
@@ -54,8 +55,19 @@ public final class ModBlocks {
                 MapColor.METAL, SoundType.LANTERN, 2.5f, state -> 13);
         GUILD_MILESTONE = registerFunctional("guild_milestone", GuildMilestoneBlock::new,
                 MapColor.STONE, SoundType.STONE, 0.8f, 1200.0f, state -> 0, PushReaction.IMMOVEABLE);
+        COUNCIL_SEAT = registerAnchor("council_seat", de.quest.kingdom.BuildingScanner.Role.COUNCIL);
+        INN_BARREL = registerAnchor("inn_barrel", de.quest.kingdom.BuildingScanner.Role.INN);
+        MARKET_DESK = registerAnchor("market_desk", de.quest.kingdom.BuildingScanner.Role.MARKET);
+        MARKET_STALL = registerFunctional("market_stall", de.quest.content.block.MarketStallBlock::new,
+                MapColor.WOOD, SoundType.WOOD, 2.0f, 6.0f, state -> 0, PushReaction.IMMOVEABLE);
+        STOREHOUSE_ANCHOR = registerAnchor("storehouse_anchor", de.quest.kingdom.BuildingScanner.Role.STOREHOUSE);
 
         VillageQuest.LOGGER.info("Registered blocks");
+    }
+
+    private static Block registerAnchor(String path, de.quest.kingdom.BuildingScanner.Role role) {
+        return registerFunctional(path, properties -> new de.quest.content.block.KingdomAnchorBlock(properties, role),
+                MapColor.WOOD, SoundType.WOOD, 2.5f, 6.0f, state -> 0, PushReaction.IMMOVEABLE);
     }
 
     private static Block registerFunctional(String path,

@@ -3,6 +3,16 @@
 This inventory records the provenance of creative resources in the Minecraft
 `26.3` package. Paths below are relative to `26.3` unless stated otherwise.
 
+
+## Project-generated golden weather tonic — pending sources after55
+
+`src/main/resources/assets/village-quest/textures/item/weather_tonic.png` was
+created with the built-in image generator on2026-10-23 for this project and
+prepared as a native16x16 inventory sprite. It uses its own item/model and does
+not replace or redistribute a Vanilla potion texture. Original generated input,
+full prompt and preparation evidence are recorded in
+`design/living-kingdoms-2.6/implementation/friends-quests/ASSETS.md`.
+
 ## Project-owned entity skins
 
 The maintainer confirmed on 2026-09-24 that the head artwork for the caravan,
@@ -23,6 +33,44 @@ asset terms in `LICENSE` (All Rights Reserved, with the stated permission to
 use an official release). They are not LGPL-licensed code.
 
 ## Project-owned UI polish assets
+
+Fantasy map terrain (2026-10-21): `textures/gui/map/fantasy-motifs-v1.png`
+and `fantasy-grounds-v1.png` were generated with built-in Imagegen using the
+project's `routes-v3.png` as a style reference. Originals, exact prompts and
+deterministic atlas export details are in
+`design/ui-redesign-r27/assets/fantasy-terrain-v1/`. These project creative assets
+follow the asset terms in LICENSE; they are not third-party downloads or LGPL code.
+`fantasy-trees-v2.png` adds sixteen separately generated individual trees for the
+user-requested density/placement refinement; the first grove sheet is retained
+as a design source, while the runtime uses its rocky/snowy ridge rows.
+
+Additional2026-10-20 quest motif pairs are produced with the built-in generator,
+with separately authored small/detailed scenes and inspected64x24/192x72 exports.
+Originals, exact prompt set, inspected crops and SHA256 manifest are retained in
+`design/ui-redesign-r27/assets/quest-v3/`. They are project-directed illustrations
+under the creative asset terms, with no external photographs or new dependency.
+Story state artwork is selected explicitly, including the failing-harvest field.
+
+
+The 2026-10-20 Journal-v3 runtime components under `textures/gui/ui/v3/` are
+project-directed built-in image-generation assets: an isolated transparent
+wood/gold frame (416x234), an opaque parchment/village header (288x96), and a
+small transparent lantern/ivy decoration (32x40).
+Originals, generation/cleanup notes and nearest-neighbor resolution export are
+retained in `design/ui-redesign-r27/assets/runtime-v3/`. The header was rendered
+onto parchment because transparent generation introduced colored edge artifacts;
+its text and actions are rendered live by Minecraft. Existing project-owned
+card and button artwork supplies reusable paper/title/button surfaces. These
+assets follow the creative terms in `LICENSE`, not the code license.
+
+The initial2026-10-19 bakehouse/carpenter/forge v1.1 pairs are historical drafts.
+The completed2026-10-20 library replaces them with matching Journal-v3 scenes and
+contains20base families plus two necessary story-state variants, each with a
+separately authored64x24 and192x72 export (44PNGs). Built-in generation originals,
+exact prompts, inspected crops and SHA256 manifest are in the quest-v3 directory
+above; original drafts remain preserved. These project-directed illustrations
+follow the creative terms in `LICENSE`, not the LGPL code license. Native asset
+inspection does not constitute Ingame or Minecraft-font approval.
 
 On 2026-10-04, the maintainer directed generated artwork for the Trust handshake,
 Making amends shield and Resettlement cottage/sprout icons. The final
@@ -104,3 +152,98 @@ modifications, and verification date before including a new resource.
 ## Reward modal background (2026-10-11)
 
 `assets/village-quest/textures/gui/reward_panel.png`: generated specifically for Village Quest with OpenAI image generation on user request. No external source artwork; prompt and provenance in `design/2.5-vanilla-rewards/post-completion-rewards/UI_DESIGN.md`. Follows the project asset license.
+# Quest-v3 motif additions (20 October 2026)
+
+`textures/gui/artwork/night_watch_{64x24,192x72}.png` and
+`village_home_{64x24,192x72}.png` were generated with built-in OpenAI image_gen
+for this project. Separate small/detailed scenes were cropped and exported at
+their logical resolutions. Originals, prompt set, export script and hash manifest:
+`design/ui-redesign-r27/assets/quest-v3/`. Thematic scenes contain no live values.
+
+## V3 Market/Questboard reference families · 20 October 2026
+
+Built-in image_gen, guided by the approved Journal V3 reference and the user's
+actual UI-tour screenshots. Full designs, exact prompts, visual/function notes
+and hashes: `design/ui-redesign-r27/assets/family-reference-v3/`. The separate
+192x72 market-stall scene is cropped from the generated market reference using
+`export_market_scene.py`. No generated whole-screen bitmap or table/quest text
+is used as runtime UI. Existing quest motif images and V3 ornaments are reused.
+Illustrative design text is not authoritative game content; runtime components,
+amounts, factors and action states come from existing models.
+
+## Additional V3 family design references (2026-10-20)
+
+Runtime refinement after those references: the built-in OpenAI image_gen tool
+generated a blank gold title plaque with ivy and a separate logistics landscape.
+Originals, exact prompts, crop/resize-only export script, alpha and SHA256 manifest
+are in `design/ui-redesign-r27/assets/runtime-v3/refinement-2026-10-20/`.
+Exports `title_plaque_v4.png` and `logistics_hero_v4.png` contain no UI text or
+live values; the title is shared and the landscape decorates the Caravan Master.
+No external asset library or additional licensing source was introduced.
+
+Ten project-directed built-in Imagegen references for trust, pilgrim, prosperity,
+notice board, village story, dispatch, caravan, wayshrines, route map and guild path
+are retained under design/ui-redesign-r27/assets/remaining-family-reference-v3/.
+Exact prompts, source images, SHA256/dimensions and inspected deviations accompany
+them. These are design-only references, not new runtime assets. Existing server
+data, native coin/items and live map rendering remain authoritative.
+
+
+The annotated .35 follow-up replaces the bright logistics inset with the
+project-directed built-in Imagegen asset `ui/v3/dispatch_freight_v5.png` in .36.
+The new scene uses subdued freight-wagon imagery and contains no lettering.
+Original, exact prompt and nearest-neighbour-only 256x96 export record are
+retained under `design/ui-redesign-r27/implementation/ingame-review-2026-10-21/dispatch36/`.
+
+### Procedural Journal text backing (.37)
+
+`textures/gui/ui/v3/hero_text_wash.png` is a project-authored 356×170 RGBA
+mask: parchment RGB (235,211,160), alpha capped at190, smoothstep feather over
+28px on the top/bottom and72px on the right. Generated locally with Pillow;
+no external image, model output or new third-party artwork. Used as one scaled
+texture draw over the existing hero illustration.
+
+
+### Trader stall (next candidate)
+
+`textures/block/living_kingdoms/stall_wood.png` and `stall_cloth.png` are original project-authored 16×16 RGBA pixel textures generated with deterministic local code (wood grain and teal/linen stripes). `models/block/market_stall.json` is an original cuboid counter, four legs, posts and cloth canopy model. No external images, licensed third-party assets or generated raster-service images were used.
+
+### Four recurring tavern guests and raised hair (.52)
+
+Lutte, Simon, Marius and Raphael use project-directed built-in Imagegen concepts
+and refinements, retained under design/living-kingdoms-2.6/implementation/npc-names-v2/.
+PROMPTS.md and finish-skins.py disclose their prompt set and deterministic Java
+wide UV/texel finishing. Runtime64x64guest_*.png files have binary alpha and full
+base faces; SKIN_QUALITY_MANIFEST.json records final hashes. Raphael's gold VQ
+embroidery and glasses removal were explicitly requested. Empty head overlays on
+13existing project skins were filled using matching original hair texels, while
+base faces/clothes and original rank hat pixels were retained. Old Questmaster,
+Pilgrim, caravan and traitor overlays remain. No external asset library was added.
+Native visual acceptance remains NOT RUN. The .53 item-atlas journal button PNG is
+an unchanged duplicate of the existing project GUI texture, not newly authored art.
+
+### Open head contours and four guest face refinements (.54)
+
+Built-in Imagegen edited the four existing guest heads using the premium Pilgrim
+skin as a style reference. The saved head-rework-generated PNGs, exact prompts,
+UV crop coordinates and deterministic finishing are documented beside the older
+sources in npc-names-v2/PROMPTS.md and pack-head-rework.ps1. Only head UVs change
+on guests; clothes/VQ embroidery remain pixel-identical. Other Kingdom skins reuse
+the existing Pilgrim strand transparency to open the old solid outer hair; base
+identities stay identical. Mayor hat pixels differing from the old speaker's hair
+are protected. The blonde raw design's overlapping back illustration is not used;
+its original back is retained. Native visual acceptance remains NOT RUN.
+
+### Pending source corrections after .55 (not packaged)
+
+Built-in Imagegen supplied the Raphael mouth/beard study and the golden settings
+cog. Raw images and prompts remain in npc-names-v2 and the existing UI review
+folder. finish-mouths.ps1 integrates the existing merchant mouth texels on four
+guests and the existing caravan guard beard footprint in a brighter brown,
+removing only identified outer-hair tufts. Clothing and other facial features are
+preserved. pack-settings-gear.ps1 reduces the generated cog to a32x32binary-alpha
+sprite with a transparent central hole. No external asset library was added.
+Ingame appearance remains NOT RUN; no new JAR was requested.
+# Village Watch Seal addition, 2026-10-23
+
+Original AI-generated village-watch shield/lantern asset created with built-in OpenAI Imagegen; saved source and processing notes in `design/living-kingdoms-2.6/implementation/friends-quests/ASSETS.md`. Own item texture/models; no external source artwork or vanilla texture override.

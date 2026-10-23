@@ -27,16 +27,18 @@ final class NoticeJourneyTrustFeedbackTest {
         try (var client = mockStatic(Minecraft.class); var theme = mockStatic(VillageUiTheme.class);
              var tour = mockStatic(UiTestTour.class)) {
             client.when(Minecraft::getInstance).thenReturn(mock(Minecraft.class));
-            var screen = new NoticeJourneyScreen(data); screen.width=512; screen.height=300;
+            var screen = new NoticeJourneyScreen(data); screen.width=800; screen.height=500;
             var font = mock(Font.class); when(font.width(anyString())).thenAnswer(call -> ((String)call.getArgument(0)).length()*5);
             var field=Screen.class.getDeclaredField("font"); field.setAccessible(true); field.set(screen,font);
             var graphics = mock(GuiGraphics.class); when(graphics.unwrap()).thenReturn(mock(GuiGraphicsExtractor.class));
+            when(graphics.pose()).thenReturn(new org.joml.Matrix3x2fStack(8));
             theme.when(() -> VillageUiTheme.ellipsize(eq(font),anyString(),anyInt())).thenAnswer(call -> call.getArgument(1));
             screen.showTrustFeedback("reputation.village-quest.open.unavailable");
             screen.render(graphics,0,0,0);
             theme.verify(() -> VillageUiTheme.drawStringScaled(eq(graphics),eq(font),
                     eq("reputation.village-quest.open.unavailable"),anyFloat(),anyFloat(),anyInt(),anyFloat()));
-            var click = new MouseButtonEvent(100,226,new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT,0));
+            double scale=1/screen.responsiveDrag(1,560,315);
+            var click = new MouseButtonEvent(400+(180-400)*scale,250+(363-250)*scale,new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT,0));
             assertTrue(screen.mouseClicked(click,false));
             theme.clearInvocations();
             screen.render(graphics,0,0,0);

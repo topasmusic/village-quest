@@ -5,6 +5,7 @@ import de.quest.quest.daily.DailyQuestService;
 import de.quest.quest.story.StoryArcType;
 import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.util.TimeUtil;
+import de.quest.util.QuestCalendarService;
 import java.util.UUID;
 import net.minecraft.server.level.ServerLevel;
 
@@ -46,6 +47,8 @@ final class QuestPartySessions {
         if (world == null || party == null || arcType == null || !matchesStorySession(party, arcType, chapterIndex)) {
             return null;
         }
+        if (arcType==StoryArcType.LIVING_KINGDOMS && !QuestPartyService.matchesKingdomVillageBinding(
+                de.quest.data.QuestState.get(world.getServer()).getPlayerData(playerId),party.story())) return null;
         return party.story().hasSynced(playerId) ? party.story() : null;
     }
 
@@ -73,7 +76,7 @@ final class QuestPartySessions {
 
     static SharedQuestRuntime ensureDailySession(PartyRuntime party, DailyQuestService.DailyQuestType type) {
         if (party == null || type == null) return null;
-        long day = TimeUtil.currentDay();
+        long day = QuestCalendarService.currentDay();
         SharedQuestRuntime session = party.daily();
         if (!session.matches(type.name(), day)) {
             session.bind(type.name(), day);
@@ -84,7 +87,7 @@ final class QuestPartySessions {
 
     static SharedQuestRuntime ensureWeeklySession(PartyRuntime party, WeeklyQuestService.WeeklyQuestType type) {
         if (party == null || type == null) return null;
-        long cycle = TimeUtil.currentWeekCycle();
+        long cycle = QuestCalendarService.currentWeekCycle();
         SharedQuestRuntime session = party.weekly();
         if (!session.matches(type.name(), cycle)) {
             session.bind(type.name(), cycle);
@@ -118,7 +121,7 @@ final class QuestPartySessions {
     static DailyQuestService.DailyQuestType activeDailyType(PartyRuntime party) {
         if (party == null) return null;
         SharedQuestRuntime session = party.daily();
-        if (!session.isCurrent(TimeUtil.currentDay())) {
+        if (!session.isCurrent(QuestCalendarService.currentDay())) {
             session.clear();
             return null;
         }
@@ -128,7 +131,7 @@ final class QuestPartySessions {
     static WeeklyQuestService.WeeklyQuestType activeWeeklyType(PartyRuntime party) {
         if (party == null) return null;
         SharedQuestRuntime session = party.weekly();
-        if (!session.isCurrent(TimeUtil.currentWeekCycle())) {
+        if (!session.isCurrent(QuestCalendarService.currentWeekCycle())) {
             session.clear();
             return null;
         }

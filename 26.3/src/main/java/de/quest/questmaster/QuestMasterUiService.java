@@ -40,7 +40,7 @@ import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.reputation.ReputationService;
 import de.quest.shrine.VillageBondService;
 import de.quest.registry.ModItems;
-import de.quest.util.TimeUtil;
+import de.quest.util.QuestCalendarService;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
@@ -83,6 +83,16 @@ public final class QuestMasterUiService {
     }
 
     private QuestMasterUiService() {}
+
+    /** Countdown and availability follow the server clock, including sleep and /time changes. */
+    public static void onServerTick(net.minecraft.server.MinecraftServer server) {
+        if (server == null || server.getTickCount() % 20 != 0) return;
+        for (UUID id : OPEN_SESSIONS.keySet()) {
+            ServerPlayer player = server.getPlayerList().getPlayer(id);
+            if (player == null) OPEN_SESSIONS.remove(id);
+            else refreshIfOpen((ServerLevel) player.level(), player);
+        }
+    }
 
     public static void open(ServerLevel world, ServerPlayer player, QuestMasterEntity questMaster) {
         if (world == null || player == null || questMaster == null) {
@@ -282,7 +292,7 @@ public final class QuestMasterUiService {
         UUID playerId = player.getUUID();
         if (action == Payloads.QuestMasterActionPayload.ACTION_ACCEPT) {
             PlayerQuestData data = data(world, playerId);
-            long day = TimeUtil.currentDay();
+            long day = QuestCalendarService.currentDay();
             if (data.getBonusChoice() != null
                     && data.getBonusChoiceDay() == day
                     && !DailyQuestService.isBonusAcceptedToday(world, playerId)
@@ -457,7 +467,8 @@ public final class QuestMasterUiService {
         } else if (DailyQuestService.hasCompletedToday(world, playerId)) {
             status = Component.translatable("screen.village-quest.questmaster.status.completed").withStyle(ChatFormatting.AQUA);
             mainDescription = List.of(Component.translatable("screen.village-quest.questmaster.daily.completed_today").withStyle(ChatFormatting.GRAY));
-            mainObjectives = List.of();
+            mainObjectives = List.of(Component.translatable("screen.village-quest.questmaster.daily.next_reset",
+                    QuestCalendarService.remaining(false)).withStyle(ChatFormatting.GRAY));
         } else {
             status = Component.translatable("screen.village-quest.questmaster.status.available").withStyle(ChatFormatting.YELLOW);
             primary = new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_ACCEPT, Component.translatable("screen.village-quest.questmaster.action.accept"), true);
@@ -519,7 +530,7 @@ public final class QuestMasterUiService {
                                                                       ServerPlayer player,
                                                                       PlayerQuestData data) {
         UUID playerId = player.getUUID();
-        long currentDay = TimeUtil.currentDay();
+        long currentDay = QuestCalendarService.currentDay();
         boolean bonusAccepted = DailyQuestService.isBonusAcceptedToday(world, playerId);
         boolean bonusCompleted = DailyQuestService.hasCompletedBonusToday(world, playerId);
         boolean hasBonusChoice = data.getBonusChoice() != null && data.getBonusChoiceDay() == currentDay;
@@ -647,7 +658,8 @@ public final class QuestMasterUiService {
         } else if (completed) {
             status = Component.translatable("screen.village-quest.questmaster.status.completed").withStyle(ChatFormatting.AQUA);
             description = List.of(Component.translatable("screen.village-quest.questmaster.weekly.completed").withStyle(ChatFormatting.GRAY));
-            objectives = List.of(Component.translatable("screen.village-quest.questmaster.weekly.next_reset").withStyle(ChatFormatting.GRAY));
+            objectives = List.of(Component.translatable("screen.village-quest.questmaster.weekly.next_reset_in",
+                    QuestCalendarService.remaining(true)).withStyle(ChatFormatting.GRAY));
         } else {
             status = Component.translatable("screen.village-quest.questmaster.status.available").withStyle(ChatFormatting.YELLOW);
             primary = new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_ACCEPT, Component.translatable("screen.village-quest.questmaster.action.accept"), true);
@@ -695,6 +707,11 @@ public final class QuestMasterUiService {
                 continue;
             }
             StoryArcDefinition arc = StoryQuestService.definition(type);
+            if (type == StoryArcType.LIVING_KINGDOMS && arc != null && arc.isUnlocked(world, playerId)
+                    && !StoryQuestService.isCompleted(world, playerId, type) && !StoryQuestService.isStoryCooldownActive(world, playerId)) {
+                addEntry(entries, buildStoryEntry(world, player, type));
+                continue;
+            }
             if (arc == null
                     || !arc.shouldShowLockedEntry(world, playerId)
                     || StoryQuestService.isCompleted(world, playerId, type)
@@ -706,7 +723,6 @@ public final class QuestMasterUiService {
         }
         return List.copyOf(entries);
     }
-
     private static Payloads.QuestMasterEntryData buildStoryEntry(ServerLevel world, ServerPlayer player, StoryArcType arcType) {
         UUID playerId = player.getUUID();
         StoryArcDefinition arc = StoryQuestService.definition(arcType);
@@ -818,6 +834,16 @@ public final class QuestMasterUiService {
 
     private static List<Payloads.QuestMasterEntryData> buildSpecialEntries(ServerLevel world, ServerPlayer player) {
         List<Payloads.QuestMasterEntryData> entries = new ArrayList<>();
+        var friends=de.quest.quest.special.FriendsQuestService.progress(world,player.getUUID());
+        for(String who:List.of("simon","lutte","marius")) if(friends.number(who+".met")==1) {
+            int stage=friends.stage(who); boolean herbs=who.equals("simon") && stage>=3 && friends.number("simon.herbs")==1;
+            String q=herbs?"simon.herbs":who+"."+Math.min(3,stage+1);
+            entries.add(entry("friends_"+who,CATEGORY_SPECIAL,de.quest.quest.special.FriendsQuestService.tr(q+".title"),
+                    Component.translatable("screen.village-quest.questmaster.subtitle.special"),
+                    Component.translatable("screen.village-quest.questmaster.status."+(herbs?"active":stage>=3?"completed":friends.active(who)?"active":"available")),
+                    List.of(de.quest.quest.special.FriendsQuestService.tr(stage>=3?who+".again":q+".dialogue"),de.quest.quest.special.FriendsQuestService.tr("visit_guest")),
+                    de.quest.quest.special.FriendsQuestService.lines(friends,who),List.of(de.quest.quest.special.FriendsQuestService.tr(q+".reward")),ActionSpec.NONE,ActionSpec.NONE,false));
+        }
         boolean specialUnlocked = QuestMasterProgressionService.isSpecialCategoryUnlocked(world, player.getUUID());
         if (specialUnlocked) {
             addEntry(entries, buildShardEntry(world, player));

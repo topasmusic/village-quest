@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import de.quest.VillageQuest;
 import de.quest.client.ui.SurfaceMapRenderer;
 import de.quest.client.ui.VillageUiTheme;
+import de.quest.client.ui.KingdomUiAssets;
 import de.quest.network.Payloads;
 import de.quest.network.VillageNetworkPayloads;
 import de.quest.registry.ModBlocks;
@@ -26,9 +27,9 @@ public final class WayshrineScreen extends CompatScreen {
     private static final Identifier BOARD_TEXTURE = Identifier.fromNamespaceAndPath(
             VillageQuest.MOD_ID, "textures/gui/wayshrine_board.png");
     private static final int WINDOW_WIDTH = 432;
-    private static final int WINDOW_HEIGHT = 248;
+    private static final int WINDOW_HEIGHT = 292;
     private static final int MAP_X = 35;
-    private static final int MAP_Y = 55;
+    private static final int MAP_Y = 75;
     private static final int MAP_WIDTH = 229;
     private static final int MAP_HEIGHT = 145;
     private static final int ZOOM_X = MAP_X + MAP_WIDTH - 19;
@@ -36,25 +37,25 @@ public final class WayshrineScreen extends CompatScreen {
     private static final int CONTROL_SIZE = 16;
     private static final int CONTROL_GAP = 2;
     private static final int LIST_X = 281;
-    private static final int LIST_Y = 56;
+    private static final int LIST_Y = 75;
     private static final int LIST_WIDTH = 116;
     private static final int LIST_BACKING_HEIGHT = 146;
-    private static final int ROW_HEIGHT = 34;
-    private static final int VISIBLE_ROWS = 4;
-    private static final int STATUS_X = 151;
-    private static final int STATUS_Y = 35;
-    private static final int STATUS_WIDTH = 130;
+    private static final int ROW_HEIGHT = 48;
+    private static final int VISIBLE_ROWS = 3;
+    private static final int STATUS_X = 35;
+    private static final int STATUS_Y = 47;
+    private static final int STATUS_WIDTH = 362;
     private static final int TRAVEL_X = 38;
     private static final int TRAVEL_WIDTH = 131;
-    private static final int PAYMENT_X = 185;
-    private static final int PAYMENT_WIDTH = 64;
-    private static final int RENAME_X = 266;
-    private static final int RENAME_WIDTH = 130;
-    private static final int FOOTER_Y = 214;
+    private static final int PAYMENT_X = 175;
+    private static final int PAYMENT_WIDTH = 110;
+    private static final int RENAME_X = 291;
+    private static final int RENAME_WIDTH = 105;
+    private static final int FOOTER_Y = 239;
     private static final int FOOTER_HEIGHT = 17;
     private static final int INK = 0xFF3E2918;
     private static final int MUTED = 0xFF80694F;
-    private static final float STATUS_SCALE = 0.62f;
+    private static final float STATUS_SCALE = 0.76f;
     /* Keep the shrine map on the exact same stepped scale as the main living map. */
     private static final double[] ZOOM_FACTORS = {
             24.0, 16.0, 10.0, 6.0, 3.5, 2.0, 1.0, 0.70, 0.48, 0.32
@@ -103,7 +104,7 @@ public final class WayshrineScreen extends CompatScreen {
     protected void init() {
         int left = (width - WINDOW_WIDTH) / 2;
         int top = (height - WINDOW_HEIGHT) / 2;
-        nameField = new EditBox(font, left + 112, top + 113, 208, 20,
+        nameField = new EditBox(font, left + 112, top + 106, 208, 20,
                 Component.translatable("screen.village-quest.wayshrine.rename_hint"));
         nameField.setMaxLength(32);
         nameField.setVisible(false);
@@ -127,12 +128,16 @@ public final class WayshrineScreen extends CompatScreen {
             int left = (width - WINDOW_WIDTH) / 2;
             int top = (height - WINDOW_HEIGHT) / 2;
             VillageUiTheme.drawPanelShadow(graphics, left, top, WINDOW_WIDTH, WINDOW_HEIGHT);
-            VillageUiTheme.drawMapBoard(graphics, BOARD_TEXTURE, left, top, WINDOW_WIDTH, WINDOW_HEIGHT);
+            de.quest.client.ui.JournalV3Visuals.insetBoard(graphics,left,top,WINDOW_WIDTH,WINDOW_HEIGHT);
             drawHeader(graphics, left, top, uiMouseX, uiMouseY);
             drawMap(graphics, left, top, uiMouseX, uiMouseY);
             drawDestinations(graphics, left, top, uiMouseX, uiMouseY);
             drawFooter(graphics, left, top, uiMouseX, uiMouseY);
             if (renaming) drawRenameOverlay(graphics, left, top, uiMouseX, uiMouseY);
+            var close=KingdomUiAssets.closeBounds(left,top,WINDOW_WIDTH,WINDOW_HEIGHT);
+            KingdomUiAssets.closeButton(graphics,left,top,WINDOW_WIDTH,WINDOW_HEIGHT,close.contains(uiMouseX,uiMouseY));
+            if(close.contains(uiMouseX,uiMouseY)) graphics.setTooltipForNextFrame(font,
+                    Component.translatable("screen.village-quest.building."+(renaming?"back":"close")),uiMouseX,uiMouseY);
             super.render(graphics, uiMouseX, uiMouseY, delta);
         } finally {
             endResponsivePanel(graphics, scale);
@@ -140,13 +145,11 @@ public final class WayshrineScreen extends CompatScreen {
     }
 
     private void drawHeader(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
-        String heading = VillageUiTheme.ellipsize(font, title.getString(), 138);
-        graphics.drawString(font, heading, left + (WINDOW_WIDTH - font.width(heading)) / 2,
-                top + 13, INK, false);
-        VillageUiTheme.drawWalletStrip(graphics, font, left, top, WINDOW_WIDTH, data.balance(), 49, 11);
+        VillageUiTheme.drawTitle(graphics,font,title.getString(),"wayshrine",left+92,top+5,210);
+        VillageUiTheme.drawWalletStrip(graphics,font,left,top,WINDOW_WIDTH,data.balance(),35,10);
 
         Payloads.TradeRouteShrineData current = current();
-        String charges = data.charges() + "/" + data.maxCharges();
+        String charges = Component.translatable("screen.village-quest.wayshrine.charges",data.charges(),data.maxCharges()).getString();
         float chargesWidth = font.width(charges) * STATUS_SCALE;
         float chargesX = left + STATUS_X + STATUS_WIDTH - 20 - chargesWidth;
         float currentX = left + STATUS_X + 12;
@@ -161,6 +164,8 @@ public final class WayshrineScreen extends CompatScreen {
                 chargesX, top + STATUS_Y + 3,
                 data.charges() > 0 ? VillageUiTheme.TEAL : MUTED, STATUS_SCALE);
 
+        if(current!=null) VillageUiTheme.drawStringScaled(graphics,font,VillageUiTheme.ellipsize(font,
+                Component.translatable(data.owner()?"screen.village-quest.wayshrine.from_owner":"screen.village-quest.wayshrine.from_guest",current.name(),data.ownerName()).getString(),475),left+38,top + 63,MUTED,.74f);
         if (current != null && within(mouseX, mouseY,
                 left + STATUS_X, top + STATUS_Y, STATUS_WIDTH, 13)) {
             String subtitle = Component.translatable(data.owner()
@@ -187,7 +192,14 @@ public final class WayshrineScreen extends CompatScreen {
             if (shrine.index() == selectedIndex) {
                 graphics.fill(point.x - 7, point.y - 7, point.x + 8, point.y + 8, 0x6637B5AC);
             }
-            VillageUiTheme.drawMarker(graphics, "shrine", point.x, point.y, 19);
+            if(shrine.current()) {
+                graphics.fill(point.x-10,point.y-10,point.x+11,point.y+11,0xFFE6BC6E);
+                VillageUiTheme.drawMarker(graphics,"home",point.x,point.y,19);
+            } else VillageUiTheme.drawMarker(graphics, "shrine", point.x, point.y, 19);
+            if(shrine.index()==selectedIndex) {
+                graphics.fill(point.x-10,point.y+10,point.x+11,point.y+12,VillageUiTheme.TEAL);
+                graphics.fill(point.x-11,point.y-10,point.x-9,point.y+10,VillageUiTheme.TEAL);
+            }
             boolean hovered = Math.abs(mouseX - point.x) <= 11 && Math.abs(mouseY - point.y) <= 11;
             if (hovered) {
                 List<Component> tooltip = new ArrayList<>();
@@ -201,8 +213,7 @@ public final class WayshrineScreen extends CompatScreen {
             }
         }
         graphics.disableScissor();
-        VillageUiTheme.drawEmbeddedMapRim(graphics, BOARD_TEXTURE, left, top, WINDOW_WIDTH, WINDOW_HEIGHT,
-                MAP_X, MAP_Y, MAP_WIDTH, MAP_HEIGHT);
+        VillageUiTheme.drawMapRim(graphics,x,y,MAP_WIDTH,MAP_HEIGHT);
         drawMapControls(graphics, left, top, mouseX, mouseY);
     }
 
@@ -246,33 +257,48 @@ public final class WayshrineScreen extends CompatScreen {
         }
     }
 
+    static Component travelCosts(long silver,int charges) {
+        return Component.translatable(charges==1 ? "screen.village-quest.ui_review.travel_alternative_single"
+                : "screen.village-quest.ui_review.travel_alternatives",silver,charges);
+    }
+
+    static Component destinationName(Payloads.TradeRouteShrineData shrine) {
+        Component name=shrine.name();
+        if(name.getSiblings().isEmpty() && name.getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents t
+                && t.getKey().equals("text.village-quest.wayshrine.village") && t.getArgs().length==2
+                && t.getArgs()[1] instanceof Component location) return location;
+        return name;
+    }
+
     private void drawDestinations(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
         // A continuous paper backing replaces the five baked slots; render only real destinations.
-        VillageUiTheme.blitRegionScaled(graphics, BOARD_TEXTURE, left + LIST_X, top + LIST_Y,
-                LIST_WIDTH, LIST_BACKING_HEIGHT, 286, 60, 108, 18, WINDOW_WIDTH, WINDOW_HEIGHT);
+        VillageUiTheme.drawPaper(graphics,left+LIST_X-3,top+LIST_Y-3,LIST_WIDTH+6,LIST_BACKING_HEIGHT+6);
         int y = top + LIST_Y;
         for (Payloads.TradeRouteShrineData shrine : visibleChoices()) {
-            boolean hovered = within(mouseX, mouseY, left + LIST_X, y, LIST_WIDTH, 32);
+            boolean hovered = within(mouseX, mouseY, left + LIST_X, y, LIST_WIDTH, 44);
             boolean selected = shrine.index() == selectedIndex;
-            VillageUiTheme.drawCard(graphics, left + LIST_X, y, LIST_WIDTH, 32, hovered, selected);
+            VillageUiTheme.drawCard(graphics, left + LIST_X, y, LIST_WIDTH, 44, hovered, selected);
             if (selected) {
                 graphics.fill(left + LIST_X + 3, y + 3,
-                        left + LIST_X + LIST_WIDTH - 3, y + 30, 0x2237B5AC);
+                        left + LIST_X + LIST_WIDTH - 3, y + 42, 0x2237B5AC);
                 graphics.fill(left + LIST_X + 4, y + 4,
-                        left + LIST_X + 7, y + 29, 0xCC236B68);
+                        left + LIST_X + 7, y + 41, 0xCC236B68);
             } else if (hovered) {
                 graphics.fill(left + LIST_X + 3, y + 3,
-                        left + LIST_X + LIST_WIDTH - 3, y + 30, 0x14FFFFFF);
+                        left + LIST_X + LIST_WIDTH - 3, y + 42, 0x14FFFFFF);
             }
             VillageUiTheme.drawMarker(graphics, "shrine", left + LIST_X + 13, y + 16, 14);
-            List<String> nameLines = VillageUiTheme.wrapScaled(font, shrine.name().getString(), 83, .62f);
-            for (int i = 0; i < Math.min(2, nameLines.size()); i++) {
-                VillageUiTheme.drawStringScaled(graphics, font, VillageUiTheme.ellipsize(font, nameLines.get(i), 133), left + LIST_X + 24, y + 6 + i * 7, INK, .62f);
-            }
-            String detail = Component.translatable("screen.village-quest.wayshrine.list_detail",
-                    distanceTo(shrine), shrine.cost()).getString();
-            VillageUiTheme.drawStringScaled(graphics, font, VillageUiTheme.ellipsize(font, detail, 148),
-                    left + LIST_X + 24, y + 21, MUTED, 0.56f);
+            Component name=destinationName(shrine);
+            VillageUiTheme.drawStringScaled(graphics,font,VillageUiTheme.ellipsize(font,name.getString(),111),left+LIST_X+24,y+4,INK,.8f);
+            Component meta=shrine.name();
+            if(shrine.name().getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents t
+                    && t.getKey().equals("text.village-quest.wayshrine.village") && t.getArgs().length==2)
+                meta=Component.translatable("screen.village-quest.ui_review.shrine_number",t.getArgs()[0]);
+            if(!name.equals(shrine.name())) VillageUiTheme.drawStringScaled(graphics,font,VillageUiTheme.ellipsize(font,meta.getString(),128),left+LIST_X+24,y+15,MUTED,.65f);
+            String distance=Component.translatable("screen.village-quest.ui_review.distance",distanceTo(shrine)).getString();
+            VillageUiTheme.drawStringScaled(graphics,font,VillageUiTheme.ellipsize(font,distance,138),left+LIST_X+24,y+25,INK,.62f);
+            String costs=travelCosts(shrine.cost(),shrine.chargeCost()).getString();
+            VillageUiTheme.drawStringScaled(graphics,font,VillageUiTheme.ellipsize(font,costs,152),left+LIST_X+24,y+35,INK,.58f);
             if (hovered) {
                 graphics.setTooltipForNextFrame(font, destinationTooltip(shrine), mouseX, mouseY);
             }
@@ -284,6 +310,7 @@ public final class WayshrineScreen extends CompatScreen {
     }
 
     private void drawFooter(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
+        VillageUiTheme.drawPaper(graphics,left+30,top+FOOTER_Y-4,372,23);
         Payloads.TradeRouteShrineData selected = selected();
         int cooldown = cooldownSeconds();
         String travel = cooldown > 0
@@ -297,7 +324,13 @@ public final class WayshrineScreen extends CompatScreen {
         boolean travelHover = within(mouseX, mouseY,
                 left + TRAVEL_X, top + FOOTER_Y, TRAVEL_WIDTH, FOOTER_HEIGHT);
         drawFooterAction(graphics, left + TRAVEL_X, top + FOOTER_Y, TRAVEL_WIDTH,
-                travel, travelEnabled, travelHover, false);
+                travel, travelEnabled, travelHover, true);
+        if(selected!=null) {
+            String selection=Component.translatable("screen.village-quest.ui_review.selected",selected.name()).getString()+" · "+(useCharge
+                    ?Component.translatable("screen.village-quest.wayshrine.charge_cost",selected.chargeCost()).getString()
+                    :Component.translatable("screen.village-quest.wayshrine.cost",selected.cost()).getString());
+            VillageUiTheme.drawStringScaled(graphics,font,VillageUiTheme.ellipsize(font,selection,435),left+38,top + 225,INK,.82f);
+        }
         if (travelHover && selected != null) {
             List<Component> tooltip = new ArrayList<>();
             tooltip.add(selected.name());
@@ -310,7 +343,7 @@ public final class WayshrineScreen extends CompatScreen {
                 ? "screen.village-quest.wayshrine.payment_charge"
                 : "screen.village-quest.wayshrine.payment_coins").getString();
         drawFooterAction(graphics, left + PAYMENT_X, top + FOOTER_Y, PAYMENT_WIDTH,
-                payment, true, paymentHover, useCharge);
+                payment, true, paymentHover, false);
         if (paymentHover) {
             graphics.setTooltipForNextFrame(font, List.of(Component.translatable(
                     "screen.village-quest.wayshrine.payment_tooltip", data.charges(), data.chargesPerShard())),
@@ -321,41 +354,28 @@ public final class WayshrineScreen extends CompatScreen {
         drawFooterAction(graphics, left + RENAME_X, top + FOOTER_Y, RENAME_WIDTH,
                 Component.translatable("screen.village-quest.wayshrine.rename_action").getString(),
                 current() != null && data.owner(), renameHover, false);
+        if(renameHover && !data.owner()) graphics.setTooltipForNextFrame(font,Component.translatable("screen.village-quest.ui_review.owner_rename"),mouseX,mouseY);
     }
 
     private void drawFooterAction(GuiGraphics graphics, int x, int y, int width,
                                   String label, boolean enabled, boolean hovered, boolean active) {
-        if (!enabled) {
-            graphics.fill(x + 3, y + 3, x + width - 3, y + FOOTER_HEIGHT - 3, 0x66261C16);
-        } else if (active) {
-            graphics.fill(x + 3, y + 3, x + width - 3, y + FOOTER_HEIGHT - 3, 0x6637B5AC);
-        } else if (hovered) {
-            graphics.fill(x + 3, y + 3, x + width - 3, y + FOOTER_HEIGHT - 3, 0x24FFF1C7);
-        }
-        float scale = 0.72f;
-        int available = Math.max(4, (int) Math.floor((width - 10) / scale));
-        String visible = VillageUiTheme.ellipsize(font, label, available);
-        float textWidth = font.width(visible) * scale;
-        float textHeight = font.lineHeight * scale;
-        VillageUiTheme.drawStringScaled(graphics, font, visible,
-                x + (width - textWidth) / 2.0f,
-                y + (FOOTER_HEIGHT - textHeight) / 2.0f - 1.5f,
-                enabled ? VillageUiTheme.LIGHT_TEXT : VillageUiTheme.DISABLED_TEXT, scale);
+        if(enabled && !active) de.quest.client.ui.JournalV3Visuals.secondary(graphics,font,label,x,y,width,FOOTER_HEIGHT,hovered);
+        else VillageUiTheme.drawButton(graphics,font,x,y,width,FOOTER_HEIGHT,label,enabled,hovered,active);
     }
 
     private void drawRenameOverlay(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
-        graphics.fill(left + 76, top + 78, left + 356, top + 167, 0xD92A2119);
-        VillageUiTheme.drawCard(graphics, left + 81, top + 83, 270, 79, false, false);
+        graphics.fill(left + 76, top + 71, left + 356, top + 160, 0xD92A2119);
+        VillageUiTheme.drawCard(graphics, left + 81, top + 76, 270, 79, false, false);
         String heading = Component.translatable("screen.village-quest.wayshrine.rename_title").getString();
-        graphics.drawString(font, heading, left + (WINDOW_WIDTH - font.width(heading)) / 2, top + 92, INK, false);
-        graphics.fill(left + 107, top + 109, left + 325, top + 137, 0xFF6B4726);
-        graphics.fill(left + 109, top + 111, left + 323, top + 135, 0xFFE8D3A5);
-        boolean saveHover = within(mouseX, mouseY, left + 107, top + 139, 104, 18);
-        boolean cancelHover = within(mouseX, mouseY, left + 221, top + 139, 104, 18);
-        VillageUiTheme.drawButton(graphics, font, left + 107, top + 139, 104, 18,
+        graphics.drawString(font, heading, left + (WINDOW_WIDTH - font.width(heading)) / 2, top + 85, INK, false);
+        graphics.fill(left + 107, top + 102, left + 325, top + 130, 0xFF6B4726);
+        graphics.fill(left + 109, top + 104, left + 323, top + 128, 0xFFE8D3A5);
+        boolean saveHover = within(mouseX, mouseY, left + 107, top + 132, 104, 18);
+        boolean cancelHover = within(mouseX, mouseY, left + 221, top + 132, 104, 18);
+        VillageUiTheme.drawButton(graphics, font, left + 107, top + 132, 104, 18,
                 Component.translatable("screen.village-quest.wayshrine.rename_save").getString(),
                 nameField != null && !nameField.getValue().trim().isEmpty(), saveHover, false);
-        VillageUiTheme.drawButton(graphics, font, left + 221, top + 139, 104, 18,
+        VillageUiTheme.drawButton(graphics, font, left + 221, top + 132, 104, 18,
                 Component.translatable("screen.village-quest.wayshrine.rename_cancel").getString(),
                 true, cancelHover, false);
     }
@@ -367,12 +387,15 @@ public final class WayshrineScreen extends CompatScreen {
         int top = (height - WINDOW_HEIGHT) / 2;
         int mouseX = responsiveMouseX(click.x(), WINDOW_WIDTH, WINDOW_HEIGHT);
         int mouseY = responsiveMouseY(click.y(), WINDOW_WIDTH, WINDOW_HEIGHT);
+        if(KingdomUiAssets.closeBounds(left,top,WINDOW_WIDTH,WINDOW_HEIGHT).contains(mouseX,mouseY)) {
+            if(renaming) closeRename(); else onClose(); return true;
+        }
         if (renaming) {
-            if (within(mouseX, mouseY, left + 107, top + 139, 104, 18)) {
+            if (within(mouseX, mouseY, left + 107, top + 132, 104, 18)) {
                 saveRename();
                 return true;
             }
-            if (within(mouseX, mouseY, left + 221, top + 139, 104, 18)) {
+            if (within(mouseX, mouseY, left + 221, top + 132, 104, 18)) {
                 closeRename();
                 return true;
             }
@@ -383,7 +406,7 @@ public final class WayshrineScreen extends CompatScreen {
         }
         int y = top + LIST_Y;
         for (Payloads.TradeRouteShrineData shrine : visibleChoices()) {
-            if (within(mouseX, mouseY, left + LIST_X, y, LIST_WIDTH, 32)) {
+            if (within(mouseX, mouseY, left + LIST_X, y, LIST_WIDTH, 44)) {
                 selectedIndex = shrine.index();
                 focusMapOn(shrine);
                 return true;
@@ -393,7 +416,8 @@ public final class WayshrineScreen extends CompatScreen {
         MapBounds bounds = bounds();
         for (Payloads.TradeRouteShrineData shrine : choices()) {
             Point point = pointFor(shrine, bounds, left, top);
-            if (Math.abs(mouseX - point.x) <= 12 && Math.abs(mouseY - point.y) <= 12) {
+            if (within(mouseX,mouseY,left+MAP_X,top+MAP_Y,MAP_WIDTH,MAP_HEIGHT)
+                    && Math.abs(mouseX - point.x) <= 12 && Math.abs(mouseY - point.y) <= 12) {
                 selectedIndex = shrine.index();
                 return true;
             }
@@ -465,6 +489,7 @@ public final class WayshrineScreen extends CompatScreen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        if(renaming) return true;
         int left = (width - WINDOW_WIDTH) / 2;
         int top = (height - WINDOW_HEIGHT) / 2;
         int uiX = responsiveMouseX(mouseX, WINDOW_WIDTH, WINDOW_HEIGHT);
@@ -485,7 +510,7 @@ public final class WayshrineScreen extends CompatScreen {
 
     private void openRename() {
         if (minecraft == null || current() == null) return;
-        renaming = true;
+        renaming = true; mapDragging=false;
         nameField.setVisible(true);
         nameField.setValue(current().name().getString());
         nameField.moveCursorToEnd(false);

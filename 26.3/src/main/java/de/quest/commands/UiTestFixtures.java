@@ -22,7 +22,8 @@ public final class UiTestFixtures {
         };
         return new VillageNetworkPayloads.CaravanMasterPayload(
                 de.quest.network.ReputationPayloads.NONE, Component.literal("Master Rowan — UI Preview"),
-                Component.literal("Oakfield — Granary"),
+                Component.translatable("screen.village-quest.caravan_master.journey",
+                        Component.translatable("text.village-quest.trade_route.node.homestead"), Component.literal("Oakfield")),
                 Component.translatable("screen.village-quest.caravan_master.journey",
                         Component.translatable("text.village-quest.trade_route.node.homestead"),
                         Component.literal("Oakfield")),
@@ -134,6 +135,7 @@ public final class UiTestFixtures {
         int first = switch (preview) {
             case "greeting" -> 2;
             case "active", "connected", "forge", "archive" -> 2;
+            case "paused", "away" -> 9;
             case "pasture" -> 1;
             case "apiary" -> 3;
             case "choice", "ready", "remembered" -> 24;
@@ -166,7 +168,7 @@ public final class UiTestFixtures {
             case "greeting" -> Component.translatable("message.village-quest.guild_notice_post.teaser.greeting_progress", 2, 3);
             case "available" -> Component.translatable("screen.village-quest.notice_journey.available");
             case "active" -> Component.translatable("message.village-quest.guild_town.story.shared_table.progress",
-                    Component.translatable("quest.village-quest.guild_town.variant.preventive"), 12, 24, 0, 1);
+                    Component.translatable("quest.village-quest.guild_town.variant.preventive"), first, firstTarget, 0, 1);
             case "connected" -> Component.translatable("message.village-quest.guild_town.story.shared_table.progress",
                     Component.translatable("quest.village-quest.guild_town.variant.preventive"), 2, 24, 0, 1);
             case "forge", "pasture", "apiary", "archive" -> Component.translatable(

@@ -6,6 +6,7 @@ import de.quest.entity.CaravanPackMuleEntity;
 import de.quest.entity.PilgrimEntity;
 import de.quest.entity.QuestMasterEntity;
 import de.quest.entity.TraitorEntity;
+import de.quest.entity.KingdomNpcEntity;
 import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -65,12 +66,18 @@ public final class ModEntities {
 
     private ModEntities() {}
 
+    public static final EntityType<KingdomNpcEntity> KINGDOM_NPC=Registry.register(BuiltInRegistries.ENTITY_TYPE,
+            Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID,"kingdom_npc"),
+            EntityType.Builder.<KingdomNpcEntity>of(KingdomNpcEntity::new,MobCategory.CREATURE).sized(0.6f,1.8f)
+                    .build(ResourceKey.create(Registries.ENTITY_TYPE,Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID,"kingdom_npc"))));
+
     public static void register() {
         FabricDefaultAttributeRegistry.register(PILGRIM, PilgrimEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(QUEST_MASTER, QuestMasterEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(CARAVAN_MERCHANT, CaravanMerchantEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(CARAVAN_PACK_MULE, CaravanPackMuleEntity.createBaseHorseAttributes());
         FabricDefaultAttributeRegistry.register(TRAITOR, TraitorEntity.createAttributes());
+        FabricDefaultAttributeRegistry.register(KINGDOM_NPC,KingdomNpcEntity.createAttributes());
         VillageQuest.LOGGER.info("Registered entities");
     }
 }

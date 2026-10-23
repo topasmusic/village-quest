@@ -20,8 +20,8 @@ public final class VanillaRewardService {
     private static final Map<UUID, Pending> PENDING = new HashMap<>();
     private static final RewardChoiceSessions SESSIONS = new RewardChoiceSessions();
     public static PlayerRewardState state(ServerLevel world, UUID player) { return QuestState.get(world.getServer()).getPlayerData(player).vanillaRewards(); }
-    public static String dailyIdentity(String type) { return type + ":" + de.quest.util.TimeUtil.currentDay(); }
-    public static String weeklyIdentity(String type) { return type + ":" + de.quest.util.TimeUtil.currentWeekCycle(); }
+    public static String dailyIdentity(String type) { return type + ":" + de.quest.util.QuestCalendarService.currentDay(); }
+    public static String weeklyIdentity(String type) { return type + ":" + de.quest.util.QuestCalendarService.currentWeekCycle(); }
     public static boolean prepare(ServerLevel world, ServerPlayer player, String slot, String key, String identity,
                                   RepeatableTargetProfile profile, Runnable resume) {
         var all = VanillaRewardRegistry.options(key, profile);
@@ -38,7 +38,10 @@ public final class VanillaRewardService {
         for (var option : all) {
             if (option.diamondGate() && !PlayerProgressionSignals.diamonds(player)) continue;
             var choice = new CompoundTag(); choice.putString("option", option.id()); choice.putLong("currency", option.currency());
-            choice.put("items", RewardItems.encode(world, RewardItems.create(world, option.goods())));
+            var goods=RewardItems.create(world,option.goods());
+            if(key.equals("friends:lutte")) for(var item:goods) item.set(net.minecraft.core.component.DataComponents.ITEM_NAME,
+                    de.quest.quest.special.FriendsQuestService.tr("lutte.tool."+option.id()));
+            choice.put("items", RewardItems.encode(world, goods));
             choice.put("summaryComponent", ComponentSerialization.CODEC.encodeStart(NbtOps.INSTANCE, summary(option)).getOrThrow());
             var lines = new ListTag();
             for (var line : describe(option)) lines.add(ComponentSerialization.CODEC.encodeStart(NbtOps.INSTANCE, line).getOrThrow());
@@ -128,6 +131,7 @@ public final class VanillaRewardService {
     public static int claim(ServerLevel world, ServerPlayer player) {
         int delivered = deliverPending(world, player); openEarned(world, player); return delivered;
     }
+    public static int deliverItems(ServerLevel world,ServerPlayer player) {return deliverPending(world,player);}
     private static int deliverPending(ServerLevel world, ServerPlayer player) {
         if (!player.isAlive() || player.isSpectator()) return 0;
         var state = state(world, player.getUUID()); if (!state.writable()) return 0;
@@ -149,6 +153,33 @@ public final class VanillaRewardService {
         if (state.first(key)) { CurrencyService.addBalance(world, player.getUUID(), 8); QuestState.get(world.getServer()).setDirty();
             player.sendSystemMessage(Component.translatable("reward.village-quest.first_bonus", CurrencyService.formatBalance(8)), false); }
     }
+    /** Prepare before payment; debit and pending entitlement share the owning QuestState document.
+     * Delivery starts only after the paid entitlement is installed. No post-delivery refund. */
+    public static boolean enqueuePurchase(ServerLevel world,ServerPlayer player,List<ItemStack> items,long price) {
+        if(world==null || player==null || price<0 || !world.getServer().isSameThread()) return false;
+        if(items==null || items.isEmpty()) return false;
+        for(var item:items) if(item==null || item.isEmpty()) return false;
+        var state=state(world,player.getUUID());
+        if(!state.writable() || !state.canEnqueue(items.size())) return false;
+        net.minecraft.nbt.ListTag pending;
+        try {
+            var encoded=RewardItems.encode(world,items);
+            if(encoded.size()!=items.size() || !state.canEnqueue(encoded.size())) return false;
+            pending=state.pending();
+            for(var item:encoded) pending.add(item.copy());
+        } catch(RuntimeException invalidGoods) {
+            de.quest.VillageQuest.LOGGER.warn("Cannot encode paid shop delivery",invalidGoods);
+            return false;
+        }
+        if(!CurrencyService.removeBalance(world,player.getUUID(),price)) return false;
+        state.pending(pending);
+        QuestState.get(world.getServer()).setDirty();
+        // Keep the paid claim on delivery problems; returning false here would encourage a refund.
+        try {deliverPending(world,player);}
+        catch(RuntimeException unavailableDelivery) {de.quest.VillageQuest.LOGGER.warn("Paid shop goods remain pending",unavailableDelivery);}
+        return true;
+    }
+
     public static boolean enqueue(ServerLevel world, ServerPlayer player, List<ItemStack> items) {
         var state = state(world, player.getUUID()); if (!state.writable()) return false;
         var pending = state.pending(); var encoded = RewardItems.encode(world, items);

@@ -3,8 +3,9 @@ package de.quest.client.screen;
 import com.mojang.blaze3d.platform.InputConstants;
 import de.quest.VillageQuest;
 import de.quest.client.ui.VillageUiTheme;
+import de.quest.client.ui.QuestArtwork;
+import de.quest.client.ui.JournalV3Visuals;
 import de.quest.network.Payloads;
-import de.quest.util.TimeUtil;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import de.quest.client.compat.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -78,68 +79,73 @@ public final class QuestMasterScreen extends CompatScreen {
             long storyCooldownUntil
     ) {}
 
-    private record DetailLine(String text, int color, int indent, boolean spacer, boolean descriptionPreview) {}
+    private record DetailLine(String text, int color, int indent, boolean spacer, boolean descriptionPreview,
+                              de.quest.client.ui.QuestObjectiveRows.Row objective) {
+        DetailLine(String text,int color,int indent,boolean spacer,boolean preview) { this(text,color,indent,spacer,preview,null); }
+        int height() { return spacer ? 3 : objective != null ? 20 : DETAIL_LINE_STEP; }
+    }
 
     private record ButtonAction(int action, Component label, boolean enabled) {}
 
     private record ButtonSlot(ButtonAction action, int x, int width) {}
+    private record PartyRow(String label, String status, String playerId, boolean inviteable, boolean heading) {}
 
-    private static final int WINDOW_WIDTH = 392;
-    private static final int WINDOW_HEIGHT = 220;
+    private static final int WINDOW_WIDTH = 560;
+    private static final int WINDOW_HEIGHT = 315;
 
     private static final int TITLE_Y = 14;
 
-    private static final int CATEGORY_SLOT_X = 22;
-    private static final int CATEGORY_SLOT_Y = 28;
-    private static final int CATEGORY_SLOT_WIDTH = 45;
-    private static final int CATEGORY_SLOT_HEIGHT = 29;
-    private static final int CATEGORY_SLOT_GAP = 2;
+    private static final int CATEGORY_SLOT_X = 26;
+    private static final int CATEGORY_SLOT_Y = 44;
+    private static final int CATEGORY_SLOT_WIDTH = 80;
+    private static final int CATEGORY_SLOT_HEIGHT = 32;
+    private static final int CATEGORY_SLOT_GAP = 4;
 
-    private static final int CONTENT_HEADER_X = 80;
-    private static final int CONTENT_HEADER_Y = 40;
-    private static final int LIST_PANEL_X = 78;
-    private static final int LIST_PANEL_Y = 52;
-    private static final int LIST_PANEL_WIDTH = 108;
-    private static final int LIST_PANEL_HEIGHT = 134;
+    private static final int CONTENT_HEADER_X = 117;
+    private static final int CONTENT_HEADER_Y = 52;
+    private static final int LIST_PANEL_X = 114;
+    private static final int LIST_PANEL_Y = 66;
+    private static final int LIST_PANEL_WIDTH = 172;
+    private static final int LIST_PANEL_HEIGHT = 192;
     private static final int ENTRY_X = LIST_PANEL_X;
     private static final int ENTRY_Y = LIST_PANEL_Y;
     private static final int ENTRY_WIDTH = LIST_PANEL_WIDTH;
-    private static final int ENTRY_HEIGHT = 34;
-    private static final int ENTRY_GAP = 3;
+    private static final int ENTRY_HEIGHT = 51;
+    private static final int ENTRY_GAP = 4;
 
-    private static final int DETAIL_HEADER_X = 191;
-    private static final int DETAIL_HEADER_Y = 52;
-    private static final int DETAIL_HEADER_WIDTH = 175;
-    private static final int DETAIL_HEADER_HEIGHT = 36;
+    private static final int DETAIL_HEADER_X = 295;
+    private static final int DETAIL_HEADER_Y = 62;
+    private static final int DETAIL_HEADER_WIDTH = 235;
+    private static final int DETAIL_HEADER_HEIGHT = 30;
 
     private static final int DETAIL_BODY_X = DETAIL_HEADER_X;
     private static final int DETAIL_BODY_Y = DETAIL_HEADER_Y + DETAIL_HEADER_HEIGHT;
     private static final int DETAIL_BODY_WIDTH = DETAIL_HEADER_WIDTH;
-    private static final int DETAIL_BODY_HEIGHT = 90;
+    private static final int DETAIL_BODY_HEIGHT = 168;
     private static final int DETAIL_HEADER_HORIZONTAL_PADDING = 12;
     private static final int DETAIL_TEXT_LEFT = 12;
     private static final int DETAIL_TEXT_RIGHT = 15;
     private static final int DETAIL_TEXT_TOP = 5;
     private static final int DETAIL_TEXT_BOTTOM = 7;
-    private static final float DETAIL_TEXT_SCALE = 0.72f;
-    private static final int DETAIL_LINE_STEP = 8;
+    private static final float DETAIL_TEXT_SCALE = 0.94f;
+    private static final int DETAIL_LINE_STEP = 10;
     private static final int DESCRIPTION_POPUP_WIDTH = 196;
     private static final int DESCRIPTION_POPUP_PADDING = 6;
     private static final int DESCRIPTION_POPUP_OFFSET = 12;
     private static final int DESCRIPTION_POPUP_MARGIN = 8;
 
-    private static final int BUTTON_Y = 184;
-    private static final int BUTTON_HEIGHT = 15;
+    private static final int BUTTON_Y = 264;
+    private static final int BUTTON_HEIGHT = 18;
     private static final int PARTY_BUTTON_WIDTH = 48;
     private static final int PARTY_BUTTON_HEIGHT = 15;
     private static final int PARTY_BUTTON_X = DETAIL_HEADER_X + DETAIL_HEADER_WIDTH - PARTY_BUTTON_WIDTH - 6;
-    private static final int PARTY_BUTTON_Y = 38;
+    private static final int PARTY_BUTTON_Y = 44;
     private static final int PARTY_DRAWER_X = DETAIL_HEADER_X;
     private static final int PARTY_DRAWER_Y = DETAIL_HEADER_Y;
     private static final int PARTY_DRAWER_WIDTH = DETAIL_HEADER_WIDTH;
     private static final int PARTY_DRAWER_HEIGHT = DETAIL_HEADER_HEIGHT + DETAIL_BODY_HEIGHT;
-    private static final int PARTY_ROW_HEIGHT = 14;
-    private static final int PARTY_VISIBLE_CANDIDATES = 4;
+    private static final int PARTY_ROW_HEIGHT = 18;
+    private static final int PARTY_VISIBLE_CANDIDATES = 6;
 
     private static final int TITLE = 0xFF2B170E;
     private static final int BODY = 0xFF5C4030;
@@ -201,6 +207,11 @@ public final class QuestMasterScreen extends CompatScreen {
         this.data = data;
     }
 
+    void selectTourCategory(String category) {
+        selectedCategoryId = category;
+        ensureSelection();
+    }
+
     public void updateData(QuestMasterData data) {
         String previousCategory = this.selectedCategoryId;
         String previousEntry = this.selectedEntryId;
@@ -258,14 +269,14 @@ public final class QuestMasterScreen extends CompatScreen {
             VillageUiTheme.drawPanelShadow(context, left, top, WINDOW_WIDTH, WINDOW_HEIGHT);
             drawBoard(context, left, top);
             drawHeader(context, left, top);
-            VillageUiTheme.drawButton(context, font, left + 288, top + 8, 63, 18,
+            VillageUiTheme.drawButton(context, font, left + 444, top + 8, 72, 18,
                     Component.translatable("screen.village-quest.reputation.title").getString(), true,
-                    isWithin(uiMouseX, uiMouseY, left + 288, top + 8, 63, 18), false);
+                    isWithin(uiMouseX, uiMouseY, left + 444, top + 8, 72, 18), false);
             drawSidebar(context, left, top, uiMouseX, uiMouseY);
             drawEntryList(context, left, top, uiMouseX, uiMouseY);
             drawDetailPanel(context, left, top, uiMouseX, uiMouseY);
             drawPartyDrawer(context, left, top, uiMouseX, uiMouseY);
-            drawFooter(context, left, top);
+            drawFooter(context, left, top, uiMouseX, uiMouseY);
 
             super.render(context, uiMouseX, uiMouseY, delta);
             if (this.hoveredEntryTooltip != null) {
@@ -286,8 +297,9 @@ public final class QuestMasterScreen extends CompatScreen {
         int top = (this.height - WINDOW_HEIGHT) / 2;
         int mouseX = responsiveMouseX(click.x(), WINDOW_WIDTH, WINDOW_HEIGHT);
         int mouseY = responsiveMouseY(click.y(), WINDOW_WIDTH, WINDOW_HEIGHT);
+        if(isWithin(mouseX,mouseY,left+WINDOW_WIDTH-25,top+3,20,20)){onClose();return true;}
 
-        if (isWithin(mouseX, mouseY, left + 288, top + 8, 63, 18)) {
+        if (isWithin(mouseX, mouseY, left + 444, top + 8, 72, 18)) {
             UiTestTour.send(new de.quest.network.ReputationPayloads.OpenPayload(1, net.minecraft.core.BlockPos.ZERO, data.entityId()));
             return true;
         }
@@ -320,7 +332,8 @@ public final class QuestMasterScreen extends CompatScreen {
             if ((y + ENTRY_HEIGHT) < entryViewportY || y > entryViewportY + entryViewportHeight) {
                 continue;
             }
-            if (isWithin(mouseX, mouseY, x, y, ENTRY_WIDTH, ENTRY_HEIGHT)) {
+            if (isWithin(mouseX, mouseY, x, y, ENTRY_WIDTH, ENTRY_HEIGHT)
+                    && isWithin(mouseX, mouseY, left + ENTRY_X, entryViewportY, ENTRY_WIDTH, entryViewportHeight)) {
                 this.selectedEntryId = entries.get(i).entryId();
                 this.detailScrollOffset = 0;
                 ensureSelectedEntryVisible();
@@ -373,15 +386,14 @@ public final class QuestMasterScreen extends CompatScreen {
             clampEntryListScroll();
             return true;
         }
-        if (this.detailScrollMax > 0 && isWithin(uiMouseX, uiMouseY, left + DETAIL_BODY_X, top + DETAIL_BODY_Y, DETAIL_BODY_WIDTH, DETAIL_BODY_HEIGHT)) {
+        if (this.detailScrollMax > 0 && !this.partyDrawerOpen && isWithin(uiMouseX, uiMouseY, left + DETAIL_BODY_X, top + DETAIL_BODY_Y, DETAIL_BODY_WIDTH, DETAIL_BODY_HEIGHT)) {
             int step = this.font.lineHeight * 2;
             this.detailScrollOffset -= (int) Math.signum(verticalAmount) * step;
             clampDetailScroll();
             return true;
         }
         if (this.partyDrawerOpen
-                && isWithin(uiMouseX, uiMouseY, left + PARTY_DRAWER_X, top + PARTY_DRAWER_Y, PARTY_DRAWER_WIDTH, PARTY_DRAWER_HEIGHT)
-                && candidateScrollMax() > 0) {
+                && isWithin(uiMouseX, uiMouseY, left + PARTY_DRAWER_X, top + PARTY_DRAWER_Y, PARTY_DRAWER_WIDTH, PARTY_DRAWER_HEIGHT)) {
             this.partyCandidateScrollIndex -= (int) Math.signum(verticalAmount);
             clampPartyDrawerState();
             return true;
@@ -390,28 +402,27 @@ public final class QuestMasterScreen extends CompatScreen {
     }
 
     private void drawBoard(GuiGraphics context, int left, int top) {
-        // Keep the Quest Board compact while sampling the complete journal frame.
-        VillageUiTheme.blitScaled(context, BOARD_TEXTURE, left, top,
-                WINDOW_WIDTH, WINDOW_HEIGHT, BOARD_TEXTURE_WIDTH, BOARD_TEXTURE_HEIGHT);
+        context.fill(left+12,top+22,left+WINDOW_WIDTH-12,top+WINDOW_HEIGHT-14,VillageUiTheme.WOOD);
+        JournalV3Visuals.paper(context,left+112,top+38,420,244);
+        VillageUiTheme.drawFrame(context,left,top,WINDOW_WIDTH,WINDOW_HEIGHT);
+        JournalV3Visuals.ornaments(context,left,top,WINDOW_WIDTH,WINDOW_HEIGHT);
     }
 
     private void drawHeader(GuiGraphics context, int left, int top) {
-        String screenTitle = this.title.getString();
-        int titleX = left + (WINDOW_WIDTH - this.font.width(screenTitle)) / 2;
-        context.drawString(this.font, screenTitle, titleX, top + TITLE_Y, TITLE, false);
+        JournalV3Visuals.title(context,font,title.getString(),left+150,top+3,260,"scroll");
+        VillageUiTheme.drawButton(context,font,left+WINDOW_WIDTH-25,top+3,20,20,"×",true,false,false);
 
         CategoryView selected = selectedCategory();
         if (selected != null) {
             String categoryLabel = ellipsize(selected.label().getString(), LIST_PANEL_WIDTH - 24);
-            context.drawString(this.font, categoryLabel,
-                    left + CONTENT_HEADER_X, top + CONTENT_HEADER_Y, SECTION_HEADER, false);
+            JournalV3Visuals.heading(context,font,categoryLabel,left+CONTENT_HEADER_X,top+CONTENT_HEADER_Y,LIST_PANEL_WIDTH-24,1.15f,TITLE);
             String count = Integer.toString(selected.entryCount());
-            int countX = left + CONTENT_HEADER_X + this.font.width(categoryLabel) + 6;
+            int countX = left + CONTENT_HEADER_X + Math.round(this.font.width(categoryLabel)*1.15f) + 6;
             context.drawString(this.font, count, countX, top + CONTENT_HEADER_Y, MUTED, false);
         }
-        String masterName = ellipsize(data.questMasterName().getString(), 112);
+        String masterName = ellipsize(data.questMasterName().getString(), 180);
         VillageUiTheme.drawStringScaled(context, this.font, masterName,
-                left + DETAIL_HEADER_X + 3, top + CONTENT_HEADER_Y + 1, MUTED, 0.72f);
+                left + DETAIL_HEADER_X + 3, top + CONTENT_HEADER_Y + 1, BODY, 0.78f);
     }
 
     private void drawSidebar(GuiGraphics context, int left, int top, int mouseX, int mouseY) {
@@ -432,7 +443,8 @@ public final class QuestMasterScreen extends CompatScreen {
         VillageUiTheme.drawTab(context, x, y, CATEGORY_SLOT_WIDTH, CATEGORY_SLOT_HEIGHT,
                 selected && !locked, hovered && !locked);
         VillageUiTheme.drawIcon(context, VillageUiTheme.icon(categoryIcon(category.categoryId())),
-                x + (CATEGORY_SLOT_WIDTH - 21) / 2, y + (CATEGORY_SLOT_HEIGHT - 21) / 2, 21);
+                x+5,y+5,22);
+        VillageUiTheme.drawWrappedScaled(context,font,category.label().getString(),x+32,y+8,CATEGORY_SLOT_WIDTH-39,STATUS_TEXT,.78f,2);
         if (locked) {
             context.fill(x + 4, y + 4, x + CATEGORY_SLOT_WIDTH - 4,
                     y + CATEGORY_SLOT_HEIGHT - 4, 0x669A8B76);
@@ -479,29 +491,18 @@ public final class QuestMasterScreen extends CompatScreen {
     }
 
     private void drawEntryCard(GuiGraphics context, int x, int y, EntryView entry, boolean hovered, boolean selected) {
-        VillageUiTheme.drawCard(context, x, y, ENTRY_WIDTH, ENTRY_HEIGHT,
-                hovered && !entry.locked(), false);
-        context.fill(x + 6, y + 6, x + 8, y + ENTRY_HEIGHT - 6,
-                selected ? VillageUiTheme.TEAL : categoryAccent(entry.categoryId()));
-        if (entry.locked()) {
-            context.fill(x + 4, y + 4, x + ENTRY_WIDTH - 4, y + ENTRY_HEIGHT - 4, 0x559A8B76);
-        }
-        String fullTitle = entry.title().getString();
-        List<String> titleLines = wrapText(fullTitle, Math.round((ENTRY_WIDTH - 21) / 0.74f));
-        for (int line = 0; line < Math.min(2, titleLines.size()); line++) {
-            String text = titleLines.get(line);
-            if (line == 1 && titleLines.size() > 2) {
-                text = compactScaled(String.join(" ", titleLines.subList(1, titleLines.size())), ENTRY_WIDTH - 21, 0.74f);
-            }
-            text = compactScaled(text, ENTRY_WIDTH - 21, 0.74f);
-            VillageUiTheme.drawStringScaled(context, this.font, text, x + 12, y + 6 + line * 9, TITLE, 0.74f);
-        }
-        VillageUiTheme.drawStringScaled(context, this.font,
-                compactScaled(entry.status().getString(), ENTRY_WIDTH - 29, 0.68f),
-                x + 12, y + (titleLines.size() > 1 ? 25 : 20), pickStatusColor(entry), 0.68f);
-        if (hovered && (titleLines.size() > 2 || titleLines.stream().anyMatch(line -> this.font.width(line) * 0.74f > ENTRY_WIDTH - 21))) {
-            this.hoveredEntryTooltip = entry.title();
-        }
+        JournalV3Visuals.paper(context,x,y,ENTRY_WIDTH,ENTRY_HEIGHT);
+        if(selected || hovered)context.fill(x+2,y+2,x+ENTRY_WIDTH-2,y+ENTRY_HEIGHT-2,selected?0x44365E59:0x12FFFFFF);
+        if(selected)context.fill(x+2,y+2,x+ENTRY_WIDTH-2,y+4,0xFFF3CB75);
+        context.fill(x+2,y+2,x+4,y+ENTRY_HEIGHT-2,selected?VillageUiTheme.TEAL:categoryAccent(entry.categoryId()));
+        var art=QuestArtwork.forQuest(entry.entryId(),entry.title()).filter(QuestArtwork.Motif::hasIllustration);
+        art.ifPresent(m->JournalV3Visuals.thumbnail(context,m.smallTexture(),x+7,y+11,64,24));
+        if(art.isEmpty())JournalV3Visuals.sprite(context,"scroll",x+22,y+13,24,24);
+        int textX=x+77,textWidth=ENTRY_WIDTH-87;
+        VillageUiTheme.drawWrappedScaled(context,font,entry.title().getString(),textX,y+7,textWidth,TITLE,1.05f,2);
+        VillageUiTheme.drawStringScaled(context,font,compactScaled(entry.status().getString(),textWidth,.75f),textX,y+36,pickStatusColor(entry),.75f);
+        if(hovered)this.hoveredEntryTooltip=entry.title();
+        if(entry.locked())context.fill(x+3,y+3,x+ENTRY_WIDTH-3,y+ENTRY_HEIGHT-3,0x339A8B76);
     }
 
     private void drawDetailPanel(GuiGraphics context, int left, int top, int mouseX, int mouseY) {
@@ -514,8 +515,7 @@ public final class QuestMasterScreen extends CompatScreen {
             return;
         }
 
-        VillageUiTheme.drawCard(context, left + DETAIL_HEADER_X, top + DETAIL_HEADER_Y,
-                DETAIL_HEADER_WIDTH, DETAIL_HEADER_HEIGHT + DETAIL_BODY_HEIGHT, false, false);
+        JournalV3Visuals.paper(context,left+DETAIL_HEADER_X,top+DETAIL_HEADER_Y,DETAIL_HEADER_WIDTH,DETAIL_HEADER_HEIGHT+DETAIL_BODY_HEIGHT);
         context.fill(left + DETAIL_HEADER_X + 6, top + DETAIL_HEADER_Y + 6,
                 left + DETAIL_HEADER_X + 8, top + DETAIL_HEADER_Y + DETAIL_HEADER_HEIGHT + DETAIL_BODY_HEIGHT - 6,
                 VillageUiTheme.TEAL);
@@ -536,21 +536,22 @@ public final class QuestMasterScreen extends CompatScreen {
         drawTemplateButtons(context, left, top, mouseX, mouseY, entry);
     }
 
-    private void drawFooter(GuiGraphics context, int left, int top) {
+    private void drawFooter(GuiGraphics context, int left, int top, int mouseX, int mouseY) {
         String timerText = footerTimerText();
         if (timerText == null || timerText.isBlank()) {
             return;
         }
 
-        VillageUiTheme.drawStringScaled(context, this.font, timerText,
-                left + 80, top + 188, MUTED, 0.68f);
+        VillageUiTheme.drawWrappedScaled(context,font,timerText,left+117,top+280,168,MUTED,.68f,2);
+        if(isWithin(mouseX,mouseY,left+114,top+277,172,21))
+            context.setTooltipForNextFrame(font,Component.literal(timerText),mouseX,mouseY);
     }
 
     private void drawDetailHeader(GuiGraphics context, int x, int y, EntryView entry) {
         int contentWidth = DETAIL_HEADER_WIDTH - (DETAIL_HEADER_HORIZONTAL_PADDING * 2);
-        String titleText = compactScaled(entry.title().getString(), contentWidth, 0.86f);
-        VillageUiTheme.drawStringScaled(context, this.font, titleText,
-                x + DETAIL_HEADER_HORIZONTAL_PADDING, y + 7, TITLE, 0.86f);
+        int badgeWidth=Math.min(104,16+(int)Math.ceil(font.width(entry.status().getString())*.76f));
+        VillageUiTheme.drawWrappedScaled(context,font,entry.title().getString(),
+                x+DETAIL_HEADER_HORIZONTAL_PADDING,y+7,contentWidth-badgeWidth-7,TITLE,1.08f,2);
 
         String subtitle = entry.subtitle().getString();
         if (hasVisibleLabel(entry.partyStatus())) {
@@ -559,10 +560,10 @@ public final class QuestMasterScreen extends CompatScreen {
                     : subtitle + " / " + entry.partyStatus().getString();
         }
         VillageUiTheme.drawStringScaled(context, this.font,
-                compactScaled(subtitle, contentWidth, 0.68f),
-                x + DETAIL_HEADER_HORIZONTAL_PADDING, y + 21, MUTED, 0.68f);
-        drawStatusTag(context, entry, x + DETAIL_HEADER_HORIZONTAL_PADDING,
-                y + 30, contentWidth);
+                compactScaled(subtitle, contentWidth, 0.78f),
+                x + DETAIL_HEADER_HORIZONTAL_PADDING, y + 23, BODY, 0.78f);
+        drawStatusTag(context, entry, x+DETAIL_HEADER_WIDTH-DETAIL_HEADER_HORIZONTAL_PADDING-badgeWidth,
+                y+10,badgeWidth);
     }
 
     private void drawDetailBody(GuiGraphics context, int x, int y, EntryView entry, int mouseX, int mouseY) {
@@ -574,23 +575,44 @@ public final class QuestMasterScreen extends CompatScreen {
         int clipBottom = textY + viewportHeight;
         List<DetailLine> lines = buildDetailLines(entry,
                 Math.max(1, (int) Math.floor(textWidth / DETAIL_TEXT_SCALE)));
-        int contentHeight = measureDetailHeight(lines);
+        var artwork = QuestArtwork.forQuest(entry.entryId(), entry.title()).filter(QuestArtwork.Motif::hasIllustration);
+        int illustrationHeight = artwork.isPresent() ? Math.min(38,Math.round(textWidth*72f/192f))+5 : 0;
+        int contentHeight = measureDetailHeight(lines) + illustrationHeight;
         this.detailScrollMax = Math.max(0, contentHeight - viewportHeight);
         clampDetailScroll();
 
         context.enableScissor(x + DETAIL_TEXT_LEFT - 2, clipTop,
                 x + DETAIL_BODY_WIDTH - DETAIL_TEXT_RIGHT + 2, clipBottom);
         int cursorY = textY - this.detailScrollOffset;
+        if (artwork.isPresent()) {
+            JournalV3Visuals.illustration(context, artwork.get().largeTexture(), textX, cursorY,
+                    textWidth, illustrationHeight-5);
+            cursorY += illustrationHeight;
+        }
         for (DetailLine line : lines) {
             if (line.spacer()) {
                 cursorY += 3;
                 continue;
             }
-            if (cursorY >= clipTop && cursorY + DETAIL_LINE_STEP <= clipBottom) {
-                VillageUiTheme.drawStringScaled(context, this.font, line.text(),
+            if (line.objective() != null) {
+                var row=line.objective();
+                // Scissor clips partially visible rows, preserving continuous scroll geometry.
+                VillageUiTheme.drawScaledItem(context,new net.minecraft.world.item.ItemStack(row.item()),textX+2,cursorY+1,.75f);
+                String count=row.current()+" / "+row.target();
+                int countWidth=Math.round(font.width(count)*.8f);
+                int labelWidth=Math.max(8,textWidth-23-countWidth-7);
+                JournalV3Visuals.heading(context,font,row.label().getString(),textX+19,cursorY+2,labelWidth,.82f,BODY);
+                VillageUiTheme.drawStringScaled(context,font,count,textX+textWidth-countWidth-2,cursorY+2,
+                        row.current()>=row.target()?VillageUiTheme.TEAL:BODY,.8f);
+                int barWidth=textWidth-23;
+                context.fill(textX+19,cursorY+13,textX+19+barWidth,cursorY+17,0xFFB89E70);
+                context.fill(textX+19,cursorY+13,textX+19+row.filledPixels(barWidth),cursorY+17,VillageUiTheme.TEAL);
+            } else if (cursorY >= clipTop && cursorY + DETAIL_LINE_STEP <= clipBottom) {
+                if(line.indent()==0) JournalV3Visuals.heading(context,font,line.text(),textX,cursorY,textWidth,DETAIL_TEXT_SCALE,line.color());
+                else VillageUiTheme.drawStringScaled(context, this.font, line.text(),
                         textX + line.indent(), cursorY, line.color(), DETAIL_TEXT_SCALE);
             }
-            cursorY += DETAIL_LINE_STEP;
+            cursorY += line.height();
         }
         context.disableScissor();
         drawScrollIndicator(context, x, y, viewportHeight, contentHeight);
@@ -625,7 +647,7 @@ public final class QuestMasterScreen extends CompatScreen {
         if (!lines.isEmpty()) {
             lines.add(new DetailLine("", BODY, 0, true, false));
         }
-        lines.add(new DetailLine(heading.getString(), SECTION_HEADER, 0, false, false));
+        lines.add(new DetailLine(heading.getString(), TITLE, 0, false, false));
         for (Component component : content) {
             int color = component.getStyle().getColor() == null
                     ? BODY
@@ -643,16 +665,30 @@ public final class QuestMasterScreen extends CompatScreen {
         if (!lines.isEmpty()) {
             lines.add(new DetailLine("", BODY, 0, true, false));
         }
-        lines.add(new DetailLine(heading.getString(), SECTION_HEADER, 0, false, descriptionPreview));
-        for (String wrapped : collectWrappedLines(content, maxWidth - 2, Integer.MAX_VALUE)) {
-            lines.add(new DetailLine(wrapped, bodyColor, 2, false, descriptionPreview));
+        lines.add(new DetailLine(heading.getString(), TITLE, 0, false, descriptionPreview));
+        for (Component component : content) {
+            var objectives=de.quest.client.ui.QuestObjectiveRows.rows(component);
+            if(!objectives.isEmpty()) {
+                for(var row:objectives) lines.add(new DetailLine("",bodyColor,5,false,false,row));
+                continue;
+            }
+            if(component.getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents t
+                    && t.getKey().equals("screen.village-quest.questmaster.reward.currency")
+                    && component.getSiblings().isEmpty() && t.getArgs().length==1) {
+                Object amount=t.getArgs()[0];
+                component=amount instanceof Component c ? c : Component.literal(String.valueOf(amount));
+            }
+            for (Component row : de.quest.client.ui.QuestObjectiveRows.separate(component)) {
+                for (String wrapped : collectWrappedLines(List.of(row), maxWidth - 5, Integer.MAX_VALUE))
+                    lines.add(new DetailLine(wrapped, bodyColor, 5, false, descriptionPreview));
+            }
         }
     }
 
     private int measureDetailHeight(List<DetailLine> lines) {
         int height = 0;
         for (DetailLine line : lines) {
-            height += line.spacer() ? 3 : DETAIL_LINE_STEP;
+            height += line.height();
         }
         return height;
     }
@@ -728,72 +764,63 @@ public final class QuestMasterScreen extends CompatScreen {
     }
 
     private void drawTemplateButtons(GuiGraphics context, int left, int top, int mouseX, int mouseY, EntryView entry) {
-        for (ButtonSlot slot : buttonSlots(entry)) {
-            drawTemplateButton(
-                    context,
-                    left + slot.x(),
-                    top + BUTTON_Y,
-                    slot.width(),
-                    BUTTON_HEIGHT,
-                    slot.action().label(),
-                    slot.action().enabled(),
-                    isWithin(mouseX, mouseY, left + slot.x(), top + BUTTON_Y, slot.width(), BUTTON_HEIGHT)
-            );
+        JournalV3Visuals.paper(context,left+112,top+260,420,22);
+        for(ButtonSlot slot:buttonSlots(entry)) {
+            boolean hover=isWithin(mouseX,mouseY,left+slot.x(),top+BUTTON_Y,slot.width(),BUTTON_HEIGHT);
+            if(slot.action().enabled() && slot.action().action()==entry.primaryAction())
+                JournalV3Visuals.action(context,font,slot.action().label().getString(),left+slot.x(),top+BUTTON_Y,slot.width(),BUTTON_HEIGHT,hover);
+            else if(slot.action().enabled()) JournalV3Visuals.secondary(context,font,slot.action().label().getString(),left+slot.x(),top+BUTTON_Y,slot.width(),BUTTON_HEIGHT,hover);
+            else drawTemplateButton(context,left+slot.x(),top+BUTTON_Y,slot.width(),BUTTON_HEIGHT,slot.action().label(),false,hover);
         }
     }
 
     private void drawPartyDrawer(GuiGraphics context, int left, int top, int mouseX, int mouseY) {
         EntryView selected = getSelectedEntry();
-        if (!this.partyDrawerOpen || selected == null || !isPartyDrawerAvailable(selected)) {
-            return;
-        }
-
-        int x = left + PARTY_DRAWER_X;
-        int y = top + PARTY_DRAWER_Y;
+        if (!partyDrawerOpen || selected == null || !isPartyDrawerAvailable(selected) || data.party() == null) return;
+        int x = left + PARTY_DRAWER_X, y = top + PARTY_DRAWER_Y;
         VillageUiTheme.drawCard(context, x, y, PARTY_DRAWER_WIDTH, PARTY_DRAWER_HEIGHT, false, true);
-        context.drawString(this.font, Component.translatable("screen.village-quest.questmaster.party.title").getString(), x + 6, y + 6, TITLE, false);
-        context.drawString(this.font, ellipsize(data.party().summary().getString(), PARTY_DRAWER_WIDTH - 12), x + 6, y + 18, PARTY_MUTED, false);
-
-        int cursorY = y + 34;
-        context.drawString(this.font, Component.translatable("screen.village-quest.questmaster.party.members").getString(), x + 6, cursorY, PARTY_SECTION, false);
-        cursorY += this.font.lineHeight + 2;
-        for (PartyMemberView member : data.party().members()) {
-            String label = member.name().getString()
-                    + (member.leader() ? " [L]" : "")
-                    + (member.self() ? " *" : "");
-            context.drawString(this.font, ellipsize(label, PARTY_DRAWER_WIDTH - 12), x + 6, cursorY, BODY, false);
-            cursorY += PARTY_ROW_HEIGHT;
+        VillageUiTheme.drawStringScaled(context, font, Component.translatable("screen.village-quest.questmaster.party.title").getString(),
+                x + 10, y + 8, TITLE, .82f);
+        VillageUiTheme.drawStringScaled(context, font, compactScaled(data.party().summary().getString(), PARTY_DRAWER_WIDTH - 20, .72f),
+                x + 10, y + 21, PARTY_MUTED, .72f);
+        int rowY = y + 35;
+        for (PartyRow row : visiblePartyRows()) {
+            boolean hovered = isWithin(mouseX, mouseY, x + 8, rowY - 1, PARTY_DRAWER_WIDTH - 20, PARTY_ROW_HEIGHT);
+            if (hovered && row.inviteable()) context.fill(x + 6, rowY - 1, x + PARTY_DRAWER_WIDTH - 12, rowY + 12, 0x22365E59);
+            int labelWidth = row.status().isBlank() ? PARTY_DRAWER_WIDTH - 26 : PARTY_DRAWER_WIDTH - 68;
+            VillageUiTheme.drawStringScaled(context, font, compactScaled(row.label(), labelWidth, .72f), x + 10, rowY + 2,
+                    row.heading() ? VillageUiTheme.GOLD : BODY, .72f);
+            VillageUiTheme.drawStringScaled(context, font, compactScaled(row.status(), 36, .62f),
+                    x + PARTY_DRAWER_WIDTH - 50, rowY + 3, row.inviteable() ? VillageUiTheme.TEAL : PARTY_MUTED, .62f);
+            if (hovered) context.setTooltipForNextFrame(font, Component.literal(row.label() + " " + row.status()), mouseX, mouseY);
+            rowY += PARTY_ROW_HEIGHT;
         }
-
-        cursorY += 2;
-        context.drawString(this.font, Component.translatable("screen.village-quest.questmaster.party.online").getString(), x + 6, cursorY, PARTY_SECTION, false);
-        cursorY += this.font.lineHeight + 2;
-
-        List<PartyCandidateView> visibleCandidates = visibleCandidates();
-        for (PartyCandidateView candidate : visibleCandidates) {
-            boolean hovered = isWithin(mouseX, mouseY, x + 6, cursorY - 1, PARTY_DRAWER_WIDTH - 12, PARTY_ROW_HEIGHT);
-            int rowFill = hovered ? 0x22FFFFFF : 0x11000000;
-            context.fill(x + 4, cursorY - 1, x + PARTY_DRAWER_WIDTH - 4, cursorY + PARTY_ROW_HEIGHT - 2, rowFill);
-            context.drawString(this.font, ellipsize(candidate.name().getString(), PARTY_DRAWER_WIDTH - 54), x + 6, cursorY + 2, BODY, false);
-            context.drawString(this.font, ellipsize(candidate.status().getString(), 40), x + PARTY_DRAWER_WIDTH - 46, cursorY + 2, candidate.inviteable() ? STATUS_ACTIVE : PARTY_MUTED, false);
-            cursorY += PARTY_ROW_HEIGHT;
-        }
-
+        VillageUiTheme.drawScrollBar(context, x + PARTY_DRAWER_WIDTH - 8, y + 34, PARTY_VISIBLE_CANDIDATES * PARTY_ROW_HEIGHT,
+                PARTY_VISIBLE_CANDIDATES * PARTY_ROW_HEIGHT, partyRows().size() * PARTY_ROW_HEIGHT,
+                partyCandidateScrollIndex * PARTY_ROW_HEIGHT, candidateScrollMax() * PARTY_ROW_HEIGHT);
         if (data.party().hasParty()) {
-            Component actionLabel = Component.translatable(data.party().leader()
-                    ? "screen.village-quest.questmaster.party.disband"
-                    : "screen.village-quest.questmaster.party.leave");
-            drawTemplateButton(
-                    context,
-                    x + 6,
-                    y + PARTY_DRAWER_HEIGHT - 22,
-                    PARTY_DRAWER_WIDTH - 12,
-                    14,
-                    actionLabel,
-                    true,
-                    isWithin(mouseX, mouseY, x + 6, y + PARTY_DRAWER_HEIGHT - 22, PARTY_DRAWER_WIDTH - 12, 14)
-            );
+            drawTemplateButton(context, x + 6, y + PARTY_DRAWER_HEIGHT - 22, PARTY_DRAWER_WIDTH - 12, 14,
+                    Component.translatable(data.party().leader() ? "screen.village-quest.questmaster.party.disband" : "screen.village-quest.questmaster.party.leave"),
+                    true, isWithin(mouseX, mouseY, x + 6, y + PARTY_DRAWER_HEIGHT - 22, PARTY_DRAWER_WIDTH - 12, 14));
         }
+    }
+
+    private List<PartyRow> partyRows() {
+        if (data.party() == null) return List.of();
+        var rows = new ArrayList<PartyRow>();
+        rows.add(new PartyRow(Component.translatable("screen.village-quest.questmaster.party.members").getString(), "", "", false, true));
+        for (PartyMemberView member : data.party().members()) rows.add(new PartyRow(member.name().getString()
+                + (member.leader() ? " [L]" : "") + (member.self() ? " *" : ""), "", "", false, false));
+        rows.add(new PartyRow(Component.translatable("screen.village-quest.questmaster.party.online").getString(), "", "", false, true));
+        for (PartyCandidateView candidate : data.party().candidates()) rows.add(new PartyRow(candidate.name().getString(),
+                candidate.status().getString(), candidate.playerId(), candidate.inviteable(), false));
+        return rows;
+    }
+
+    private List<PartyRow> visiblePartyRows() {
+        var rows = partyRows();
+        int from = Math.max(0, Math.min(partyCandidateScrollIndex, Math.max(0, rows.size() - PARTY_VISIBLE_CANDIDATES)));
+        return rows.subList(from, Math.min(rows.size(), from + PARTY_VISIBLE_CANDIDATES));
     }
 
     private void drawTemplateButton(GuiGraphics context, int x, int y, int width, int height, Component label, boolean enabled, boolean hovered) {
@@ -807,8 +834,11 @@ public final class QuestMasterScreen extends CompatScreen {
     }
 
     private void drawStatusTag(GuiGraphics context, EntryView entry, int x, int y, int maxWidth) {
-        String statusText = compactScaled(entry.status().getString(), maxWidth, 0.68f);
-        VillageUiTheme.drawStringScaled(context, this.font, statusText, x, y, pickStatusColor(entry), 0.68f);
+        String statusText=compactScaled(entry.status().getString(),maxWidth-12,.76f);
+        int badgeWidth=Math.min(maxWidth,14+(int)Math.ceil(font.width(statusText)*.76f));
+        context.fill(x,y-2,x+badgeWidth,y+9,0xFFD1A14C);
+        context.fill(x+1,y-1,x+badgeWidth-1,y+8,entry.locked()?0xFF7D715D:0xFF315854);
+        VillageUiTheme.drawStringScaled(context,font,statusText,x+6,y,STATUS_TEXT,.76f);
     }
 
     private void ensureSelection() {
@@ -1060,10 +1090,7 @@ public final class QuestMasterScreen extends CompatScreen {
                 && selected != null
                 && ENTRY_WEEKLY.equals(selected.entryId())
                 && shouldShowResetTimer(selected)) {
-            return Component.translatable(
-                    "screen.village-quest.questmaster.weekly_timer",
-                    formatRemainingResetTime(TimeUtil.millisUntilNextWeeklyReset())
-            ).getString();
+            return serverResetLine(selected);
         }
         if (!CATEGORY_DAILY.equals(this.selectedCategoryId)) {
             return null;
@@ -1073,13 +1100,14 @@ public final class QuestMasterScreen extends CompatScreen {
                 continue;
             }
             if (shouldShowResetTimer(entry)) {
-                return Component.translatable(
-                        "screen.village-quest.questmaster.timer",
-                        formatRemainingResetTime(TimeUtil.millisUntilNextDailyReset())
-                ).getString();
+                return serverResetLine(entry);
             }
         }
         return null;
+    }
+
+    static String serverResetLine(EntryView entry) {
+        return entry == null || entry.objectiveLines().isEmpty() ? null : entry.objectiveLines().getFirst().getString();
     }
 
     private boolean shouldShowResetTimer(EntryView entry) {
@@ -1118,11 +1146,11 @@ public final class QuestMasterScreen extends CompatScreen {
             return List.of();
         }
         if (actions.size() == 1) {
-            return List.of(new ButtonSlot(actions.getFirst(), DETAIL_HEADER_X + 34, 129));
+            return List.of(new ButtonSlot(actions.getFirst(), DETAIL_HEADER_X + 55, 172));
         }
         return List.of(
-                new ButtonSlot(actions.get(0), DETAIL_HEADER_X + 7, 58),
-                new ButtonSlot(actions.get(1), DETAIL_HEADER_X + 69, 94)
+                new ButtonSlot(actions.get(0), DETAIL_HEADER_X + 8, 64),
+                new ButtonSlot(actions.get(1), DETAIL_HEADER_X + 95, 132)
         );
     }
 
@@ -1133,17 +1161,11 @@ public final class QuestMasterScreen extends CompatScreen {
             return false;
         }
 
-        int rowY = y + 34 + this.font.lineHeight + 2;
-        rowY += data.party().members().size() * PARTY_ROW_HEIGHT;
-        rowY += 2 + this.font.lineHeight + 2;
-        for (PartyCandidateView candidate : visibleCandidates()) {
-            if (candidate.inviteable()
-                    && isWithin(mouseX, mouseY, x + 4, rowY - 1, PARTY_DRAWER_WIDTH - 8, PARTY_ROW_HEIGHT)) {
-                UiTestTour.send(new Payloads.QuestMasterPartyActionPayload(
-                        data.entityId(),
-                        Payloads.QuestMasterPartyActionPayload.ACTION_INVITE,
-                        candidate.playerId()
-                ));
+        int rowY = y + 35;
+        for (PartyRow row : visiblePartyRows()) {
+            if (row.inviteable() && isWithin(mouseX, mouseY, x + 8, rowY - 1, PARTY_DRAWER_WIDTH - 20, PARTY_ROW_HEIGHT)) {
+                UiTestTour.send(new Payloads.QuestMasterPartyActionPayload(data.entityId(),
+                        Payloads.QuestMasterPartyActionPayload.ACTION_INVITE, row.playerId()));
                 return true;
             }
             rowY += PARTY_ROW_HEIGHT;
@@ -1190,7 +1212,7 @@ public final class QuestMasterScreen extends CompatScreen {
     }
 
     private int candidateScrollMax() {
-        return Math.max(0, data.party().candidates().size() - PARTY_VISIBLE_CANDIDATES);
+        return Math.max(0, partyRows().size() - PARTY_VISIBLE_CANDIDATES);
     }
 
     private int entryViewportHeight() {

@@ -1,0 +1,51 @@
+package de.quest.kingdom;
+
+import java.util.List;
+
+/** Stable shared indices for normal people and the admin-only texture gallery. */
+public final class NpcSkinCatalog {
+    private NpcSkinCatalog() {}
+    public static final List<String> FILES=List.of(
+            "living_kingdoms/leader_speaker_m",
+            "living_kingdoms/leader_speaker_f",
+            "living_kingdoms/leader_mayor_m",
+            "living_kingdoms/leader_mayor_f",
+            "living_kingdoms/tavern_keeper_m",
+            "living_kingdoms/tavern_keeper_f",
+            "living_kingdoms/warehouse_keeper_m",
+            "living_kingdoms/warehouse_keeper_f",
+            "living_kingdoms/merchant_m_01",
+            "living_kingdoms/merchant_m_02",
+            "living_kingdoms/merchant_m_03",
+            "living_kingdoms/merchant_f_01",
+            "living_kingdoms/merchant_f_02",
+            "living_kingdoms/merchant_f_03",
+            "living_kingdoms/guest_lutren",
+            "living_kingdoms/guest_siven",
+            "living_kingdoms/guest_marven",
+            "living_kingdoms/guest_ravel",
+            "quest_master",
+            "pilgrim",
+            "traitor",
+            "living_kingdoms/caravan_f_01",
+            "caravan_burgundy_courier",
+            "caravan_burgundy_guard",
+            "caravan_burgundy_master",
+            "caravan_burgundy_trader",
+            "caravan_forest_courier",
+            "caravan_forest_guard",
+            "caravan_forest_master",
+            "caravan_forest_trader",
+            "caravan_neutral_courier",
+            "caravan_neutral_guard",
+            "caravan_neutral_master",
+            "caravan_neutral_trader",
+            "caravan_ochre_courier",
+            "caravan_ochre_guard",
+            "caravan_ochre_master",
+            "caravan_ochre_trader",
+            "caravan_violet_courier",
+            "caravan_violet_guard",
+            "caravan_violet_master",
+            "caravan_violet_trader");
+}

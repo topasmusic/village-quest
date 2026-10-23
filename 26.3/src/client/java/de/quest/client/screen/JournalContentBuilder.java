@@ -59,6 +59,10 @@ final class JournalContentBuilder {
         addActive(cards, data.specialActive, "special", "screen.village-quest.journal.active.special",
                 data.specialTitle, data.specialProgress, "screen.village-quest.journal.v2.active.special_hint",
                 PURPLE, -1);
+        if(!data.dailyActive && !data.dailyProgress.getString().isBlank())
+            cards.add(new JournalCard("daily_reset",Component.translatable("screen.village-quest.journal.daily_done"),Component.translatable("screen.village-quest.journal.active.daily"),List.of(data.dailyProgress,data.dailyTitle),BLUE,-1));
+        if(!data.weeklyActive && !data.weeklyProgress.getString().isBlank())
+            cards.add(new JournalCard("weekly_reset",Component.translatable("screen.village-quest.journal.weekly_done"),Component.translatable("screen.village-quest.journal.active.weekly"),List.of(data.weeklyProgress,data.weeklyTitle),GOLD,-1));
         if (cards.isEmpty()) {
             cards.add(card("active_none", "screen.village-quest.journal.active.none",
                     Component.translatable("screen.village-quest.journal.active.none_hint"),
@@ -93,18 +97,17 @@ final class JournalContentBuilder {
                 List.copyOf(summaryDetails), GOLD, -1));
 
         for (var village : data.networkVillages) {
+            var villageDetails=new ArrayList<Component>(List.of(
+                    Component.translatable("screen.village-quest.journal.network.village.need",village.need()),
+                    Component.translatable("screen.village-quest.journal.network.village.support",village.support(),100),
+                    Component.translatable("screen.village-quest.journal.network.village.energy",village.energyProgress(),3),
+                    ReputationPanel.text("local_standing",ReputationPanel.rank(village.socialTrust()),village.socialTrust()),
+                    ReputationPanel.text(village.socialCase()?"local_case":"local_open")));
+            villageDetails.addAll(village.lastKnown());
             cards.add(new JournalCard("network_village_" + village.index(), village.villageType(),
                     Component.translatable("screen.village-quest.journal.network.village.subtitle",
                             village.bondLevel(), village.condition()),
-                    List.of(
-                            Component.translatable("screen.village-quest.journal.network.village.need",
-                                    village.need()),
-                            Component.translatable("screen.village-quest.journal.network.village.support",
-                                    village.support(), 100),
-                            Component.translatable("screen.village-quest.journal.network.village.energy",
-                                    village.energyProgress(), 3),
-                            ReputationPanel.text("local_standing", ReputationPanel.rank(village.socialTrust()), village.socialTrust()),
-                            ReputationPanel.text(village.socialCase() ? "local_case" : "local_open")),
+                    List.copyOf(villageDetails),
                     conditionAccent(village.conditionKey()), -1));
         }
 

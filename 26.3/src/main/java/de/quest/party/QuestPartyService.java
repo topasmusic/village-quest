@@ -26,6 +26,7 @@ import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.questmaster.QuestMasterUiService;
 import de.quest.util.Texts;
 import de.quest.util.TimeUtil;
+import de.quest.util.QuestCalendarService;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.nbt.CompoundTag;
@@ -40,6 +41,7 @@ import net.minecraft.ChatFormatting;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -567,7 +569,7 @@ public final class QuestPartyService {
         session.setFlag(DailyQuestKeys.SHARED_TURN_IN_CONSUMED, true);
         session.removeUnsyncedOffersAfterTurnIn(
                 DailyQuestKeys.SHARED_TURN_IN_CONSUMED, party.dailyOffers());
-        long day = TimeUtil.currentDay();
+        long day = QuestCalendarService.currentDay();
         for (UUID memberId : party.members()) {
             if (!session.hasSynced(memberId)) continue;
             PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
@@ -599,7 +601,7 @@ public final class QuestPartyService {
         session.setFlag(WeeklyQuestKeys.SHARED_TURN_IN_CONSUMED, true);
         session.removeUnsyncedOffersAfterTurnIn(
                 WeeklyQuestKeys.SHARED_TURN_IN_CONSUMED, party.weeklyOffers());
-        long cycle = TimeUtil.currentWeekCycle();
+        long cycle = QuestCalendarService.currentWeekCycle();
         for (UUID memberId : party.members()) {
             if (!session.hasSynced(memberId)) continue;
             PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
@@ -659,6 +661,24 @@ public final class QuestPartyService {
                                               StoryArcType arcType,
                                               int chapterIndex) {
         return sharedStorySession(world, playerId, arcType, chapterIndex) != null;
+    }
+
+    /** An authorized council action selects one story village; only the party leader can replace a shared target. */
+    public static boolean bindKingdomStoryTarget(ServerLevel world, ServerPlayer actor, UUID village, boolean explicit) {
+        if (world==null || actor==null || village==null || village.equals(de.quest.kingdom.BuildingSessionPolicy.NONE)) return false;
+        ensureLoaded(world.getServer());
+        var data=QuestState.get(world.getServer()).getPlayerData(actor.getUUID());
+        if (data.getActiveStoryArc()!=StoryArcType.LIVING_KINGDOMS)
+            return de.quest.kingdom.KingdomStoryProgress.bind(data,village,explicit);
+        int chapter=data.getStoryChapterProgress(StoryArcType.LIVING_KINGDOMS.id());
+        var session=sharedStorySession(world,actor.getUUID(),StoryArcType.LIVING_KINGDOMS,chapter);
+        var party=partyFor(actor.getUUID());
+        if (session==null || party==null) return de.quest.kingdom.KingdomStoryProgress.bind(data,village,explicit);
+        Map<UUID,PlayerQuestData> members=new LinkedHashMap<>();
+        for(UUID member:session.syncedMembers()) if (party.members().contains(member))
+            members.put(member,QuestState.get(world.getServer()).getPlayerData(member));
+        if (!updateKingdomVillageBinding(members,session,actor.getUUID(),party.leaderId(),village,explicit,chapter)) return false;
+        QuestState.get(world.getServer()).setDirty(); storePersistentState(world.getServer()); return true;
     }
 
     public static int getSharedStoryInt(ServerLevel world,
@@ -763,6 +783,7 @@ public final class QuestPartyService {
             if (data.getStoryChapterProgress(arcType.id()) != chapterIndex) {
                 continue;
             }
+            if (arcType==StoryArcType.LIVING_KINGDOMS && !matchesKingdomVillageBinding(data,session)) continue;
             if (world.getServer().getPlayerList().getPlayer(memberId) != null) {
                 members.add(memberId);
             }
@@ -987,7 +1008,7 @@ public final class QuestPartyService {
             return List.of(playerId);
         }
 
-        long day = TimeUtil.currentDay();
+        long day = QuestCalendarService.currentDay();
         List<UUID> members = new ArrayList<>();
         for (UUID memberId : party.members()) {
             if (!session.hasSynced(memberId)) {
@@ -1020,7 +1041,7 @@ public final class QuestPartyService {
             return List.of(playerId);
         }
 
-        long cycle = TimeUtil.currentWeekCycle();
+        long cycle = QuestCalendarService.currentWeekCycle();
         List<UUID> members = new ArrayList<>();
         for (UUID memberId : party.members()) {
             if (!session.hasSynced(memberId)) {
@@ -1049,7 +1070,7 @@ public final class QuestPartyService {
             return 0;
         }
         int count = 0;
-        long day = TimeUtil.currentDay();
+        long day = QuestCalendarService.currentDay();
         PartyRuntime party = partyFor(playerId);
         if (party == null) {
             return 0;
@@ -1072,7 +1093,7 @@ public final class QuestPartyService {
             return 0;
         }
         int count = 0;
-        long cycle = TimeUtil.currentWeekCycle();
+        long cycle = QuestCalendarService.currentWeekCycle();
         PartyRuntime party = partyFor(playerId);
         if (party == null) {
             return 0;
@@ -1697,7 +1718,7 @@ public final class QuestPartyService {
             return;
         }
         PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
-        long day = TimeUtil.currentDay();
+        long day = QuestCalendarService.currentDay();
         if (data.getAcceptedDay() == day && data.getLastRewardDay() != day
                 && data.getDailyChoice() != null
                 && data.getDailyChoiceDay() == day
@@ -1705,7 +1726,7 @@ public final class QuestPartyService {
             mergeDailyProgressIntoSession(world, memberId, data.getDailyChoice(), ensureDailySession(party, data.getDailyChoice()));
         }
 
-        long cycle = TimeUtil.currentWeekCycle();
+        long cycle = QuestCalendarService.currentWeekCycle();
         if (data.getWeeklyAcceptedCycle() == cycle && data.getWeeklyRewardCycle() != cycle
                 && data.getWeeklyChoice() != null
                 && data.getWeeklyChoiceCycle() == cycle
@@ -1795,7 +1816,7 @@ public final class QuestPartyService {
             clearDailyOffer(party, member.getUUID());
             return;
         }
-        long day = TimeUtil.currentDay();
+        long day = QuestCalendarService.currentDay();
         SharedQuestRuntime session = ensureDailySession(party, type);
         if (session == null) {
             return;
@@ -1864,7 +1885,7 @@ public final class QuestPartyService {
                                          WeeklyQuestDefinition definition,
                                          UUID sourceId) {
         PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(member.getUUID());
-        long cycle = TimeUtil.currentWeekCycle();
+        long cycle = QuestCalendarService.currentWeekCycle();
         SharedQuestRuntime session = ensureWeeklySession(party, type);
         if (session == null) {
             return;
@@ -1984,6 +2005,10 @@ public final class QuestPartyService {
         data.setActiveStoryArc(arcType);
         data.setStoryDiscovered(arcType.id(), true);
         data.setStoryChapterProgress(arcType.id(), chapterIndex);
+        if (arcType==StoryArcType.LIVING_KINGDOMS) {
+            UUID village=kingdomVillageBinding(session);
+            if (village!=null) de.quest.kingdom.KingdomStoryProgress.bind(data,village,true);
+        }
         QuestState.get(world.getServer()).setDirty();
         session.markSynced(member.getUUID());
         if (chapter != null) {
@@ -2054,6 +2079,7 @@ public final class QuestPartyService {
         if (profile == null) {
             return;
         }
+        if (arcType==StoryArcType.LIVING_KINGDOMS && !mergeKingdomVillageBinding(data,session)) return;
         if (arcType == StoryArcType.NIGHT_BELLS) {
             mergeNightBellsVillageBinding(data, session);
         }
@@ -2072,6 +2098,50 @@ public final class QuestPartyService {
             }
         }
         session.markSynced(memberId);
+    }
+
+    static UUID kingdomVillageBinding(SharedQuestRuntime session) {
+        if (session==null) return null;
+        var bindings=session.flags().stream().filter(flag -> flag.startsWith("kingdoms.bound.")).toList();
+        if (bindings.size()!=1) return null;
+        try {
+            UUID id=UUID.fromString(bindings.getFirst().substring("kingdoms.bound.".length()));
+            return id.equals(de.quest.kingdom.BuildingSessionPolicy.NONE)?null:id;
+        } catch(IllegalArgumentException ignored) { return null; }
+    }
+    static boolean matchesKingdomVillageBinding(PlayerQuestData data, SharedQuestRuntime session) {
+        if (data==null || session==null) return false;
+        UUID target=kingdomVillageBinding(session);
+        return target!=null ? target.equals(de.quest.kingdom.KingdomStoryProgress.target(data))
+                : session.flags().stream().noneMatch(flag -> flag.startsWith("kingdoms.bound."));
+    }
+    static boolean mergeKingdomVillageBinding(PlayerQuestData data, SharedQuestRuntime session) {
+        if (data==null || session==null) return false;
+        UUID own=de.quest.kingdom.KingdomStoryProgress.target(data), shared=kingdomVillageBinding(session);
+        if (shared==null && session.flags().stream().anyMatch(flag -> flag.startsWith("kingdoms.bound."))) return false;
+        if (shared!=null) return own==null ? de.quest.kingdom.KingdomStoryProgress.bind(data,shared,false) : own.equals(shared);
+        if (own!=null) session.setFlag("kingdoms.bound."+own,true);
+        return true;
+    }
+    static boolean updateKingdomVillageBinding(Map<UUID,PlayerQuestData> members,SharedQuestRuntime session,
+                                               UUID actor,UUID leader,UUID village,boolean explicit,int chapter) {
+        if (members==null || members.size()>64 || session==null || actor==null || village==null
+                || village.equals(de.quest.kingdom.BuildingSessionPolicy.NONE) || chapter<0 || chapter>=StoryArcType.LIVING_KINGDOMS.chapterCount()) return false;
+        var source=members.get(actor);
+        if (source==null || !session.hasSynced(actor) || source.getActiveStoryArc()!=StoryArcType.LIVING_KINGDOMS
+                || source.getStoryChapterProgress(StoryArcType.LIVING_KINGDOMS.id())!=chapter || !matchesKingdomVillageBinding(source,session)) return false;
+        UUID old=kingdomVillageBinding(session), personal=de.quest.kingdom.KingdomStoryProgress.target(source);
+        if (old!=null && !old.equals(village) && (!explicit || !actor.equals(leader))
+                || personal!=null && !personal.equals(village) && !explicit) return false;
+        var admitted=members.entrySet().stream().filter(entry -> session.hasSynced(entry.getKey()) && entry.getValue()!=null
+                && entry.getValue().getActiveStoryArc()==StoryArcType.LIVING_KINGDOMS
+                && entry.getValue().getStoryChapterProgress(StoryArcType.LIVING_KINGDOMS.id())==chapter
+                && matchesKingdomVillageBinding(entry.getValue(),session)).map(Map.Entry::getValue).toList();
+        if (old==null || !old.equals(village)) {
+            session.flags().removeIf(flag -> flag.startsWith("kingdoms.bound.")); session.setFlag("kingdoms.bound."+village,true);
+        }
+        for(var member:admitted) de.quest.kingdom.KingdomStoryProgress.bind(member,village,explicit);
+        return true;
     }
 
     private static void migrateNightBellsVillageBindings(MinecraftServer server) {
@@ -2224,23 +2294,23 @@ public final class QuestPartyService {
         PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
         DailyQuestService.DailyQuestType dailyType = activeDailyType(party);
         if (dailyType != null && party.daily().hasSynced(memberId)
-                && data.getAcceptedDay() == TimeUtil.currentDay()
-                && data.getLastRewardDay() != TimeUtil.currentDay()
+                && data.getAcceptedDay() == QuestCalendarService.currentDay()
+                && data.getLastRewardDay() != QuestCalendarService.currentDay()
                 && data.getDailyChoice() == dailyType
-                && data.getDailyChoiceDay() == TimeUtil.currentDay()) {
+                && data.getDailyChoiceDay() == QuestCalendarService.currentDay()) {
             applySharedDailyProgress(data, party.daily(), dailyType);
-            data.setProgressDay(TimeUtil.currentDay());
+            data.setProgressDay(QuestCalendarService.currentDay());
             QuestState.get(world.getServer()).setDirty();
         }
 
         WeeklyQuestService.WeeklyQuestType weeklyType = activeWeeklyType(party);
         if (weeklyType != null && party.weekly().hasSynced(memberId)
-                && data.getWeeklyAcceptedCycle() == TimeUtil.currentWeekCycle()
-                && data.getWeeklyRewardCycle() != TimeUtil.currentWeekCycle()
+                && data.getWeeklyAcceptedCycle() == QuestCalendarService.currentWeekCycle()
+                && data.getWeeklyRewardCycle() != QuestCalendarService.currentWeekCycle()
                 && data.getWeeklyChoice() == weeklyType
-                && data.getWeeklyChoiceCycle() == TimeUtil.currentWeekCycle()) {
+                && data.getWeeklyChoiceCycle() == QuestCalendarService.currentWeekCycle()) {
             applySharedWeeklyProgress(data, party.weekly(), weeklyType);
-            data.setWeeklyProgressCycle(TimeUtil.currentWeekCycle());
+            data.setWeeklyProgressCycle(QuestCalendarService.currentWeekCycle());
             QuestState.get(world.getServer()).setDirty();
         }
 
@@ -2634,7 +2704,7 @@ public final class QuestPartyService {
             return false;
         }
         PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
-        long day = TimeUtil.currentDay();
+        long day = QuestCalendarService.currentDay();
         return data.getAcceptedDay() == day && data.getLastRewardDay() != day && data.getDailyChoice() == type && data.getDailyChoiceDay() == day;
     }
 
@@ -2643,7 +2713,7 @@ public final class QuestPartyService {
             return false;
         }
         PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
-        long cycle = TimeUtil.currentWeekCycle();
+        long cycle = QuestCalendarService.currentWeekCycle();
         return data.getWeeklyAcceptedCycle() == cycle && data.getWeeklyRewardCycle() != cycle && data.getWeeklyChoice() == type && data.getWeeklyChoiceCycle() == cycle;
     }
 
@@ -2668,7 +2738,7 @@ public final class QuestPartyService {
             return false;
         }
         PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
-        long day = TimeUtil.currentDay();
+        long day = QuestCalendarService.currentDay();
         ServerPlayer player = world.getServer().getPlayerList().getPlayer(memberId);
         if (!FirstDailyChoiceService.canUseSharedDaily(data)) {
             return false;
@@ -2701,7 +2771,7 @@ public final class QuestPartyService {
             return false;
         }
         PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
-        long cycle = TimeUtil.currentWeekCycle();
+        long cycle = QuestCalendarService.currentWeekCycle();
         ServerPlayer player = world.getServer().getPlayerList().getPlayer(memberId);
         SharedQuestRuntime session = sharedWeeklySessionForType(world, memberId, type);
         if (session != null && !session.canJoinAfterTurnIn(WeeklyQuestKeys.SHARED_TURN_IN_CONSUMED, memberId)) {

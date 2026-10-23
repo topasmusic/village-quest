@@ -99,10 +99,19 @@ public final class TradeGuildService {
                 .toList();
         List<TradeContractType> offers = new ArrayList<>();
         int seed = playerId.hashCode() * 31 + (int) TimeUtil.currentDay() * 17;
+        var kingdom=de.quest.kingdom.LivingKingdomsState.get(world.getServer());
+        var promised=java.util.stream.Stream.concat(kingdom.relations().attackRepairNeeds(playerId).stream(),java.util.stream.Stream.concat(
+                kingdom.crises().requestedNeeds(playerId).stream(),kingdom.diplomacy().requestedNeeds(playerId).stream())).distinct().limit(3).toList();
+        var promisedCargo=eligible.stream().filter(type -> promised.stream().anyMatch(need -> need.matches(type.item()))).toList();
+        if(!promisedCargo.isEmpty()) {
+            int start=Math.floorMod(seed,promisedCargo.size());
+            for(int i=0;i<promisedCargo.size() && offers.size()<3;i++) offers.add(promisedCargo.get((start+i)%promisedCargo.size()));
+        }
         if (!needMatched.isEmpty()) {
             int start = Math.floorMod(seed, needMatched.size());
             for (int i = 0; i < needMatched.size() && offers.size() < 3; i++) {
-                offers.add(needMatched.get((start + i) % needMatched.size()));
+                var candidate=needMatched.get((start+i)%needMatched.size());
+                if(!offers.contains(candidate)) offers.add(candidate);
             }
         }
         int generalStart = Math.floorMod(seed, eligible.size());
@@ -170,6 +179,7 @@ public final class TradeGuildService {
                 TradeRouteData.status(data, routeIndex) == TradeRouteStatus.DANGEROUS);
         data.setTradeRouteInt(CONTRACT_QUOTE, quote);
         data.setTradeRouteInt(CONTRACT_TYPE, type.ordinal() + 1);
+        data.setTradeRouteString("guild_contract_instance",UUID.randomUUID().toString());
         data.setTradeRouteInt(CONTRACT_ROUTE, routeIndex + 1);
         data.setTradeRouteInt(CONTRACT_DUE_DAY, (int) TimeUtil.currentDay() + 3);
         data.setTradeRouteFlag(CONTRACT_SUPPLIED, false);
@@ -266,6 +276,9 @@ public final class TradeGuildService {
         removeLooseCargo(player, type.item(), moved);
         satchel.set(DataComponents.CONTAINER, ItemContainerContents.fromItems(
                 List.of(new ItemStack(type.item(), storedCount + moved))));
+        if(storedCount+moved==type.amount()) de.quest.kingdom.ArtifactJourneyService.packed(world,player,
+                data(world,player.getUUID()).getTradeRouteInt(CONTRACTS_COMPLETED)+1,
+                data(world,player.getUUID()).getTradeRouteInt(CONTRACT_ROUTE)-1,contractInstance(data(world,player.getUUID()),true));
         player.inventoryMenu.broadcastChanges();
         player.sendSystemMessage(Component.translatable("message.village-quest.satchel.packed",
                 storedCount + moved, type.amount(), new ItemStack(type.item()).getHoverName())
@@ -288,6 +301,7 @@ public final class TradeGuildService {
                 TradeRouteService.routeDestinationX(world, ownerId, routeIndex),
                 TradeRouteService.routeDestinationZ(world, ownerId, routeIndex),
                 suppliedFreight ? type.item() : null, suppliedFreight);
+        de.quest.kingdom.ArtifactJourneyService.arrived(world,ownerId,routeIndex);
         if (type == null) return;
         if (expired(data)) {
             failContract(world, ownerId);
@@ -302,8 +316,12 @@ public final class TradeGuildService {
         CurrencyService.addBalance(world, ownerId, reward);
         ReputationService.add(world, ownerId, ReputationService.ReputationTrack.TRADE, 8 + guildRank(world, ownerId) * 2);
         data.setTradeRouteInt(CONTRACTS_COMPLETED, data.getTradeRouteInt(CONTRACTS_COMPLETED) + 1);
+        UUID deliveredInstance=contractInstance(data,false);
         clearContract(data);
         QuestState.get(world.getServer()).setDirty();
+        de.quest.kingdom.KingdomFreightService.delivered(world,ownerId,routeIndex,data.getTradeRouteInt(CONTRACTS_COMPLETED),type.item());
+        de.quest.kingdom.ArtifactJourneyService.delivered(world,ownerId,routeIndex,data.getTradeRouteInt(CONTRACTS_COMPLETED),deliveredInstance);
+        de.quest.kingdom.KingdomStoryService.freightDelivered(world,ownerId,routeIndex,data.getTradeRouteInt(CONTRACTS_COMPLETED));
         ServerPlayer owner = world.getServer().getPlayerList().getPlayer(ownerId);
         if (owner != null) {
             owner.sendSystemMessage(Component.translatable("message.village-quest.trade_guild.contract_complete",
@@ -463,7 +481,13 @@ public final class TradeGuildService {
         if (changed) { inventory.setChanged(); player.inventoryMenu.broadcastChanges(); QuestState.get(world.getServer()).setDirty(); }
     }
 
+    private static UUID contractInstance(PlayerQuestData data,boolean adopt) {
+        String raw=data.getTradeRouteString("guild_contract_instance");
+        if(raw.isEmpty() && adopt) { raw=UUID.randomUUID().toString(); data.setTradeRouteString("guild_contract_instance",raw); }
+        try { return UUID.fromString(raw); } catch(IllegalArgumentException unknown) { return null; }
+    }
     private static void clearContract(PlayerQuestData data) {
+        data.setTradeRouteString("guild_contract_instance","");
         data.setTradeRouteFlag("guild_contract_crew_loss_pending", false);
         data.setTradeRouteInt(CONTRACT_TYPE, 0);
         data.setTradeRouteInt(CONTRACT_ROUTE, 0);

@@ -56,12 +56,14 @@ final class ReputationHistoryTest {
         ReputationIncidentService.record(data, new DamageEvidence(attacker, victim, VictimKind.CREW, village, 20, true, 3_000));
         assertEquals(-60, data.guildTrust()); assertEquals(-70, data.localTrust(village));
     }
-    @Test void warnedTraderBreaksOffOnlyForThatPlayerAndThirtySecondsAcrossReload() {
+    @Test void secondWarningBreaksOffOnlyForThatPlayerAndThreeMinutesAcrossReload() {
         var data = new SocialReputationData(); UUID attacker = UUID.randomUUID(), victim = UUID.randomUUID(), other = UUID.randomUUID();
         ReputationIncidentService.record(data, new DamageEvidence(attacker, victim, VictimKind.CREW, null, 2, false, 10));
+        assertFalse(data.traderWarningActive(victim,10));
+        ReputationIncidentService.record(data,new DamageEvidence(attacker,victim,VictimKind.CREW,null,2,false,30));
         data = SocialReputationData.fromNbt(data.toNbt());
-        assertTrue(data.traderWarningActive(victim, 609));
-        assertFalse(data.traderWarningActive(victim, 610)); assertFalse(data.traderWarningActive(other, 11));
+        assertTrue(data.traderWarningActive(victim,3629));
+        assertFalse(data.traderWarningActive(victim,3630)); assertFalse(data.traderWarningActive(other,31));
         assertFalse(new SocialReputationData().traderWarningActive(victim, 11)); assertNull(data.activeCase());
     }
 

@@ -1,5 +1,9 @@
 # Living Village Network
 
+The network systems introduced in 2.3 remain available in Stable 2.5 and the
+2.6 test version. For founding, staff, markets and diplomacy see
+[Living Kingdoms 2.6](living-kingdoms.md).
+
 `Living Village Network` is the complete Village Quest 2.3 content layer. It connects village identity, local supply, Notice Board choices, freight routes, Wayshrine energy, optional multiplayer guilds, and a bounded prestige path without replacing existing stories or permanent trust.
 
 ## Two values, two purposes
@@ -58,7 +62,7 @@ Leaders manage promotion; Leaders and Stewards can choose projects and invite me
 
 ## Network prestige and Journal
 
-The Journal's `Network` tab starts with the lowest-supply next action and a compact rank/profile summary. Every recorded village then receives its own collapsible card for trust, condition, need, supply, and energy; guild data uses a separate summary card. Conditions always remain written out and also use a secondary color accent: Crisis red, Strained amber, Stable gold, Recovering teal, and Thriving green.
+The Journal's village/network area shows the lowest-supply next action and rank/profile information. Recorded village reports explain trust, condition, need, supply and energy; guild data remains separate. The 2.6 interface labels the village destination **Villages**, with paged cards and reports; older versions use **Network**. Conditions remain written out with secondary accents: Crisis red, Strained amber, Stable gold, Recovering teal and Thriving green.
 
 Network renown has five bounded ranks and five titles. At rank 2, preview exactly one permanent specialization with `/vq network specialize <steward|courier|wayfarer>`, then apply that choice with the same command followed by `confirm`:
 

@@ -18,7 +18,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import java.util.UUID;
 
 public final class SpecialQuestService {
-    public static final int TOTAL_SPECIAL_QUESTS = 5;
+    public static final int TOTAL_SPECIAL_QUESTS = 14;
 
     private SpecialQuestService() {}
 
@@ -80,7 +80,7 @@ public final class SpecialQuestService {
         if (SurveyorCompassQuestService.isDiscovered(world, playerId)) {
             count++;
         }
-        return count;
+        return count + FriendsQuestService.discovered(FriendsQuestService.progress(world, playerId));
     }
 
     public static int completedCount(ServerLevel world, UUID playerId) {
@@ -100,14 +100,11 @@ public final class SpecialQuestService {
         if (SurveyorCompassQuestService.isCompleted(world, playerId)) {
             count++;
         }
-        return count;
+        return count + FriendsQuestService.completed(FriendsQuestService.progress(world, playerId));
     }
 
     public static int activeCount(ServerLevel world, UUID playerId) {
         int count = 0;
-        if (AdminCoreTestQuestService.isActive(world, playerId)) {
-            count++;
-        }
         if (ShardRelicQuestService.isActive(world, playerId)) {
             count++;
         }
@@ -123,15 +120,11 @@ public final class SpecialQuestService {
         if (SurveyorCompassQuestService.isActive(world, playerId)) {
             count++;
         }
-        return count;
+        return count + FriendsQuestService.active(FriendsQuestService.progress(world, playerId));
     }
 
     public static SpecialQuestStatus openStatus(ServerLevel world, UUID playerId) {
-        SpecialQuestStatus status = AdminCoreTestQuestService.openStatus(world, playerId);
-        if (status != null) {
-            return status;
-        }
-        status = ShardRelicQuestService.openStatus(world, playerId);
+        SpecialQuestStatus status = ShardRelicQuestService.openStatus(world, playerId);
         if (status != null) {
             return status;
         }
@@ -147,11 +140,12 @@ public final class SpecialQuestService {
         if (status != null) {
             return status;
         }
-        return SurveyorCompassQuestService.openStatus(world, playerId);
+        status = SurveyorCompassQuestService.openStatus(world, playerId);
+        return status != null ? status : FriendsQuestService.openStatus(world, playerId);
     }
 
     public static void onServerTick(MinecraftServer server) {
-        AdminCoreTestQuestService.onServerTick(server);
+        FriendsQuestService.onServerTick(server);
         ShardRelicQuestService.onServerTick(server);
         ShepherdFluteQuestService.onServerTick(server);
         ApiaristSmokerQuestService.onServerTick(server);
@@ -159,7 +153,6 @@ public final class SpecialQuestService {
     }
 
     public static InteractionResult onUseBlock(ServerLevel world, ServerPlayer player, BlockPos pos) {
-        AdminCoreTestQuestService.onUseBlock(world, player, pos);
         return ShardRelicQuestService.onUseBlock(world, player, pos);
     }
 
@@ -168,13 +161,11 @@ public final class SpecialQuestService {
     }
 
     public static void onBlockBreak(ServerLevel world, ServerPlayer player, BlockPos pos, BlockState state) {
-        AdminCoreTestQuestService.onBlockBreak(world, player, pos, state);
         ShardRelicQuestService.onBlockBreak(world, player, pos, state);
         SurveyorCompassQuestService.onBlockBreak(world, player, pos, state);
     }
 
     public static void onTrackedItemPickup(ServerLevel world, ServerPlayer player, ItemStack stack, int count) {
-        AdminCoreTestQuestService.onTrackedItemPickup(world, player, stack, count);
         ShardRelicQuestService.onTrackedItemPickup(world, player, stack, count);
         ShepherdFluteQuestService.onTrackedItemPickup(world, player, stack, count);
         SurveyorCompassQuestService.onTrackedItemPickup(world, player, stack, count);
@@ -193,49 +184,28 @@ public final class SpecialQuestService {
                 return sealResult;
             }
         }
-        AdminCoreTestQuestService.onEntityUse(world, player, entity, stack);
         return ShepherdFluteQuestService.onEntityUse(world, player, entity, stack);
     }
 
-    public static void onFurnaceOutput(ServerLevel world, ServerPlayer player, ItemStack stack) {
-        AdminCoreTestQuestService.onFurnaceOutput(world, player, stack);
-    }
-
     public static void onVillagerTrade(ServerLevel world, ServerPlayer player, ItemStack stack) {
-        AdminCoreTestQuestService.onVillagerTrade(world, player, stack);
         MerchantSealQuestService.onVillagerTrade(world, player, stack);
     }
 
     public static void onAnimalLove(ServerLevel world, ServerPlayer player, Animal animal) {
-        AdminCoreTestQuestService.onAnimalLove(world, player, animal);
         ShepherdFluteQuestService.onAnimalLove(world, player, animal);
         ApiaristSmokerQuestService.onAnimalLove(world, player, animal);
     }
 
     public static void onAnimalTamed(ServerLevel world, ServerPlayer player, TamableAnimal animal) {
-        AdminCoreTestQuestService.onAnimalTamed(world, player, animal);
         ShepherdFluteQuestService.onAnimalTamed(world, player, animal);
     }
 
     public static void onBeeNestInteract(ServerLevel world, ServerPlayer player, BlockState state, ItemStack stack) {
-        AdminCoreTestQuestService.onBeeNestInteract(world, player, state, stack);
         ApiaristSmokerQuestService.onBeeNestInteract(world, player, state, stack);
     }
 
     public static void onPilgrimPurchase(ServerLevel world, ServerPlayer player, String offerId) {
-        AdminCoreTestQuestService.onPilgrimPurchase(world, player, offerId);
         MerchantSealQuestService.onPilgrimPurchase(world, player, offerId);
     }
 
-    public static void onAnvilOutput(ServerLevel world,
-                                     ServerPlayer player,
-                                     ItemStack leftInput,
-                                     ItemStack rightInput,
-                                     ItemStack output) {
-        AdminCoreTestQuestService.onAnvilOutput(world, player, leftInput, rightInput, output);
-    }
-
-    public static void onMonsterKill(ServerLevel world, ServerPlayer player, Entity killedEntity) {
-        AdminCoreTestQuestService.onMonsterKill(world, player, killedEntity);
-    }
 }

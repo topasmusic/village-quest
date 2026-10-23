@@ -187,7 +187,10 @@ public final class VillageBondService {
                 world, player.getUUID(), marker.centerX(), marker.centerZ())) {
             return InteractionResult.PASS;
         }
-        return useLens(world, player);
+        InteractionResult result=useLens(world, player);
+        if(result==InteractionResult.SUCCESS) de.quest.kingdom.ArtifactJourneyService.confirmed(world,player,
+                de.quest.kingdom.ArtifactJourneyProgress.Deed.LEDGER,player.blockPosition());
+        return result;
     }
 
     public static VillageBondView inspectCurrentVillage(ServerLevel world, ServerPlayer player, boolean announce) {
@@ -254,17 +257,8 @@ public final class VillageBondService {
         PlayerQuestData data = data(world, playerId);
         String dimension = dimensionKey(world);
         int existing = findVillage(data, dimension, marker.centerX(), marker.centerZ());
-        de.quest.reputation.ProtectedVillageIndex.register(world,
-                new de.quest.village.VillageLifeState.VillageKey(dimension, marker.centerX(), marker.centerZ()));
-        if (existing >= 0) return existing;
-        VillageIdentityOrigin.Classification classification = classifyDetailed(world, marker);
-        VillageBondType type = classification.type();
-        int previousCount = historicalVillageCount(data);
-        int index = ensureVillageRecord(data, dimension, marker.centerX(), marker.centerZ(), type);
-        if (index < 0 || historicalVillageCount(data) == previousCount) return index;
-        data.setTradeRouteString(villageKey(index, "identity_origin"), classification.origin());
-        QuestState.get(world.getServer()).setDirty();
-        return index;
+        VillageContactService.ContactResult contact = VillageContactService.establish(world, playerId, marker);
+        return contact.accepted() ? contact.contact().villageIndex() : existing;
     }
 
     static int ensureVillageRecord(PlayerQuestData data, int x, int z, VillageBondType type) {
@@ -275,6 +269,40 @@ public final class VillageBondService {
         if (data == null || type == null) return -1;
         int existing = findVillage(data, dimension, x, z);
         if (existing >= 0) return existing;
+        return appendVillageRecord(data, dimension, x, z, type);
+    }
+
+    /** Binds shared identity without replacing any personal reputation, claims or route state. */
+    public static int ensureCanonicalVillageRecord(PlayerQuestData data, UUID id, String dimension,
+                                                    int x, int z, VillageBondType type) {
+        if (data == null || id == null || type == null || dimension == null
+                || net.minecraft.resources.Identifier.tryParse(dimension) == null
+                || Math.abs((long) x) > 30_000_000L || Math.abs((long) z) > 30_000_000L) return -1;
+        String canonical = id.toString();
+        int count = historicalVillageCount(data);
+        for (int i = 0; i < count; i++) {
+            if (canonical.equals(data.getTradeRouteString(villageKey(i, "canonical_id")))) {
+                return matchesStoredDimension(data, villageKey(i, "dimension"), dimension)
+                        && data.getTradeRouteInt(villageKey(i, "x")) == x
+                        && data.getTradeRouteInt(villageKey(i, "z")) == z ? i : -1;
+            }
+        }
+        for (int i = 0; i < count; i++) {
+            if (!matchesStoredDimension(data, villageKey(i, "dimension"), dimension)
+                    || data.getTradeRouteInt(villageKey(i, "x")) != x
+                    || data.getTradeRouteInt(villageKey(i, "z")) != z) continue;
+            String previous = data.getTradeRouteString(villageKey(i, "canonical_id"));
+            if (!previous.isEmpty()) return -1;
+            data.setTradeRouteString(villageKey(i, "canonical_id"), canonical);
+            return i;
+        }
+        int index = appendVillageRecord(data, dimension, x, z, type);
+        if (index >= 0) data.setTradeRouteString(villageKey(index, "canonical_id"), canonical);
+        return index;
+    }
+
+    private static int appendVillageRecord(PlayerQuestData data, String dimension,
+                                            int x, int z, VillageBondType type) {
         int count = historicalVillageCount(data);
         if (count >= MAX_HISTORICAL_VILLAGES) return -1;
         data.setTradeRouteInt(villageKey(count, "x"), x);
@@ -298,8 +326,11 @@ public final class VillageBondService {
                                     ShadowsTradeRoadEncounterService.VillageMarker marker) {
         AABB area = new AABB(marker.minX() - 8.0, world.getMinY(), marker.minZ() - 8.0,
                 marker.maxX() + 9.0, world.getMaxY(), marker.maxZ() + 9.0);
+        var zones = de.quest.kingdom.KingdomVillageService.confirmedZones(world, marker);
+        if (!zones.isEmpty()) area = de.quest.kingdom.KingdomVillageService.observationArea(world, marker, zones);
         int farmers = 0, smiths = 0, shepherds = 0, archives = 0;
         for (Villager villager : world.getEntitiesOfClass(Villager.class, area, Villager::isAlive)) {
+            if (!de.quest.kingdom.KingdomVillageService.withinConfirmedArea(zones, villager.blockPosition())) continue;
             Holder<VillagerProfession> profession = villager.getVillagerData().profession();
             if (profession.is(VillagerProfession.FARMER) || profession.is(VillagerProfession.FISHERMAN)) farmers++;
             if (profession.is(VillagerProfession.TOOLSMITH) || profession.is(VillagerProfession.WEAPONSMITH)
@@ -683,9 +714,13 @@ public final class VillageBondService {
                     : Component.translatable("message.village-quest.wayshrine.inspect_unbound");
             player.sendSystemMessage(message.copy().withStyle(
                     shrine >= 0 ? ChatFormatting.AQUA : ChatFormatting.YELLOW), false);
+            if(shrine>=0) de.quest.kingdom.ArtifactJourneyService.confirmed(world,player,
+                    de.quest.kingdom.ArtifactJourneyProgress.Deed.SIGIL,pos);
             return InteractionResult.SUCCESS;
         }
         int distance = TradeRouteService.distanceToNearestRoute(world, player.getUUID(), pos);
+        if(distance<=8) de.quest.kingdom.ArtifactJourneyService.confirmed(world,player,
+                de.quest.kingdom.ArtifactJourneyProgress.Deed.SIGIL,pos);
         player.sendSystemMessage(Component.translatable("message.village-quest.wayshrine.inspect_route_distance", distance)
                 .withStyle(distance <= 8 ? ChatFormatting.GREEN : ChatFormatting.GRAY), false);
         return InteractionResult.SUCCESS;
@@ -769,6 +804,15 @@ public final class VillageBondService {
         result.sort(Comparator.comparingInt(VillageBondView::index));
         return List.copyOf(result);
     }
+    /** Existing personal trust for an exact canonical village, including preparation before a route exists. */
+    public static VillageBondLevel knownBondLevel(PlayerQuestData data, UUID villageId) {
+        if (data == null || villageId == null) return VillageBondLevel.KNOWN;
+        for (int i = 0; i < historicalVillageCount(data); i++) {
+            if (villageId.toString().equals(data.getTradeRouteString(villageKey(i, "canonical_id"))))
+                return levelForCompletions(Math.max(0, data.getTradeRouteInt(villageKey(i, "completions"))));
+        }
+        return VillageBondLevel.KNOWN;
+    }
 
     public static List<Payloads.TradeRouteBondData> bondPayloads(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) return List.of();
@@ -788,18 +832,22 @@ public final class VillageBondService {
                 int completions = Math.max(0, data.getTradeRouteInt(villageKey(index, "completions")));
                 Component identityOrigin = VillageIdentityOrigin.label(
                         data.getTradeRouteString(villageKey(index, "identity_origin")));
-                history.add(new Payloads.TradeRouteBondData(index, x, z, contact.type().label(),
+                history.add(new Payloads.TradeRouteBondData(index, x, z,
+                        de.quest.kingdom.KingdomVillageService.identityLabel(world, x, z, contact.type().label()),
                         levelForCompletions(completions).label(), Component.empty(), completions,
-                        Component.empty(), Component.empty(), 0, 0, lifeStatus, false, identityOrigin));
+                        Component.empty(), Component.empty(), 0, 0, lifeStatus, false, identityOrigin,
+                        de.quest.kingdom.KingdomVillageService.mapDetails(world,playerId,x,z)));
                 continue;
             }
             VillageBondView view = view(world, playerId, index);
             if (view != null) history.add(new Payloads.TradeRouteBondData(
-                    view.index(), view.x(), view.z(), view.type().label(), view.level().label(),
+                    view.index(), view.x(), view.z(),
+                    de.quest.kingdom.KingdomVillageService.identityLabel(world, view.x(), view.z(), view.type().label()), view.level().label(),
                     view.request().title(), view.completions(), view.network().condition().label(),
                     view.network().need().label(), view.network().support(), view.network().energyProgress(),
                     lifeStatus, connected, VillageIdentityOrigin.label(
-                            data.getTradeRouteString(villageKey(index, "identity_origin")))));
+                            data.getTradeRouteString(villageKey(index, "identity_origin"))),
+                    de.quest.kingdom.KingdomVillageService.mapDetails(world,playerId,x,z)));
         }
         return List.copyOf(history);
     }
@@ -1185,10 +1233,17 @@ public final class VillageBondService {
 
     static int findVillage(PlayerQuestData data, String dimension, int x, int z) {
         int count = historicalVillageCount(data);
+        // Exact identities take precedence over historical generated-village tolerance.
         for (int i = 0; i < count; i++) {
             if (matchesStoredDimension(data, villageKey(i, "dimension"), dimension)
-                    && Math.abs(data.getTradeRouteInt(villageKey(i, "x")) - x) <= 8
-                    && Math.abs(data.getTradeRouteInt(villageKey(i, "z")) - z) <= 8) return i;
+                    && data.getTradeRouteInt(villageKey(i, "x")) == x
+                    && data.getTradeRouteInt(villageKey(i, "z")) == z) return i;
+        }
+        for (int i = 0; i < count; i++) {
+            if (data.getTradeRouteString(villageKey(i, "canonical_id")).isEmpty()
+                    && matchesStoredDimension(data, villageKey(i, "dimension"), dimension)
+                    && Math.abs((long) data.getTradeRouteInt(villageKey(i, "x")) - x) <= 8L
+                    && Math.abs((long) data.getTradeRouteInt(villageKey(i, "z")) - z) <= 8L) return i;
         }
         return -1;
     }

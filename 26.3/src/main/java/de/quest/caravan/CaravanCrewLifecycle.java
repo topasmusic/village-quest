@@ -12,9 +12,14 @@ public final class CaravanCrewLifecycle {
     public static boolean mortalityEnabled() { return active && de.quest.config.VillageQuestServerConfig.get().socialReputation().caravanMortality(); }
     public static boolean protectedFromDamage() { return active && !de.quest.config.VillageQuestServerConfig.get().socialReputation().caravanMortality(); }
     /** null role is explicitly the pack mule, never an invented merchant role. */
-    public record CrewMember(UUID id, int generation, CaravanRole role, String name, boolean dead) {}
+    public record CrewMember(UUID id, int generation, CaravanRole role, String name, boolean dead,boolean female) {}
     private static String key(int route, CaravanRole role, String field) {
         return TradeRouteData.routeKey(route, "crew_" + (role == null ? "mule" : role.name().toLowerCase(Locale.ROOT)) + "_" + field);
+    }
+    public static boolean appearanceKnown(PlayerQuestData data,int route,CaravanRole role) {
+        if(role==null) return true;
+        String id=data.getTradeRouteString(key(route,role,"id"));
+        return !id.isBlank() && id.equals(data.getTradeRouteString(key(route,role,"appearance_person")));
     }
     public static CrewMember resolve(PlayerQuestData data, int route, CaravanRole role) {
         if (data == null || route < 0 || route >= data.getTradeRouteInt("route_count")) throw new IllegalArgumentException("Invalid crew connection");
@@ -31,8 +36,12 @@ public final class CaravanCrewLifecycle {
         if (role == null && name.isBlank()) {
             name = CaravanPackAnimalPolicy.name(connection); data.setTradeRouteString(key(route, null, "name"), name);
         }
+        if(role!=null && !appearanceKnown(data,route,role)) {
+            data.setTradeRouteString(key(route,role,"appearance_person"),id.toString());
+            data.setTradeRouteFlag(key(route,role,"female"),CaravanCrewData.female(id,name));
+        }
         return new CrewMember(id, Math.max(0, data.getTradeRouteInt(key(route, role, "generation"))), role, name,
-                data.hasTradeRouteFlag(key(route, role, "dead")));
+                data.hasTradeRouteFlag(key(route, role, "dead")),role!=null && data.hasTradeRouteFlag(key(route,role,"female")));
     }
     public static CrewMember resolveMule(PlayerQuestData data, int route) { return resolve(data, route, null); }
 
@@ -61,6 +70,7 @@ public final class CaravanCrewLifecycle {
         } else name = CaravanCrewData.replacementName(id, previous.name());
         data.setTradeRouteString(key(route, role, "id"), id.toString());
         data.setTradeRouteString(key(route, role, "name"), name);
+        if(role!=null) data.setTradeRouteString(key(route,role,"name")+"_v2",NpcNames.generated(name));
         data.setTradeRouteInt(key(route, role, "generation"), previous.generation() == Integer.MAX_VALUE ? Integer.MAX_VALUE : previous.generation() + 1);
         data.setTradeRouteFlag(key(route, role, "dead"), false); return true;
     }

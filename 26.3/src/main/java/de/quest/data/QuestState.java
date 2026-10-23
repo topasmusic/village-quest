@@ -38,9 +38,24 @@ public final class QuestState extends SavedData {
     private long pilgrimNaturalSpawnCooldownUntil;
     private CompoundTag questPartyState = new CompoundTag();
     private long socialServerTick;
+    private de.quest.quest.special.WeatherTonicState weatherTonic=new de.quest.quest.special.WeatherTonicState();
+    public de.quest.quest.special.WeatherTonicState weatherTonic() { return weatherTonic; }
+    private CompoundTag worldQuestSettings = new CompoundTag();
+    public de.quest.config.WorldQuestSettings worldQuestSettings() {
+        return de.quest.config.WorldQuestSettings.fromNbt(worldQuestSettings).orElse(null);
+    }
+    public boolean unknownWorldQuestSettings() { return !worldQuestSettings.isEmpty() && worldQuestSettings() == null; }
+    public void setWorldQuestSettings(de.quest.config.WorldQuestSettings settings) {
+        if (unknownWorldQuestSettings()) throw new IllegalStateException("Unsupported world settings are preserved");
+        worldQuestSettings = settings.toNbt(); setDirty();
+    }
+    private de.quest.util.QuestCalendar questCalendar = new de.quest.util.QuestCalendar();
+    public de.quest.util.QuestCalendar questCalendar() { return questCalendar; }
     private net.minecraft.nbt.Tag preservedSocialRecords;
     private net.minecraft.nbt.Tag preservedRewards;
     private CompoundTag orphanRewards = new CompoundTag();
+    private net.minecraft.nbt.Tag preservedMarketTransfers;
+    private CompoundTag orphanMarketTransfers=new CompoundTag();
     private net.minecraft.nbt.Tag preservedProtectedVillages;
     private de.quest.reputation.ProtectedVillageIndex protectedVillages = new de.quest.reputation.ProtectedVillageIndex();
     public de.quest.reputation.ProtectedVillageIndex protectedVillages() { return protectedVillages; }
@@ -58,6 +73,7 @@ public final class QuestState extends SavedData {
         QuestState state = new QuestState();
         if (nbt != null) {
             state.readFromNbt(nbt);
+            for(var player:state.players.values())if(player.restoreRetiredNpcTest())state.setDirty();
         }
         return state;
     }
@@ -69,7 +85,13 @@ public final class QuestState extends SavedData {
         CompoundTag rewards = state.orphanRewards.copy();
         state.players.forEach((id, data) -> { if (!state.orphanRewards.contains(id.toString())) rewards.put(id.toString(), data.vanillaRewards().toNbt()); });
         root.put("vanillaRewards", state.preservedRewards == null ? rewards : state.preservedRewards.copy());
+        var marketTransfers=state.orphanMarketTransfers.copy();
+        state.players.forEach((id,data) -> { if(!state.orphanMarketTransfers.contains(id.toString())) marketTransfers.put(id.toString(),data.marketWallet().toNbt()); });
+        root.put("marketTransfers",state.preservedMarketTransfers==null?marketTransfers:state.preservedMarketTransfers.copy());
         root.putLong("socialServerTick", state.socialServerTick);
+        root.put("friendsWeatherTonic",state.weatherTonic.toNbt());
+        root.put("questCalendar", state.questCalendar.toNbt());
+        if (!state.worldQuestSettings.isEmpty()) root.put("worldQuestSettings26", state.worldQuestSettings.copy());
         root.put("protectedVillages", state.preservedProtectedVillages == null ? state.protectedVillages.toNbt() : state.preservedProtectedVillages.copy());
         return root;
     }
@@ -84,6 +106,9 @@ public final class QuestState extends SavedData {
         }
         return players.computeIfAbsent(playerId, id -> {
             var data = new PlayerQuestData();
+            if(preservedMarketTransfers!=null || orphanMarketTransfers.contains(id.toString())) {
+                var quarantine=new CompoundTag(); quarantine.putInt("schema",-1); data.loadMarketWallet(quarantine);
+            }
             if (preservedSocialRecords != null) {
                 CompoundTag quarantine = new CompoundTag(); quarantine.putInt("schema", -1);
                 data.loadSocialReputation(quarantine);
@@ -105,9 +130,12 @@ public final class QuestState extends SavedData {
 
     public void resetAllProgress() {
         Map<UUID, CompoundTag> rewards = new HashMap<>();
+        Map<UUID,net.minecraft.nbt.Tag> marketTransfers=new HashMap<>();
+        players.forEach((id,data) -> marketTransfers.put(id,data.marketWallet().toNbt()));
         players.forEach((id, data) -> { data.vanillaRewards().resetSlots(); rewards.put(id, data.vanillaRewards().toNbt()); });
         players.clear();
         rewards.forEach((id, tag) -> getPlayerData(id).loadVanillaRewards(tag));
+        marketTransfers.forEach((id,tag) -> getPlayerData(id).loadMarketWallet(tag));
         modifiedTerrainRegions.clear();
         pilgrimNaturalSpawnCooldownUntil = 0L;
         questPartyState = new CompoundTag();
@@ -122,7 +150,11 @@ public final class QuestState extends SavedData {
     }
 
     private void readFromNbt(CompoundTag root) {
+        weatherTonic=de.quest.quest.special.WeatherTonicState.fromNbt(root.get("friendsWeatherTonic"));
+        worldQuestSettings = root == null ? new CompoundTag() : root.getCompoundOrEmpty("worldQuestSettings26").copy();
+        questCalendar = de.quest.util.QuestCalendar.fromNbt(root == null ? new CompoundTag() : root.getCompoundOrEmpty("questCalendar"));
         players.clear();
+        preservedMarketTransfers=null; orphanMarketTransfers=new CompoundTag();
         preservedSocialRecords = null;
         preservedProtectedVillages = null;
         socialServerTick = Math.max(0, root == null ? 0 : root.getLongOr("socialServerTick", 0));
@@ -136,6 +168,23 @@ public final class QuestState extends SavedData {
         }
         CompoundTag daily = root.getCompoundOrEmpty("questManager");
         readDailyQuestData(daily);
+        var rawMarketTransfers=root.get("marketTransfers");
+        if(rawMarketTransfers!=null && !(rawMarketTransfers instanceof CompoundTag)) {
+            preservedMarketTransfers=rawMarketTransfers.copy();
+            players.values().forEach(data -> { var quarantine=new CompoundTag(); quarantine.putInt("schema",-1); data.loadMarketWallet(quarantine); });
+        } else if(rawMarketTransfers instanceof CompoundTag owners) {
+            for(String key:owners.keySet()) {
+                var raw=owners.get(key);
+                try {
+                    UUID owner=UUID.fromString(key);
+                    if(owner.equals(de.quest.kingdom.BuildingSessionPolicy.NONE)) throw new IllegalArgumentException("Invalid market owner");
+                    getPlayerData(owner).loadMarketWallet(raw);
+                    if(getPlayerData(owner).marketWallet().marker().filter(m -> !m.actor().equals(owner)).isPresent()) {
+                        orphanMarketTransfers.put(key,raw.copy()); var quarantine=new CompoundTag(); quarantine.putInt("schema",-1); getPlayerData(owner).loadMarketWallet(quarantine);
+                    }
+                } catch(IllegalArgumentException invalid) { orphanMarketTransfers.put(key,raw.copy()); }
+            }
+        }
         var rawRewards = root.get("vanillaRewards");
         preservedRewards = rawRewards != null && !(rawRewards instanceof CompoundTag) ? rawRewards.copy() : null;
         orphanRewards = new CompoundTag();

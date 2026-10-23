@@ -10,6 +10,8 @@ public final class VanillaRewardRegistry {
     public record Option(String id, long currency, List<Goods> goods, boolean diamondGate) { }
     public static List<Option> options(String key, RepeatableTargetProfile profile) {
         List<Option> options = switch (key) {
+            case "friends:lutte" -> List.of(new Option("precision",0,List.of(new Goods("netherite_pickaxe",1,"",Map.of("efficiency",4,"unbreaking",3))),false),
+                    new Option("masterblade",0,List.of(new Goods("netherite_sword",1,"",Map.of("sharpness",4,"unbreaking",3))),false));
             case "intro" -> alternatives(2, goods("carrot", 6));
             case "daily:HONEY", "daily:POTATO_HARVEST", "daily:AUTUMN_HARVEST", "daily:STALL_NEW_LIFE" -> alternatives(3, goods("golden_carrot", 8));
             case "daily:WHEAT_HARVEST" -> alternatives(5, goods("golden_carrot", 12));
@@ -32,6 +34,10 @@ public final class VanillaRewardRegistry {
             case "story:the_empty_caravan" -> withDiamonds(alternatives(32, goods("golden_carrot", 48), goods("golden_apple", 2), potion("strong_healing", 2)), 8);
             case "story:shrines_between_roads" -> withDiamonds(alternatives(32, enchanted("diamond_pickaxe", Map.of("silk_touch", 1, "efficiency", 4, "unbreaking", 3))), 8);
             case "concord" -> withDiamonds(alternatives(48, goods("rail", 128), goods("powered_rail", 16), goods("lantern", 32)), 12);
+            case "story:artifact_journey" -> List.of(
+                    pack("supplies",goods("stone_bricks",512),goods("oak_log",256),goods("lantern",64),goods("diamond",12)),
+                    pack("roads",goods("rail",256),goods("powered_rail",32),goods("lantern",64),goods("diamond",12)),
+                    new Option("coins",128,List.of(goods("diamond",12)),false));
             default -> List.of();
         };
         if ((!key.startsWith("daily:") && !key.startsWith("weekly:")) || profile == RepeatableTargetProfile.NORMAL) return options;

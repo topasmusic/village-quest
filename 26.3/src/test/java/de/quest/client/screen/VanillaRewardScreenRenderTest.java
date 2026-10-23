@@ -36,8 +36,9 @@ final class VanillaRewardScreenRenderTest {
             doAnswer(call -> { frame.blurBeforeThisStratum(); return null; }).when(screen).renderBackground(any(GuiGraphics.class),anyInt(),anyInt(),anyFloat());
             try (var theme=mockStatic(VillageUiTheme.class); var tour=mockStatic(UiTestTour.class)) {
                 assertDoesNotThrow(() -> screen.extractRenderStateWithTooltipAndSubtitles(extractor,256,137,0));
-                var renderedTitle=screen.getTitle();
-                verify(extractor).text(eq(font), eq(renderedTitle), anyInt(), anyInt(), anyInt(), eq(false));
+                String titleText=screen.getTitle().getString();
+                theme.verify(() -> VillageUiTheme.drawTitle(any(GuiGraphics.class), eq(font),
+                        eq(titleText), eq("quests"), anyInt(), anyInt(), eq(288)));
                 verify(screen).extractBackground(any(GuiGraphicsExtractor.class),anyInt(),anyInt(),anyFloat());
                 verify(screen,never()).renderBackground(any(GuiGraphics.class),anyInt(),anyInt(),anyFloat());
             }

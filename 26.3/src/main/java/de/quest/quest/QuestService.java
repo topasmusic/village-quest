@@ -51,6 +51,9 @@ public final class QuestService {
             TradeRouteService.despawnAll(server.overworld());
             EmptyCaravanStoryService.despawnAll(server.overworld());
             QuestState.get(server).applyToRuntime();
+            de.quest.quest.special.LutteCoastalQuest.prime(server.overworld());
+            de.quest.config.QuestSetupService.start(server);
+            de.quest.util.QuestCalendarService.start(server);
             de.quest.reputation.ProtectedVillageIndex.primeHistorical(server);
             de.quest.caravan.GuildConvoyService.reconcileTrust(server);
             de.quest.reputation.ResettlementSupportService.reconcile(server);
@@ -68,6 +71,7 @@ public final class QuestService {
             PaintingNameService.clear();
         });
 
+        ServerTickEvents.END_SERVER_TICK.register(server -> de.quest.util.QuestCalendarService.currentDay());
         ServerTickEvents.END_SERVER_TICK.register(QuestPartyService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(server -> QuestState.get(server).advanceSocialServerTick());
         ServerTickEvents.END_SERVER_TICK.register(QuestDropTracker::onServerTick);
@@ -76,6 +80,7 @@ public final class QuestService {
         ServerTickEvents.END_SERVER_TICK.register(WeeklyQuestService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(StoryQuestService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(QuestAvailabilityNotifier::onServerTick);
+        ServerTickEvents.END_SERVER_TICK.register(QuestMasterUiService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(TradeRouteService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(SpecialQuestService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(PilgrimContractService::onServerTick);
@@ -160,12 +165,18 @@ public final class QuestService {
         ServerEntityEvents.ENTITY_LOAD.register(QuestDropTracker::onEntityLoad);
         ServerEntityEvents.ENTITY_LOAD.register(PaintingNameService::onEntityLoad);
         ServerEntityEvents.ENTITY_UNLOAD.register(PaintingNameService::onEntityUnload);
-        net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents.CHUNK_LOAD.register((world, chunk, newlyGenerated) ->
-                de.quest.reputation.ProtectedVillageIndex.onChunkLoad(world, chunk.getPos()));
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents.CHUNK_LOAD.register((world, chunk, newlyGenerated) -> {
+                de.quest.reputation.ProtectedVillageIndex.onChunkLoad(world, chunk);
+                de.quest.quest.special.LutteCoastalQuest.chunkLoaded(world,chunk);
+        });
 
         UseEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
             if (world instanceof ServerLevel sw && player instanceof net.minecraft.server.level.ServerPlayer sp) {
                 var stack = player.getItemInHand(hand);
+                if (hand == net.minecraft.world.InteractionHand.MAIN_HAND && entity instanceof net.minecraft.world.entity.npc.villager.Villager
+                        && entity.isAlive() && sp.hasLineOfSight(entity) && sp.distanceToSqr(entity)<=64 && !sp.isSpectator())
+                    de.quest.quest.special.FriendsQuestService.villagerContact(sw,sp,entity.blockPosition());
+
                 InteractionResult specialResult = SpecialQuestService.onUseEntity(sw, sp, hand, entity, stack);
                 if (specialResult != InteractionResult.PASS) {
                     return specialResult;
@@ -190,22 +201,24 @@ public final class QuestService {
         ServerEntityCombatEvents.AFTER_KILLED_OTHER_ENTITY.register((world, entity, killedEntity, damageSource) -> {
             if (world instanceof ServerLevel sw && entity instanceof net.minecraft.server.level.ServerPlayer sp) {
                 QuestDropTracker.onKilledOtherEntity(sw, sp, killedEntity);
+                de.quest.quest.special.MariusQuestService.killed(sw,sp,killedEntity);
                 DailyQuestService.onMonsterKill(sw, sp, killedEntity);
                 StoryQuestService.onMonsterKill(sw, sp, killedEntity);
                 TradeRouteService.onMonsterKill(sw, sp, killedEntity);
-                SpecialQuestService.onMonsterKill(sw, sp, killedEntity);
                 PilgrimContractService.onMonsterKill(sw, sp, killedEntity);
             }
         });
     }
 
     private static void handleDisconnect(ServerPlayer player) {
+        de.quest.kingdom.ArtifactJourneyService.disconnected(player.getUUID());
         if (player == null) {
             return;
         }
         var playerId = player.getUUID();
         QuestAvailabilityNotifier.handleDisconnect(playerId);
         QuestBookHelper.handleDisconnect(playerId);
+        de.quest.config.QuestSetupService.disconnect(playerId);
         QuestTrackerService.handleDisconnect(playerId);
         QuestMasterUiService.handleDisconnect(player);
         MerchantSealQuestService.handleDisconnect(playerId);
@@ -219,6 +232,9 @@ public final class QuestService {
     }
 
     private static void resetTransientRuntimeState() {
+        de.quest.util.QuestCalendarService.stop();
+        de.quest.config.QuestSetupService.stop();
+        de.quest.kingdom.ArtifactJourneyService.reset();
         QuestDropTracker.clear();
         QuestHarvestTracker.clear();
         QuestSoundFeedback.resetRuntimeState();

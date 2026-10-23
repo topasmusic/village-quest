@@ -43,14 +43,15 @@ final class TradeRouteMapPayloadTest {
                         Component.literal("Granary"), Component.literal("Trusted"),
                         Component.literal("Bread"), 3, Component.literal("Thriving"),
                         Component.literal("Food"), 40, 1, 1, false,
-                        Component.literal("Village professions"))),
-                List.of(), List.of());
+                        Component.literal("Village professions"),List.of(Component.literal("Trade signed"),Component.literal("Supply paused")))),
+                List.of(), List.of(),false);
         RegistryFriendlyByteBuf buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), registries);
 
         Payloads.TradeRouteMapPayload.CODEC.encode(buffer, original);
         var restored = Payloads.TradeRouteMapPayload.CODEC.decode(buffer);
 
         assertTrue(restored.routes().getFirst().settlementSuspended());
+        assertTrue(!restored.manageable());
         assertEquals("Destination abandoned", restored.routes().getFirst().availabilityLabel().getString());
         assertEquals("Mira Bellweather", restored.routes().getFirst().masterName());
         assertEquals("Cira Wayfarer", restored.routes().getFirst().courierName());
@@ -62,6 +63,7 @@ final class TradeRouteMapPayloadTest {
         assertEquals(1, restored.bonds().getFirst().lifeStatus());
         assertTrue(!restored.bonds().getFirst().connected());
         assertEquals("Village professions", restored.bonds().getFirst().identityOrigin().getString());
+        assertEquals(List.of("Trade signed","Supply paused"),restored.bonds().getFirst().details().stream().map(Component::getString).toList());
         assertEquals(0, buffer.readableBytes());
     }
 }

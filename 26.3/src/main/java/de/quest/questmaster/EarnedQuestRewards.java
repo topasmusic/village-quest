@@ -44,6 +44,7 @@ final class EarnedQuestRewards {
     private static String category(String slot) { return switch(slot) { case "daily", "bonus" -> "daily"; case "weekly" -> "weekly"; case "story" -> "story"; default -> "special"; }; }
     private static Component title(CompoundTag offer) {
         String key = offer.getStringOr("key", "");
+        if (key.equals("friends:lutte")) return de.quest.quest.special.FriendsQuestService.tr("lutte.3.title");
         if (key.equals("concord")) return Component.translatable("reward.village-quest.source_concord");
         try {
             if (key.equals("intro") || key.startsWith("daily:")) {

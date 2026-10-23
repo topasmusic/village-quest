@@ -5,19 +5,17 @@ import java.util.UUID;
 
 /** Names belong to the saved connection, not to spawned merchant entities. */
 final class CaravanCrewData {
-    private static final String[] FIRST_NAMES = {
-            "Mira", "Elric", "Torren", "Hanna", "Bram", "Cira", "Alda", "Doran",
-            "Esme", "Fenn", "Rowan", "Liora", "Kellan", "Nessa", "Osric", "Tilda",
-            "Marin", "Soren", "Edric", "Anwen", "Beric", "Lyra", "Corin", "Mara"
-    };
-    private static final String[] SURNAMES = {
-            "Bellweather", "Fenner", "Ashford", "Westmere", "Cartwright", "Wayfarer",
-            "Oakridge", "Fairbrook", "Hearthwick", "Stonewell", "Bracken", "Thornfield",
-            "Riverbend", "Mosswood", "Dunford", "Briarwood", "Ashbrook", "Whitlock",
-            "Meadowcroft", "Vale", "Kestrel", "Brambleford", "Alderwick", "Northfield"
-    };
+    private static final String[] FIRST_NAMES=NpcNames.FIRST.toArray(String[]::new);
+    private static final String[] SURNAMES=NpcNames.SURNAMES.toArray(String[]::new);
 
     private CaravanCrewData() {}
+
+    static boolean female(UUID id,String name) {
+        String first=name.split(" ",2)[0];
+        if(java.util.Set.of("Mira","Hanna","Cira","Alda","Esme","Liora","Nessa","Tilda","Anwen","Lyra","Mara","Greta","Brynn","Runa","Ysolda").contains(first)) return true;
+        if(java.util.Set.of("Elric","Torren","Bram","Doran","Fenn","Kellan","Osric","Soren","Edric","Beric","Corin","Ivo","Garrick","Oren","Tavin").contains(first)) return false;
+        return Math.floorMod(id.hashCode(),2)==0;
+    }
 
     static String replacementName(UUID id, String previous) {
         int first = Math.floorMod(id.hashCode(), FIRST_NAMES.length);
@@ -44,8 +42,12 @@ final class CaravanCrewData {
                 name = FIRST_NAMES[(firstSeed + role.ordinal() * 7) % FIRST_NAMES.length] + " "
                         + SURNAMES[(surnameSeed + role.ordinal() * 11) % SURNAMES.length];
                 data.setTradeRouteString(key, name);
+                data.setTradeRouteString(key+"_v2",NpcNames.generated(name));
             }
-            names[role.ordinal()] = name;
+            String marker=data.getTradeRouteString(key+"_v2");
+            boolean generated=!marker.isBlank() && !marker.equals(name) && marker.equals(NpcNames.generated(name));
+            if(!marker.isBlank() && !generated) data.setTradeRouteString(key+"_v2","");
+            names[role.ordinal()] = generated?marker:name;
         }
         return new Crew(names[0], names[1], names[2], names[3]);
     }

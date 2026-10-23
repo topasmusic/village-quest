@@ -2,7 +2,13 @@
 
 Village Quest uses a single-active-line development policy.
 
-## 2.5.0 current release
+## 2.6.0 current release
+
+`Village Quest 2.6.0 — Living Kingdoms` is the content release for Minecraft
+`26.3`. It adds settlement buildings, named staff, markets, diplomacy and travelling
+NPC adventures. Minecraft `26.2` remains on Stable `2.5.0`; no 2.6 content port is implied.
+
+## 2.5.0 release
 
 `Village Quest 2.5.0 — Bonds & Bounty` is released on 2026-10-12 for Minecraft `26.3` and `26.2` with matching content and native APIs/dependencies. The 26.2 port and release were explicitly authorized; future content is still developed only on 26.3. The earlier Roads of Concord publication was withdrawn on 2026-10-04 and is retained only as historical context.
 

@@ -22,7 +22,7 @@ import de.quest.quest.story.VillageProjectService;
 import de.quest.registry.ModItems;
 import de.quest.reputation.ReputationService;
 import de.quest.util.Texts;
-import de.quest.util.TimeUtil;
+import de.quest.util.QuestCalendarService;
 import de.quest.util.WoolItems;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.animal.Animal;
@@ -109,7 +109,7 @@ public final class WeeklyQuestService {
     private WeeklyQuestService() {}
 
     private static long currentCycle() {
-        return TimeUtil.currentWeekCycle();
+        return QuestCalendarService.currentWeekCycle();
     }
 
     private static PlayerQuestData data(ServerLevel world, UUID playerId) {

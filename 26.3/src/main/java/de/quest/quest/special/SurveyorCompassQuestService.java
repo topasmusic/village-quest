@@ -642,6 +642,7 @@ public final class SurveyorCompassQuestService {
             return InteractionResult.SUCCESS;
         }
 
+        if (de.quest.kingdom.ArtifactJourneyService.orient(world,player,stack)) return InteractionResult.SUCCESS;
         if (tryImprintAtCurrentLocation(world, player)) {
             return InteractionResult.SUCCESS;
         }
@@ -851,7 +852,7 @@ public final class SurveyorCompassQuestService {
         }
 
         LAST_HINTS.put(player.getUUID(), new HintStamp(candidate.key(), now));
-        player.sendSystemMessage(candidate.message().copy().withStyle(ChatFormatting.AQUA), false);
+        player.sendSystemMessage(candidate.message().copy().withStyle(ChatFormatting.AQUA), true);
     }
 
     private static HintCandidate currentHintCandidate(ServerLevel world, ServerPlayer player) {

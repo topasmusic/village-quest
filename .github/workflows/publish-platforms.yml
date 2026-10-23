@@ -12,6 +12,11 @@ jobs:
     if: ${{ !github.event.release.draft && !github.event.release.prerelease }}
     runs-on: ubuntu-24.04
     steps:
+      - name: Checkout the released source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
       - name: Resolve stable release identity
         id: release
         shell: bash
@@ -51,6 +56,20 @@ jobs:
             --arg minecraft "$MINECRAFT" \
             '.id == "village-quest" and .version == $version and .depends.minecraft == ("~" + $minecraft)'
 
+      - name: Select the platform announcement
+        shell: bash
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          MINECRAFT: ${{ steps.release.outputs.minecraft }}
+          RELEASE_BODY: ${{ github.event.release.body }}
+        run: |
+          announcement="$MINECRAFT/releases/$VERSION-platforms.md"
+          if [[ -s "$announcement" ]]; then
+            cp "$announcement" dist/platform-announcement.md
+          else
+            printf '%s\n' "$RELEASE_BODY" > dist/platform-announcement.md
+          fi
+
       - name: Publish to Modrinth and CurseForge
         uses: Kira-NT/mc-publish@52307b03863581dec6b652b83e597aec02ebb075 # v3.3.1
         with:
@@ -59,7 +78,7 @@ jobs:
           version: ${{ steps.release.outputs.version }}
           curseforge-name: ${{ steps.release.outputs.jar }}
           version-type: release
-          changelog: ${{ github.event.release.body }}
+          changelog-file: dist/platform-announcement.md
           loaders: fabric
           environment: client | server
           game-versions: ${{ steps.release.outputs.minecraft }}

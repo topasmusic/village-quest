@@ -15,11 +15,10 @@ public final class VillagerDialogueService {
         if (player == null || speaker == null || line == null || line.getString().isEmpty()) {
             return;
         }
-        player.sendSystemMessage(
+        de.quest.kingdom.NpcSpeechService.privateLine(player,speaker,line,
                 speaker.getDisplayName().copy().withStyle(ChatFormatting.GOLD)
                         .append(Component.literal(": ").withStyle(ChatFormatting.DARK_GRAY))
-                        .append(line.copy().withStyle(ChatFormatting.GRAY)),
-                false
+                        .append(line.copy().withStyle(ChatFormatting.GRAY))
         );
     }
 

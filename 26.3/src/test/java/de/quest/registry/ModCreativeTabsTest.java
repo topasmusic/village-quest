@@ -14,12 +14,13 @@ final class ModCreativeTabsTest {
         Set<String> expected = Set.of(
                 "SILVERMARK", "CROWN", "MAGIC_SHARD",
                 "CARAVAN_LEDGER", "SURVEYORS_COMPASS", "STARREACH_RING", "MERCHANT_SEAL",
-                "SHEPHERD_FLUTE", "APIARISTS_SMOKER", "ROADWARDEN_HORN",
+                "SHEPHERD_FLUTE", "APIARISTS_SMOKER", "ROADWARDEN_HORN", "VILLAGE_CHECK",
                 "APIARY_CHARTER_PLAQUE", "VILLAGE_LEDGER_PLAQUE", "FORGE_CHARTER_PLAQUE",
                 "MARKET_CHARTER_PLAQUE", "PASTURE_CHARTER_PLAQUE", "WATCH_BELL_RELIQUARY",
                 "CARTOGRAPHERS_LENS", "CRACKED_SHRINE_CORE", "RESTORED_SHRINE_CORE",
                 "WAYFARERS_SIGIL", "GUILD_WAYSHRINE", "GUILD_NOTICE_POST",
-                "EMBERGLASS_LANTERN", "GUILD_MILESTONE", "GUILD_COURIERS_SATCHEL");
+                "EMBERGLASS_LANTERN", "GUILD_MILESTONE", "GUILD_COURIERS_SATCHEL",
+                "COUNCIL_SEAT", "INN_BARREL", "MARKET_DESK", "STOREHOUSE_ANCHOR", "MARKET_STALL");
 
         Set<String> actual = Arrays.stream(ModCreativeTabs.Entry.values())
                 .map(Enum::name)

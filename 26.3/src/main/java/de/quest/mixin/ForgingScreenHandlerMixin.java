@@ -1,7 +1,6 @@
 package de.quest.mixin;
 
 import de.quest.access.ForgingQuickMoveState;
-import de.quest.quest.special.SpecialQuestService;
 import de.quest.quest.special.ShardRelicQuestService;
 import de.quest.quest.story.StoryQuestService;
 import net.minecraft.server.level.ServerLevel;
@@ -63,7 +62,6 @@ public abstract class ForgingScreenHandlerMixin implements ForgingQuickMoveState
 
             ServerLevel world = (ServerLevel) serverPlayer.level();
             StoryQuestService.onAnvilOutput(world, serverPlayer, villageQuest$anvilQuickMoveLeftInput, villageQuest$anvilQuickMoveRightInput, output.copy());
-            SpecialQuestService.onAnvilOutput(world, serverPlayer, villageQuest$anvilQuickMoveLeftInput, villageQuest$anvilQuickMoveRightInput, output.copy());
             ShardRelicQuestService.onAnvilOutput(serverPlayer, villageQuest$anvilQuickMoveLeftInput, villageQuest$anvilQuickMoveRightInput, output.copy());
         } finally {
             villageQuest$clearAnvilQuickMoveInputs();

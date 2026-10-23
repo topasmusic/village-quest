@@ -26,6 +26,12 @@
 
 # private maintainer context and local planning notes
 /docs/superpowers/
+**/AGENTS.md
+/.agents/
+/VQ26_DEV_HANDOFF.md
+/vq audits/
+/mod-previews/
+/LICENSE_AUDIT.md
 /MAINTAINER.md
 /NEXT_SESSION.md
 /*_START_HERE.md
@@ -68,3 +74,6 @@
 /tools/tests/__pycache__/
 /es_es.json
 /es_es. original.json
+
+# Historical internal reports retained locally
+**/docs/legacy-mini-blocks-audit.md

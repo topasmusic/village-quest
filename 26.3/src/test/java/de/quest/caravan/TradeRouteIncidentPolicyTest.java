@@ -8,6 +8,12 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 final class TradeRouteIncidentPolicyTest {
+    @Test void ordinaryNetworkIncidentsShareOneFiveMinuteGapAcrossAllRoutes() {
+        var data=new de.quest.data.PlayerQuestData();
+        assertTrue(TradeRouteIncidentPolicy.ready(data,100));TradeRouteIncidentPolicy.started(data,100);
+        assertFalse(TradeRouteIncidentPolicy.ready(data,6099));assertTrue(TradeRouteIncidentPolicy.ready(data,6100));assertFalse(TradeRouteIncidentPolicy.ready(data,0));
+        data.setTradeRouteString("network_incident_next_tick","broken");assertFalse(TradeRouteIncidentPolicy.ready(data,10000));
+    }
     private static final UUID OWNER = UUID.fromString("d4384ef7-6598-477f-86fd-6ec4cac22841");
     private static final UUID STRANGER = UUID.fromString("4a8c52a6-58f8-43c0-b0f6-6a7aa640a48e");
 

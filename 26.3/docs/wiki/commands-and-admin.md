@@ -12,7 +12,10 @@ In Village Quest 2.5, messages about features that still need a project, rank or
   Summon the `Questmaster` near you.
 
 - `/vq journal`
-  Open or close the journal.
+  Open or close the journal. The Journal opens directly; settings are optional.
+
+- `/vq settings`
+  Open journal settings directly. World options require current world-owner/operator permission on the server; personal settings are available to every player.
 
 - `/vq prosperity`
   Open the Prosperity, commissions, services, collection, and economy-ledger board after a matching project or trade route has unlocked access.
@@ -269,21 +272,10 @@ Current unlockable project ids:
 
 This focused `2.1.0` fixture unlocks the five matching project branches, prepares the five-route test network, sets the wallet to `500 Crowns`, and opens `Prosperity & Prestige`. It is intended for rank-price, discount, commission, service, livery, collection, localization, and persistence QA.
 
-### UI Layout Tests
+### Interface preview
 
-Village Quest 2.5: `/vq admin uitest` starts a permanent, admin-only guided UI tour. The former individual `uitest` subcommands have been replaced.
-
-Click **Next** to move through all 43 steps, **Back** to revisit a screen, and **Finish** or **Exit** to end the tour. Esc also exits. A separate footer shows the current screen and state. Tabs, lists, maps and local selection can still be inspected; quest, purchase, delivery, travel, rename and other server actions are suppressed during previews.
-
-The tour uses the actual UI classes at their normal responsive size with fixed sample data, without spawning NPCs or modifying progression, inventory, currency or tutorial preferences. It covers Journal pages, available/active/locked Quest Board layouts, Trust and aid tabs, Pilgrim goods/contracts, Prosperity sections, three Notice Board bond tiers, every former Notice Journey preview, Regional Dispatches, Caravan travel/cargo/incident/paused states, owner/guest Wayshrines, the route map and Guild Path.
-
-Tour goods use production shop prices. The Pilgrim example is the actual Hedgerow contract with its production reward, and Daily entries show their own reward tier. The former fictional “32 wheat for 3 Crowns” example was not a playable contract and is no longer shown. Dispatch samples use the real eight-item shipment and current reward formula.
-
-Caravan Master, Regional Dispatch and village journey pages now use compact authored layouts with about 30% less area in both gameplay and the tour. Journey primary actions use teal in the common footer; mutually exclusive story choices have equal buttons above the centered navigation row. The standalone Guild Path uses the transparent Atlas frame; the Journal's Guild Atlas layout is unchanged.
-
-Prosperity tour pages include all five working local tabs (Upgrades, Commissions, Services, Collection and Statistics); each tour step starts on its matching section. Teal primary actions now show warm hover feedback. Wayshrine destination lists show four taller rows and scroll when more destinations are available.
-
-Check EN/DE/ES labels, long descriptions, full names, selection accents, scrollbars and footer spacing at different GUI scales. Real gameplay and multiplayer party actions need separate testing outside the tour.
+Operators can use `/vq admin uitest` for the interface tour. Its sample screens
+do not grant quest progress or execute gameplay actions. Escape exits.
 
 ### Pilgrim
 
@@ -322,93 +314,6 @@ Note:
 - `/vq admin shardcache [player]`
 - `/vq admin shardcachetp [player]`
 
-## Useful Testing Patterns
-
-### Force a new daily
-
-```mcfunction
-/vq admin resetdaily
-/vq admin nextdaily
-/vq questmaster
-```
-
-### Force a new weekly
-
-```mcfunction
-/vq admin resetweekly
-/vq admin nextweekly
-/vq questmaster
-```
-
-### Reset the full Village Quest server state
-
-```mcfunction
-/vq admin reset complete
-```
-
-### Unlock all visible story-core projects quickly
-
-```mcfunction
-/vq admin project unlock @s apiary_charter
-/vq admin project unlock @s forge_charter
-/vq admin project unlock @s market_charter
-/vq admin project unlock @s pasture_charter
-/vq admin project unlock @s watch_bell
-```
-
-### Spawn the Pilgrim with rumor access
-
-```mcfunction
-/vq admin pilgrim rumor unlock
-/vq admin pilgrim spawn
-```
-
-### Prepare the late trade-road story for testing
-
-```mcfunction
-/vq admin story shadows unlock
-/vq admin story shadows testrescue
-```
-
-Use `/vq admin story shadows testfinal` when you specifically want the chapter `6` convoy-defense setup.
-
-### Test the complete caravan batch
-
-```mcfunction
-/vq admin routes testsetup
-```
-
-Then:
-
-1. Inspect all five surveyed route lines, moving markers, security states, road quality values, and event summaries.
-2. Approach a marker and verify that three named merchants materialize and start traveling.
-3. Resolve route 1 by carrying `8` planks and `2` iron ingots and interacting with its caravan.
-4. Trigger route 3 by interacting with the false-distress caravan, then defeat its traitors.
-5. Build suitable lit road surfaces near a route and allow several samples for quality to react.
-6. Run `/vq questmaster` to start the prepared `The Empty Caravan` story path.
-
-Clean up only the route test data with:
-
-```mcfunction
-/vq admin routes reset
-```
-
-### Test The Shrines Between Roads
-
-```mcfunction
-/vq admin shrines testsetup
-```
-
-This creates the five-route test network, clears every seeded route incident, marks the Caravan Ledger as Lens-upgraded, and supplies the Wayfarer's Sigil, three Guild Wayshrines, three Guild Notice Posts, Emberglass Lanterns, Guild Milestones, and the optional Courier's Satchel. Sneak-use the Ledger in real connected villages, complete requests through the Notice Board UI, then bind one shrine at the Homestead and further shrines in any recorded village. Known villages are intentionally available immediately but use the expensive two-charge/ten-minute tier. Sneak-use the Sigil to inspect shrine bindings, milestones, and route distance. Once bound, the active network opens without holding a Sigil; a second player can use it directly with the guest price multiplier.
-
-## Notes for Testers
-
-- `Story` and `Special` start visible but greyed out.
-- `Story` unlocks after the first normal daily completion.
-- after a full `4`-chapter story arc, the next story appears only after a real `1 hour` cooldown and the `Story` tab shows a live timer during that pause
-- `Special` unlocks after the first real reputation gain.
-- `Weekly` cancel now exists and does not reroll a new weekly for the same week.
-
 ## Social reputation admin tools (2.5)
 
 Operator permission is required. These affect personal NPC trust, not player-guild prestige or skill expertise.
@@ -426,3 +331,54 @@ Village Quest 2.5 adds [chosen Vanilla reward packages and saved collection](van
 ## Reward collection after testing
 
 The temporary `/vq admin rewardtest` command and all its subcommands were removed before the 2.5 release for Minecraft26.3 and26.2. Use the Questmaster or `/vq rewards claim` for normal earned rewards. Existing saved rewards, inventories, wallets and completion receipts are retained. The permanent `/vq admin uitest` visual tour remains available.
+
+## Living Kingdoms 2.6
+
+These commands are available on Minecraft 26.3. Ordinary player commands
+still require actual story, location, incident and village permissions. Commands
+never create earned tools, mandates or completed services.
+
+| Command | Requirements and effect |
+|---|---|
+| `/vq artifacts target` | Select/reselect the artifact scene's village at one fresh local permitted council. Use a destination on a real direct route for the scene. Earned chapters stay; the current scene needs new actions. |
+| `/vq artifacts reserve` | Choose the finale's reserve charter at the selected permitted council. After completion only revises the charter/epilogue, with no repeated reward. |
+| `/vq artifacts road` | The equivalent open-road charter choice, with the same entry and no-repeat-reward rules. |
+| `/vq aid help <incident>` | Eligible owner at a real rescuable loaded ambush, using its offered UUID: record explicit willingness to help; actual rescue remains required. |
+| `/vq aid refuse <incident>` | Same real incident/eligibility: record explicit refusal. Silence and elapsed time are neutral. |
+| `/vq aid repair` | Affected player beside the disappointed leader at a freshly confirmed council: begin apology/freight repair; new matching delivery is still required. |
+
+These commands need no OP status, but all server-side story/actor/mandate checks
+still apply. See [Stories and tools](kingdom-stories-and-tools.md) and
+[Diplomacy and crises](kingdom-diplomacy.md).
+
+### Current capacity limits
+
+Market UI admits at most **32 simultaneous sessions**, each expiring after 1,200
+server ticks (about 60 seconds at normal tick rate). Place searches return at most
+**32 candidates**; assign suitable places and recheck when rearranging. Trade
+always uses one displayed lot. Reopen an expired market to request a fresh session.
+
+### Quest tracker side
+
+- `/vq questtracker left`: move to the left and save locally.
+- `/vq questtracker right`: move to the right and save locally.
+
+The configured top/bottom anchor is retained; tracking remains enabled or disabled as before. `/villagequest` accepts the same subcommands.
+
+## NPC skin gallery — 2.6
+
+Operators can run `/vq skinpreview` in a clear open area. It checks an already
+loaded empty strip above/beside the player, builds a smooth-stone platform and
+places all 42 owned human skin variants in one east–west row. The player is moved
+onto the viewing walkway. Preview bodies have no AI, gravity, damage, trade or
+quest progress; they remain still after unfreezing. The whole server world is
+frozen with Vanilla `tick freeze` after successful creation.
+
+- `/tick unfreeze` resumes world ticks (operator permission required).
+- `/vq skinpreview clear` removes only your loaded preview figures within 128 blocks.
+  The platform remains and may be dismantled manually.
+
+The gallery does not create real village staff, generate village records or grant
+story evidence. It does not overwrite terrain, structures or occupied space and
+does not load chunks. If the strip is blocked or unloaded, nothing is placed.
+Use a test world; real villagers, players and all other world ticks are frozen too.

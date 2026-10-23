@@ -1,50 +1,43 @@
-# Village Quest
+# 🏰 Village Quest
 
-**Village Quest 2.5 — Bonds & Bounty** is released for Minecraft `26.3` and `26.2`, with matching content and native dependencies. It brings personal trust, living caravan journeys, village recovery and gifts earned through quest work.
+### Turn ordinary Minecraft villages into living RPG communities!
 
-This repository currently contains four version folders of `Village Quest`.
+Meet memorable characters, uncover stories, help villages grow, and shape a world where your actions truly matter.
+
+- 🧑‍🌾 **Living Villages & NPCs** — Meet mayors, innkeepers, merchants, and other unique characters. Discover villages filled with personality, conversations, and a growing sense of community.
+- 📜 **Quests & Adventures** — Take on daily challenges, weekly tasks, story quests, and special adventures. Earn reputation, discover powerful relics, and unlock new opportunities.
+- 🏡 **Village Growth & Identity** — Help settlements prosper, develop their unique identities, restore abandoned villages, and build lasting relationships.
+- 🛒 **Trade & Caravans** — Discover regional markets, traveling merchants, supply routes, and caravans connecting settlements across your world.
+- 🤝 **Trust & Diplomacy** — Earn the trust of villagers, strengthen alliances, negotiate between communities, and experience the consequences of your actions.
+- 📖 **Immersive RPG Interfaces** — Explore medieval-styled journals, interactive maps, dialogue screens, and village menus inspired by handcrafted medieval fantasy.
+- 🗺️ **A Connected World** — Build your guild network, complete village projects, unlock magical Wayshrines, and share adventures with friends.
+
+---
+
+**Every village has a story. Every journey leaves its mark.**
+
+### Your adventure begins in a village.
 
 Current stable releases:
 
-- `2.5.0` for Minecraft `26.3` and `26.2`;
-- `2.1.1 - Homesteads & Wayfinding` for Minecraft `26.1.2` and `1.21.11`.
+- `2.6.0 — Living Kingdoms` for Minecraft `26.3`;
+- `2.5.0 — Bonds & Bounty` for Minecraft `26.2`;
+- `2.1.1 — Homesteads & Wayfinding` for Minecraft `26.1.2` and `1.21.11`.
 
-Village Quest `2.5.0` adds persistent caravan crews and a pack mule, Regional Dispatches, five Afterstories, Guild Convoys, village abandonment and recovery, and personal Guild/local trust with reparation. It retains the existing Living Village Network, quests, stories, permanent village bonds and save data.
+## Installation
 
-Release highlights:
+Minecraft **26.3**, **Fabric Loader 0.19.5+**, **Fabric API 0.161.0+26.3**, **Java 25**.
+Install Village Quest and Fabric API on both client and server. Back up existing
+worlds before updating. Open `/vq questmaster` to begin, then use `/vq journal`.
 
-- `26.3` is the active Minecraft line with the complete 2.5.0 content and guided Guild Notice Post journey.
-- `26.2` provides the same 2.5.0 content on the previous Minecraft line.
-- The `26.1.2` and `1.21.11` releases retain the complete `2.1.1` feature-parity baseline and remain downloadable maintenance lines.
+## Guides and support
 
-Village Quest `2.1.0` retains the complete `Roads Between Villages` feature set and expands it with `Prosperity & Prestige`.
-
-- `26.3/` is the active Minecraft `26.3` Mojang-mapped work line.
-- `26.2/` is the previous Minecraft `26.2` Mojang-mapped maintenance line.
-- `26.1.2/` is the released Minecraft `26.1.2` Mojang-mapped maintenance port.
-- `1.21.11/` is the released Minecraft `1.21.11` Yarn maintenance port.
-
-Each folder is a self-contained Gradle project. Build and run the folder you actually want to work on.
-Port behavior deliberately between lines; do not copy code blindly because mappings, APIs, Java targets, and client hooks differ.
-
-## Documentation
-
-- [Offline language, context and UI quality workflow](tools/LOCALIZATION_QUALITY.md)
-- [Minecraft 26.3 wiki](26.3/docs/wiki/README.md)
-- [Minecraft 26.2 wiki](26.2/docs/wiki/README.md)
-- [Minecraft 26.1.2 wiki](26.1.2/docs/wiki/README.md)
-- [Minecraft 1.21.11 wiki](1.21.11/docs/wiki/README.md)
-
-The current Stable release is 2.5.0 — Bonds & Bounty on 26.3 and 26.2. Both wikis document the released systems, including village gifts and collection.
-
-## Version support
-
-`2.1.1 - Homesteads & Wayfinding` remains the completed shared feature-parity baseline. Minecraft `26.3` is the single active content-development line; Minecraft `26.2` has Stable 2.5.0 through the explicitly authorized content port. Older builds remain downloadable and may receive separately tested maintenance updates for confirmed bugs, save safety, severe exploits, or meaningful performance improvements.
-
-When Village Quest adopts a later stable Minecraft target, that version replaces `26.3` as the single active line instead of adding another permanently maintained branch. See [VERSION_SUPPORT.md](VERSION_SUPPORT.md) for the complete policy.
+- [Getting started](26.3/docs/wiki/getting-started.md) · [Wiki](26.3/docs/wiki/README.md) · [FAQ](26.3/docs/wiki/faq.md)
+- [Version support](VERSION_SUPPORT.md) · [Report an issue](https://github.com/topasmusic/village-quest/issues)
+- [Latest release](https://github.com/topasmusic/village-quest/releases/tag/v2.6.0-mc26.3)
 
 ## Licensing
 
-Beginning with `2.0.0`, all four lines use the same mixed-license package: functional code is `LGPL-3.0-only`, while original Village Quest assets and creative content remain All Rights Reserved with limited permission to install and use official unmodified releases. Earlier published MIT versions remain MIT-licensed. The repository-level [LICENSE](LICENSE), [COPYING](COPYING), [COPYING.LESSER](COPYING.LESSER), [LICENSE-MIT](LICENSE-MIT), [THIRD_PARTY_ASSETS.md](THIRD_PARTY_ASSETS.md), and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) are mirrored into each self-contained version folder, and its build embeds them in both runtime and sources JARs.
-
-Asset attribution is version-specific: see the matching line's `THIRD_PARTY_ASSETS.md` and `LICENSE`. The 2.5 release uses 23 TopasMusic-owned entity skins; older published releases retain their original notices and rights.
+Functional code is LGPL-3.0-only. Original creative assets and content remain All
+Rights Reserved under [LICENSE](LICENSE). Earlier MIT releases retain their rights.
+See [third-party assets](26.3/THIRD_PARTY_ASSETS.md) and [notices](26.3/THIRD_PARTY_NOTICES.md).

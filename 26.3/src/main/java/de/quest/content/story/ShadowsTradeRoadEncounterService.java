@@ -282,6 +282,13 @@ public final class ShadowsTradeRoadEncounterService {
         if (world == null || pos == null || world.dimension() != Level.OVERWORLD) {
             return null;
         }
+        var kingdoms = de.quest.kingdom.LivingKingdomsState.get(world.getServer());
+        String dimension = world.dimension().identifier().toString();
+        if (kingdoms.isAmbiguousAt(dimension, pos)) return null;
+        VillageMarker registered = de.quest.kingdom.KingdomVillageService.current(kingdoms, dimension, pos);
+        if (registered != null && kingdoms.byLegacy(new de.quest.village.VillageLifeState.VillageKey(
+                dimension, registered.centerX(), registered.centerZ())).orElseThrow().origin()
+                == de.quest.kingdom.LivingKingdomsState.Origin.CUSTOM) return registered;
         StructureStart start = world.structureManager().getStructureWithPieceAt(pos, ROADMARK_VILLAGES);
         if (start != null && start.isValid()) {
             return villageMarker(start);
@@ -320,7 +327,7 @@ public final class ShadowsTradeRoadEncounterService {
                 }
             }
         }
-        return nearest == null ? null : villageMarker(nearest);
+        return nearest == null ? registered : villageMarker(nearest);
     }
 
     private static VillageMarker villageMarker(StructureStart start) {

@@ -43,6 +43,36 @@ public final class ClientQuestNetworking {
 
     public static void register() {
         Payloads.register();
+        ClientPlayNetworking.registerGlobalReceiver(de.quest.network.VillageCheckPayload.ID,(payload,context) ->
+                context.client().execute(() -> {
+                    de.quest.client.hud.VillageCheckHighlights.receive(context.client(),payload);
+                    if(context.client().level!=null && context.client().level.dimension().identifier().toString().equals(payload.dimension())) {
+                        if(currentScreen(context.client()) instanceof de.quest.client.screen.VillageCheckScreen screen) screen.updateData(payload);
+                        else if(payload.initial() && !payload.markers().isEmpty()) context.client().gui.setScreen(new de.quest.client.screen.VillageCheckScreen(payload));
+                    }
+                }));
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(de.quest.client.hud.VillageCheckHighlights::tick);
+        ClientPlayConnectionEvents.DISCONNECT.register((handler,client) -> de.quest.client.hud.VillageCheckHighlights.clear());
+        ClientPlayNetworking.registerGlobalReceiver(de.quest.network.NpcSpeechPayload.ID,(payload,context) ->
+                context.client().execute(() -> de.quest.client.hud.NpcSpeechHud.receive(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(de.quest.network.MarketPayloads.View.ID,(payload,context) -> context.client().execute(() -> {
+            if(currentScreen(context.client()) instanceof de.quest.client.screen.MarketScreen screen && screen.session().equals(payload.session())) {
+                if(screen.updateData(payload) && !payload.active()) setScreen(context.client(),null);
+            }
+            else if(payload.initial() && payload.active() && !de.quest.client.screen.MarketScreen.wasClosed(payload.session()))
+                setScreen(context.client(),new de.quest.client.screen.MarketScreen(payload));
+        }));
+        ClientPlayConnectionEvents.DISCONNECT.register((handler,client) -> de.quest.client.screen.MarketScreen.disconnected());
+        ClientPlayNetworking.registerGlobalReceiver(de.quest.network.BuildingPayloads.View.ID, (payload, context) ->
+                context.client().execute(() -> {
+                    if (currentScreen(context.client()) instanceof de.quest.client.screen.BuildingScreen screen && screen.session().equals(payload.session())) screen.updateData(payload);
+                    else if (payload.open()) {
+                        var screen=new de.quest.client.screen.BuildingScreen(payload);
+                        setScreen(context.client(),screen);
+                    }
+                }));
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(de.quest.client.screen.BuildingScreen::tickHighlights);
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> de.quest.client.screen.BuildingScreen.clearHighlights());
         ClientPlayNetworking.registerGlobalReceiver(de.quest.network.RewardPayloads.View.ID, (payload, context) ->
                 context.client().execute(() -> setScreen(context.client(), new de.quest.client.screen.VanillaRewardScreen(payload, currentScreen(context.client())))));
         ClientPlayNetworking.registerGlobalReceiver(de.quest.network.UiTestTourPayload.ID, (payload, context) ->
@@ -79,15 +109,29 @@ public final class ClientQuestNetworking {
             if (config.minimapEnabledByDefault()
                     && ClientPlayNetworking.canSend(Payloads.TradeRouteActionPayload.ID)) {
                 ClientPlayNetworking.send(new Payloads.TradeRouteActionPayload(
-                        Payloads.TradeRouteActionPayload.ACTION_MINIMAP_TOGGLE, -1));
+                        Payloads.TradeRouteActionPayload.ACTION_MINIMAP_RESTORE, -1));
             }
         }));
+
+        ClientPlayNetworking.registerGlobalReceiver(de.quest.network.QuestTrackerPositionPayload.ID,(payload,context) ->
+                context.client().execute(() -> {
+                    boolean saved=VillageQuestClientConfig.get().setQuestTrackerSide(payload.right());
+                    String key=!saved?"command.village-quest.questtracker.position_failed"
+                            :payload.right()?"command.village-quest.questtracker.right":"command.village-quest.questtracker.left";
+                    if(context.client().player!=null) context.client().gui.chatListener().handleSystemMessage(
+                            net.minecraft.network.chat.Component.translatable(key),false);
+                }));
 
         ClientPlayNetworking.registerGlobalReceiver(Payloads.QuestFeedbackPayload.ID, (payload, context) -> {
             var client = context.client();
             client.execute(() -> playQuestFeedback(client, payload.tier()));
         });
 
+        ClientPlayNetworking.registerGlobalReceiver(de.quest.network.QuestSetupPayloads.View.ID, (payload, context) ->
+                context.client().execute(() -> {
+                    if (currentScreen(context.client()) instanceof de.quest.client.screen.QuestSetupScreen screen) screen.update(payload);
+                    else setScreen(context.client(), new de.quest.client.screen.QuestSetupScreen(payload));
+                }));
         ClientPlayNetworking.registerGlobalReceiver(Payloads.JournalPayload.ID, (payload, context) -> {
             var client = context.client();
             client.execute(() -> {

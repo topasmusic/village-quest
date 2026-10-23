@@ -38,6 +38,9 @@ public final class ModItems {
     public static Item SHEPHERD_FLUTE;
     public static Item APIARISTS_SMOKER;
     public static Item SURVEYORS_COMPASS;
+    public static Item VILLAGE_CHECK;
+    public static Item WEATHER_TONIC;
+    public static Item VILLAGE_WATCH_SEAL;
     public static Item CARAVAN_LEDGER;
     public static Item ROADWARDEN_HORN;
     public static Item APIARY_CHARTER_PLAQUE;
@@ -50,6 +53,7 @@ public final class ModItems {
     public static Item GUILD_NOTICE_POST;
     public static Item EMBERGLASS_LANTERN;
     public static Item GUILD_MILESTONE;
+    public static Item COUNCIL_SEAT, INN_BARREL, MARKET_DESK, STOREHOUSE_ANCHOR, MARKET_STALL;
     public static Item WAYFARERS_SIGIL;
     public static Item CARTOGRAPHERS_LENS;
     public static Item GUILD_COURIERS_SATCHEL;
@@ -65,6 +69,14 @@ public final class ModItems {
     }
 
     public static void register() {
+        var watchId=id("village_watch_seal");
+        VILLAGE_WATCH_SEAL=Registry.register(BuiltInRegistries.ITEM,watchId,new de.quest.content.item.VillageWatchSealItem(new Item.Properties()
+                .setId(ResourceKey.create(Registries.ITEM,watchId)).stacksTo(1).component(DataComponents.LORE,loreLines("item.village-quest.village_watch_seal.lore",3))));
+        var tonicId=id("weather_tonic");
+        WEATHER_TONIC=Registry.register(BuiltInRegistries.ITEM,tonicId,new de.quest.content.item.WeatherTonicItem(new Item.Properties()
+                .setId(ResourceKey.create(Registries.ITEM,tonicId)).stacksTo(16)
+                .component(DataComponents.CONSUMABLE,net.minecraft.world.item.component.Consumables.DEFAULT_DRINK)
+                .component(DataComponents.LORE,loreLines("item.village-quest.weather_tonic.lore",2))));
 
         Identifier copperId = id("legacy_copper_penny");
         ResourceKey<Item> copperKey = ResourceKey.create(Registries.ITEM, copperId);
@@ -160,10 +172,16 @@ public final class ModItems {
         GUILD_NOTICE_POST = registerBlockItem("guild_notice_post", ModBlocks.GUILD_NOTICE_POST, 16);
         EMBERGLASS_LANTERN = registerBlockItem("emberglass_lantern", ModBlocks.EMBERGLASS_LANTERN, 64);
         GUILD_MILESTONE = registerBlockItem("guild_milestone", ModBlocks.GUILD_MILESTONE, 64);
+        COUNCIL_SEAT = registerBlockItem("council_seat", ModBlocks.COUNCIL_SEAT, 16);
+        INN_BARREL = registerBlockItem("inn_barrel", ModBlocks.INN_BARREL, 16);
+        MARKET_STALL = registerBlockItem("market_stall", ModBlocks.MARKET_STALL, 16);
+        MARKET_DESK = registerBlockItem("market_desk", ModBlocks.MARKET_DESK, 16);
+        STOREHOUSE_ANCHOR = registerBlockItem("storehouse_anchor", ModBlocks.STOREHOUSE_ANCHOR, 16);
 
         WAYFARERS_SIGIL = registerSpecial("wayfarers_sigil", WayfarersSigilItem::new, 3);
         CARTOGRAPHERS_LENS = registerSpecial("cartographers_lens", CartographersLensItem::new, cartographersLensLore());
         GUILD_COURIERS_SATCHEL = registerSpecial("guild_couriers_satchel", GuildCourierSatchelItem::new, 3);
+        VILLAGE_CHECK = registerSpecial("village_check", de.quest.content.item.VillageCheckItem::new, 3);
         CRACKED_SHRINE_CORE = registerSpecial("cracked_shrine_core", properties -> new ShrineRelicItem(properties, false), 2);
         RESTORED_SHRINE_CORE = registerSpecial("restored_shrine_core", properties -> new ShrineRelicItem(properties, true), 2);
 
@@ -193,10 +211,10 @@ public final class ModItems {
     private static Item registerBlockItem(String path, net.minecraft.world.level.block.Block block, int stackSize) {
         Identifier itemId = id(path);
         ResourceKey<Item> itemKey = ResourceKey.create(Registries.ITEM, itemId);
-        Item item = new BlockItem(block, new Item.Properties()
-                .setId(itemKey)
-                .stacksTo(stackSize)
-                .component(DataComponents.LORE, lore("item." + VillageQuest.MOD_ID + "." + path + ".lore")));
+        Item.Properties properties = new Item.Properties().setId(itemKey).stacksTo(stackSize);
+        if (!java.util.Set.of("council_seat","inn_barrel","market_desk","storehouse_anchor","market_stall").contains(path))
+            properties.component(DataComponents.LORE, lore("item." + VillageQuest.MOD_ID + "." + path + ".lore"));
+        Item item = new BlockItem(block, properties);
         Registry.register(BuiltInRegistries.ITEM, itemId, item);
         return item;
     }

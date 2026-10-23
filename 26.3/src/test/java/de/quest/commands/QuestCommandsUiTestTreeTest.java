@@ -21,8 +21,16 @@ final class QuestCommandsUiTestTreeTest {
         var admin = root.getChild("admin");
         assertNotNull(admin);
         assertNull(admin.getChild("rewardtest"), "Temporary item/currency granting commands must not be registered");
+        assertNull(admin.getChild("kingdomtest"));
+        assertNull(admin.getChild("coretest"));
         assertNotNull(admin.getChild("uitest"));
+        assertNull(admin.getChild("temptest"), "Accepted NPC test tour must be absent");
+        assertNotNull(root.getChild("settings").getCommand());
         assertNotNull(root.getChild("rewards").getChild("claim"));
+        for(String action:java.util.List.of("on","off","left","right")) {
+            assertNotNull(root.getChild("questtracker").getChild(action));
+            assertNotNull(root.getChild("questtracker").getChild(action).getCommand());
+        }
         assertSame(root, dispatcher.getRoot().getChild("vq").getRedirect());
     }
     @BeforeAll static void bootstrapMinecraft() {
@@ -38,7 +46,7 @@ final class QuestCommandsUiTestTreeTest {
         assertTrue(command.getChildren().isEmpty());
     }
     @Test void tourCoversEveryFrameConsumerAndNavigationNeverLeavesTheCatalog() {
-        assertEquals(Set.of("journal", "questmaster", "trust", "pilgrim", "prosperity", "noticeboard", "noticejourney", "dispatch", "caravan", "wayshrine", "routes", "guildpath"),
+        assertEquals(Set.of("market", "journal", "questmaster", "trust", "pilgrim", "prosperity", "noticeboard", "noticejourney", "dispatch", "caravan", "wayshrine", "routes", "guildpath", "building", "villagecheck", "reward", "adminjournal"),
                 UiTestTourSteps.ALL.stream().map(UiTestTourSteps.Step::family).collect(Collectors.toSet()));
         assertEquals(UiTestTourSteps.ALL.size(), UiTestTourSteps.ALL.stream().distinct().count());
         assertEquals(0, UiTestTourSteps.move(0, -1));

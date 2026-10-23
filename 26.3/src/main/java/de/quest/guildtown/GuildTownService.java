@@ -1282,6 +1282,9 @@ public final class GuildTownService {
     }
 
     private static Component chronicleLabel(String eventId) {
+        if("artifact_reserve".equals(eventId) || "artifact_road".equals(eventId))
+            return Component.translatable(eventId.equals("artifact_reserve")?"quest.village-quest.story.artifact_journey.chronicle_reserve"
+                    :"quest.village-quest.story.artifact_journey.chronicle_road");
         if (eventId != null) {
             if (eventId.startsWith("village.abandoned.")) {
                 return Component.translatable("message.village-quest.guild_town.chronicle.village_abandoned");

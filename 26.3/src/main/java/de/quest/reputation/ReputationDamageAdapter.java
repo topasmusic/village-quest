@@ -48,6 +48,14 @@ public final class ReputationDamageAdapter {
     public static DamageFrame begin(ServerLevel world, LivingEntity entity, DamageSource source) {
         if (!active || !SocialReputationService.enabled()) return null;
         ProtectedVictim victim = crewResolver.apply(world, entity);
+        if (victim == null && entity instanceof de.quest.entity.KingdomNpcEntity npc) {
+            var kingdoms=de.quest.kingdom.LivingKingdomsState.get(world.getServer());
+            var person=de.quest.kingdom.KingdomNpcService.available(world,npc);
+            if(person.isPresent()) {
+                var p=person.get(); var town=kingdoms.village(p.visit()==null?p.village():p.visit());
+                if(town.isPresent()) victim=new ProtectedVictim(de.quest.kingdom.KingdomNpcService.reputationIdentity(p.id(),p.generation()),VictimKind.VILLAGER,town.get().legacyKey());
+            }
+        }
         if (victim == null && entity instanceof Villager) {
             VillageKey village = QuestState.get(world.getServer()).protectedVillages().resolve(world, entity.blockPosition()).orElse(null);
             if (village != null) victim = new ProtectedVictim(entity.getUUID(), VictimKind.VILLAGER, village);
@@ -81,12 +89,16 @@ public final class ReputationDamageAdapter {
         if (attacker == null) return;
         var result = ReputationIncidentService.record(world.getServer(), new DamageEvidence(attacker,
                 frame.victim.logicalId(), frame.victim.kind(), frame.victim.village(), damage, fatal, tick));
+        if(player!=null && entity instanceof de.quest.entity.KingdomNpcEntity npc && !fatal
+                && result.outcome()!=ReputationIncidentService.Outcome.IGNORED)
+            de.quest.kingdom.KingdomNpcService.refuses(world,player,npc);
         if (result.outcome() != ReputationIncidentService.Outcome.IGNORED)
             de.quest.caravan.TradeRouteService.reactToAggression(world, frame.victim, result);
         if (player != null && result.outcome() != ReputationIncidentService.Outcome.IGNORED) {
             var message = result.outcome() == ReputationIncidentService.Outcome.FATAL
                     ? net.minecraft.network.chat.Component.translatable("reputation.village-quest.incident.fatal_named", entity.getDisplayName())
-                    : net.minecraft.network.chat.Component.translatable("reputation.village-quest.incident." + result.outcome().name().toLowerCase(java.util.Locale.ROOT));
+                    : net.minecraft.network.chat.Component.translatable(result.outcome()==ReputationIncidentService.Outcome.WARN && state.getPlayerData(attacker).socialReputation().warningCount()>=2
+                            ? "reputation.village-quest.incident.final_warning" : "reputation.village-quest.incident." + result.outcome().name().toLowerCase(java.util.Locale.ROOT));
             if (result.guildDelta() != 0) message.append(net.minecraft.network.chat.Component.translatable("reputation.village-quest.incident.points", result.guildDelta()));
             NOTIFICATIONS.offer(player.getUUID(), result.outcome() == ReputationIncidentService.Outcome.FATAL ? 2 : result.outcome() == ReputationIncidentService.Outcome.ASSAULT ? 1 : 0, message);
         }

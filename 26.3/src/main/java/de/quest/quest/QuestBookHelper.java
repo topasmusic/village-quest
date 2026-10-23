@@ -56,6 +56,16 @@ public final class QuestBookHelper {
         Component weeklyProgress = weeklyActive
                 ? de.quest.reward.VanillaRewardService.joinLines(weekly.lines())
                 : Component.empty();
+        if(!dailyActive && DailyQuestService.hasCompletedToday(world,pid)) {
+            dailyTitle=Component.translatable("screen.village-quest.questmaster.daily.completed_today");
+            dailyProgress=Component.translatable("screen.village-quest.questmaster.daily.next_reset",
+                    de.quest.util.QuestCalendarService.remaining(false));
+        }
+        if(!weeklyActive && WeeklyQuestService.hasCompletedThisWeek(world,pid)) {
+            weeklyTitle=Component.translatable("screen.village-quest.questmaster.weekly.completed");
+            weeklyProgress=Component.translatable("screen.village-quest.questmaster.weekly.next_reset_in",
+                    de.quest.util.QuestCalendarService.remaining(true));
+        }
         StoryQuestStatus story = StoryQuestService.openStatus(world, pid);
         boolean storyActive = story != null;
         Component storyTitle = storyActive ? story.title() : Component.empty();
@@ -128,7 +138,7 @@ public final class QuestBookHelper {
         List<Payloads.NetworkVillageData> networkVillageData = networkVillages.stream()
                 .map(village -> new Payloads.NetworkVillageData(
                         village.index(),
-                        village.type().label(),
+                        de.quest.kingdom.KingdomVillageService.identityLabel(world, village.x(), village.z(), village.type().label()),
                         village.level().label(),
                         village.network().condition().label(),
                         village.network().condition().key(),
@@ -137,9 +147,21 @@ public final class QuestBookHelper {
                         village.network().energyProgress(),
                         social.localTrust(new de.quest.village.VillageLifeState.VillageKey(socialDimension, village.x(), village.z())),
                         de.quest.reputation.SocialReputationService.enabled() && social.activeCase() != null
-                                && social.activeCase().affected().contains(new de.quest.village.VillageLifeState.VillageKey(socialDimension, village.x(), village.z()))))
+                                && social.activeCase().affected().contains(new de.quest.village.VillageLifeState.VillageKey(socialDimension, village.x(), village.z())),
+                        de.quest.kingdom.LivingKingdomsState.get(world.getServer()).byLegacy(
+                                new de.quest.village.VillageLifeState.VillageKey(socialDimension,village.x(),village.z()))
+                                .map(de.quest.kingdom.LivingKingdomsState.VillageView::id).orElse(de.quest.network.BuildingPayloads.NONE),
+                        de.quest.kingdom.KingdomVillageService.lastKnown(world,village.x(),village.z()),
+                        de.quest.kingdom.KingdomVillageService.journalStats(world,pid,village.x(),village.z())))
                 .toList();
-        List<Component> networkGuildLines = VillageGuildService.statusLines(world, pid);
+        List<Component> networkGuildLines = new java.util.ArrayList<>(VillageGuildService.statusLines(world, pid));
+        networkGuildLines.addAll(de.quest.kingdom.KingdomVillageService.guestArrivals(world,pid));
+        var artifactData=de.quest.data.QuestState.get(world.getServer()).getPlayerData(pid);
+        if(artifactData.hasMilestoneFlag(de.quest.kingdom.ArtifactJourneyProgress.PREFIX+"finale")) {
+            networkGuildLines.add(Component.translatable("quest.village-quest.story.artifact_journey.title_earned"));
+            networkGuildLines.add(Component.translatable(de.quest.kingdom.ArtifactJourneyProgress.choice(artifactData)==1
+                    ?"quest.village-quest.story.artifact_journey.epilogue_reserve":"quest.village-quest.story.artifact_journey.epilogue_road"));
+        }
         VillageBondService.VillageBondView priorityVillage = networkVillages.stream()
                 .min(Comparator.comparingInt(village -> village.network().support())).orElse(null);
         Component introductionNextAction = VillageWelcomeService.journalNextAction(world, pid);
@@ -151,7 +173,7 @@ public final class QuestBookHelper {
                 : priorityVillage == null
                         ? Component.translatable("screen.village-quest.journal.network.next.discover")
                         : Component.translatable("screen.village-quest.journal.network.next.supply",
-                        priorityVillage.type().label(), priorityVillage.network().need().label(),
+                        de.quest.kingdom.KingdomVillageService.identityLabel(world, priorityVillage.x(), priorityVillage.z(), priorityVillage.type().label()), priorityVillage.network().need().label(),
                         priorityVillage.network().support(), 100);
 
         return new JournalPayload(

@@ -118,7 +118,7 @@ final class TradeRouteSurveyData {
     }
 
     static List<RouteSurveyPoint> normalizedSurveyPoints(PlayerQuestData data, int routeIndex) {
-        return normalizedSurveyPoints(data, routeIndex, null, null);
+        return normalizedSurveyPoints(data, routeIndex, (Integer) null, null);
     }
 
     static List<RouteSurveyPoint> normalizedSurveyPoints(PlayerQuestData data, int routeIndex,
@@ -136,6 +136,10 @@ final class TradeRouteSurveyData {
                 ? new RoutePoint(routeInt(data, routeIndex, "x"), routeInt(data, routeIndex, "z"))
                 : new RoutePoint(routeInt(data, routeIndex, "x"), destinationY,
                         routeInt(data, routeIndex, "z"));
+        return normalizedSurveyPoints(data, home, destination);
+    }
+
+    static List<RouteSurveyPoint> normalizedSurveyPoints(PlayerQuestData data, RoutePoint home, RoutePoint destination) {
         List<RouteSurveyPoint> normalized = new ArrayList<>();
         RoutePoint previous = home;
         for (RouteSurveyPoint routed : surveyPointsWithModes(data)) {
