@@ -80505,8 +80505,8 @@
       "note": "Reviewed Simon/Lutte integration: Lutte three surface biomes, 3 coast areas separated >=512 blocks, 16-block radius, personal 4-part placement proofs and mutation invalidation, one initial 3/6/3 materials package and owner/generation map. Paid replacement ledger uses 3 paper+1 ink /2 MC days, from third +5 diamonds /14 days; old generations invalidated on order, no materials repeated. L3 acceptance AND hand-in require personal Silent Forge; one persistent prepared Netherite pickaxe Efficiency4/Unbreaking3 OR sword Sharpness4/Unbreaking3 choice via existing reward escrow. Simon visit roll tracks per-village monotonic visit token, preventing cross-inn rerolls. New DE/EN/ES humor and quantities reviewed in dialogue contexts."
     },
     "src/client/java/de/quest/client/screen/BuildingScreen.java": {
-      "sha256": "dc3fb7c178adc8a2a3841cca8af4c5e09087a38f4499951e6e10688cb63356e7",
-      "note": "2026-10-23 temporary-test removal: traced command registration, special quest selection/hooks, guide payload/HUD/F8, building/archive access, market/story observations and normal unlocks. Removed runtime special privileges; saved opaque player namespaces remain unchanged. Only regular quest/map text is retained in DE/EN/ES."
+      "sha256": "37a2b8c0c238a34b1fedb35a12d09dce9e389940b86ec9873fbd5f22e9069527",
+      "note": "2026-10-23 temporary-test removal: traced command registration, special quest selection/hooks, guide payload/HUD/F8, building/archive access, market/story observations and normal unlocks. Removed runtime special privileges; saved opaque player namespaces remain unchanged. Only regular quest/map text is retained in DE/EN/ES. Reviewed 2026-10-23: whitespace-only removal of eight spaces on an empty line; screen text, behavior and layout unchanged."
     },
     "src/main/resources/data/village-quest/recipe/council_seat.json": {
       "sha256": "6bd798121574149ae1647890c915f94361d386bc89f9f501fb3ab0b38cf55328",
