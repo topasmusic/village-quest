@@ -219,7 +219,7 @@ public final class VillageBondService {
 
     /** Diegetic first contact: a villager in an already connected destination points to the network loop. */
     public static void onVillagerContact(ServerLevel world, ServerPlayer player, Villager villager) {
-        if (world == null || player == null || villager == null) return;
+        if (world == null || player == null || villager == null || villager.isBaby()) return;
         VillageBondView village = inspectCurrentVillage(world, player, false);
         if (village == null) return;
         if (!data(world, player.getUUID()).hasTradeRouteFlag(NETWORK_ONBOARDING_SEEN)) {

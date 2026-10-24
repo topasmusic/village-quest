@@ -64,6 +64,49 @@ class SurfaceMapRendererTest {
     }
     private static MapWorkBudget work() throws Exception { return (MapWorkBudget) field(SurfaceMapRenderer.class, "WORK"); }
 
+    @Test void thinSurfaceAboveAirIsKnownAcrossZoomsAndSurvivesChunkUnloading() throws Exception {
+        var level = mock(ClientLevel.class);
+        var chunk = mock(net.minecraft.world.level.chunk.ChunkAccess.class);
+        when(level.hasChunk(anyInt(), anyInt())).thenReturn(true);
+        when(level.getMinY()).thenReturn(-64);
+        when(level.getChunk(anyInt(), anyInt(), eq(net.minecraft.world.level.chunk.status.ChunkStatus.FULL), eq(false)))
+                .thenReturn(chunk);
+        when(chunk.getHeight(eq(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE), anyInt(), anyInt()))
+                .thenReturn(70);
+        when(chunk.getBlockState(any(net.minecraft.core.BlockPos.class))).thenAnswer(call ->
+                ((net.minecraft.core.BlockPos) call.getArgument(0)).getY() == 70
+                        ? net.minecraft.world.level.block.Blocks.GRASS_BLOCK.defaultBlockState()
+                        : net.minecraft.world.level.block.Blocks.AIR.defaultBlockState());
+        for (int cellSize : new int[]{4, 8, 16, 32}) {
+            Object raster = rasterAtScale(level, 0, 0, 1, 1, Terrain.UNKNOWN, cellSize);
+            work().begin(7000 + cellSize);
+            invoke(SurfaceMapRenderer.class, "refreshRaster", raster, 7000L + cellSize, 50L);
+            Object sample = ((Object[]) field(raster, "samples"))[0];
+            assertEquals(Terrain.GRASS, field(sample, "terrain"), "Visible surface must not become parchment at cell size " + cellSize);
+            assertEquals(70, field(sample, "height"));
+        }
+        when(level.hasChunk(anyInt(), anyInt())).thenReturn(false);
+        Object remembered = invoke(SurfaceMapRenderer.class, "sample", level, 2, 2);
+        assertEquals(Terrain.GRASS, field(remembered, "terrain"));
+        assertEquals(70, field(remembered, "height"));
+    }
+
+    @Test void lowestWorldSurfaceAndNegativeChunkCoordinatesDoNotLoseTheirOnlyBlock() throws Exception {
+        var level = mock(ClientLevel.class);
+        var chunk = mock(net.minecraft.world.level.chunk.ChunkAccess.class);
+        when(level.hasChunk(-1, -2)).thenReturn(true);
+        when(level.getMinY()).thenReturn(-64);
+        when(level.getChunk(-1, -2, net.minecraft.world.level.chunk.status.ChunkStatus.FULL, false)).thenReturn(chunk);
+        when(chunk.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE, 14, 14)).thenReturn(-64);
+        when(chunk.getBlockState(any(net.minecraft.core.BlockPos.class)))
+                .thenReturn(net.minecraft.world.level.block.Blocks.STONE.defaultBlockState());
+        Object sample = invoke(SurfaceMapRenderer.class, "sampleLoaded", level, -2, -18);
+        assertNotEquals(Terrain.UNKNOWN, field(sample, "terrain"));
+        assertEquals(-64, field(sample, "height"));
+        verify(chunk, atLeastOnce()).getBlockState(argThat(position -> position.getX() == -2 && position.getY() == -64 && position.getZ() == -18));
+        verify(level).getChunk(-1, -2, net.minecraft.world.level.chunk.status.ChunkStatus.FULL, false);
+    }
+
     @Test void oldV1DiskSamplesRemainReadableAndBadTerrainIdsStayUnknown(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir) throws Exception {
         var path = dir.resolve("tile_-1_0.vqm");
         try (var out = new java.io.DataOutputStream(java.nio.file.Files.newOutputStream(path))) {

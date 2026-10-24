@@ -2,9 +2,22 @@ package de.quest.map;
 
 /** Pure world-to-raster projection shared by the client renderer and regression tests. */
 public final class SurfaceMapProjection {
-    public static final int PIXELS_PER_CELL = 4;
+    public static final int PIXELS_PER_CELL = FantasyMapStyle.PIXELS;
 
     private SurfaceMapProjection() {}
+
+    /** Small fixed pan margin keeps native textures below 1024 x 768 pixels. */
+    public static Coverage tileCoverage(int minX, int maxX, int minZ, int maxZ, int cellSize) {
+        int size = Math.max(1, cellSize);
+        int x = Math.floorDiv(floorCell(minX, size) - 4, 16) * 16;
+        int z = Math.floorDiv(floorCell(minZ, size) - 4, 16) * 16;
+        long spanX = Math.max(1L, (long) maxX - minX);
+        long spanZ = Math.max(1L, (long) maxZ - minZ);
+        // Fixed dimensions for a given zoom/span avoid texture reallocations while dragging.
+        int width = (int) (((spanX + size - 1) / size + 1 + 24 + 15) / 16 * 16);
+        int height = (int) (((spanZ + size - 1) / size + 1 + 24 + 15) / 16 * 16);
+        return new Coverage(x, z, width, height, size);
+    }
 
     public static Coverage bufferedCoverage(int minX, int maxX, int minZ, int maxZ, int cellSize) {
         int safeCellSize = Math.max(1, cellSize);

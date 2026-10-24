@@ -9,22 +9,26 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 final class CompatScreenTourInputTest {
-    @Test void tourPreservesNormalPanelSizeAndPointerCoordinatesAtEveryGuiScale() {
+    @Test void tourMatchesProductionSizeAndPointerRoundTripsAtEveryGuiScale() {
         CompatScreen screen = mock(CompatScreen.class, CALLS_REAL_METHODS);
         try (var tour = mockStatic(UiTestTour.class)) {
-            for (int[] viewport : new int[][] {{640, 340}, {512, 272}, {320, 180}, {854, 480}}) {
-                screen.width = viewport[0];
-                screen.height = viewport[1];
-                for (int[] panel : new int[][] {{416, 234}, {480, 270}, {360, 240}}) {
+            for (int[] viewport : new int[][] {{640,340},{512,272},{320,180},{854,480},{1280,720}}) {
+                screen.width=viewport[0];screen.height=viewport[1];
+                for(int[] panel:new int[][]{{520,294},{560,315},{560,339},{448,366},
+                        {416,364},{416,330},{416,290},{416,264},{416,200},{432,326},{432,292}}) {
                     tour.when(UiTestTour::active).thenReturn(false);
-                    double normalDrag = screen.responsiveDrag(10, panel[0], panel[1]);
-                    int normalX = screen.responsiveMouseX(100, panel[0], panel[1]);
-                    int normalY = screen.responsiveMouseY(80, panel[0], panel[1]);
+                    double normalDrag=screen.responsiveDrag(10,panel[0],panel[1]);
                     tour.when(UiTestTour::active).thenReturn(true);
-                    assertEquals(normalDrag, screen.responsiveDrag(10, panel[0], panel[1]),
-                            "Tour must use the original panel scale");
-                    assertEquals(normalX, screen.responsiveMouseX(100, panel[0], panel[1]));
-                    assertEquals(normalY, screen.responsiveMouseY(80, panel[0], panel[1]));
+                    double scale=10/screen.responsiveDrag(10,panel[0],panel[1]);
+                    if(viewport[0]==1280) assertEquals(.96096,scale,1e-6,
+                            "Every window is ten percent larger than revision .50 on a roomy viewport");
+                    assertEquals(normalDrag,screen.responsiveDrag(10,panel[0],panel[1]),1e-6,
+                            "The UI tour must show the actual production scale");
+                    assertTrue(viewport[1]/2.0+panel[1]*scale/2<=viewport[1]-11,"panel must clear compact navigation");
+                    double visualX=viewport[0]/2.0+(100-viewport[0]/2.0)*scale;
+                    double visualY=viewport[1]/2.0+(80-viewport[1]/2.0)*scale;
+                    assertEquals(100,screen.responsiveMouseX(visualX,panel[0],panel[1]));
+                    assertEquals(80,screen.responsiveMouseY(visualY,panel[0],panel[1]));
                 }
             }
         }

@@ -24,6 +24,9 @@ public record ShopOffer(
     @FunctionalInterface
     public interface PurchaseHandler {
         PurchaseResult purchase(ServerLevel world, ServerPlayer player);
+
+        /** Side-effect-free stock preparation; unsupported handlers fail closed for paid purchases. */
+        default java.util.List<ItemStack> prepareGoods(ServerLevel world) { return java.util.List.of(); }
     }
 
     @FunctionalInterface

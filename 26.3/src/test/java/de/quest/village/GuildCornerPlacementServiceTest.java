@@ -74,6 +74,21 @@ final class GuildCornerPlacementServiceTest {
         assertFalse(GuildCornerPlacementService.isBetterSurfaceFit(1, 1));
     }
 
+    @Test void naturalCanopyIsClearableButPlayerLeavesAndTrunksAreProtected() throws Exception {
+        var clearable = GuildCornerPlacementService.class.getDeclaredMethod("isClearableCover",
+                net.minecraft.world.level.block.state.BlockState.class);
+        clearable.setAccessible(true);
+        assertEquals(true, clearable.invoke(null, Blocks.OAK_LEAVES.defaultBlockState()));
+        assertEquals(true, clearable.invoke(null, Blocks.SPRUCE_LEAVES.defaultBlockState()));
+        assertEquals(false, clearable.invoke(null, Blocks.OAK_LEAVES.defaultBlockState()
+                .setValue(net.minecraft.world.level.block.LeavesBlock.PERSISTENT, true)));
+        assertEquals(false, clearable.invoke(null, Blocks.OAK_LOG.defaultBlockState()));
+        assertEquals(false, clearable.invoke(null, Blocks.OAK_PLANKS.defaultBlockState()));
+        assertEquals(false, clearable.invoke(null, Blocks.CHEST.defaultBlockState()));
+        assertEquals(false, clearable.invoke(null, Blocks.WATER.defaultBlockState()));
+        assertEquals(true, clearable.invoke(null, Blocks.SHORT_GRASS.defaultBlockState()));
+    }
+
     @Test
     void fullVerticalFootprintMustFitTheBuildRange() {
         assertTrue(GuildCornerPlacementService.footprintWithinBuildHeight(-64, 319, -64, 320));

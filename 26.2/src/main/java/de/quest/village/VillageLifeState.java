@@ -28,6 +28,7 @@ public final class VillageLifeState extends SavedData {
             DataFixTypes.LEVEL);
 
     private final Map<VillageKey, MutableVillage> villages = new HashMap<>();
+    private CompoundTag futureData;
 
     VillageLifeState() {}
 
@@ -47,6 +48,7 @@ public final class VillageLifeState extends SavedData {
     }
 
     public Observation observe(VillageKey key, Evidence evidence, long gameTime) {
+        if (futureData != null) return new Observation(status(key), false);
         if (key == null || evidence == null) return new Observation(Status.ACTIVE, false);
         MutableVillage village = villages.get(key);
         if (evidence != Evidence.EMPTY_LOADED) {
@@ -85,6 +87,7 @@ public final class VillageLifeState extends SavedData {
     /** Counts only loaded, viable observations; elapsed unloaded time never advances recovery. */
     public RecoveryObservation observeResettlement(VillageKey key, int adultVillagers, int beds,
                                                    boolean fullyLoaded, long gameTime) {
+        if (futureData != null) return new RecoveryObservation(status(key), false, false);
         MutableVillage village = key == null ? null : villages.get(key);
         if (village == null || village.status == Status.ACTIVE) {
             return new RecoveryObservation(Status.ACTIVE, false, false);
@@ -97,19 +100,19 @@ public final class VillageLifeState extends SavedData {
             }
             return new RecoveryObservation(village.status, false, false);
         }
-        if (adultVillagers < 2 || beds < 2) {
+        int requiredPopulation = village.status == Status.ABANDONED ? 2 : 3;
+        if (adultVillagers < requiredPopulation || beds < requiredPopulation) {
             boolean changed = village.resettlementConfirmations != 0
                     || village.lastResettlementTick != 0
-                    || village.recoveryLoadedTicks != 0 || village.status != Status.ABANDONED
-                    || village.emptyConfirmations != 0;
+                    || village.recoveryLoadedTicks != 0;
             village.resettlementConfirmations = 0;
             village.lastResettlementTick = 0;
             village.recoveryLoadedTicks = 0;
-            village.emptyConfirmations = 0;
-            village.lastEmptyTick = 0;
-            village.status = Status.ABANDONED;
             if (changed) setDirty();
-            return new RecoveryObservation(Status.ABANDONED, false, false);
+            // Adults/bed evidence cannot prove zero living residents: children and
+            // remaining adults still preserve the recovering village. Only observe
+            // may confirm complete depopulation, with its existing loaded sequence.
+            return new RecoveryObservation(village.status, false, false);
         }
         long now = Math.max(0L, gameTime);
         if (village.lastResettlementTick > 0
@@ -143,7 +146,12 @@ public final class VillageLifeState extends SavedData {
 
     static VillageLifeState fromNbt(CompoundTag root) {
         VillageLifeState state = new VillageLifeState();
-        if (root == null || root.getIntOr("schemaVersion", 0) > SCHEMA_VERSION) return state;
+        if (root == null) return state;
+        int schema = root.getIntOr("schemaVersion", 0);
+        if (schema > SCHEMA_VERSION || schema < 0) {
+            state.futureData = root.copy();
+            return state;
+        }
         ListTag entries = root.getListOrEmpty("villages");
         for (int index = 0; index < entries.size() && state.villages.size() < MAX_VILLAGES; index++) {
             CompoundTag entry = entries.getCompoundOrEmpty(index);
@@ -174,6 +182,7 @@ public final class VillageLifeState extends SavedData {
     }
 
     static CompoundTag toNbt(VillageLifeState state) {
+        if (state.futureData != null) return state.futureData.copy();
         CompoundTag root = new CompoundTag();
         root.putInt("schemaVersion", SCHEMA_VERSION);
         ListTag entries = new ListTag();

@@ -24,7 +24,7 @@ final class TradeRouteAvailability {
 
     enum Reason {
         ACTIVE, PLAYER_PAUSED, SURVEY_IN_PROGRESS, INCIDENT,
-        DESTINATION_ABANDONED, HUB_UNAVAILABLE, RECOVERING_SETTLEMENT;
+        DESTINATION_ABANDONED, HUB_UNAVAILABLE, RECOVERING_SETTLEMENT, ANCHOR_MOVED;
 
         Component label() {
             return Component.translatable("screen.village-quest.trade_route.availability."
@@ -33,7 +33,7 @@ final class TradeRouteAvailability {
 
         boolean suspendsForSettlement() {
             return this == DESTINATION_ABANDONED || this == HUB_UNAVAILABLE
-                    || this == RECOVERING_SETTLEMENT;
+                    || this == RECOVERING_SETTLEMENT || this == ANCHOR_MOVED;
         }
     }
 }

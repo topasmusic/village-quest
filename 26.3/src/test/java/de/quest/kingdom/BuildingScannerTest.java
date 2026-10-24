@@ -14,6 +14,29 @@ import org.junit.jupiter.api.Test;
 final class BuildingScannerTest {
     private static final BlockPos ANCHOR = new BlockPos(0, 1, 0);
 
+    @Test void highRoofOutsideBasicRangeDoesNotHideNearbyFurnitureOrLight() {
+        var fixture = room();
+        BuildingScanner.Probe probe = pos -> {
+            if (pos.getY() == 3) return new BuildingScanner.Cell(true, true, false, false, Set.of(), null);
+            if (pos.getY() == 6) return solid();
+            return fixture.getOrDefault(pos, roomCell(pos));
+        };
+        var basic = new BuildingScanner(ANCHOR, Direction.NORTH, BuildingScanner.Role.COUNCIL,
+                BuildingScanner.Range.BASIC, probe);
+        finish(basic);
+        var report = basic.report().orElseThrow();
+        assertTrue(report.checks().get(BuildingScanner.Check.ENTRY));
+        assertTrue(report.checks().get(BuildingScanner.Check.LIGHT));
+        assertTrue(report.checks().get(BuildingScanner.Check.TABLE));
+        assertTrue(report.checks().get(BuildingScanner.Check.SEATS));
+        assertFalse(report.checks().get(BuildingScanner.Check.ROOF));
+        assertEquals(BuildingScanner.Status.INVALID, report.status());
+        var extended = new BuildingScanner(ANCHOR, Direction.NORTH, BuildingScanner.Role.COUNCIL,
+                BuildingScanner.Range.EXTENDED, probe);
+        finish(extended);
+        assertEquals(BuildingScanner.Status.VALID, extended.report().orElseThrow().status());
+    }
+
     @Test void scanNeverExceedsItsGrantedBudgetAndIncompleteEvidenceCannotConfirmABuilding() {
         AtomicInteger reads = new AtomicInteger();
         var scanner = scanner(room(), pos -> { reads.incrementAndGet(); return roomCell(pos); });

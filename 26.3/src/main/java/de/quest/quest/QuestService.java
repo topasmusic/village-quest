@@ -171,6 +171,9 @@ public final class QuestService {
         });
 
         UseEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
+            // Preserve Vanilla interactions, but never turn a baby into a quest contact or speaker.
+            if (entity instanceof net.minecraft.world.entity.npc.villager.Villager villager && villager.isBaby())
+                return InteractionResult.PASS;
             if (world instanceof ServerLevel sw && player instanceof net.minecraft.server.level.ServerPlayer sp) {
                 var stack = player.getItemInHand(hand);
                 if (hand == net.minecraft.world.InteractionHand.MAIN_HAND && entity instanceof net.minecraft.world.entity.npc.villager.Villager

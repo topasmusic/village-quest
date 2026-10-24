@@ -3,8 +3,10 @@ package de.quest.client.screen;
 import com.mojang.blaze3d.platform.InputConstants;
 import de.quest.VillageQuest;
 import de.quest.client.ui.InventoryJournalTutorialState;
+import de.quest.client.ui.QuestArtwork;
 import de.quest.client.ui.TutorialHintRenderer;
 import de.quest.client.ui.VillageUiTheme;
+import de.quest.client.ui.JournalV3Visuals;
 import de.quest.network.Payloads;
 import de.quest.network.Payloads.JournalActionPayload;
 import de.quest.quest.special.RelicQuestProgressionService;
@@ -13,6 +15,7 @@ import de.quest.reputation.ReputationService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import de.quest.client.compat.GuiGraphics;
 import net.minecraft.client.input.KeyEvent;
@@ -31,44 +34,46 @@ import net.minecraft.world.item.ItemStack;
  * same data, but reveals details only when the player expands a card.
  */
 public class JournalScreen extends CompatScreen {
-    private static final Identifier BOARD_TEXTURE = Identifier.fromNamespaceAndPath(
-            VillageQuest.MOD_ID, "textures/gui/journal_board.png");
-    private static final Identifier ATLAS_FRAME_TEXTURE = Identifier.fromNamespaceAndPath(
-            VillageQuest.MOD_ID, "textures/gui/guild_atlas_frame.png");
+    private int pendingCancelAction = -1;
     private static final Identifier ATLAS_PATH_TEXTURE = Identifier.fromNamespaceAndPath(
             VillageQuest.MOD_ID, "textures/gui/guild_path_map.png");
     private static final Identifier ATLAS_CHARTERS_TEXTURE = Identifier.fromNamespaceAndPath(
             VillageQuest.MOD_ID, "textures/gui/guild_charters_map.png");
     private static final Identifier ATLAS_TRUST_TEXTURE = Identifier.fromNamespaceAndPath(
             VillageQuest.MOD_ID, "textures/gui/guild_trust_roster.png");
-    private static final int WINDOW_WIDTH = 416;
-    private static final int WINDOW_HEIGHT = 234;
-    private static final int TAB_X = 22;
-    private static final int TAB_Y = 30;
-    private static final int TAB_WIDTH = 45;
-    private static final int TAB_HEIGHT = 31;
-    private static final int TAB_GAP = 2;
-    private static final int CONTENT_X = 76;
+    private static final int WINDOW_WIDTH = 520;
+    private static final int WINDOW_HEIGHT = 294;
+    private static final int SETTINGS_X = 4, SETTINGS_Y = 4, SETTINGS_SIZE = 20;
+    private static final Identifier SETTINGS_GEAR = Identifier.fromNamespaceAndPath(
+            "village-quest", "textures/gui/ui/v3/settings_gear.png");
+    private static final int TAB_X = 25;
+    private static final int TAB_Y = 42;
+    private static final int TAB_WIDTH = 76;
+    private static final int TAB_HEIGHT = 29;
+    private static final int TAB_GAP = 3;
+    private static final int CONTENT_X = 104;
     private static final int CONTENT_Y = 40;
-    private static final int CONTENT_WIDTH = 313;
-    private static final int CONTENT_TOP = 56;
-    private static final int CONTENT_BOTTOM = 185;
+    private static final int CONTENT_WIDTH = 388;
+    private static final int CONTENT_TOP = 66;
+    private static final int CONTENT_BOTTOM = 224;
     private static final int CARD_GAP = 5;
     private static final int CARD_COLLAPSED_HEIGHT = 31;
     private static final int CARD_TEXT_INSET = 20;
+    private static final int CARD_IMAGE_TEXT_INSET = 84;
+    private static final int ILLUSTRATED_CARD_HEIGHT = 34;
     private static final float CARD_TITLE_SCALE = 0.84f;
     private static final float CARD_BODY_SCALE = 0.72f;
     private static final int CARD_DETAIL_STEP = 8;
     private static final int REPUTATION_PROGRESS_HEIGHT = 19;
     private static final int BUTTON_HEIGHT = 16;
-    private static final int BUTTON_Y = 191;
+    private static final int BUTTON_Y = 240;
     private static final int DONE_BUTTON_WIDTH = 78;
-    private static final int FOOTER_RIGHT_INSET = 24;
+    private static final int FOOTER_RIGHT_INSET = 32;
     private static final int HEADER_WALLET_RIGHT_INSET = 40;
     private static final int HEADER_WALLET_TOP = 10;
     private static final int INK = 0xFF2D1B12;
     private static final int BODY = 0xFF5B4635;
-    private static final int MUTED = 0xFF8A7661;
+    private static final int MUTED = 0xFF69513D;
     private static final int FRAME_DARK = 0xFF4C2C19;
     private static final int FRAME_LIGHT = 0xFFB88943;
     private static final int PAPER = 0xFFF5E7C7;
@@ -83,33 +88,33 @@ public class JournalScreen extends CompatScreen {
     private static final int PURPLE = 0xFF725083;
     private static final int SCROLL_TRACK = 0x335B3C21;
     private static final int SCROLL_THUMB = 0xAA7A522B;
-    private static final int ATLAS_MAP_X = 8;
-    private static final int ATLAS_MAP_Y = 18;
-    private static final int ATLAS_MAP_WIDTH = 400;
-    private static final int ATLAS_MAP_HEIGHT = 207;
+    private static final int ATLAS_MAP_X = 104;
+    private static final int ATLAS_MAP_Y = 64;
+    private static final int ATLAS_MAP_WIDTH = 388;
+    private static final int ATLAS_MAP_HEIGHT = 168;
     private static final int ATLAS_RENDER_WIDTH = 780;
     private static final int ATLAS_RENDER_HEIGHT = 390;
     private static final int ATLAS_TEXTURE_WIDTH = 1184;
     private static final int ATLAS_TEXTURE_HEIGHT = 592;
     private static final int ATLAS_MARKER_SIZE = 25;
-    private static final int ATLAS_DETAIL_WIDTH = 150;
+    private static final int ATLAS_DETAIL_WIDTH = 180;
     private static final int ATLAS_DETAIL_HEIGHT = 88;
     private static final int ATLAS_INTRO_X = 104;
     private static final int ATLAS_INTRO_Y = 65;
     private static final int ATLAS_INTRO_WIDTH = 224;
     private static final int ATLAS_INTRO_HEIGHT = 100;
     private static final long ATLAS_HINT_DURATION_MS = 4200L;
-    private static final int TRUST_LIST_X = 80;
-    private static final int TRUST_LIST_Y = 57;
-    private static final int TRUST_LIST_WIDTH = 275;
-    private static final int TRUST_ROW_HEIGHT = 25;
-    private static final int TRUST_ROW_STEP = 26;
-    private static final int TRUST_ICON_X = 84;
+    private static final int TRUST_LIST_X = 110;
+    private static final int TRUST_LIST_Y = 70;
+    private static final int TRUST_LIST_WIDTH = 376;
+    private static final int TRUST_ROW_HEIGHT = 30;
+    private static final int TRUST_ROW_STEP = 32;
+    private static final int TRUST_ICON_X = 114;
     private static final int TRUST_ICON_SIZE = 24;
     private static final int TRUST_ICON_Y_OFFSET = -1;
-    private static final int TRUST_TEXT_X = 120;
-    private static final int TRUST_PROGRESS_X = 256;
-    private static final int TRUST_PROGRESS_WIDTH = 78;
+    private static final int TRUST_TEXT_X = 146;
+    private static final int TRUST_PROGRESS_X = 397;
+    private static final int TRUST_PROGRESS_WIDTH = 80;
     private static final int CHARTER_MARKER_SIZE = 22;
     private static final Map<String, Landmark> PATH_LANDMARKS = Map.ofEntries(
             Map.entry("ledger", new Landmark(0.124f, 0.637f)),
@@ -240,7 +245,11 @@ public class JournalScreen extends CompatScreen {
         super(Component.translatable("screen.village-quest.journal.title"));
         this.data = data;
     }
-    void selectTourSection(String state) { section = Section.valueOf(state.toUpperCase(java.util.Locale.ROOT)); }
+    void selectTourSection(String state) {
+        pendingCancelAction=-1;
+        section=state.startsWith("atlas_")?Section.ATLAS:state.equals("quests_reset")?Section.QUESTS:Section.valueOf(state.toUpperCase(java.util.Locale.ROOT));
+        if(state.startsWith("atlas_")) atlasPage=AtlasPage.valueOf(state.substring(6).toUpperCase(java.util.Locale.ROOT));
+    }
 
     private int networkPage;
     private de.quest.reputation.ReputationViewService.View reputation;
@@ -248,31 +257,41 @@ public class JournalScreen extends CompatScreen {
         if (reputation != null && view.revision() < reputation.revision()) return;
         reputation = view; clampScroll();
     }
-    private int contentTop() { return section == Section.NETWORK ? 62 : CONTENT_TOP; }
+    private int contentTop() { return section == Section.NETWORK ? 68 : CONTENT_TOP; }
+    private int cardViewportWidth() { return CONTENT_WIDTH - 10; }
+    private int cardWidth() { return cardViewportWidth() - 12; }
+
+    enum HomeDestination { QUESTS, VILLAGES, QUEST_MASTER }
+
+    static HomeDestination homeDestination(JournalScreenData view) {
+        if (view.storyActive || view.specialActive || view.weeklyActive || view.dailyActive || view.pilgrimActive)
+            return HomeDestination.QUESTS;
+        return view.networkNextAction.getString().isBlank() ? HomeDestination.QUEST_MASTER : HomeDestination.VILLAGES;
+    }
 
     private void drawNetworkTabs(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
         String[] keys = {"villages", "title", "history"};
         for (int i = 0; i < 3; i++) {
-            int x = left + 81 + i * 80;
-            VillageUiTheme.drawButton(graphics, font, x, top + 40, 77, 16,
-                    compact(ReputationPanel.text(keys[i]).getString(), 69, 0.7f), true,
-                    within(mouseX, mouseY, x, top + 40, 77, 16), networkPage == i);
+            int x = left + 109 + i * 92;
+            VillageUiTheme.drawNavigationTab(graphics, font, x, top + 44, 89, 16,
+                    compact(ReputationPanel.text(keys[i]).getString(), 81, 0.7f), true,
+                    within(mouseX, mouseY, x, top + 44, 89, 16), networkPage == i);
         }
         if (networkPage == 1 && reputation != null && reputation.villageTotal() > 8) {
-            VillageUiTheme.drawButton(graphics, font, left + 326, top + 40, 24, 16, "<",
-                    reputation.villagePage() > 0, within(mouseX, mouseY, left + 326, top + 40, 24, 16), false);
-            VillageUiTheme.drawButton(graphics, font, left + 355, top + 40, 24, 16, ">",
-                    (reputation.villagePage() + 1) * 8 < reputation.villageTotal(), within(mouseX, mouseY, left + 355, top + 40, 24, 16), false);
+            VillageUiTheme.drawButton(graphics, font, left + 422, top + 44, 24, 16, "<",
+                    reputation.villagePage() > 0, within(mouseX, mouseY, left + 422, top + 44, 24, 16), false);
+            VillageUiTheme.drawButton(graphics, font, left + 451, top + 44, 24, 16, ">",
+                    (reputation.villagePage() + 1) * 8 < reputation.villageTotal(), within(mouseX, mouseY, left + 451, top + 44, 24, 16), false);
         }
     }
     private boolean handleNetworkTab(int mouseX, int mouseY, int left, int top) {
-        for (int i = 0; i < 3; i++) if (within(mouseX, mouseY, left + 81 + i * 80, top + 40, 77, 16)) {
+        for (int i = 0; i < 3; i++) if (within(mouseX, mouseY, left + 109 + i * 92, top + 44, 89, 16)) {
             networkPage = i; scrollOffset = 0; expandedCardId = ""; ensureExpandedCard(); playClick(); return true;
         }
         if (networkPage == 1 && reputation != null) {
             int page = reputation.villagePage();
-            if (page > 0 && within(mouseX, mouseY, left + 326, top + 40, 24, 16)) page--;
-            if ((page + 1) * 8 < reputation.villageTotal() && within(mouseX, mouseY, left + 355, top + 40, 24, 16)) page++;
+            if (page > 0 && within(mouseX, mouseY, left + 422, top + 44, 24, 16)) page--;
+            if ((page + 1) * 8 < reputation.villageTotal() && within(mouseX, mouseY, left + 451, top + 44, 24, 16)) page++;
             if (page != reputation.villagePage()) {
                 UiTestTour.send(new de.quest.network.ReputationPayloads.PagePayload(page)); scrollOffset = 0; return true;
             }
@@ -282,12 +301,14 @@ public class JournalScreen extends CompatScreen {
 
     public void updateData(JournalScreenData data) {
         this.data = data;
+        pendingCancelAction = -1;
         clampScroll();
     }
 
     @Override
     protected void init() {
         this.closeNotified = false;
+        pendingCancelAction = -1;
         this.navigating = false;
         this.scrollOffset = 0;
         this.atlasDragging = false;
@@ -347,13 +368,14 @@ public class JournalScreen extends CompatScreen {
                 drawFooterButtons(graphics, left, top, uiMouseX, uiMouseY);
             }
             super.render(graphics, uiMouseX, uiMouseY, delta);
+            drawSettingsGear(graphics, left, top, uiMouseX, uiMouseY);
 
             if (shouldShowQuestMasterTutorial()) {
-                int buttonX = left + WINDOW_WIDTH - FOOTER_RIGHT_INSET - DONE_BUTTON_WIDTH - 84;
+                var target = homeQuestMasterTarget(left, top);
                 TutorialHintRenderer.drawHint(
                         graphics, font,
                         Component.translatable("screen.village-quest.journal.active.questmaster_button_tutorial"),
-                        width, height, buttonX, top + BUTTON_Y, 78, BUTTON_HEIGHT,
+                        width, height, target.x(), target.y(), target.width(), target.height(),
                         TutorialHintRenderer.Placement.ABOVE, true,
                         (int) Math.round(Math.sin(System.currentTimeMillis() / 180.0d) * 2.0d)
                 );
@@ -364,33 +386,41 @@ public class JournalScreen extends CompatScreen {
     }
 
     private void drawHeader(GuiGraphics graphics, int left, int top) {
-        String titleText = title.getString();
-        graphics.drawString(font, titleText, left + (WINDOW_WIDTH - font.width(titleText)) / 2,
-                top + 14, INK, false);
+        JournalV3Visuals.title(graphics,font,title.getString(),left+174,top+3,172);
         String sectionText = Component.translatable(section.key).getString();
-        if (section != Section.NETWORK) graphics.drawString(font, sectionText, left + CONTENT_X + 7, top + CONTENT_Y + 3, GOLD, false);
+        if (section != Section.NETWORK && section != Section.OVERVIEW)
+            JournalV3Visuals.heading(graphics,font,sectionText,left+CONTENT_X+7,top+CONTENT_Y+8,240,1.08f,INK);
         VillageUiTheme.drawWalletStrip(graphics, font, left, top, WINDOW_WIDTH, data.currencyBalance,
                 HEADER_WALLET_RIGHT_INSET, HEADER_WALLET_TOP);
     }
 
-    private void drawTabs(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
-        Section[] sections = Section.values();
-        for (int i = 0; i < sections.length; i++) {
-            Section candidate = sections[i];
-            int x = left + TAB_X;
-            int y = top + TAB_Y + i * (TAB_HEIGHT + TAB_GAP);
-            boolean selected = candidate == section;
-            boolean hovered = within(mouseX, mouseY, x, y, TAB_WIDTH, TAB_HEIGHT);
-            VillageUiTheme.drawTab(graphics, x, y, TAB_WIDTH, TAB_HEIGHT, selected, hovered);
-            VillageUiTheme.drawIcon(graphics, VillageUiTheme.icon(candidate.icon),
-                    x + (TAB_WIDTH - 21) / 2, y + (TAB_HEIGHT - 21) / 2, 21);
-            if (hovered) {
-                graphics.setTooltipForNextFrame(font, Component.translatable(candidate.key), mouseX, mouseY);
-            }
+    private static final Section[] NAV_SECTIONS = {Section.OVERVIEW, Section.QUESTS, Section.NETWORK,
+            Section.NETWORK, Section.ATLAS, Section.GUIDE};
+    private String navigationLabel(int index) {
+        return switch(index) {
+            case 2 -> ReputationPanel.text("villages").getString();
+            case 3 -> Component.translatable("screen.village-quest.journal.v2.tab.reputation").getString();
+            default -> Component.translatable(NAV_SECTIONS[index].key).getString();
+        };
+    }
+    private void drawTabs(GuiGraphics g, int left, int top, int mouseX, int mouseY) {
+        String[] icons={"compass","scroll","village","handshake","atlas","guide"};
+        for(int i=0;i<NAV_SECTIONS.length;i++) {
+            int x=left+TAB_X,y=top+TAB_Y+i*(TAB_HEIGHT+TAB_GAP);
+            boolean selected=NAV_SECTIONS[i]==section && (section!=Section.NETWORK || (i==3?networkPage==1:networkPage!=1));
+            boolean hover=within(mouseX,mouseY,x,y,TAB_WIDTH,TAB_HEIGHT);
+            VillageUiTheme.drawTab(g,x,y,TAB_WIDTH,TAB_HEIGHT,selected,hover);
+            JournalV3Visuals.sprite(g,icons[i],x+4,y+4,21,21);
+            String label=navigationLabel(i);
+            VillageUiTheme.drawWrappedScaled(g,font,label,x+28,y+9,TAB_WIDTH-32,
+                    VillageUiTheme.LIGHT_TEXT,.8f,2);
+            if(hover)g.setTooltipForNextFrame(font,Component.literal(label),mouseX,mouseY);
         }
     }
 
     private void drawAtlas(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
+        graphics.fill(left+12,top+22,left+WINDOW_WIDTH-12,top+WINDOW_HEIGHT-14,VillageUiTheme.WOOD);
+        JournalV3Visuals.paper(graphics,left+101,top+38,401,222);
         ensureAtlasInitialized();
         startAtlasIntroIfNeeded();
         if (!atlasIntroVisible) {
@@ -402,8 +432,7 @@ public class JournalScreen extends CompatScreen {
             drawTrustRoster(graphics, left, top, mouseX, mouseY, nodes);
             drawSharedOuterFrame(graphics, left, top);
             String atlasTitle = Component.translatable("screen.village-quest.guild_atlas.title").getString();
-            graphics.drawString(font, atlasTitle, left + (WINDOW_WIDTH - font.width(atlasTitle)) / 2,
-                    top + 14, INK, false);
+            JournalV3Visuals.title(graphics,font,atlasTitle,left+174,top+3,172);
             drawTabs(graphics, left, top, mouseX, mouseY);
             drawAtlasPageTabs(graphics, left, top, mouseX, mouseY);
             drawAtlasFooter(graphics, left, top, mouseX, mouseY);
@@ -445,8 +474,7 @@ public class JournalScreen extends CompatScreen {
 
         drawSharedOuterFrame(graphics, left, top);
         String atlasTitle = Component.translatable("screen.village-quest.guild_atlas.title").getString();
-        graphics.drawString(font, atlasTitle, left + (WINDOW_WIDTH - font.width(atlasTitle)) / 2,
-                top + 14, INK, false);
+        JournalV3Visuals.title(graphics,font,atlasTitle,left+174,top+3,172);
         drawTabs(graphics, left, top, mouseX, mouseY);
         drawAtlasPageTabs(graphics, left, top, mouseX, mouseY);
         drawAtlasCurrentButton(graphics, left, top, mouseX, mouseY);
@@ -459,12 +487,12 @@ public class JournalScreen extends CompatScreen {
 
     private void drawAtlasPageTabs(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
         int[] widths = {40, 65, 57};
-        int x = left + 235;
+        int x = left + 320;
         AtlasPage[] pages = AtlasPage.values();
         for (int i = 0; i < pages.length; i++) {
             AtlasPage page = pages[i];
-            boolean hovered = within(mouseX, mouseY, x, top + 33, widths[i], 15);
-            VillageUiTheme.drawButton(graphics, font, x, top + 33, widths[i], 15,
+            boolean hovered = within(mouseX, mouseY, x, top + 44, widths[i], 15);
+            VillageUiTheme.drawNavigationTab(graphics, font, x, top + 44, widths[i], 15,
                     compact(Component.translatable(page.key).getString(), widths[i] - 8, 0.58f),
                     true, hovered, page == atlasPage);
             x += widths[i] + 2;
@@ -472,12 +500,23 @@ public class JournalScreen extends CompatScreen {
     }
 
     private void drawAtlasCurrentButton(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
-        int x = left + 73;
-        int y = top + 34;
+        int x = left + 110;
+        int y = top + 44;
         boolean hovered = within(mouseX, mouseY, x, y, 49, 15);
         VillageUiTheme.drawButton(graphics, font, x, y, 49, 15,
                 Component.translatable("screen.village-quest.guild_atlas.current").getString(),
                 true, hovered, false);
+        var nodes=atlasNodes();
+        AtlasNode context=atlasHoveredNode>=0 && atlasHoveredNode<nodes.size()?nodes.get(atlasHoveredNode):null;
+        if(context==null)context=nodes.stream().filter(n->n.status()==1).findFirst().orElse(null);
+        if(context==null && !nodes.isEmpty())context=nodes.getFirst();
+        if(context!=null) {
+            // The map owns this inset; the entire navigation row remains unobstructed.
+            int contextY=top+ATLAS_MAP_Y+3;
+            JournalV3Visuals.paper(graphics,x,contextY,ATLAS_MAP_WIDTH-12,16);
+            VillageUiTheme.drawStringScaled(graphics,font,compact(Component.translatable(atlasHoveredNode>=0?"screen.village-quest.ui_review.selected":"screen.village-quest.ui_review.current",context.title()).getString(),ATLAS_MAP_WIDTH-28,.82f),x+6,contextY+4,INK,.82f);
+            if(within(mouseX,mouseY,x,contextY,ATLAS_MAP_WIDTH-12,16)) graphics.setTooltipForNextFrame(font,List.of(context.title(),context.ability(),context.requirement()),mouseX,mouseY);
+        }
     }
 
     private void drawTrustRoster(GuiGraphics graphics, int left, int top, int mouseX, int mouseY,
@@ -485,45 +524,41 @@ public class JournalScreen extends CompatScreen {
         graphics.fill(left + ATLAS_MAP_X, top + ATLAS_MAP_Y,
                 left + ATLAS_MAP_X + ATLAS_MAP_WIDTH, top + ATLAS_MAP_Y + ATLAS_MAP_HEIGHT,
                 0xFFF0D39B);
-        VillageUiTheme.blitScaled(graphics, ATLAS_TRUST_TEXTURE,
-                left + ATLAS_MAP_X, top + ATLAS_MAP_Y,
-                ATLAS_MAP_WIDTH, ATLAS_MAP_HEIGHT, ATLAS_TEXTURE_WIDTH, ATLAS_TEXTURE_HEIGHT);
 
         int hovered = trustRosterNodeAt(mouseX, mouseY, left, top, nodes.size());
         atlasHoveredNode = hovered;
         for (int i = 0; i < nodes.size(); i++) {
             AtlasNode node = nodes.get(i);
             int rowY = top + TRUST_LIST_Y + i * TRUST_ROW_STEP;
-            if (i == hovered) {
-                graphics.fill(left + TRUST_LIST_X + 2, rowY + 2,
-                        left + TRUST_LIST_X + TRUST_LIST_WIDTH - 2, rowY + TRUST_ROW_HEIGHT - 2,
-                        0x24FFF3CB);
-            }
+            JournalV3Visuals.paper(graphics,left+TRUST_LIST_X,rowY,TRUST_LIST_WIDTH,TRUST_ROW_HEIGHT);
+            if(i==hovered) graphics.fill(left+TRUST_LIST_X+2,rowY+2,
+                    left+TRUST_LIST_X+TRUST_LIST_WIDTH-2,rowY+TRUST_ROW_HEIGHT-2,0x22365E59);
 
             drawAtlasEmblem(graphics, node.emblem(),
                     left + TRUST_ICON_X + TRUST_ICON_SIZE / 2,
                     rowY + TRUST_ICON_SIZE / 2 + TRUST_ICON_Y_OFFSET);
 
             int accent = trustAccent(node.id());
-            VillageUiTheme.drawStringScaled(graphics, font,
-                    compact(node.title().getString(), TRUST_PROGRESS_X - TRUST_TEXT_X - 8, 0.62f),
-                    left + TRUST_TEXT_X, rowY + 4, INK, 0.62f);
-            VillageUiTheme.drawStringScaled(graphics, font,
-                    compact(node.ability().getString(), TRUST_PROGRESS_X - TRUST_TEXT_X - 8, 0.47f),
-                    left + TRUST_TEXT_X, rowY + 14, MUTED, 0.47f);
-
             ReputationService.ReputationTrack track = trustTrack(node.id());
             ReputationProgress progress = reputationProgress(track);
+            JournalV3Visuals.heading(graphics,font,node.title().getString(),
+                    left+TRUST_TEXT_X,rowY+4,121,.84f,INK);
+            VillageUiTheme.drawStringScaled(graphics,font,compact(Component.translatable(
+                    ReputationService.rankFor(progress.current()).translationKey()).getString(),123,.78f),
+                    left+269,rowY+5,BODY,.78f);
+            VillageUiTheme.drawStringScaled(graphics,font,compact(node.requirement().getString(),239,.70f),
+                    left+TRUST_TEXT_X,rowY+18,MUTED,.70f);
+
             String progressLabel = progress.complete()
                     ? Component.translatable("screen.village-quest.guild_path.node.status.complete").getString()
                     : progress.current() + "/" + progress.target();
             VillageUiTheme.drawStringScaled(graphics, font,
-                    compact(progressLabel, TRUST_PROGRESS_WIDTH, 0.50f),
+                    compact(progressLabel, TRUST_PROGRESS_WIDTH, 0.72f),
                     left + TRUST_PROGRESS_X, rowY + 4,
-                    progress.complete() ? TEAL : BODY, 0.50f);
+                    progress.complete() ? TEAL : BODY, 0.72f);
 
             int barX = left + TRUST_PROGRESS_X;
-            int barY = rowY + 15;
+            int barY = rowY + 19;
             graphics.fill(barX, barY, barX + TRUST_PROGRESS_WIDTH, barY + 5, FRAME_DARK);
             graphics.fill(barX + 1, barY + 1, barX + TRUST_PROGRESS_WIDTH - 1, barY + 4,
                     0xFF6A4A2B);
@@ -766,15 +801,15 @@ public class JournalScreen extends CompatScreen {
         drawAtlasTranslucentCard(graphics, x, y, ATLAS_DETAIL_WIDTH, detailHeight);
         drawScaledItem(graphics, node.previewStack(), x + 8, y + 6, 0.68f);
         VillageUiTheme.drawWrappedScaled(graphics, font, node.title().getString(),
-                x + 27, y + 6, ATLAS_DETAIL_WIDTH - 35, INK, 0.58f, 2);
+                x + 27, y + 6, ATLAS_DETAIL_WIDTH - 35, INK, 0.84f, 2);
         Component status = Component.translatable("screen.village-quest.guild_path.node.status." + switch (node.status()) {
             case 2 -> "complete";
             case 1 -> "current";
             default -> "locked";
         });
-        VillageUiTheme.drawStringScaled(graphics, font, status.getString(), x + 8, y + 23,
-                node.status() == 2 ? TEAL : node.status() == 1 ? GOLD : MUTED, 0.52f);
-        graphics.fill(x + 8, y + 31, x + ATLAS_DETAIL_WIDTH - 8, y + 32, 0xCCB89A70);
+        VillageUiTheme.drawStringScaled(graphics, font, status.getString(), x + 8, y + 26,
+                node.status() == 2 ? TEAL : node.status() == 1 ? GOLD : MUTED, 0.72f);
+        graphics.fill(x + 8, y + 36, x + ATLAS_DETAIL_WIDTH - 8, y + 37, 0xCCB89A70);
         String abilityLabel = Component.translatable(switch (atlasPage) {
             case PATH -> "screen.village-quest.guild_path.ability";
             case CHARTERS -> "screen.village-quest.guild_atlas.detail.effect";
@@ -786,20 +821,20 @@ public class JournalScreen extends CompatScreen {
             case TRUST -> "screen.village-quest.guild_atlas.detail.next";
         }).getString();
         String abilityText = stripLeadingLabel(node.ability().getString(), abilityLabel);
-        VillageUiTheme.drawStringScaled(graphics, font, abilityLabel, x + 8, y + 35, GOLD, 0.50f);
+        VillageUiTheme.drawStringScaled(graphics, font, abilityLabel, x + 8, y + 40, GOLD, 0.76f);
         int abilityLines = VillageUiTheme.drawWrappedScaled(graphics, font, abilityText,
-                x + 8, y + 43, ATLAS_DETAIL_WIDTH - 16, BODY, 0.44f, Integer.MAX_VALUE);
-        int requirementLabelY = y + 43 + Math.max(1, abilityLines) * 7 + 2;
-        VillageUiTheme.drawStringScaled(graphics, font, requirementLabel, x + 8, requirementLabelY, GOLD, 0.50f);
+                x + 8, y + 50, ATLAS_DETAIL_WIDTH - 16, BODY, 0.72f, Integer.MAX_VALUE);
+        int requirementLabelY = y + 50 + Math.max(1, abilityLines) * 8 + 3;
+        VillageUiTheme.drawStringScaled(graphics, font, requirementLabel, x + 8, requirementLabelY, GOLD, 0.76f);
         int requirementY = requirementLabelY + 8;
         VillageUiTheme.drawWrappedScaled(graphics, font, node.requirement().getString(),
-                x + 8, requirementY, ATLAS_DETAIL_WIDTH - 16, MUTED, 0.42f, Integer.MAX_VALUE);
+                x + 8, requirementY, ATLAS_DETAIL_WIDTH - 16, MUTED, 0.72f, Integer.MAX_VALUE);
     }
 
     private int atlasDetailHeight(AtlasNode node) {
-        int abilityLines = VillageUiTheme.wrapScaledLines(font, node.ability().getString(), ATLAS_DETAIL_WIDTH - 16, 0.44f).size();
-        int chronicleLines = VillageUiTheme.wrapScaledLines(font, node.requirement().getString(), ATLAS_DETAIL_WIDTH - 16, 0.42f).size();
-        return Math.max(ATLAS_DETAIL_HEIGHT, 59 + (Math.max(1, abilityLines) + Math.max(1, chronicleLines)) * 7);
+        int abilityLines = VillageUiTheme.wrapScaledLines(font, node.ability().getString(), ATLAS_DETAIL_WIDTH - 16, 0.72f).size();
+        int chronicleLines = VillageUiTheme.wrapScaledLines(font, node.requirement().getString(), ATLAS_DETAIL_WIDTH - 16, 0.72f).size();
+        return Math.max(ATLAS_DETAIL_HEIGHT, 70 + (Math.max(1, abilityLines) + Math.max(1, chronicleLines)) * 8);
     }
 
     private static void drawAtlasTranslucentCard(GuiGraphics graphics, int x, int y,
@@ -888,35 +923,43 @@ public class JournalScreen extends CompatScreen {
     }
 
     private void drawAtlasFooter(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
+        JournalV3Visuals.paper(graphics,left+104,top+236,388,24);
         long hintRemaining = atlasPage == AtlasPage.TRUST
                 ? 0L : atlasHintUntilMs - System.currentTimeMillis();
         if (hintRemaining > 0L) {
             int alpha = hintRemaining < 700L ? (int) Math.max(0L, 170L * hintRemaining / 700L) : 170;
-            graphics.fill(left + 72, top + 207, left + 166, top + 219, alpha << 24 | 0x002B1A10);
+            graphics.fill(left + 110, top + 240, left + 300, top + 254, alpha << 24 | 0x002B1A10);
             VillageUiTheme.drawStringScaled(graphics, font,
                     Component.translatable("screen.village-quest.guild_atlas.hint").getString(),
-                    left + 76, top + 210, (Math.min(255, alpha + 70) << 24) | 0x00F1D29A, 0.56f);
+                    left + 114, top + 245, (Math.min(255, alpha + 70) << 24) | 0x00F1D29A, 0.56f);
         }
-        boolean closeHover = within(mouseX, mouseY, left + 330, top + 204, 68, 17);
-        VillageUiTheme.drawButton(graphics, font, left + 330, top + 204, 68, 17,
+        boolean closeHover = within(mouseX, mouseY, left + 420, top + 239, 68, 17);
+        VillageUiTheme.drawButton(graphics, font, left + 420, top + 239, 68, 17,
                 Component.translatable("screen.village-quest.guild_path.close").getString(),
                 true, closeHover, false);
     }
 
     private void drawSharedOuterFrame(GuiGraphics graphics, int left, int top) {
-        graphics.blit(RenderPipelines.GUI_TEXTURED, ATLAS_FRAME_TEXTURE, left, top, 0.0f, 0.0f,
-                WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH, WINDOW_HEIGHT);
+        VillageUiTheme.drawFrame(graphics, left, top, WINDOW_WIDTH, WINDOW_HEIGHT);
+        JournalV3Visuals.ornaments(graphics,left,top,WINDOW_WIDTH,WINDOW_HEIGHT);
+        VillageUiTheme.drawButton(graphics,font,left+WINDOW_WIDTH-25,top+3,20,20,"×",true,false,false);
+    }
+
+    private void drawSettingsGear(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
+        int x = left + SETTINGS_X, y = top + SETTINGS_Y;
+        boolean hovered = within(mouseX, mouseY, x, y, SETTINGS_SIZE, SETTINGS_SIZE);
+        // Keep the frame's golden hardware; cover only its old decorative jewel.
+        graphics.fill(x + 4, y + 4, x + 16, y + 16, hovered ? 0xFF346D65 : 0xFF173C38);
+        VillageUiTheme.blitScaled(graphics, SETTINGS_GEAR, x + 3, y + 3, 14, 14, 32, 32);
+        if (hovered) graphics.setTooltipForNextFrame(font,
+                Component.translatable("screen.village-quest.setup.settings"), mouseX, mouseY);
     }
 
     private void drawJournalBackground(GuiGraphics graphics, int left, int top) {
-        graphics.fill(left + ATLAS_MAP_X, top + ATLAS_MAP_Y,
-                left + ATLAS_MAP_X + ATLAS_MAP_WIDTH, top + ATLAS_MAP_Y + ATLAS_MAP_HEIGHT,
-                0xFF5B351F);
-        graphics.enableScissor(left + 16, top + 26, left + 400, top + 217);
-        graphics.blit(RenderPipelines.GUI_TEXTURED, BOARD_TEXTURE, left, top, 0.0f, 0.0f,
-                WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_WIDTH, WINDOW_HEIGHT);
-        graphics.disableScissor();
+        graphics.fill(left+12,top+22,left+WINDOW_WIDTH-12,top+WINDOW_HEIGHT-14,VillageUiTheme.WOOD);
+        JournalV3Visuals.paper(graphics,left+101,top+38,401,222);
         drawSharedOuterFrame(graphics, left, top);
+
     }
 
     private void startAtlasHintIfNeeded() {
@@ -952,11 +995,12 @@ public class JournalScreen extends CompatScreen {
     }
 
     private void drawCards(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
+        if (section == Section.OVERVIEW) { drawHome(graphics, left, top, mouseX, mouseY); return; }
         List<JournalCard> cards = cardsForSection();
         int viewportX = left + CONTENT_X + 5;
         int viewportY = top + contentTop();
-        int viewportWidth = CONTENT_WIDTH - 10;
-        int cardWidth = viewportWidth - 5;
+        int viewportWidth = cardViewportWidth();
+        int cardWidth = cardWidth();
         int viewportHeight = CONTENT_BOTTOM - contentTop();
         int contentHeight = contentHeight(cards, cardWidth);
         scrollMax = Math.max(0, contentHeight - viewportHeight);
@@ -975,28 +1019,163 @@ public class JournalScreen extends CompatScreen {
         drawScrollBar(graphics, viewportX + viewportWidth - 3, viewportY, viewportHeight, contentHeight);
     }
 
+    /** V3 composition: landscape + four discoveries, next step, real tasks and Chronicle. */
+    private void drawHome(GuiGraphics g,int left,int top,int mouseX,int mouseY) {
+        int x=left+104,y=top+44;
+        JournalV3Visuals.paper(g,x,y,258,136);
+        VillageUiTheme.blitScaled(g,VillageUiTheme.JOURNAL_HERO,x+2,y+2,254,93,288,96);
+        JournalV3Visuals.textWash(g,x+2,y+2,178,85);
+        String title=Component.translatable("screen.village-quest.journal.home.title").getString();
+        JournalV3Visuals.heading(g,font,title,x+12,y+15,157,1.65f,INK);
+        VillageUiTheme.drawWrappedScaled(g,font,Component.translatable("screen.village-quest.journal.home.subtitle").getString(),
+                x+12,y+39,156,INK,.88f,3);
+        String[] keys={Section.QUESTS.key,"screen.village-quest.journal.home.discoveries",
+                "screen.village-quest.reputation.villages","screen.village-quest.journal.v2.tab.reputation"};
+        String[] icons={"scroll","compass","village","handshake"};
+        for(int i=0;i<4;i++) {
+            int bx=x+i*64;boolean hover=within(mouseX,mouseY,bx,top+141,64,37);
+            if(i>0)g.fill(bx,top+146,bx+1,top+173,0xFFC69A50);
+            if(hover)g.fill(bx+3,top+142,bx+62,top+177,0x22FFFFFF);
+            JournalV3Visuals.sprite(g,icons[i],bx+21,top+142,24,24);
+            String label=Component.translatable(keys[i]).getString();
+            VillageUiTheme.drawStringScaled(g,font,compact(label,60,.82f),bx+(64-Math.min(60,font.width(label)*.82f))/2,
+                    top+168,INK,.82f);
+            if(hover)g.setTooltipForNextFrame(font,Component.translatable(keys[i]),mouseX,mouseY);
+        }
+        JournalCard next=new JournalContentBuilder(data).overviewCards().get(2);
+        int nx=left+368;
+        JournalV3Visuals.paper(g,nx,y,132,136);
+        JournalV3Visuals.section(g,font,Component.translatable("screen.village-quest.journal.home.next").getString(),nx+3,y+3,126,.84f,"scroll");
+        Optional<QuestArtwork.Motif> motif=artworkFor(next);
+        motif.ifPresent(m->JournalV3Visuals.illustration(g,m.largeTexture(),nx+8,top+68,116,44));
+        if(motif.isEmpty())JournalV3Visuals.sprite(g,"scroll",nx+50,top+72,32,32);
+        var nextTitle=VillageUiTheme.wrapScaled(font,next.subtitle().getString(),116,1.04f);
+        for(int row=0;row<Math.min(2,nextTitle.size());row++)JournalV3Visuals.centeredHeading(g,font,nextTitle.get(row),nx+8,top+117+row*10,116,1.04f,INK);
+        if(!next.details().isEmpty()) {
+            var objective=de.quest.client.ui.QuestObjectiveRows.rows(next.details().getFirst());
+            if(!objective.isEmpty()) {
+                VillageUiTheme.drawStringScaled(g,font,compact(Component.translatable("screen.village-quest.ui_review.continue_objectives").getString(),116,.74f),nx+8,top+137,INK,.74f);
+                for(int i=0;i<Math.min(2,objective.size());i++) {
+                    var row=objective.get(i);int ox=nx+8+i*58;
+                    VillageUiTheme.drawScaledItem(g,new net.minecraft.world.item.ItemStack(row.item()),ox,top+146,.6f);
+                    String count=row.current()+"/"+row.target();
+                    float scale=Math.min(.72f,42f/Math.max(1,font.width(count)));
+                    VillageUiTheme.drawStringScaled(g,font,count,ox+12,top+148,BODY,scale);
+                }
+            } else VillageUiTheme.drawWrappedScaled(g,font,next.details().getFirst().getString(),nx+8,top+137,116,BODY,.8f,2);
+        }
+        JournalV3Visuals.action(g,font,Component.translatable("screen.village-quest.journal.home.open").getString(),
+                nx+8,top+158,116,17,within(mouseX,mouseY,nx+8,top+158,116,17));
+        if(within(mouseX,mouseY,nx+5,y+21,122,90)) {
+            var lines=new ArrayList<Component>();lines.add(next.subtitle());lines.addAll(next.details());
+            g.setTooltipForNextFrame(font,lines,mouseX,mouseY);
+        }
+        drawHomeTasks(g,left,top,mouseX,mouseY);
+        int cx=left+322,cy=top+180;
+        JournalV3Visuals.paper(g,cx,cy,178,76);
+        JournalV3Visuals.heading(g,font,Component.translatable("screen.village-quest.journal.home.chronicle").getString(),cx+10,cy+7,160,1.1f,INK);
+        JournalV3Visuals.sprite(g,"banner",cx+8,cy+24,35,47);
+        VillageUiTheme.drawWrappedScaled(g,font,Component.translatable("screen.village-quest.journal.home.chronicle_body").getString(),
+                cx+49,cy+24,119,BODY,.84f,3);
+        JournalV3Visuals.action(g,font,Component.translatable("screen.village-quest.journal.home.chronicle_open").getString(),
+                cx+49,cy+56,119,15,within(mouseX,mouseY,cx+49,cy+56,119,15));
+    }
+    private List<JournalCard> homeQuests() {
+        return new JournalContentBuilder(data).activeQuestCards().stream()
+                .sorted(java.util.Comparator.comparingInt(c->questPriority(c.id()))).toList();
+    }
+    record QuestMasterTarget(int x, int y, int width, int height) {}
+
+    static QuestMasterTarget homeQuestMasterTarget(int left, int top) {
+        return new QuestMasterTarget(left + 239, top + 184, 70, 15);
+    }
+
+    private void drawHomeTasks(GuiGraphics g,int left,int top,int mx,int my) {
+        int x=left+104,y=top+180;
+        JournalV3Visuals.paper(g,x,y,212,76);
+        JournalV3Visuals.sprite(g,"scroll",x+4,y+3,19,19);
+        JournalV3Visuals.heading(g,font,Component.translatable("screen.village-quest.journal.home.tasks").getString(),x+25,y+7,110,1.1f,INK);
+        var masterTarget = homeQuestMasterTarget(left, top);
+        String master=Component.translatable("screen.village-quest.journal.active.questmaster_button").getString();
+        JournalV3Visuals.tealButton(g,font,master,masterTarget.x(),masterTarget.y(),
+                masterTarget.width(),masterTarget.height(),true,
+                within(mx,my,masterTarget.x(),masterTarget.y(),masterTarget.width(),masterTarget.height()));
+        if(within(mx,my,masterTarget.x(),masterTarget.y(),masterTarget.width(),masterTarget.height()))g.setTooltipForNextFrame(font,Component.literal(master),mx,my);
+        var quests=homeQuests();scrollMax=Math.max(0,quests.size()*28-50);clampScroll();
+        g.enableScissor(x+5,y+21,x+206,y+71);
+        for(int i=0;i<quests.size();i++) {
+            var card=quests.get(i);int rowY=y+21+i*28-scrollOffset;
+            if(rowY+27<y+21 || rowY>y+71)continue;
+            JournalV3Visuals.paper(g,x+5,rowY,199,27);
+            if(within(mx,my,x+5,rowY,199,27))g.fill(x+6,rowY+1,x+203,rowY+26,0x22FFFFFF);
+            var art=artworkFor(card);
+            art.ifPresent(m->JournalV3Visuals.thumbnail(g,m.smallTexture(),x+7,rowY+2,64,24));
+            if(art.isEmpty())JournalV3Visuals.sprite(g,"scroll",x+27,rowY+2,24,24);
+            VillageUiTheme.drawStringScaled(g,font,compact(card.title().getString(),112,.9f),x+78,rowY+4,INK,.9f);
+            VillageUiTheme.drawStringScaled(g,font,compact(card.subtitle().getString(),112,.72f),x+78,rowY+16,BODY,.72f);
+            VillageUiTheme.drawStringScaled(g,font,"›",x+194,rowY+9,INK,.9f);
+            if(within(mx,my,x+5,rowY,199,27) && my>=y+21 && my<y+71) {
+                var lines=new ArrayList<Component>();lines.add(card.title());lines.addAll(card.details());g.setTooltipForNextFrame(font,lines,mx,my);
+            }
+        }
+        g.disableScissor();VillageUiTheme.drawScrollBar(g,x+207,y+22,47,50,quests.size()*28,scrollOffset,scrollMax);
+    }
+    private boolean handleHomeClick(int mx,int my,int left,int top) {
+        for(int i=0;i<4;i++)if(within(mx,my,left+104+i*64,top+141,64,37)) {
+            section=i==0?Section.QUESTS:i==1?Section.ATLAS:Section.NETWORK;
+            networkPage=i==3?1:0;scrollOffset=0;expandedCardId="";ensureExpandedCard();playClick();return true;
+        }
+        if(within(mx,my,left+376,top+158,116,17)) {
+            switch(homeDestination(data)) {
+                case QUEST_MASTER -> summonQuestMasterFromJournal();
+                case QUESTS -> {section=Section.QUESTS;expandedCardId=homeQuests().getFirst().id();scrollOffset=0;}
+                case VILLAGES -> {section=Section.NETWORK;networkPage=0;scrollOffset=0;expandedCardId="network_next";}
+            }
+            playClick();return true;
+        }
+        if(within(mx,my,left+371,top+236,119,15)) {
+            section=Section.NETWORK;networkPage=2;scrollOffset=0;expandedCardId="";ensureExpandedCard();playClick();return true;
+        }
+        var masterTarget = homeQuestMasterTarget(left, top);
+        if(within(mx,my,masterTarget.x(),masterTarget.y(),masterTarget.width(),masterTarget.height())) {summonQuestMasterFromJournal();return true;}
+        if(within(mx,my,left+109,top+201,199,50)) {
+            int i=(my-(top+201)+scrollOffset)/28;var quests=homeQuests();
+            if(i<quests.size()) {section=Section.QUESTS;expandedCardId=quests.get(i).id();scrollOffset=0;playClick();return true;}
+        }
+        return false;
+    }
+
     private void drawCard(GuiGraphics graphics, JournalCard card, int x, int y, int cardWidth,
                           int cardHeight, int mouseX, int mouseY) {
         boolean expanded = card.id().equals(expandedCardId);
         boolean hovered = within(mouseX, mouseY, x, y, cardWidth, cardHeight);
-        VillageUiTheme.drawCard(graphics, x, y, cardWidth, cardHeight, hovered, false);
+        JournalV3Visuals.paper(graphics,x,y,cardWidth,cardHeight);
+        if(hovered)graphics.fill(x+3,y+3,x+cardWidth-3,y+cardHeight-3,0x12FFFFFF);
         graphics.fill(x + 6, y + 6, x + 8, y + cardHeight - 6, card.accent());
-        VillageUiTheme.drawStringScaled(graphics, font,
-                compact(card.title().getString(), cardWidth - CARD_TEXT_INSET - 28, CARD_TITLE_SCALE),
-                x + CARD_TEXT_INSET, y + 6, INK, CARD_TITLE_SCALE);
-        List<String> subtitles = card.id().equals("overview_next")
-                ? wrapText(card.subtitle().getString(), Math.round((cardWidth - CARD_TEXT_INSET - 28) / CARD_BODY_SCALE))
-                : List.of(compact(card.subtitle().getString(), cardWidth - CARD_TEXT_INSET - 28, CARD_BODY_SCALE));
+        int headingInset = cardHeadingInset(card);
+        artworkFor(card).ifPresent(motif -> JournalV3Visuals.thumbnail(graphics,
+                motif.smallTexture(), x + 12, y + 5, 64, 24));
+        List<String> headings = cardHeadingLines(card,cardWidth);
+        for(int i=0;i<headings.size();i++) JournalV3Visuals.heading(graphics,font,headings.get(i),
+                x+headingInset,y+6+i*10,cardWidth-headingInset-(card.cancelAction()>=0?98:28),.92f,INK);
+        List<String> subtitles = (card.id().equals("overview_next") || card.id().equals("network_next"))
+                ? wrapText(card.subtitle().getString(), Math.round((cardWidth - headingInset - 28) / CARD_BODY_SCALE))
+                : List.of(compact(card.subtitle().getString(), cardWidth - headingInset - 28, CARD_BODY_SCALE));
         for (int i = 0; i < subtitles.size(); i++) {
             VillageUiTheme.drawStringScaled(graphics, font, subtitles.get(i),
-                    x + CARD_TEXT_INSET, y + 18 + i * CARD_DETAIL_STEP, MUTED, CARD_BODY_SCALE);
+                    x + headingInset, y + 18 + (headings.size()-1)*10 + i * CARD_DETAIL_STEP, BODY, CARD_BODY_SCALE);
         }
-        VillageUiTheme.blitScaled(graphics,
-                VillageUiTheme.control(expanded ? "chevron_up" : "chevron_down"),
-                x + cardWidth - 20, y + 7, 12, 12, 16, 16);
+        graphics.fill(x+cardWidth-23,y+4,x+cardWidth-5,y+22,TEAL);
+        JournalV3Visuals.chevron(graphics,x+cardWidth-22,y+5,16,expanded);
         if (card.cancelAction() >= 0) {
-            VillageUiTheme.blitScaled(graphics, VillageUiTheme.control("close"),
-                    x + cardWidth - 38, y + 5, 15, 15, 24, 24);
+            int cx=x+cardWidth-78,cy=y+12;
+            if(pendingCancelAction==card.cancelAction()) graphics.fill(cx-9,cy-9,cx+10,cy+10,0x44AA3027);
+            if(within(mouseX,mouseY,cx-9,cy-9,18,19)) graphics.setTooltipForNextFrame(font,
+                    Component.translatable("screen.village-quest.ui_review.cancel_confirm"),mouseX,mouseY);
+            for(int i=-5;i<=5;i++) {
+                graphics.fill(cx+i,cy+i,cx+i+2,cy+i+2,0xFFAA3027);
+                graphics.fill(cx+i,cy-i,cx+i+2,cy-i+2,0xFFAA3027);
+            }
         }
 
         boolean socialGuild = card.id().equals("social_guild") && reputation != null;
@@ -1056,6 +1235,7 @@ public class JournalScreen extends CompatScreen {
     }
 
     private void drawFooterButtons(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
+        if(section==Section.OVERVIEW)return;
         int doneX = left + WINDOW_WIDTH - FOOTER_RIGHT_INSET - DONE_BUTTON_WIDTH;
         int questMasterX = doneX - 84;
         int prosperityX = questMasterX - 74;
@@ -1092,16 +1272,16 @@ public class JournalScreen extends CompatScreen {
         int top = (height - WINDOW_HEIGHT) / 2;
         int mouseX = responsiveMouseX(click.x(), WINDOW_WIDTH, WINDOW_HEIGHT);
         int mouseY = responsiveMouseY(click.y(), WINDOW_WIDTH, WINDOW_HEIGHT);
-        Section[] sections = Section.values();
-        for (int i = 0; i < sections.length; i++) {
-            int y = top + TAB_Y + i * (TAB_HEIGHT + TAB_GAP);
-            if (within(mouseX, mouseY, left + TAB_X, y, TAB_WIDTH, TAB_HEIGHT)) {
-                section = sections[i];
-                scrollOffset = 0;
-                expandedCardId = "";
-                ensureExpandedCard();
-                playClick();
-                return true;
+        if(within(mouseX,mouseY,left+WINDOW_WIDTH-25,top+3,20,20)) {onClose();return true;}
+        if (!UiTestTour.active() && within(mouseX,mouseY,left+SETTINGS_X,top+SETTINGS_Y,SETTINGS_SIZE,SETTINGS_SIZE)
+                && ClientPlayNetworking.canSend(de.quest.network.QuestSetupPayloads.Open.ID)) {
+            ClientPlayNetworking.send(new de.quest.network.QuestSetupPayloads.Open()); return true;
+        }
+        for(int i=0;i<NAV_SECTIONS.length;i++) {
+            int y=top+TAB_Y+i*(TAB_HEIGHT+TAB_GAP);
+            if(within(mouseX,mouseY,left+TAB_X,y,TAB_WIDTH,TAB_HEIGHT)) {
+                pendingCancelAction=-1;section=NAV_SECTIONS[i];if(section==Section.NETWORK)networkPage=i==3?1:0;
+                scrollOffset=0;expandedCardId="";ensureExpandedCard();playClick();return true;
             }
         }
 
@@ -1111,6 +1291,7 @@ public class JournalScreen extends CompatScreen {
         }
 
         if (section == Section.NETWORK && handleNetworkTab(mouseX, mouseY, left, top)) return true;
+        if (section == Section.OVERVIEW) return handleHomeClick(mouseX,mouseY,left,top);
 
         int doneX = left + WINDOW_WIDTH - FOOTER_RIGHT_INSET - DONE_BUTTON_WIDTH;
         int questMasterX = doneX - 84;
@@ -1136,18 +1317,22 @@ public class JournalScreen extends CompatScreen {
 
         List<JournalCard> cards = cardsForSection();
         int cardX = left + CONTENT_X + 5;
-        int cardWidth = CONTENT_WIDTH - 15;
+        int cardWidth = cardWidth();
         int y = top + contentTop() - scrollOffset;
         for (JournalCard card : cards) {
             int height = cardHeight(card, cardWidth);
             if (mouseY >= top + contentTop() && mouseY < top + CONTENT_BOTTOM && within(mouseX, mouseY, cardX, y, cardWidth, height)) {
                 if (card.cancelAction() >= 0
-                        && within(mouseX, mouseY, cardX + cardWidth - 40, y + 3, 18, 19)) {
-                    UiTestTour.send(new JournalActionPayload(card.cancelAction()));
+                        && within(mouseX, mouseY, cardX + cardWidth - 87, y + 3, 18, 19)) {
+                    if(pendingCancelAction==card.cancelAction()) {
+                        UiTestTour.send(new JournalActionPayload(card.cancelAction()));
+                        pendingCancelAction=-1;
+                    } else pendingCancelAction=card.cancelAction();
                     playClick();
                     return true;
                 }
                 if (card.id().equals("social_recent")) { networkPage = 2; scrollOffset = 0; ensureExpandedCard(); playPageTurn(); return true; }
+                pendingCancelAction=-1;
                 expandedCardId = card.id().equals(expandedCardId) ? "" : card.id();
                 clampScroll();
                 playPageTurn();
@@ -1175,11 +1360,11 @@ public class JournalScreen extends CompatScreen {
             }
             return true;
         }
-        int x = left + 235;
+        int x = left + 320;
         int[] widths = {40, 65, 57};
         AtlasPage[] pages = AtlasPage.values();
         for (int i = 0; i < pages.length; i++) {
-            if (within(mouseX, mouseY, x, top + 33, widths[i], 15)) {
+            if (within(mouseX, mouseY, x, top + 44, widths[i], 15)) {
                 atlasPage = pages[i];
                 atlasHoveredNode = -1;
                 ensureAtlasInitialized();
@@ -1189,12 +1374,12 @@ public class JournalScreen extends CompatScreen {
             x += widths[i] + 2;
         }
         if (atlasPage != AtlasPage.TRUST
-                && within(mouseX, mouseY, left + 73, top + 34, 49, 15)) {
+                && within(mouseX, mouseY, left + 110, top + 44, 49, 15)) {
             centerAtlasOnCurrent();
             playClick();
             return true;
         }
-        if (within(mouseX, mouseY, left + 330, top + 204, 68, 17)) {
+        if (within(mouseX, mouseY, left + 420, top + 239, 68, 17)) {
             onClose();
             return true;
         }
@@ -1242,6 +1427,7 @@ public class JournalScreen extends CompatScreen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        pendingCancelAction=-1;
         if (section == Section.ATLAS) {
             return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
         }
@@ -1249,8 +1435,12 @@ public class JournalScreen extends CompatScreen {
         int top = (height - WINDOW_HEIGHT) / 2;
         int uiMouseX = responsiveMouseX(mouseX, WINDOW_WIDTH, WINDOW_HEIGHT);
         int uiMouseY = responsiveMouseY(mouseY, WINDOW_WIDTH, WINDOW_HEIGHT);
+        if(section==Section.OVERVIEW) {
+            if(scrollMax>0 && within(uiMouseX,uiMouseY,left+109,top+201,199,50)) {scrollOffset-=(int)Math.signum(verticalAmount)*28;clampScroll();return true;}
+            return false;
+        }
         if (scrollMax > 0 && within(uiMouseX, uiMouseY,
-                left + CONTENT_X, top + contentTop(), CONTENT_WIDTH, CONTENT_BOTTOM - contentTop())) {
+                left + CONTENT_X + 5, top + contentTop(), cardViewportWidth(), CONTENT_BOTTOM - contentTop())) {
             scrollOffset -= (int) Math.signum(verticalAmount) * 22;
             clampScroll();
             return true;
@@ -1261,11 +1451,23 @@ public class JournalScreen extends CompatScreen {
     private List<JournalCard> cardsForSection() {
         JournalContentBuilder content = new JournalContentBuilder(data);
         return switch (section) {
-            case OVERVIEW -> content.overviewCards();
-            case QUESTS -> content.activeQuestCards();
+            case OVERVIEW -> content.overviewCards().subList(0, 2);
+            case QUESTS -> content.activeQuestCards().stream().sorted(java.util.Comparator.comparingInt(
+                    card -> questPriority(card.id()))).toList();
             case NETWORK -> networkPage == 0 ? content.networkCards() : networkPage == 1 ? ReputationPanel.trustCards(reputation) : ReputationPanel.historyCards(reputation);
             case ATLAS -> List.of();
-            case GUIDE -> content.guideCards();
+            case GUIDE -> {var all=new ArrayList<>(content.guideCards());all.addAll(content.overviewCards().subList(0,2));yield List.copyOf(all);}
+        };
+    }
+
+    private static int questPriority(String id) {
+        return switch (id) {
+            case "story" -> 0;
+            case "special" -> 1;
+            case "weekly" -> 2;
+            case "daily" -> 3;
+            case "pilgrim" -> 4;
+            default -> 5;
         };
     }
 
@@ -1477,9 +1679,27 @@ public class JournalScreen extends CompatScreen {
     }
 
     private int collapsedCardHeight(JournalCard card, int width) {
-        if (!card.id().equals("overview_next")) return CARD_COLLAPSED_HEIGHT;
-        int lines = wrapText(card.subtitle().getString(), Math.round((width - CARD_TEXT_INSET - 28) / CARD_BODY_SCALE)).size();
-        return CARD_COLLAPSED_HEIGHT + Math.max(0, lines - 1) * CARD_DETAIL_STEP;
+        int baseHeight = (artworkFor(card).isPresent() ? ILLUSTRATED_CARD_HEIGHT : CARD_COLLAPSED_HEIGHT)
+                + (cardHeadingLines(card,width).size()-1)*10;
+        if (!card.id().equals("overview_next") && !card.id().equals("network_next")) return baseHeight;
+        int lines = wrapText(card.subtitle().getString(), Math.round((width - cardHeadingInset(card) - 28) / CARD_BODY_SCALE)).size();
+        return baseHeight + Math.max(0, lines - 1) * CARD_DETAIL_STEP;
+    }
+
+    private List<String> cardHeadingLines(JournalCard card,int width) {
+        int available=Math.max(24,width-cardHeadingInset(card)-(card.cancelAction()>=0?98:28));
+        var lines=VillageUiTheme.wrapScaledLines(font,card.title().getString(),available,.92f);
+        return lines.isEmpty()?List.of(card.title().getString()):lines;
+    }
+
+    static Optional<QuestArtwork.Motif> artworkFor(JournalCard card) {
+        Optional<QuestArtwork.Motif> motif = QuestArtwork.forQuest(card.id(), card.title());
+        if (motif.isEmpty()) motif = QuestArtwork.forComponent(card.subtitle());
+        return motif.filter(QuestArtwork.Motif::hasIllustration);
+    }
+
+    static int cardHeadingInset(JournalCard card) {
+        return artworkFor(card).isPresent() ? CARD_IMAGE_TEXT_INSET : CARD_TEXT_INSET;
     }
 
     private List<String> compactDetails(JournalCard card, int cardWidth) {
@@ -1686,7 +1906,7 @@ public class JournalScreen extends CompatScreen {
 
     private String ellipsize(String text, int maxWidth) {
         if (font.width(text) <= maxWidth) return text;
-        String suffix = "…";
+        String suffix = "\u2026";
         String value = text;
         while (!value.isEmpty() && font.width(value + suffix) > maxWidth) {
             value = value.substring(0, value.length() - 1);

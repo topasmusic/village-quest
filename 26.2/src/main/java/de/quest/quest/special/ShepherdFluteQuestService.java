@@ -226,7 +226,8 @@ public final class ShepherdFluteQuestService {
             if (holdingPosition) {
                 animal.getNavigation().stop();
             } else {
-                animal.getNavigation().moveTo(player, 1.15);
+                boolean following=animal.getNavigation().moveTo(player, 1.15);
+                if(following) de.quest.kingdom.ArtifactJourneyService.following(world,player,animal);
                 animal.getLookControl().setLookAt(player.getX(), player.getEyeY(), player.getZ());
             }
         }

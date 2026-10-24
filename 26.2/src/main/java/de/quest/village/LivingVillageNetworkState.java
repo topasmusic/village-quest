@@ -35,6 +35,8 @@ public final class LivingVillageNetworkState extends SavedData {
     private final Map<VillageKey, MutableVillage> villages = new HashMap<>();
     private final Map<UUID, MutableNetwork> networks = new HashMap<>();
     private int schemaVersion = CURRENT_SCHEMA_VERSION;
+    // Older network migration must not turn unknown future input into a fresh market quota.
+    private boolean marketDemandCompatible = true;
 
     LivingVillageNetworkState() {}
 
@@ -101,6 +103,31 @@ public final class LivingVillageNetworkState extends SavedData {
         if (ownerId == null || index < 0) return Optional.empty();
         MutableVillage village = villages.get(new VillageKey(ownerId, index));
         return village == null ? Optional.empty() : Optional.of(village.snapshot(index));
+    }
+
+    public Optional<VillageSnapshot> marketSnapshot(UUID ownerId, int index) {
+        return marketDemandCompatible ? snapshot(ownerId, index) : Optional.empty();
+    }
+
+    /** A committed foreign freight delivery changes the pinned physical need only. Personal rewards stay with its original arrival. */
+    public boolean sharedFreight(UUID sourceOwner,int index,int x,int z,VillageBondType type,
+                                 UUID carrier,int sequence,net.minecraft.world.item.Item cargo,long day) {
+        if(!marketDemandCompatible || sourceOwner==null || carrier==null || carrier.equals(sourceOwner)
+                || carrier.equals(new UUID(0,0)) || index<0 || type==null || sequence<=0 || cargo==null || day<0) return false;
+        var village=villages.get(new VillageKey(sourceOwner,index));
+        if(village==null || village.x!=x || village.z!=z || village.type!=type || village.revision==Integer.MAX_VALUE
+                || village.cyclesCompleted==Integer.MAX_VALUE || !(village.sharedFreight instanceof CompoundTag previous)) return false;
+        String actor=carrier.toString();
+        if(sequence<=previous.getIntOr(actor,0) || !previous.contains(actor) && previous.size()>=1024) return false;
+        int amount=village.need.matches(cargo)?20:12;
+        boolean advanced=village.support+amount>=SUPPORT_CYCLE_TARGET;
+        if(advanced) {
+            village.need=VillageNeed.next(village.type,village.need); village.support=SUPPORT_AFTER_CYCLE; village.cyclesCompleted++;
+        } else village.support+=amount;
+        village.lastInteractionDay=Math.max(village.lastInteractionDay,day); village.revision++;
+        var receipts=previous.copy(); receipts.putInt(actor,sequence); village.sharedFreight=receipts;
+        // Deliberately no addSupport(), recordRouteArrival(), network/renown, energy or charge mutation.
+        setDirty(); return true;
     }
 
     public SupportResult addSupport(UUID ownerId, int index, int amount, long interactionDay) {
@@ -231,6 +258,10 @@ public final class LivingVillageNetworkState extends SavedData {
         if (root == null || root.isEmpty()) return state;
 
         int sourceVersion = Math.max(0, root.getIntOr("schemaVersion", 0));
+        state.marketDemandCompatible = sourceVersion <= CURRENT_SCHEMA_VERSION
+                && (!root.contains("schemaVersion") || root.get("schemaVersion") instanceof net.minecraft.nbt.IntTag)
+                && (!root.contains("marketDemandDisabled") || root.get("marketDemandDisabled") instanceof net.minecraft.nbt.ByteTag disabled
+                    && disabled.byteValue() == 0);
         ListTag entries = root.getListOrEmpty("villages");
         for (int i = 0; i < entries.size(); i++) {
             CompoundTag entry = entries.getCompoundOrEmpty(i);
@@ -252,9 +283,17 @@ public final class LivingVillageNetworkState extends SavedData {
             int routeFailures = Math.max(0, entry.getIntOr("routeFailures", 0));
             int energyProgress = Math.max(0, Math.min(2, entry.getIntOr("energyProgress", 0)));
             int revision = Math.max(0, entry.getIntOr("revision", 0));
-            state.villages.put(new VillageKey(ownerId, index),
-                    new MutableVillage(x, z, type, need, support, cycles, lastDay,
-                            routeArrivals, routeFailures, energyProgress, revision));
+            var village=new MutableVillage(x,z,type,need,support,cycles,lastDay,routeArrivals,routeFailures,energyProgress,revision);
+            if(entry.contains("sharedFreight")) {
+                village.sharedFreight=entry.get("sharedFreight").copy();
+                if(!(village.sharedFreight instanceof CompoundTag receipts) || receipts.size()>1024) state.marketDemandCompatible=false;
+                else for(String actor:receipts.keySet()) {
+                    var id=parseUuid(actor);
+                    if(id==null || id.equals(new UUID(0,0)) || id.equals(ownerId) || !(receipts.get(actor) instanceof net.minecraft.nbt.IntTag)
+                            || receipts.getIntOr(actor,0)<=0) state.marketDemandCompatible=false;
+                }
+            }
+            state.villages.put(new VillageKey(ownerId,index),village);
         }
         ListTag networkEntries = root.getListOrEmpty("networks");
         for (int i = 0; i < networkEntries.size(); i++) {
@@ -276,6 +315,7 @@ public final class LivingVillageNetworkState extends SavedData {
     static CompoundTag toNbt(LivingVillageNetworkState state) {
         CompoundTag root = new CompoundTag();
         root.putInt("schemaVersion", CURRENT_SCHEMA_VERSION);
+        if (!state.marketDemandCompatible) root.putBoolean("marketDemandDisabled", true);
         ListTag entries = new ListTag();
         state.villages.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
@@ -296,6 +336,7 @@ public final class LivingVillageNetworkState extends SavedData {
                     entry.putInt("routeFailures", village.routeFailures);
                     entry.putInt("energyProgress", village.energyProgress);
                     entry.putInt("revision", village.revision);
+                    entry.put("sharedFreight",village.sharedFreight.copy());
                     entries.add(entry);
                 });
         root.put("villages", entries);
@@ -361,6 +402,7 @@ public final class LivingVillageNetworkState extends SavedData {
         private int routeFailures;
         private int energyProgress;
         private int revision;
+        private net.minecraft.nbt.Tag sharedFreight=new CompoundTag();
 
         private MutableVillage(int x, int z, VillageBondType type, VillageNeed need,
                                int support, int cyclesCompleted, long lastInteractionDay,

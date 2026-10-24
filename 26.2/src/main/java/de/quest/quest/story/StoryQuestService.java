@@ -60,7 +60,9 @@ public final class StoryQuestService {
             Map.entry(StoryArcType.SHADOWS_ON_THE_TRADE_ROAD, new ShadowsOnTheTradeRoadStoryArc()),
             Map.entry(StoryArcType.THE_EMPTY_CARAVAN, new TheEmptyCaravanStoryArc()),
             Map.entry(StoryArcType.SHRINES_BETWEEN_ROADS, new ShrinesBetweenRoadsStoryArc()),
-            Map.entry(StoryArcType.NIGHT_BELLS, new NightBellsStoryArc())
+            Map.entry(StoryArcType.NIGHT_BELLS, new NightBellsStoryArc()),
+            Map.entry(StoryArcType.LIVING_KINGDOMS, new de.quest.content.story.LivingKingdomsStoryArc()),
+            Map.entry(StoryArcType.ARTIFACT_JOURNEY,new de.quest.content.story.ArtifactJourneyStoryArc())
     );
 
     private StoryQuestService() {}
@@ -411,7 +413,7 @@ public final class StoryQuestService {
     }
 
     public static long getStoryCooldownUntil(ServerLevel world, UUID playerId) {
-        if (world == null || playerId == null) {
+        if (!de.quest.config.VillageQuestServerConfig.get().storyCooldownEnabled() || world == null || playerId == null) {
             return 0L;
         }
         long cooldownUntil = data(world, playerId).getStoryCooldownUntil();
@@ -823,7 +825,7 @@ public final class StoryQuestService {
     }
 
     private static void armStoryCooldownIfNeeded(ServerLevel world, UUID playerId) {
-        if (world == null || playerId == null) {
+        if (!de.quest.config.VillageQuestServerConfig.get().storyCooldownEnabled() || world == null || playerId == null) {
             return;
         }
         long cooldownUntil = availableArcTypeIgnoringCooldown(world, playerId) == null

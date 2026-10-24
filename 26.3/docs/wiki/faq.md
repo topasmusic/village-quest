@@ -46,8 +46,9 @@ village management rights. [Progression](core-progression.md).
 world options; everyone can set their own tracker, minimap, news, sounds and bubbles.
 [Configuration](configuration.md).
 
-**Will 2.6 come to older versions?** 26.3 is the active content line. Older
-versions retain their published releases and may receive scoped maintenance.
+**Which versions have Living Kingdoms?** Minecraft 26.2 and 26.3 share the
+2.6.1 content release with native APIs. Other versions retain their published
+releases and may receive scoped maintenance.
 [Support policy](../../../VERSION_SUPPORT.md).
 
 **How do I report a problem?** Include Minecraft/mod versions, a clear reproduction

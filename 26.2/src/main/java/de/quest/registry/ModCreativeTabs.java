@@ -55,6 +55,7 @@ public final class ModCreativeTabs {
         SHEPHERD_FLUTE(() -> ModItems.SHEPHERD_FLUTE),
         APIARISTS_SMOKER(() -> ModItems.APIARISTS_SMOKER),
         ROADWARDEN_HORN(() -> ModItems.ROADWARDEN_HORN),
+        VILLAGE_CHECK(() -> ModItems.VILLAGE_CHECK),
 
         APIARY_CHARTER_PLAQUE(() -> ModItems.APIARY_CHARTER_PLAQUE),
         VILLAGE_LEDGER_PLAQUE(() -> ModItems.VILLAGE_LEDGER_PLAQUE),
@@ -71,6 +72,11 @@ public final class ModCreativeTabs {
         GUILD_NOTICE_POST(() -> ModItems.GUILD_NOTICE_POST),
         EMBERGLASS_LANTERN(() -> ModItems.EMBERGLASS_LANTERN),
         GUILD_MILESTONE(() -> ModItems.GUILD_MILESTONE),
+        COUNCIL_SEAT(() -> ModItems.COUNCIL_SEAT),
+        INN_BARREL(() -> ModItems.INN_BARREL),
+        MARKET_DESK(() -> ModItems.MARKET_DESK),
+        MARKET_STALL(() -> ModItems.MARKET_STALL),
+        STOREHOUSE_ANCHOR(() -> ModItems.STOREHOUSE_ANCHOR),
         GUILD_COURIERS_SATCHEL(() -> ModItems.GUILD_COURIERS_SATCHEL);
 
         private final Supplier<Item> item;

@@ -60,7 +60,8 @@ public final class GuildArchiveService {
         CARAVAN_LEDGER("caravan_ledger", 4),
         ROADWARDEN_HORN("roadwarden_horn", 8),
         WAYFARERS_SIGIL("wayfarers_sigil", 4),
-        GUILD_COURIERS_SATCHEL("guild_couriers_satchel", 4);
+        GUILD_COURIERS_SATCHEL("guild_couriers_satchel", 4),
+        VILLAGE_CHECK("village_check", 4);
 
         private final String id;
         private final long repeatCost;
@@ -105,6 +106,7 @@ public final class GuildArchiveService {
             case ROADWARDEN_HORN -> ModItems.ROADWARDEN_HORN;
             case WAYFARERS_SIGIL -> ModItems.WAYFARERS_SIGIL;
             case GUILD_COURIERS_SATCHEL -> ModItems.GUILD_COURIERS_SATCHEL;
+            case VILLAGE_CHECK -> ModItems.VILLAGE_CHECK;
         };
     }
 
@@ -138,7 +140,9 @@ public final class GuildArchiveService {
         PlayerQuestData playerData = data(world, player.getUUID());
         Issue issue = readIssue(stack);
         int currentGeneration = playerData.getTradeRouteInt(generationKey(type));
-        if (issue == null && currentGeneration <= 0) {
+        // This new tool has no pre-archive legacy copies. Creative/borrowed items cannot grant it.
+        if (type == ArchiveItem.VILLAGE_CHECK && !eligible(world,player,type)) return false;
+        if (issue == null && currentGeneration <= 0 && type != ArchiveItem.VILLAGE_CHECK) {
             issueInitial(world, player, type, stack);
             return true;
         }
@@ -157,7 +161,8 @@ public final class GuildArchiveService {
         if (world == null || player == null || stack == null || type == null || !stack.is(item(type))) return false;
         Issue issue = readIssue(stack);
         int currentGeneration = data(world, player.getUUID()).getTradeRouteInt(generationKey(type));
-        if (issue == null) return currentGeneration <= 0;
+        if (type == ArchiveItem.VILLAGE_CHECK && !eligible(world,player,type)) return false;
+        if (issue == null) return type != ArchiveItem.VILLAGE_CHECK && currentGeneration <= 0;
         return issue.type == type && issue.owner.equals(player.getUUID())
                 && issue.generation == currentGeneration && currentGeneration > 0;
     }
@@ -225,7 +230,7 @@ public final class GuildArchiveService {
                 if (!stack.is(item(type))) continue;
                 Issue issue = readIssue(stack);
                 int generation = data(world, player.getUUID()).getTradeRouteInt(generationKey(type));
-                if (issue == null && generation <= 0 && !boundLegacy) {
+                if (issue == null && generation <= 0 && !boundLegacy && type != ArchiveItem.VILLAGE_CHECK) {
                     issueInitial(world, player, type, stack);
                     boundLegacy = true;
                 } else if (!isValidOwnedStack(world, player, stack, type)) {
@@ -475,7 +480,7 @@ public final class GuildArchiveService {
         return true;
     }
 
-    private static boolean eligible(ServerLevel world, ServerPlayer player, ArchiveItem type) {
+    public static boolean eligible(ServerLevel world, ServerPlayer player, ArchiveItem type) {
         PlayerQuestData playerData = data(world, player.getUUID());
         return switch (type) {
             case STARREACH_RING -> playerData.getShardRelicQuestStage() == ShardRelicQuestStage.COMPLETED;
@@ -489,6 +494,8 @@ public final class GuildArchiveService {
             case WAYFARERS_SIGIL -> VillageBondService.hasSigil(world, player.getUUID());
             case GUILD_COURIERS_SATCHEL -> StoryQuestService.isCompleted(
                     world, player.getUUID(), StoryArcType.SHRINES_BETWEEN_ROADS);
+            case VILLAGE_CHECK -> playerData.hasMilestoneFlag(de.quest.kingdom.KingdomStoryProgress.CHECK_EARNED)
+                    || playerData.hasStoryCompleted(de.quest.kingdom.KingdomStoryProgress.ARC);
         };
     }
 

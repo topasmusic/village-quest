@@ -45,7 +45,7 @@ public final class VillageWelcomeService {
     }
 
     public static boolean onVillagerContact(ServerLevel world, ServerPlayer player, Villager villager) {
-        if (world == null || player == null || villager == null) {
+        if (world == null || player == null || villager == null || villager.isBaby()) {
             return false;
         }
         PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(player.getUUID());
@@ -214,7 +214,8 @@ public final class VillageWelcomeService {
                                                ShadowsTradeRoadEncounterService.VillageMarker marker) {
         AABB area = new AABB(marker.minX() - 8.0, world.getMinY(), marker.minZ() - 8.0,
                 marker.maxX() + 9.0, world.getMaxY(), marker.maxZ() + 9.0);
-        return world.getEntitiesOfClass(Villager.class, area, Villager::isAlive).size() >= GREETING_TARGET;
+        return world.getEntitiesOfClass(Villager.class, area,
+                villager -> villager.isAlive() && !villager.isBaby()).size() >= GREETING_TARGET;
     }
 
     enum GreetingResult {

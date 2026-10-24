@@ -32,27 +32,34 @@ public final class SocialReputationData {
     private final List<HistoryEntry> history = new ArrayList<>();
     private final Map<VillageKey, SupportContribution> support = new HashMap<>();
     private long warningTick = -1;
+    private int warningCount;
     private final Map<UUID, AttackRecord> attacks = new HashMap<>();
     private final Set<UUID> fatalVictims = new HashSet<>();
 
-    public record AttackRecord(UUID id, VillageKey village, long startedTick, int guildDelta, int localDelta, boolean sanctioned) {
+    public record AttackRecord(UUID id, VillageKey village, long startedTick, int guildDelta, int localDelta, boolean sanctioned, boolean refuseTrade) {
+        public AttackRecord(UUID id, VillageKey village, long startedTick, int guildDelta, int localDelta, boolean sanctioned) { this(id,village,startedTick,guildDelta,localDelta,sanctioned,sanctioned); }
         public AttackRecord(UUID id, VillageKey village, long startedTick, int guildDelta, int localDelta) { this(id, village, startedTick, guildDelta, localDelta, true); }
         public AttackRecord { Objects.requireNonNull(id); }
     }
     long warningTick() { return warningTick; }
-    void warnAt(long tick) { if (writable()) { warningTick = tick; revision++; } }
+    int warningCount() { return warningCount; }
+    void warnAt(long tick) {
+        if (!writable()) return;
+        warningCount=warningTick<0 || tick<warningTick || tick-warningTick>=1200?1:Math.min(2,warningCount+1);
+        warningTick=tick; revision++;
+    }
     AttackRecord attack(UUID victim, long tick) {
         AttackRecord previous = attacks.get(victim);
         return previous != null && tick >= previous.startedTick() && tick - previous.startedTick() <= 1_200 ? previous : null;
     }
     public boolean traderWarningActive(UUID victim, long tick) {
         AttackRecord previous = attacks.get(victim);
-        return previous != null && !previous.sanctioned() && tick >= previous.startedTick() && tick - previous.startedTick() < 600;
+        return previous != null && previous.refuseTrade() && tick >= previous.startedTick() && tick - previous.startedTick() < 3600;
     }
     boolean hasFatalVictim(UUID victim) { return fatalVictims.contains(victim); }
     void recordAttack(UUID victim, AttackRecord attack, boolean fatal, long tick) {
         if (!writable()) return;
-        attacks.entrySet().removeIf(entry -> tick > entry.getValue().startedTick() + 1_200);
+        attacks.entrySet().removeIf(entry -> tick > entry.getValue().startedTick() + 3_600);
         if (fatal) { fatalVictims.add(victim); attacks.remove(victim); }
         else attacks.put(victim, attack);
         revision++;
@@ -243,12 +250,12 @@ public final class SocialReputationData {
             tag.putBoolean("barred", contribution.barred()); helpers.add(tag);
         });
         root.put("support", helpers);
-        root.putLong("warningTick", warningTick);
+        root.putLong("warningTick", warningTick); root.putInt("warningCount",warningCount);
         ListTag savedAttacks = new ListTag();
         attacks.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {
             AttackRecord attack = entry.getValue(); CompoundTag tag = new CompoundTag();
             tag.putString("victim", entry.getKey().toString()); tag.putString("id", attack.id().toString());
-            tag.putLong("started", attack.startedTick()); tag.putInt("guildDelta", attack.guildDelta()); tag.putInt("localDelta", attack.localDelta()); tag.putBoolean("sanctioned", attack.sanctioned());
+            tag.putLong("started", attack.startedTick()); tag.putInt("guildDelta", attack.guildDelta()); tag.putInt("localDelta", attack.localDelta()); tag.putBoolean("sanctioned", attack.sanctioned()); tag.putBoolean("refuseTrade",attack.refuseTrade());
             if (attack.village() != null) tag.put("village", villageTag(attack.village())); savedAttacks.add(tag);
         }); root.put("attacks", savedAttacks);
         ListTag deaths = new ListTag(); fatalVictims.stream().sorted().forEach(id -> deaths.add(StringTag.valueOf(id.toString())));
@@ -340,6 +347,7 @@ public final class SocialReputationData {
             data.warningTick = root.getLongOr("warningTick", -1);
             if (data.warningTick < -1 || root.contains("warningTick") && !(root.get("warningTick") instanceof net.minecraft.nbt.LongTag))
                 throw new IllegalArgumentException("Invalid warning clock");
+            data.warningCount=root.contains("warningCount")?bounded(requiredInt(root,"warningCount"),0,2):(data.warningTick<0?0:1);
             for (var raw : optionalList(root, "attacks")) {
                 if (!(raw instanceof CompoundTag tag)) throw new IllegalArgumentException("Invalid attack");
                 VillageKey village = null;
@@ -350,7 +358,8 @@ public final class SocialReputationData {
                 UUID victim = UUID.fromString(tag.getStringOr("victim", ""));
                 AttackRecord attack = new AttackRecord(UUID.fromString(tag.getStringOr("id", "")), village,
                         nonnegative(tag.getLong("started").orElseThrow()), bounded(requiredInt(tag, "guildDelta"), -100, 0),
-                        bounded(requiredInt(tag, "localDelta"), -100, 0), !tag.contains("sanctioned") || requiredBoolean(tag, "sanctioned"));
+                        bounded(requiredInt(tag, "localDelta"), -100, 0), !tag.contains("sanctioned") || requiredBoolean(tag, "sanctioned"),
+                        tag.contains("refuseTrade")?requiredBoolean(tag,"refuseTrade"):!tag.contains("sanctioned") || requiredBoolean(tag,"sanctioned"));
                 if (data.attacks.put(victim, attack) != null) throw new IllegalArgumentException("Duplicate attack");
             }
             for (var raw : optionalList(root, "fatalVictims")) data.fatalVictims.add(UUID.fromString(raw.asString().orElseThrow()));

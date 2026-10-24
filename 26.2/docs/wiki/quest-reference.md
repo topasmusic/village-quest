@@ -1,6 +1,10 @@
 # Quest Reference
 
-This page is a compact reference for the current visible quest pools and story chapters.
+## Living Kingdoms 2.6
+
+See [Living Kingdoms stories and tools](kingdom-stories-and-tools.md) for
+**A Place at the Table**, the Village Seal and **The Unwritten Promise**.
+See [Travelling NPCs](travelling-npcs.md) for Simon, Lutte and Marius.
 
 ## Current Reward Rules
 
@@ -167,6 +171,22 @@ Its finale unlocks the permanent `Caravan Yard` project and `Caravan Ledger` tra
 - `Roadmarks for the Compass`: fixed one-time special override, not part of the random rotation
 
 ## Availability Feedback
+
+### Marius: the village watch
+
+Meet Marius during a rare tavern visit. His three personal quests are once-only:
+
+1. Defeat 15 monsters near a village at night, after accepting (night time 13000–23000). Reward: 12 silver and 2 XP bars.
+2. Repair 50 missing HP on the same naturally spawned village iron golem with iron ingots. Player-built golems do not count. Reward: 20 silver and 3 XP bars; the colleague/holiday joke has no collectible reward.
+3. Accept, then choose **I am ready** or **I need more time**. Readiness schedules a native level I raid at the host village for the next nightfall. It waits if you are away and starts only when you return there at night. Defeat at least 3 raiders personally and win that same raid. A loss, cancelled raid, or victory without 3 personal kills leaves the quest open, clears that attempt and requires explicit readiness again. No penalty or automatic retry.
+
+Journal, Questmaster and tracker show preparation, the world-time countdown, waiting for return, raid progress and victory. Sleeping can shorten the countdown. Existing raids are never deliberately extended for this quest: resolve them and declare readiness again.
+
+The final reward is one personal **Village Watch Seal**, delivered through saved item collection. Its owner can use it in a village for 60 seconds of night vision and 20 seconds of glow on monsters within 24 blocks. Its personal cooldown is 10 active server minutes and persists through logout/restart and item copies. The seal is not consumed.
+
+### Tavern arrivals while away
+
+Once an inn has completed its existing 40 loaded-minute opening period, rare visits can be scheduled from saved active-village/inn/population evidence while you are elsewhere. No chunks are loaded for this. Related players receive the village name and X/Z once per visit, without the visitor’s identity. Current visits also appear in the journal and village details. The physical guest appears only after normal loading and current safe building checks; the visit lasts 6–10 loaded minutes, so travel does not consume the entire visit.
 
 - New Daily, Weekly, and Story offers receive a single localized Questmaster chat announcement.
 - Daily and Weekly notices use their reset day or week as the persistent identity. Story notices use the exact arc and chapter, including the chapter revealed after a cooldown.

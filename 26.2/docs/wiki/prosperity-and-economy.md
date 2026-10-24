@@ -118,3 +118,20 @@ The test setup:
 Use the ranks progressively rather than buying everything at once. Verify prices before and after each relevant rank, place one commission and advance to a later day, buy route-targeted services on different routes, apply all five liveries, and inspect the economy ledger after each action.
 
 Village Quest 2.5 adds [chosen Vanilla reward packages and saved collection](vanilla-rewards.md), including `/vq rewards claim`. Existing accepted contracts and prepaid orders retain their original conditions.
+
+## Trade and management screens
+
+Trade and management share the Journal's wood/gold frame and quiet paper panels. Market goods stay at four rows per page, with exact server quotes and stock. Scroll inside a Prosperity description to read its last line; its action stays fixed. Scrolling the entry list keeps the selected details until another entry is clicked. Escape returns from a building management subpage before closing the desk.
+
+
+## Market screen
+
+The market layout separates the goods table from price details. Select
+an item row to read its explanation in the right-hand panel; use that panel's
+arrows to read every page. Goods pagination has its own arrows below the table.
+Buy/Sell still uses the shown fixed lot and exact server quote. Player balance,
+trader funds, stock, own inventory and village demand remain separate values.
+Unavailable/waiting actions stay disabled. Refresh requests current server data;
+Escape or the close button closes the market directly.
+
+For 2.6 market rules and regional prices see [Markets](kingdom-market.md).

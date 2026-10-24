@@ -10,7 +10,9 @@ public enum StoryArcType {
     SHADOWS_ON_THE_TRADE_ROAD("shadows_on_the_trade_road", 6),
     THE_EMPTY_CARAVAN("the_empty_caravan", 6),
     SHRINES_BETWEEN_ROADS("shrines_between_roads", 6),
-    NIGHT_BELLS("night_bells", 4);
+    NIGHT_BELLS("night_bells", 4),
+    LIVING_KINGDOMS("living_kingdoms", 5),
+    ARTIFACT_JOURNEY("artifact_journey", 5);
 
     private final String id;
     private final int chapterCount;
@@ -47,7 +49,9 @@ public enum StoryArcType {
                 NIGHT_BELLS,
                 SHADOWS_ON_THE_TRADE_ROAD,
                 THE_EMPTY_CARAVAN,
-                SHRINES_BETWEEN_ROADS
+                SHRINES_BETWEEN_ROADS,
+                LIVING_KINGDOMS,
+                ARTIFACT_JOURNEY
         );
     }
 

@@ -16,7 +16,7 @@ import org.junit.jupiter.api.*;
 
 final class PilgrimTradeFrameTest {
     @BeforeAll static void bootstrap() { SharedConstants.tryDetectVersion(); Bootstrap.bootStrap(); }
-    @Test void innerCardsHaveCompleteBoundsAndGoodsHeadingIsAboveViewport() throws Exception {
+    @Test void innerCardsHaveCompleteBoundsAndGoodsControlIsAboveViewport() throws Exception {
         try (var client = mockStatic(Minecraft.class); var theme = mockStatic(VillageUiTheme.class)) {
             client.when(Minecraft::getInstance).thenReturn(mock(Minecraft.class));
             var screen = new PilgrimTradeScreen(new PilgrimTradeScreen.PilgrimTradeData(1,Component.literal("Pilgrim"),0,1000,List.of(),List.of()));
@@ -27,11 +27,12 @@ final class PilgrimTradeFrameTest {
                     .thenAnswer(call -> { frames.add(new int[]{call.getArgument(1),call.getArgument(2),call.getArgument(3),call.getArgument(4)}); return null; });
             var board = PilgrimTradeScreen.class.getDeclaredMethod("drawBoard",GuiGraphics.class,int.class,int.class); board.setAccessible(true); board.invoke(screen,graphics,0,0);
             assertEquals(3,frames.size(),"Both list and both detail areas need complete runtime card frames");
-            for (var frame : frames) { assertTrue(frame[0] >= 16); assertTrue(frame[0] + frame[2] <= 294); assertTrue(frame[1] + frame[3] <= 178); }
+            for (var frame : frames) { assertTrue(frame[0] >= 16); assertTrue(frame[0] + frame[2] <= 536); assertTrue(frame[1] + frame[3] <= 270); }
             var header = PilgrimTradeScreen.class.getDeclaredMethod("drawHeader",GuiGraphics.class,int.class,int.class,int.class,int.class); header.setAccessible(true); header.invoke(screen,graphics,0,0,0,0);
-            var heading = org.mockito.ArgumentCaptor.forClass(Component.class); var headingY = org.mockito.ArgumentCaptor.forClass(Integer.class);
-            verify(graphics,atLeastOnce()).drawString(eq(font),heading.capture(),anyInt(),headingY.capture(),anyInt(),eq(false));
-            assertTrue(headingY.getAllValues().stream().allMatch(y -> y + 9 < frames.getFirst()[1]),"Headings must clear the painted top border");
+            var headingY = org.mockito.ArgumentCaptor.forClass(Integer.class);
+            theme.verify(()->VillageUiTheme.drawNavigationTab(eq(graphics),eq(font),anyInt(),headingY.capture(),eq(112),eq(18),
+                    eq(Component.translatable("screen.village-quest.pilgrim.goods").getString()),eq(true),anyBoolean(),eq(true)));
+            assertTrue(headingY.getAllValues().stream().allMatch(y -> y + 18 < frames.getFirst()[1]),"Goods navigation must clear the content viewport");
         }
     }
 }

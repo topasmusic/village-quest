@@ -286,7 +286,9 @@ public final class SurfaceMapRenderer {
         }
         int localX = Math.floorMod(worldX, 16);
         int localZ = Math.floorMod(worldZ, 16);
-        int topY = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, localX, localZ) - 1;
+        // ChunkAccess already returns the top occupied block, not the first air
+        // block above it. Subtracting again skips thin surfaces over air/void.
+        int topY = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, localX, localZ);
         if (topY < level.getMinY()) {
             return unknown(worldX, worldZ);
         }

@@ -27,6 +27,14 @@ Each identity alternates between two bounded needs:
 
 A Guild Notice Post offers three server-authoritative choices. Current need, previous delivery, village condition, personal trust, guild project, specialization, and Adventure Profile all affect the result. Two choices normally target the primary need; every board retains an ordinary Overworld-resource solution. The previous delivery is avoided when alternatives exist.
 
+On local visits, villages first try their decorative Guild Corner; a safe compact
+Notice Post supplies the same requests when the large structure cannot fit.
+This includes forests and older villages. `/vq town retrofit` retries near where
+you stand and can recover a failed placement. Natural vegetation may be cleared;
+existing buildings, containers and intentionally removed boards stay protected.
+The Journal's Trust page can be opened without a board, but local delivery
+requests at the board build the permanent bond needed for a village mandate.
+
 The board presents those choices as three compact item selectors above one calm detail field. Each selector shows the carried and required amounts, while the selected request receives the readable title, need, reward, support contribution, and progress bar below; hover text retains the full offer details. Three standalone Bond seals show the current and upcoming trust states on one restrained connector. The painted assets remain text-free, so all values and EN/DE/ES labels stay dynamic.
 
 Matching work starts from `24` supply and other valid help from `14`. Trusted and Allied villages reduce required quantities and improve rewards; Allied also contributes additional supply. At `100`, the need changes and the new cycle starts at `55`, so long-term play gains variety rather than endlessly larger stacks. A village still accepts only one board delivery per reset, but skipping days loses nothing and no exclusive daily reward exists.

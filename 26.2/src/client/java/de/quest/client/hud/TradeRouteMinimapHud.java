@@ -5,6 +5,7 @@ import de.quest.client.config.VillageQuestClientConfig;
 import de.quest.client.screen.TradeRouteMapScreen;
 import de.quest.client.ui.SurfaceMapRenderer;
 import de.quest.client.ui.VillageUiTheme;
+import de.quest.client.ui.KingdomUiAssets;
 import de.quest.network.Payloads;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -137,14 +138,10 @@ public final class TradeRouteMinimapHud {
                                     int left,
                                     int top) {
         Font font = client.font;
-        graphics.fill(left + 2, top + 2, left + WIDTH + 4, top + HEIGHT + 4, alpha(0x70000000, config.minimapOpacity()));
-        graphics.fill(left - 2, top - 2, left + WIDTH + 2, top + HEIGHT + 2, alpha(0xEE21140D, config.minimapOpacity()));
-        graphics.fill(left - 1, top - 1, left + WIDTH + 1, top + HEIGHT + 1, alpha(0xFFB5792E, config.minimapOpacity()));
-        graphics.fill(left, top, left + WIDTH, top + HEIGHT, alpha(0xFFF0D99F, config.minimapOpacity()));
-        VillageUiTheme.blitScaled(graphics, VillageUiTheme.control("button_normal"),
-                left + 3, top + 2, WIDTH - 6, 15, 120, 32);
-        String title = Component.translatable("hud.village-quest.trade_route_minimap").getString();
+        VillageUiTheme.drawHudPaper(graphics,left-2,top-2,WIDTH+4,HEIGHT+4,config.minimapOpacity());
+        graphics.fill(left+2,top+2,left+WIDTH-2,top+16,alpha(VillageUiTheme.TEAL,config.minimapOpacity()));
         float titleScale = 0.75f;
+        String title = VillageUiTheme.ellipsize(font,Component.translatable("hud.village-quest.trade_route_minimap").getString(),(int)((WIDTH-12)/titleScale));
         VillageUiTheme.drawStringScaled(graphics, font, title,
                 left + (WIDTH - font.width(title) * titleScale) / 2.0f,
                 top + 5, VillageUiTheme.LIGHT_TEXT, titleScale);
@@ -214,9 +211,8 @@ public final class TradeRouteMinimapHud {
         if (config.showVillageMarkers()) {
             for (Payloads.TradeRouteNodeData node : current.nodes()) {
                 Point point = pointFor(node.worldX(), node.worldZ(), bounds, left, top, true);
-                graphics.fill(point.x() - 2, point.y() - 2, point.x() + 3, point.y() + 3, FRAME);
-                graphics.fill(point.x() - 1, point.y() - 1, point.x() + 2, point.y() + 2,
-                        node.playerYard() ? 0xFF9A6620 : node.home() ? HOME : VILLAGE);
+                KingdomUiAssets.detailIcon(graphics,node.home()?KingdomUiAssets.DetailIcon.THRONE:KingdomUiAssets.DetailIcon.FOUNDING,
+                        point.x()-6,point.y()-6,12);
             }
         }
 

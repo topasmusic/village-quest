@@ -20,9 +20,9 @@ their arrangement:
 
 | Anchor | Ingredients |
 |---|---|
-| Council Seat | 5 spruce planks, 1 book, 2 sticks. |
+| Council Seat | 5 planks of any wood, 1 book, 2 sticks. |
 | Inn Barrel | 1 barrel, 2 paper, 2 sticks. |
-| Market Desk | 3 oak planks, 4 sticks. |
+| Market Desk | 3 planks of any wood, 4 sticks. |
 | Storehouse Anchor | 1 chest, 1 paper, 3 sticks. |
 
 Place the anchor and read its building checklist. Hover a requirement for its
@@ -30,6 +30,17 @@ accepted blocks and arrangement; click it for found/required/missing quantities,
 full placement help and detected marker targets. A valid building needs loaded,
 safe, connected evidence. The range control explains its X/Y/Z scan dimensions
 and horizontal/vertical reach. Normal range is 17×17×9; extended is 25×25×17.
+
+All five story chapters now explain their next steps in game. For a generated
+village's mandate, complete local requests at its Guild Notice Post until the
+permanent village bond is **Trusted**, then return to the Council Seat. The
+Journal also opens Trust and shows village bonds. Unlocked recipes appear in the
+general crafting search as well as the Village Quest tab.
+
+If a ceiling lies outside the small area, nearby furnishings remain detectable;
+extend the area to include that roof. A roof is still required for council/inn
+approval, and furniture in a separate building across an uncovered yard cannot
+qualify the council.
 
 Counted seats are dry, straight bottom-half stairs with their open side facing a
 counted table 1–3 blocks away on the same line and at most one block difference

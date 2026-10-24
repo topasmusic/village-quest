@@ -60,12 +60,21 @@ public final class VillageQuestServerConfig {
 
     private static final String FILE_NAME = "server.properties";
     private static VillageQuestServerConfig instance = defaults();
+    private static WorldQuestSettings worldOverride;
+    public static void bindWorld(WorldQuestSettings settings) { worldOverride = settings; }
+    public WorldQuestSettings worldSettings() {
+        return worldOverride != null ? worldOverride : new WorldQuestSettings(minecraftQuestCalendar, adventureProfile, storyCooldownEnabled, caravanVisualMode);
+    }
 
     private final String configuredResetTimezone;
     private final ZoneId resetZone;
     private final int dailyResetHour;
     private final DayOfWeek weeklyResetDay;
     private final int weeklyResetHour;
+    private final boolean storyCooldownEnabled;
+    private boolean minecraftQuestCalendar;
+    public boolean minecraftQuestCalendar() { return worldSettings().minecraftCalendar(); }
+    public boolean storyCooldownEnabled() { return worldSettings().storyCooldown(); }
     private final boolean allowPlayerCaravanYards;
     private final CaravanVisualMode caravanVisualMode;
     private final AdventureProfile adventureProfile;
@@ -80,7 +89,7 @@ public final class VillageQuestServerConfig {
                                      int weeklyResetHour,
                                      boolean allowPlayerCaravanYards,
                                      CaravanVisualMode caravanVisualMode,
-                                     AdventureProfile adventureProfile, SocialReputationConfig socialReputation) {
+                                     AdventureProfile adventureProfile, SocialReputationConfig socialReputation, boolean storyCooldownEnabled) {
         this.configuredResetTimezone = configuredResetTimezone;
         this.resetZone = resetZone;
         this.dailyResetHour = dailyResetHour;
@@ -90,6 +99,7 @@ public final class VillageQuestServerConfig {
         this.caravanVisualMode = caravanVisualMode;
         this.adventureProfile = adventureProfile;
         this.socialReputation = socialReputation;
+        this.storyCooldownEnabled=storyCooldownEnabled;
     }
 
     public static void bootstrap() {
@@ -100,6 +110,7 @@ public final class VillageQuestServerConfig {
                 Files.writeString(path, defaultFile(), StandardCharsets.UTF_8);
             }
             instance = load(path);
+            VillageQuest.LOGGER.info("Daily/Weekly quest calendar: {}", instance.minecraftQuestCalendar ? "Minecraft days (1/7 Overworld days)" : "real time");
             VillageQuest.LOGGER.info(
                     "Loaded Village Quest server config: reset zone {}, daily {}:00, weekly {} {}:00, caravans {}, profile {}",
                     instance.resetZone, String.format("%02d", instance.dailyResetHour), instance.weeklyResetDay,
@@ -140,11 +151,11 @@ public final class VillageQuestServerConfig {
     }
 
     public CaravanVisualMode caravanVisualMode() {
-        return caravanVisualMode;
+        return worldSettings().caravans();
     }
 
     public AdventureProfile adventureProfile() {
-        return adventureProfile;
+        return worldSettings().profile();
     }
 
     private static VillageQuestServerConfig load(Path path) throws IOException {
@@ -163,17 +174,20 @@ public final class VillageQuestServerConfig {
                 properties, "physical_caravans", CaravanVisualMode.FULL, CaravanVisualMode.class);
         AdventureProfile adventureProfile = enumValue(
                 properties, "adventure_profile", AdventureProfile.STANDARD, AdventureProfile.class);
-        return new VillageQuestServerConfig(
+        var loaded = new VillageQuestServerConfig(
                 configuredZone, zone, dailyHour, weeklyDay, weeklyHour, yards, caravanMode, adventureProfile,
                 new SocialReputationConfig(booleanValue(properties, "socialReputation.enabled", true),
                         booleanValue(properties, "socialReputation.trackCreative", false),
-                        booleanValue(properties, "socialReputation.caravanMortality", true)));
+                        booleanValue(properties, "socialReputation.caravanMortality", true)),
+                booleanValue(properties,"story_cooldown_enabled",true));
+        loaded.minecraftQuestCalendar = booleanValue(properties, "quest_calendar_minecraft_days", false);
+        return loaded;
     }
 
     private static VillageQuestServerConfig defaults() {
         return new VillageQuestServerConfig(
                 "AUTO", ZoneId.systemDefault(), 6, DayOfWeek.MONDAY, 6, true,
-                CaravanVisualMode.FULL, AdventureProfile.STANDARD, new SocialReputationConfig(true, false, true));
+                CaravanVisualMode.FULL, AdventureProfile.STANDARD, new SocialReputationConfig(true, false, true),true);
     }
 
     private static ZoneId parseZone(String raw) {
@@ -248,6 +262,12 @@ public final class VillageQuestServerConfig {
 
                 # RELAXED, STANDARD, or HARDENED. Changes quantities, combat pressure, incident pity, and failure strain.
                 adventure_profile=STANDARD
+
+                # One-hour real-time pause between completed story arcs. false removes only this waiting period.
+                story_cooldown_enabled=true
+
+                # Daily after 1 Overworld day, weekly after 7; false keeps real-time resets.
+                quest_calendar_minecraft_days=false
 
                 # Allows one deliberately registered player base to act as the route network's home node after Market Charter access.
                 allow_player_caravan_yards=true

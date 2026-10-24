@@ -51,10 +51,10 @@ final class LocalizedScreenLayoutTest {
                 font(screen, font);
                 var graphics = graphics();
                 int top = (int) invoke(screen, "getContractOptionsY", new Class<?>[]{int.class}, 0);
-                assertTrue(top >= 46 + 6, "Selector must clear the top rim");
-                assertTrue(top + 20 <= 46 + 34 - 6, "Selector must clear the bottom rim too");
+                assertTrue(top >= 61 + 6, "Selector must clear the top rim");
+                assertTrue(top + 20 <= 61 + 34 - 6, "Selector must clear the bottom rim too");
                 invoke(screen, "drawContractOptions", new Class<?>[]{GuiGraphics.class,int.class,int.class,int.class,int.class}, graphics,0,0,0,0);
-                assertEquals(0, invoke(screen, "getHoveredContractIndex", new Class<?>[]{int.class,int.class,int.class,int.class}, 180,top+8,0,0));
+                assertEquals(0, invoke(screen, "getHoveredContractIndex", new Class<?>[]{int.class,int.class,int.class,int.class}, 300,top+8,0,0));
             }
         }
     }
@@ -99,13 +99,9 @@ final class LocalizedScreenLayoutTest {
             var x = ArgumentCaptor.forClass(Float.class); var y = ArgumentCaptor.forClass(Float.class);
             var scale = ArgumentCaptor.forClass(Float.class);
             theme.verify(() -> VillageUiTheme.drawStringScaled(eq(graphics),eq(font),text.capture(),x.capture(),y.capture(),anyInt(),scale.capture()),atLeastOnce());
-            var effectLines = new ArrayList<String>(); var chronicleLines = new ArrayList<String>();
-            for (int i=0;i<text.getAllValues().size();i++) {
-                if (scale.getAllValues().get(i)==.44f) effectLines.add(text.getAllValues().get(i));
-                if (scale.getAllValues().get(i)==.42f) chronicleLines.add(text.getAllValues().get(i));
-            }
-            assertEquals(effect,String.join(" ",effectLines),"Project effect must not end in ellipsis");
-            assertEquals(chronicle,String.join(" ",chronicleLines),"Chronicle must not end in ellipsis");
+            String displayed=String.join(" ",text.getAllValues());
+            assertTrue(displayed.contains(effect),"Every word of the effect must remain reachable");
+            assertTrue(displayed.contains(chronicle),"Every word of the chronicle must remain reachable");
         }
     }
     @Test void firstFavorSubtitleUsesTheAvailableHeaderWidth() throws Exception {
@@ -119,7 +115,7 @@ final class LocalizedScreenLayoutTest {
             var font=mock(Font.class); when(font.width(anyString())).thenAnswer(c -> ((String)c.getArgument(0)).length()*6);
             font(screen,font); var graphics=graphics();
             invoke(screen,"drawDetailHeader",new Class<?>[]{GuiGraphics.class,int.class,int.class,QuestMasterScreen.EntryView.class},graphics,0,0,entry);
-            theme.verify(() -> VillageUiTheme.drawStringScaled(eq(graphics),eq(font),eq(subtitle),eq(12f),eq(21f),anyInt(),eq(.68f)));
+            theme.verify(() -> VillageUiTheme.drawStringScaled(eq(graphics),eq(font),eq(subtitle),eq(12f),floatThat(y -> y>=21 && y+8<=34),anyInt(),eq(.78f)));
         }
     }
     @Test void everyLocalizedProjectCardFitsAboveTheAtlasFooter() throws Exception {

@@ -1,5 +1,38 @@
 # Changelog
 
+## 2.6.1 — Living Kingdoms
+
+Release date: 2026-10-24
+
+- Keep the Daily and Weekly reset timers fully inside the Quest Board parchment, including wrapped text, with the hover area moved to match.
+- Place a compact Guild Notice Post when a full Guild Corner has no safe site. Improve forest and existing-village retrofit, recover failed reservations, and prevent removed boards from becoming a renewable item source. Buildings, containers and unloaded areas stay protected.
+- Find unlocked Village Quest recipes in the general crafting search. Keep different outputs in separate entries and use any native plank type in Council Seat, Market Desk, Trader Stall and Notice Post recipes.
+- Keep two-line quest titles clear of Daily/Solo labels, preserve manual scrolling during updates, and sample the correct top surface on living maps.
+- Exclude babies from village quest conversations and introductions. Show reachable building furnishings when a high roof is outside the selected scan while retaining roof and room-separation requirements.
+- Follow clearer guidance through all five village-story chapters. Revised English, German and Spanish instructions explain the actual objectives, counters, deliveries, materials, books, equipment and rewards without changing their requirements.
+
+## 2.6.1-unreleased.3
+
+- Clarify English, German and Spanish quest instructions and progress labels. The Master's Edge now names the required books and all five equipment pieces, explains the four valid protection enchantments and distinguishes purchases from equipment hand-in.
+- Match material, block and villager profession names to Minecraft 26.3, including German Strohballen, Honigwabe, Amethystscherbe, Eisenharnisch, Eisenbeinschutz, Grobschmied and Geistlicher, and Spanish Librería/Estantería, Apiario, Hierro en bruto and Cubo con agua.
+- Explain honey harvest counts, animals fed for breeding, block versus item counts, staged crafting and consumed deliveries. Name exact contents of beekeeping and writing-room supply packages. Keep quest conditions, quantities, rewards and existing saves unchanged.
+- Correct Spanish personal address and grammar. Retain the medieval quest voice, existing item identities and all placement, recipe, village and map fixes from unreleased.2.
+
+## 2.6.1-unreleased.2
+
+- Place a compact Guild Notice Post when the full village structure has no safe site, including forests and existing villages. Retrofit now searches nearby clearings densely and recovers failed reservations or missing saved boards. Clear necessary natural foliage/tree blocks while protecting buildings, containers and deliberate board removal.
+- Find unlocked Village Quest recipes in the general crafting search. Keep different crafted items in separate recipe-book groups; Council Seat, Market Desk, Trader Stall and Guild Notice Post recipes now accept any plank type.
+- Exclude baby villagers from quest conversations, village introductions and their adult population check.
+- Show reachable Council Seat furnishings when a high roof is outside the small scan area, while retaining the roof requirement and separation from neighbouring buildings.
+- Explain all five village-story chapters in game, including crafting, local village bonds, staff, freight and project recognition. Simplify building help in English, German and Spanish; call the Spanish chair “Silla del consejo”.
+- Retain the Quest Board title/scroll and terrain-map fixes from unreleased.1.
+
+## 2.6.1-unreleased.1
+
+- Keep two-line Quest Board titles clear of their category and Solo/Party label.
+- Preserve the quest list's scroll position during server updates, including long Special lists. A replacement selection is still brought into view when its previous quest disappears.
+- Sample the actual top surface on living maps. Thin terrain or structures above air no longer leave parchment holes because their visible top block was skipped.
+
 ## 2.6.0 — Living Kingdoms
 
 - **Give your village a name and a future.** Follow A Place at the Table, establish a Council Seat, inn, market and storehouse, and earn five stages of village recognition through real work. Build the places yourself and use their checklists to make them ready.

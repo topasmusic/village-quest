@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "village-quest:gui/journal_inventory_button"
+    "layer0": "village-quest:item/journal_inventory_button"
   }
 }

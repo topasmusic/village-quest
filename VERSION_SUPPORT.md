@@ -2,11 +2,21 @@
 
 Village Quest uses a single-active-line development policy.
 
-## 2.6.0 current release
+## 2.6.1 current release
+
+`Village Quest 2.6.1 — Living Kingdoms` is released for Minecraft `26.3` and
+`26.2` with matching mod content and target-native APIs/dependencies. The 26.2
+port includes the complete 2.6 adventure plus 2.6.1 fixes and EN/DE/ES revisions.
+Native Vanilla block availability follows each Minecraft version. The 26.2 port
+and release were explicitly authorized; future content development remains on
+26.3 and later backports require a new decision.
+
+## 2.6.0 release
 
 `Village Quest 2.6.0 — Living Kingdoms` is the content release for Minecraft
 `26.3`. It adds settlement buildings, named staff, markets, diplomacy and travelling
-NPC adventures. Minecraft `26.2` remains on Stable `2.5.0`; no 2.6 content port is implied.
+NPC adventures. Its 26.3 release remains available; the later 2.6.1 release
+adds fixes and brings the complete content to 26.2.
 
 ## 2.5.0 release
 
@@ -45,7 +55,7 @@ The release contains the same intended features, fixes, documentation, and resou
 ## Current support policy
 
 - Minecraft `26.3` is the only active content-development line.
-- Minecraft `26.2` remains available as the previous maintenance line on Stable 2.5.0 through the explicitly authorized content port.
+- Minecraft `26.2` remains available as the previous maintenance line on Stable 2.6.1 through the explicitly authorized content port.
 - New quests, systems, items, interfaces, balancing passes, visual redesigns, and other content updates are not automatically backported to previous lines.
 - The released `2.1.x` builds for older Minecraft versions remain available for download.
 - Older lines may receive deliberately scoped maintenance releases for confirmed bug fixes, crash prevention, save-safety fixes, severe exploits, and meaningful performance improvements.

@@ -10,7 +10,8 @@ import net.minecraft.network.chat.Component;
 
 /** Read-only snapshot of the interacted master and their authoritative route. */
 public final class CaravanMasterScreen extends CompatScreen {
-    private static final int WIDTH = 360, HEIGHT = 186;
+    private static final int WIDTH = 560, HEIGHT = 339;
+    private static final int FOOTER_Y = 278;
     private static final int INK = 0xFF302015, MUTED = 0xFF69523C, CREAM = 0xFFF1D8AA;
 
     private VillageNetworkPayloads.CaravanMasterPayload data;
@@ -39,97 +40,67 @@ public final class CaravanMasterScreen extends CompatScreen {
     }
 
     @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
-        tooltip.clear();
-        VillageUiTheme.drawScreenShade(graphics, width, height);
-        int uiX = responsiveMouseX(mouseX, WIDTH, HEIGHT);
-        int uiY = responsiveMouseY(mouseY, WIDTH, HEIGHT);
-        float scale = beginResponsivePanel(graphics, WIDTH, HEIGHT);
+    public void render(GuiGraphics g, int mouseX, int mouseY, float delta) {
+        tooltip.clear();VillageUiTheme.drawScreenShade(g,width,height);
+        int mx=responsiveMouseX(mouseX,WIDTH,HEIGHT),my=responsiveMouseY(mouseY,WIDTH,HEIGHT);
+        float scale=beginResponsivePanel(g,WIDTH,HEIGHT);
         try {
-            int left = (width - WIDTH) / 2, top = (height - HEIGHT) / 2;
-            VillageUiTheme.drawPanelShadow(graphics, left, top, WIDTH, HEIGHT);
-            VillageUiTheme.drawCompactNoticeBoard(graphics, left, top, WIDTH, HEIGHT);
-            center(graphics, title.getString(), left + 180, top + 12, INK, 1.0f, 125);
-            center(graphics, data.progressPercent() + "%", left + 317, top + 10, INK, 0.85f, 46);
+            int l=(width-WIDTH)/2,t=(height-HEIGHT)/2;
+            de.quest.client.ui.JournalV3Visuals.insetBoard(g,l,t,WIDTH,HEIGHT);
 
-            inset(graphics, left + 18, top + 40, 324, 50);
-            inset(graphics, left + 18, top + 94, 158, 32);
-            inset(graphics, left + 182, top + 94, 160, 32);
-            inset(graphics, left + 18, top + 129, 324, 33);
-            int textX = left + 24;
-            compact(graphics, data.masterName().getString(), textX, top + 44, MUTED, 312, uiX, uiY,
-                    java.util.List.of(data.masterName(), data.quote()));
-            compact(graphics, data.routeName().getString(), textX, top + 57, INK, 312, uiX, uiY,
-                    java.util.List.of(data.routeName()));
-            compact(graphics, data.journey().getString(), textX, top + 70, MUTED, 312, uiX, uiY,
-                    java.util.List.of(data.journey()));
-            int progress = Math.clamp(data.progressPercent(), 0, 100);
-            graphics.fill(textX, top + 82, left + 336, top + 86, 0xFFB79A6A);
-            graphics.fill(textX, top + 82, textX + 312 * progress / 100, top + 86, VillageUiTheme.TEAL);
-            if (within(uiX, uiY, textX, top + 80, 312, 12)) {
-                tooltip.set(java.util.List.of(
-                        Component.translatable("screen.village-quest.caravan_master.journey_progress").append(": " + progress + "%"),
-                        data.availability()));
+            var close=de.quest.client.ui.KingdomUiAssets.closeBounds(l,t,WIDTH,HEIGHT);
+            de.quest.client.ui.KingdomUiAssets.closeButton(g,l,t,WIDTH,HEIGHT,close.contains(mx,my));
+            inset(g,l+28,t + 48,294,222);
+            de.quest.client.ui.JournalV3Visuals.heading(g,font,data.masterName().getString(),l+38,t + 58,274,1.2f,INK);
+            compact(g,data.routeName().getString(),l+38,t + 78,INK,274,mx,my,java.util.List.of(data.routeName(),data.quote()));
+            de.quest.client.ui.JournalV3Visuals.logistics(g,l+38,t + 96,274,103);
+            compact(g,data.journey().getString(),l+38,t + 213,INK,274,mx,my,java.util.List.of(data.journey(),data.availability()));
+            int progress=Math.clamp(data.progressPercent(),0,100);
+            g.fill(l+38,t + 240,l+312,t + 250,0xFFBB934A);
+            g.fill(l+40,t + 242,l+310,t + 248,0xFFE6C791);
+            g.fill(l+40,t + 242,l+40+270*progress/100,t + 248,VillageUiTheme.TEAL);
+            VillageUiTheme.drawStringScaled(g,font,progress+"%",l+283,t + 256,INK,.8f);
+            if(within(mx,my,l+38,t + 236,274,20))tooltip.set(java.util.List.of(Component.translatable("screen.village-quest.caravan_master.journey_progress").append(": "+progress+"%"),data.availability()));
+            String arrival=data.etaSeconds()<0?data.availability().getString():String.format(java.util.Locale.ROOT,"%d:%02d",data.etaSeconds()/60,data.etaSeconds()%60);
+            infoCard(g,l+330,t + 48,"caravan",labelled("arrival",arrival),data.availability().getString(),mx,my);
+            infoCard(g,l+330,t + 105,"compass",labelled("status",data.roadStatus().getString()),labelled("quality",data.roadQuality()+" / 100"),mx,my);
+            infoCard(g,l+330,t + 162,"quests",Component.translatable("screen.village-quest.caravan_master.cargo").getString(),data.cargo().getString(),mx,my);
+            if(!data.incident().getString().isBlank())infoCard(g,l+330,t + 219,"danger",Component.translatable("screen.village-quest.caravan_master.incident").getString(),data.incident().getString(),mx,my);
+            VillageUiTheme.drawPaper(g,l+88,t + 272,444,26);
+            if(reputation!=null) {
+                Component standing=ReputationPanel.text("master_standing",ReputationPanel.rank(reputation.guildTrust()),reputation.guildTrust(),reputation.buyLimit());
+                VillageUiTheme.drawWrappedScaled(g,font,standing.getString(),l+96,t + 279,221,INK,.8f,2);
+                if(within(mx,my,l+96,t + 277,221,20))tooltip.set(java.util.List.of(standing));
             }
-
-            String arrival = data.etaSeconds() < 0
-                    ? Component.translatable("screen.village-quest.caravan_master.delayed").getString()
-                    : String.format(java.util.Locale.ROOT, "%d:%02d", data.etaSeconds() / 60, data.etaSeconds() % 60);
-            compact(graphics, labelled("arrival", arrival), textX, top + 100, INK, 146, uiX, uiY,
-                    java.util.List.of(Component.literal(labelled("arrival", arrival)), data.availability()));
-            compact(graphics, data.availability().getString(), textX, top + 114, MUTED, 146, uiX, uiY,
-                    java.util.List.of(data.availability()));
-            compact(graphics, labelled("status", data.roadStatus().getString()), left + 190, top + 100, INK, 146, uiX, uiY,
-                    java.util.List.of(data.roadStatus(), Component.literal(labelled("quality", data.roadQuality() + " / 100"))));
-            compact(graphics, labelled("quality", data.roadQuality() + " / 100"), left + 190, top + 114, MUTED, 146, uiX, uiY,
-                    java.util.List.of(Component.literal(labelled("quality", data.roadQuality() + " / 100"))));
-
-            compact(graphics, labelled("cargo", data.cargo().getString()), textX, top + 132, INK, 312, uiX, uiY,
-                    java.util.List.of(data.cargo()));
-            if (!data.incident().getString().isBlank()) {
-                compact(graphics, labelled("incident", data.incident().getString()), textX, top + 142, 0xFF8B3934, 312, uiX, uiY,
-                        java.util.List.of(data.incident()));
-            }
-            if (reputation != null) {
-                Component standing = ReputationPanel.text("master_standing", ReputationPanel.rank(reputation.guildTrust()), reputation.guildTrust(), reputation.buyLimit());
-                compact(graphics, standing.getString(), textX, top + 152, INK, 312, uiX, uiY,
-                        reputation.reparation() == null ? java.util.List.of(standing) : java.util.List.of(standing, ReputationPanel.text("case_locations")));
-            }
-
-            if (data.canViewRoute()) {
-                VillageUiTheme.drawButton(graphics, font, left + 102, top + 164, 152, 14,
-                        Component.translatable("screen.village-quest.caravan_master.view_route").getString(),
-                        true, within(uiX, uiY, left + 102, top + 164, 152, 14), false);
-            }
-            VillageUiTheme.drawButton(graphics, font, left + 278, top + 164, 58, 14,
-                    Component.translatable("screen.village-quest.caravan_master.close").getString(),
-                    true, within(uiX, uiY, left + 278, top + 164, 58, 14), false);
-            super.render(graphics, uiX, uiY, delta);
-        } finally {
-            endResponsivePanel(graphics, scale);
-        }
-        tooltip.draw(graphics, font, mouseX, mouseY);
+            if(data.canViewRoute())VillageUiTheme.drawButton(g,font,l+330,t+FOOTER_Y,126,16,Component.translatable("screen.village-quest.caravan_master.view_route").getString(),true,within(mx,my,l+330,t+FOOTER_Y,126,16),true);
+            de.quest.client.ui.JournalV3Visuals.secondary(g,font,Component.translatable("screen.village-quest.caravan_master.close").getString(),l+464,t+FOOTER_Y,60,16,within(mx,my,l+464,t+FOOTER_Y,60,16));
+            de.quest.client.ui.JournalV3Visuals.title(g,font,title.getString(),l+150,t+3,260,"caravan");
+            super.render(g,mx,my,delta);
+        }finally{endResponsivePanel(g,scale);}
+        tooltip.draw(g,font,mouseX,mouseY);
     }
-
+    private void infoCard(GuiGraphics g,int x,int y,String icon,String label,String value,int mx,int my) {
+        inset(g,x,y,202,51);de.quest.client.ui.JournalV3Visuals.sprite(g,icon,x+8,y+10,28,28);
+        if(!data.incident().getString().isBlank() && y == (height-HEIGHT)/2+226)
+            g.fill(x+2,y+2,x+5,y+49,0xFFAA6633);
+        VillageUiTheme.drawWrappedScaled(g,font,label,x+43,y+8,150,INK,.95f,2);
+        VillageUiTheme.drawWrappedScaled(g,font,value,x+43,y+29,150,MUTED,.82f,2);
+        if(within(mx,my,x,y,202,51))tooltip.set(java.util.List.of(Component.literal(label),Component.literal(value)));
+    }
+    private void compact(GuiGraphics g,String value,int x,int y,int span,int mx,int my,java.util.List<Component> lines) {
+        compact(g,value,x,y,INK,span,mx,my,lines);
+    }
     @Override
-    protected boolean handleMouseClicked(MouseButtonEvent click, boolean doubled) {
-        if (click.button() != InputConstants.MOUSE_BUTTON_LEFT) return super.handleMouseClicked(click, doubled);
-        int left = (width - WIDTH) / 2, top = (height - HEIGHT) / 2;
-        int x = responsiveMouseX(click.x(), WIDTH, HEIGHT), y = responsiveMouseY(click.y(), WIDTH, HEIGHT);
-        if (data.canViewRoute() && within(x, y, left + 102, top + 164, 152, 14)) {
-            if (!isPreview()) {
-                UiTestTour.send(new VillageNetworkPayloads.CaravanMasterActionPayload(
-                        data.entityId(), VillageNetworkPayloads.CaravanMasterActionPayload.VIEW_ROUTE));
-            }
+    protected boolean handleMouseClicked(MouseButtonEvent click,boolean doubled) {
+        if(click.button()!=InputConstants.MOUSE_BUTTON_LEFT)return super.handleMouseClicked(click,doubled);
+        int l=(width-WIDTH)/2,t=(height-HEIGHT)/2,x=responsiveMouseX(click.x(),WIDTH,HEIGHT),y=responsiveMouseY(click.y(),WIDTH,HEIGHT);
+        if(de.quest.client.ui.KingdomUiAssets.closeBounds(l,t,WIDTH,HEIGHT).contains(x,y)||within(x,y,l+464,t+FOOTER_Y,60,16)){onClose();return true;}
+        if(data.canViewRoute()&&within(x,y,l+330,t+FOOTER_Y,126,16)){
+            if(!isPreview())UiTestTour.send(new VillageNetworkPayloads.CaravanMasterActionPayload(data.entityId(),VillageNetworkPayloads.CaravanMasterActionPayload.VIEW_ROUTE));
             return true;
         }
-        if (within(x, y, left + 278, top + 164, 58, 14)) {
-            onClose();
-            return true;
-        }
-        return super.handleMouseClicked(click, doubled);
+        return super.handleMouseClicked(click,doubled);
     }
-
     private boolean isPreview() {
         return de.quest.network.ReputationPayloads.NONE.equals(data.entityId());
     }
@@ -156,12 +127,7 @@ public final class CaravanMasterScreen extends CompatScreen {
     }
 
     private static void inset(GuiGraphics graphics, int x, int y, int width, int height) {
-        graphics.fill(x, y, x + width, y + height, 0x20FFFFFF);
-        int edge = 0x609A6620;
-        graphics.fill(x, y, x + width, y + 1, edge);
-        graphics.fill(x, y + height - 1, x + width, y + height, edge);
-        graphics.fill(x, y + 1, x + 1, y + height - 1, edge);
-        graphics.fill(x + width - 1, y + 1, x + width, y + height - 1, edge);
+        VillageUiTheme.drawCard(graphics,x,y,width,height,false,false);
     }
 
     private static boolean within(double x, double y, int left, int top, int width, int height) {

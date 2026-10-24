@@ -20,7 +20,7 @@ final class VillageAtmosphereService {
 
     static void reactToVillager(ServerLevel world, ServerPlayer player, Villager villager,
                                 VillageBondService.VillageBondView view) {
-        if (world == null || player == null || villager == null || view == null) {
+        if (world == null || player == null || villager == null || villager.isBaby() || view == null) {
             return;
         }
         PlayerQuestData data = VillageBondService.data(world, player.getUUID());

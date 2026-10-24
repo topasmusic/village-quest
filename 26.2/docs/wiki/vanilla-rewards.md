@@ -1,6 +1,6 @@
 # Vanilla reward packages
 
-[Wiki index](README.md) Â· [Quest reference](quest-reference.md) Â· [Prosperity](prosperity-and-economy.md)
+[Wiki index](README.md) · [Quest reference](quest-reference.md) · [Prosperity](prosperity-and-economy.md)
 
 New qualifying quests open a compact package selector after successful quest turn-in. Choose supplies, a task-specific work package, diamonds where unlocked, or fixed extra Silvermarks. Existing currency, XP, reputation, shards and special rewards still apply. Available packages, quantities and complete item components are frozen at acceptance; later advancement/stat changes do not alter them. Choose the package after completion, when the base rewards have been granted. Closing with Later/ESC saves the earned choice; reopen it with `/vq rewards claim`, including after a restart or another quest. Previously accepted, already chosen packages retain their automatic payout. Your last choice is suggested when available. Without a preference, End progress suggests work supplies; otherwise supplies are suggested. Diamond alternatives require the vanilla Diamonds advancement, which may also be obtained from a gift. There is no AFK, farm, playtime or mining-stat reward multiplier.
 

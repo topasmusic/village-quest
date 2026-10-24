@@ -27,7 +27,6 @@ import de.quest.questmaster.QuestMasterUiService;
 import de.quest.quest.QuestBookHelper;
 import de.quest.quest.daily.DailyQuestService;
 import de.quest.quest.daily.FirstDailyChoiceService;
-import de.quest.quest.special.AdminCoreTestQuestService;
 import de.quest.quest.special.MerchantSealQuestService;
 import de.quest.quest.special.ShardRelicQuestService;
 import de.quest.quest.special.SpecialQuestService;
@@ -331,28 +330,6 @@ public final class QuestCommands {
                                             ctx.getSource(),
                                             EntityArgument.getPlayer(ctx, "player")
                                     ))))
-                    .then(literal("coretest")
-                            .then(literal("start")
-                                    .executes(ctx -> startCoreTestForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                                    .then(argument("player", EntityArgument.player())
-                                            .executes(ctx -> startCoreTestForPlayer(
-                                                    ctx.getSource(),
-                                                    EntityArgument.getPlayer(ctx, "player")
-                                            ))))
-                            .then(literal("reset")
-                                    .executes(ctx -> resetCoreTestForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                                    .then(argument("player", EntityArgument.player())
-                                            .executes(ctx -> resetCoreTestForPlayer(
-                                                    ctx.getSource(),
-                                                    EntityArgument.getPlayer(ctx, "player")
-                                            ))))
-                            .then(literal("show")
-                                    .executes(ctx -> showCoreTestForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                                    .then(argument("player", EntityArgument.player())
-                                            .executes(ctx -> showCoreTestForPlayer(
-                                                    ctx.getSource(),
-                                                    EntityArgument.getPlayer(ctx, "player")
-                                            )))))
                     .then(literal("pilgrim")
                             .then(literal("spawn")
                                     .executes(ctx -> spawnPilgrimForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
@@ -423,7 +400,9 @@ public final class QuestCommands {
             LiteralArgumentBuilder<CommandSourceStack> questTrackerCommand = literal("questtracker")
                     .executes(ctx -> toggleQuestTracker(ctx.getSource()))
                     .then(literal("on").executes(ctx -> setQuestTracker(ctx.getSource(), true)))
-                    .then(literal("off").executes(ctx -> setQuestTracker(ctx.getSource(), false)));
+                    .then(literal("off").executes(ctx -> setQuestTracker(ctx.getSource(), false)))
+                    .then(literal("left").executes(ctx -> positionQuestTracker(ctx.getSource(), false)))
+                    .then(literal("right").executes(ctx -> positionQuestTracker(ctx.getSource(), true)));
 
             LiteralArgumentBuilder<CommandSourceStack> diagnoseCommand = literal("diagnose")
                     .executes(ctx -> diagnose(ctx.getSource(), ctx.getSource().getPlayer()))
@@ -529,6 +508,23 @@ public final class QuestCommands {
                             .then(literal("cancel").executes(ctx -> cancelRouteSurvey(ctx.getSource()))));
 
             CommandNode<CommandSourceStack> villageQuestCommand = dispatcher.register(literal("villagequest")
+                    .then(NpcSkinPreviewService.command())
+                    .then(literal("friends").then(argument("body",StringArgumentType.word()).then(argument("action",StringArgumentType.word()).executes(ctx -> de.quest.quest.special.FriendsQuestService.command(ctx.getSource().getPlayer(),StringArgumentType.getString(ctx,"body"),StringArgumentType.getString(ctx,"action"))))))
+                    .then(literal("settings").executes(ctx -> {
+                        ServerPlayer player = ctx.getSource().getPlayer();
+                        if (player == null) return 0;
+                        de.quest.config.QuestSetupService.open(player); return 1;
+                    }))
+                    .then(literal("aid")
+                            .then(literal("repair").executes(ctx -> de.quest.kingdom.KingdomAttackService.apologize(ctx.getSource().getPlayer())))
+                            .then(literal("help").then(argument("incident",StringArgumentType.word()).executes(ctx ->
+                                    de.quest.kingdom.KingdomAttackService.choose(ctx.getSource().getPlayer(),StringArgumentType.getString(ctx,"incident"),true))))
+                            .then(literal("refuse").then(argument("incident",StringArgumentType.word()).executes(ctx ->
+                                    de.quest.kingdom.KingdomAttackService.choose(ctx.getSource().getPlayer(),StringArgumentType.getString(ctx,"incident"),false)))))
+                    .then(literal("artifacts")
+                            .then(literal("target").executes(ctx -> artifactCouncil(ctx.getSource(),"target")))
+                            .then(literal("reserve").executes(ctx -> artifactCouncil(ctx.getSource(),"reserve")))
+                            .then(literal("road").executes(ctx -> artifactCouncil(ctx.getSource(),"road"))))
                     .then(literal("rewards").then(literal("claim").executes(ctx -> {
                         ServerPlayer player = ctx.getSource().getPlayer();
                         return player == null ? 0 : de.quest.reward.VanillaRewardService.claim(ctx.getSource().getServer().overworld(), player);
@@ -549,6 +545,10 @@ public final class QuestCommands {
                     .then(VillageNetworkCommands.guildCommand()));
             dispatcher.register(literal("vq").redirect(villageQuestCommand));
         });
+    }
+
+    private static int artifactCouncil(CommandSourceStack source,String action) {
+        var player=source.getPlayer(); return player!=null && de.quest.kingdom.ArtifactJourneyService.council(player,action)?1:0;
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> buildAdminWalletCommand() {
@@ -990,10 +990,6 @@ public final class QuestCommands {
             return 0;
         }
         QuestBookHelper.closeJournal(player);
-        if (!TradeRouteService.hasRouteAccess(source.getServer().overworld(), player.getUUID())) {
-            player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.locked").withStyle(ChatFormatting.GRAY), false);
-            return 0;
-        }
         TradeRouteService.openMap(source.getServer().overworld(), player);
         return 1;
     }
@@ -1332,6 +1328,16 @@ public final class QuestCommands {
         return 1;
     }
 
+    private static int positionQuestTracker(CommandSourceStack source, boolean right) {
+        ServerPlayer player=source.getPlayer();
+        if(player==null) {
+            source.sendFailure(Component.translatable("command.village-quest.questadmin.player_required"));
+            return 0;
+        }
+        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player,new de.quest.network.QuestTrackerPositionPayload(right));
+        return 1;
+    }
+
     private static int setQuestTracker(CommandSourceStack source, boolean enabled) {
         ServerPlayer player = source.getPlayer();
         if (player == null) {
@@ -1388,67 +1394,6 @@ public final class QuestCommands {
 
         source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.shardcachetp.other", target.getDisplayName()).withStyle(ChatFormatting.GREEN), false);
         target.sendSystemMessage(Component.translatable("command.village-quest.questadmin.shardcachetp.notify").withStyle(ChatFormatting.GRAY), false);
-        return 1;
-    }
-
-    private static int startCoreTestForPlayer(CommandSourceStack source, ServerPlayer target) {
-        if (target == null) {
-            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
-            return 0;
-        }
-
-        var world = source.getServer().overworld();
-        if (!AdminCoreTestQuestService.adminStart(world, target)) {
-            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.coretest.show.none", target.getDisplayName()).withStyle(ChatFormatting.RED), false);
-            return 0;
-        }
-
-        source.sendSuccess(() -> Component.translatable(
-                "command.village-quest.questadmin.coretest.start",
-                target.getDisplayName()
-        ).withStyle(ChatFormatting.GREEN), false);
-        return 1;
-    }
-
-    private static int resetCoreTestForPlayer(CommandSourceStack source, ServerPlayer target) {
-        if (target == null) {
-            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
-            return 0;
-        }
-
-        var world = source.getServer().overworld();
-        AdminCoreTestQuestService.adminReset(world, target);
-        source.sendSuccess(() -> Component.translatable(
-                "command.village-quest.questadmin.coretest.reset",
-                target.getDisplayName()
-        ).withStyle(ChatFormatting.GREEN), false);
-        return 1;
-    }
-
-    private static int showCoreTestForPlayer(CommandSourceStack source, ServerPlayer target) {
-        if (target == null) {
-            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
-            return 0;
-        }
-
-        var world = source.getServer().overworld();
-        var status = AdminCoreTestQuestService.openStatus(world, target.getUUID());
-        if (status == null) {
-            source.sendSuccess(() -> Component.translatable(
-                    "command.village-quest.questadmin.coretest.show.none",
-                    target.getDisplayName()
-            ).withStyle(ChatFormatting.RED), false);
-            return 0;
-        }
-
-        source.sendSuccess(() -> Component.translatable(
-                "command.village-quest.questadmin.coretest.show.header",
-                target.getDisplayName()
-        ).withStyle(ChatFormatting.GOLD), false);
-        source.sendSuccess(() -> status.title().copy().withStyle(ChatFormatting.AQUA), false);
-        for (Component line : status.lines()) {
-            source.sendSuccess(() -> line, false);
-        }
         return 1;
     }
 

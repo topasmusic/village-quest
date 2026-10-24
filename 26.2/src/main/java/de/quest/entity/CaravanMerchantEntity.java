@@ -38,7 +38,13 @@ public final class CaravanMerchantEntity extends PathfinderMob {
             SynchedEntityData.defineId(CaravanMerchantEntity.class, EntityDataSerializers.INT);
     private static final EntityDataAccessor<Boolean> COURIER_ROLE =
             SynchedEntityData.defineId(CaravanMerchantEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Boolean> FEMALE =
+            SynchedEntityData.defineId(CaravanMerchantEntity.class,EntityDataSerializers.BOOLEAN);
 
+    private net.minecraft.network.chat.Component lastAutomaticName;
+    public void refreshAutomaticName(net.minecraft.network.chat.Component name) {
+        if(getCustomName()==null || getCustomName().equals(lastAutomaticName)) { lastAutomaticName=name.copy(); setCustomName(name); }
+    }
     private int despawnTicks = DEFAULT_DESPAWN_TICKS;
     private int encounterControlTicks;
     private int defenseCooldownTicks;
@@ -68,6 +74,7 @@ public final class CaravanMerchantEntity extends PathfinderMob {
         builder.define(LIVERY_INDEX, 0);
         builder.define(CREW_ROLE, CaravanRole.MASTER.ordinal());
         builder.define(COURIER_ROLE, false);
+        builder.define(FEMALE,false);
     }
 
     public static AttributeSupplier.Builder createAttributes() {
@@ -107,9 +114,15 @@ public final class CaravanMerchantEntity extends PathfinderMob {
     protected InteractionResult mobInteract(Player player, InteractionHand hand) {
         if (player instanceof ServerPlayer serverPlayer) {
             this.getLookControl().setLookAt(serverPlayer.getX(), serverPlayer.getEyeY(), serverPlayer.getZ());
+            if(serverPlayer.distanceToSqr(this)<=64 && (lastGreeting<0 || level().getGameTime()<lastGreeting || level().getGameTime()-lastGreeting>=100)) {
+                lastGreeting=level().getGameTime();
+                de.quest.kingdom.NpcSpeechService.privateLine(serverPlayer,this,net.minecraft.network.chat.Component.translatable(
+                        "message.village-quest.dialogue.caravan."+(isCourier()?"courier":"greeting")));
+            }
         }
         return InteractionResult.SUCCESS;
     }
+    private long lastGreeting=-1;
 
     @Override
     public boolean isPushable() {
@@ -119,8 +132,10 @@ public final class CaravanMerchantEntity extends PathfinderMob {
     @Override
     protected void addAdditionalSaveData(ValueOutput data) {
         super.addAdditionalSaveData(data);
+        if(lastAutomaticName!=null) data.store("LivingKingdomsAutomaticName",net.minecraft.network.chat.ComponentSerialization.CODEC,lastAutomaticName);
         data.putInt("DespawnTicks", this.despawnTicks);
         data.putBoolean("Courier", isCourier());
+        data.putBoolean("LivingKingdomsFemale",isFemale());
         data.putInt("CrewRole", getCrewRole().ordinal());
         data.putInt("RouteIndex", getRouteIndex());
         data.putInt("LiveryIndex", getLiveryIndex());
@@ -129,8 +144,10 @@ public final class CaravanMerchantEntity extends PathfinderMob {
     @Override
     protected void readAdditionalSaveData(ValueInput data) {
         super.readAdditionalSaveData(data);
+        lastAutomaticName=data.read("LivingKingdomsAutomaticName",net.minecraft.network.chat.ComponentSerialization.CODEC).orElse(null);
         this.despawnTicks = Math.max(0, data.getIntOr("DespawnTicks", DEFAULT_DESPAWN_TICKS));
         setCourier(data.getBooleanOr("Courier", false));
+        setFemale(data.getBooleanOr("LivingKingdomsFemale",false));
         setCrewRole(CaravanRole.byId(data.getIntOr("CrewRole", 0)));
         setRouteIndex(data.getIntOr("RouteIndex", 0));
         setLiveryIndex(data.getIntOr("LiveryIndex", getRouteIndex()));
@@ -144,6 +161,8 @@ public final class CaravanMerchantEntity extends PathfinderMob {
     public boolean isCourier() {
         return this.entityData.get(COURIER_ROLE);
     }
+    public boolean isFemale() { return entityData.get(FEMALE); }
+    public void setFemale(boolean female) { entityData.set(FEMALE,female); }
 
     public CaravanRole getCrewRole() {
         return CaravanRole.byId(this.entityData.get(CREW_ROLE));

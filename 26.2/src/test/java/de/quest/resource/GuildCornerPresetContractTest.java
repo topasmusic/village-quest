@@ -49,22 +49,8 @@ final class GuildCornerPresetContractTest {
         }
     }
 
-    @Test
-    void missingPresetExitsBeforeAnyLandmarkReservation() throws Exception {
-        Path source = Path.of("src", "main", "java", "de", "quest", "village",
-                "GuildCornerPlacementService.java");
-        String placement = Files.readString(source);
-        int automaticLoad = placement.indexOf("TemplateHandle template = loadTemplate");
-        int automaticMissingExit = placement.indexOf("if (template == null) return;", automaticLoad);
-        int firstReservation = placement.indexOf("state.reserve(", automaticLoad);
-        int manualMissingExit = placement.indexOf(
-                "if (template == null) return ManualPlacementResult.MISSING_OR_INVALID_PRESET;");
-        int manualReservation = placement.indexOf("state.reserve(", manualMissingExit);
-
-        assertTrue(automaticLoad >= 0 && automaticMissingExit > automaticLoad
-                && firstReservation > automaticMissingExit);
-        assertTrue(manualMissingExit >= 0 && manualReservation > manualMissingExit);
-    }
+    // Missing-preset behavior is exercised through the real placement adapter in
+    // GuildNoticePostFallbackTest: a compact board now remains available without the decorative NBT.
 
     private static void validate(String style, CompoundTag template) {
         ListTag size = template.getListOrEmpty("size");

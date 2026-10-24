@@ -39,7 +39,7 @@ In Village Quest 2.5, messages about features that still need a project, rank or
   Print a read-only reset, route, caravan, stuck-group, and orphan-entity report. Operators can use `/vq diagnose <player>` for another player.
 
 - `/vq town retrofit`
-  Request a Guild Corner in the generated Overworld village around you when automatic placement was skipped. The complete site must be loaded and safe; existing buildings, block entities and protected terrain are not overwritten. Already generated or player-removed corners are not recreated. In Village Quest 2.5 on both maintained lines, both bundled presets pass Minecraft's current template validation.
+  Request a Guild Corner in the village around you. If the decorative preset cannot fit, a compact Notice Post is placed on safe nearby ground. Stand beside your cleared area and retry: the local search checks densely around you, including forest villages. Necessary natural foliage/tree blocks may be cleared; buildings, containers and deliberately player-removed boards stay protected. Failed old reservations and missing saved boards can recover. The required area must be loaded; a compact board occupies three blocks of width and two of height, with a clear approach.
 
 - `/vq routes guild`
   Show trade-guild rank, score, daily income, escrow, route specialization, road length, quality, and solved incidents.

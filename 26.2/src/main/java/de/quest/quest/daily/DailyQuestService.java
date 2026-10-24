@@ -29,7 +29,7 @@ import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.registry.ModItems;
 import de.quest.shrine.VillageWelcomeService;
 import de.quest.util.Texts;
-import de.quest.util.TimeUtil;
+import de.quest.util.QuestCalendarService;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.player.Player;
@@ -144,7 +144,7 @@ public final class DailyQuestService {
     private DailyQuestService() {}
 
     private static long currentDay() {
-        return TimeUtil.currentDay();
+        return QuestCalendarService.currentDay();
     }
 
     private static PlayerQuestData data(ServerLevel world, UUID playerId) {
@@ -1530,7 +1530,6 @@ public final class DailyQuestService {
         }
         StoryQuestService.onFurnaceOutput(world, player, stack);
         WeeklyQuestService.onFurnaceOutput(world, player, stack);
-        SpecialQuestService.onFurnaceOutput(world, player, stack);
         PilgrimContractService.onFurnaceOutput(world, player, stack);
         de.quest.guildtown.GuildTownService.onFurnaceOutput(world, player, stack);
     }

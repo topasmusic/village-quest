@@ -6,225 +6,98 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import de.quest.client.compat.GuiGraphics;
-import net.minecraft.client.gui.components.Button;
+import de.quest.client.ui.VillageUiTheme;
+import de.quest.client.ui.KingdomUiAssets;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvents;
 
 public class AdminJournalScreen extends CompatScreen {
-    private static final float BASE_TEXT_SCALE = 0.7f;
-    private static final float HEADER_TEXT_SCALE = BASE_TEXT_SCALE * 1.3f;
-    private static final float BODY_TEXT_SCALE = BASE_TEXT_SCALE * 0.7f;
-    private static final Identifier BOOK_TEXTURE = Identifier.fromNamespaceAndPath("minecraft", "textures/gui/book.png");
-    private static final Identifier PAGE_BACKWARD = Identifier.fromNamespaceAndPath("minecraft", "widget/page_backward");
-    private static final Identifier PAGE_BACKWARD_HIGHLIGHT = Identifier.fromNamespaceAndPath("minecraft", "widget/page_backward_highlighted");
-    private static final Identifier PAGE_FORWARD = Identifier.fromNamespaceAndPath("minecraft", "widget/page_forward");
-    private static final Identifier PAGE_FORWARD_HIGHLIGHT = Identifier.fromNamespaceAndPath("minecraft", "widget/page_forward_highlighted");
-    private static final int PAGE_WIDTH = 176;
-    private static final int PAGE_HEIGHT = 176;
-    private static final int CONTENT_Y_OFFSET = 24;
-    private static final int CONTENT_WIDTH = 125;
-    private static final int CONTENT_HEIGHT = 118;
-    private static final int CONTENT_X_OFFSET = 40;
-    private static final int ARROW_WIDTH = 23;
-    private static final int ARROW_HEIGHT = 13;
-    private static final int DONE_BUTTON_WIDTH = 80;
-    private static final int BUTTON_ROW_HEIGHT = 20;
-    private static final int ARROW_BORDER = 0xFF6E4F28;
-    private static final int ARROW_FILL = 0xFFD8C089;
-    private static final int ARROW_FILL_HOVER = 0xFFEBD5A5;
-    private static final int ARROW_SHADOW = 0xFF9F7235;
-    private static final int ARROW_TEXT = 0xFF5B3C16;
-
+    private static final float HEADER_TEXT_SCALE = .95f;
+    private static final float BODY_TEXT_SCALE = .8f;
+    private static final int PAGE_WIDTH = 416, PAGE_HEIGHT = 290;
+    private static final int CONTENT_Y_OFFSET = 70, CONTENT_X_OFFSET = 26;
+    private static final int CONTENT_WIDTH = 364, CONTENT_HEIGHT = 164;
+    private static final int ARROW_WIDTH = 48, ARROW_HEIGHT = 20;
     private final List<String> rawLines;
     private List<List<RenderLine>> pages = List.of();
     private int pageIndex = 0;
-    private Button doneButton;
     private final List<LinkHit> linkHits = new ArrayList<>();
     private Map<String, Integer> markerPages = new HashMap<>();
 
     public AdminJournalScreen(List<String> lines) {
-        super(Component.literal("Admin Journal"));
+        super(Component.translatable("screen.village-quest.admin_journal.title"));
         this.rawLines = lines == null ? List.of() : List.copyOf(lines);
     }
 
-    @Override
-    protected void init() {
-        buildPages();
+    @Override protected void init() { buildPages(); linkHits.clear(); }
+    @Override public boolean shouldCloseOnEsc() { return true; }
 
-        int left = (this.width - PAGE_WIDTH) / 2;
-        int top = (this.height - PAGE_HEIGHT) / 2;
-        int buttonY = getButtonRowY(top);
-        int centerX = left + PAGE_WIDTH / 2;
-
-        this.doneButton = Button.builder(Component.literal("Fertig"), b -> this.onClose())
-                .bounds(centerX - DONE_BUTTON_WIDTH / 2, buttonY, DONE_BUTTON_WIDTH, BUTTON_ROW_HEIGHT)
-                .build();
-
-        addRenderableWidget(this.doneButton);
-    }
-
-    @Override
-    public boolean shouldCloseOnEsc() {
-        return true;
-    }
-
-    @Override
-    public void render(GuiGraphics context, int mouseX, int mouseY, float delta) {
-        int left = (this.width - PAGE_WIDTH) / 2;
-        int top = (this.height - PAGE_HEIGHT) / 2;
-
-        context.blit(RenderPipelines.GUI_TEXTURED, BOOK_TEXTURE, left, top, 0.0f, 0.0f, PAGE_WIDTH, PAGE_HEIGHT, 256, 256);
-
-        if (!pages.isEmpty()) {
+    @Override public void render(GuiGraphics context, int mouseX, int mouseY, float delta) {
+        VillageUiTheme.drawScreenShade(context, width, height);
+        int mx=responsiveMouseX(mouseX,PAGE_WIDTH,PAGE_HEIGHT),my=responsiveMouseY(mouseY,PAGE_WIDTH,PAGE_HEIGHT);
+        float scale=beginResponsivePanel(context,PAGE_WIDTH,PAGE_HEIGHT);
+        try {
+            int left=(width-PAGE_WIDTH)/2,top=(height-PAGE_HEIGHT)/2;
+            VillageUiTheme.drawBoard(context,left,top,PAGE_WIDTH,PAGE_HEIGHT);
+            VillageUiTheme.drawTitle(context,font,title.getString(),"story",left+80,top+7,256);
+            var close=KingdomUiAssets.closeBounds(left,top,PAGE_WIDTH,PAGE_HEIGHT);
+            KingdomUiAssets.closeButton(context,left,top,PAGE_WIDTH,PAGE_HEIGHT,close.contains(mx,my));
+            VillageUiTheme.drawPaper(context,left+18,top+60,PAGE_WIDTH-36,CONTENT_HEIGHT+20);
             linkHits.clear();
-            drawPage(context, left, top, pages.get(pageIndex));
-            drawPageIndicator(context, left, top);
-            drawArrows(context, left, top, mouseX, mouseY);
-        }
-
-        super.render(context, mouseX, mouseY, delta);
+            if(!pages.isEmpty()) drawPage(context,left,top,pages.get(pageIndex),mx,my);
+            VillageUiTheme.drawPaper(context,left+18,top+244,PAGE_WIDTH-36,29);
+            int buttonY=top+250;
+            VillageUiTheme.drawButton(context,font,left+26,buttonY,ARROW_WIDTH,ARROW_HEIGHT,"<",pageIndex>0,isHover(mx,my,left+26,buttonY,ARROW_WIDTH,ARROW_HEIGHT),false);
+            VillageUiTheme.drawButton(context,font,left+PAGE_WIDTH-26-ARROW_WIDTH,buttonY,ARROW_WIDTH,ARROW_HEIGHT,">",pageIndex+1<pages.size(),isHover(mx,my,left+PAGE_WIDTH-26-ARROW_WIDTH,buttonY,ARROW_WIDTH,ARROW_HEIGHT),false);
+            String label=Component.translatable("screen.village-quest.journal.page",pageIndex+1,Math.max(1,pages.size())).getString();
+            VillageUiTheme.drawStringScaled(context,font,label,left+(PAGE_WIDTH-font.width(label)*.8f)/2,buttonY+6,VillageUiTheme.BODY,.8f);
+        } finally { endResponsivePanel(context,scale); }
     }
 
-    private void drawPage(GuiGraphics context, int left, int top, List<RenderLine> page) {
-        int x = left + CONTENT_X_OFFSET;
-        int y = top + CONTENT_Y_OFFSET;
-        int maxY = top + CONTENT_Y_OFFSET + CONTENT_HEIGHT;
-
-        for (RenderLine line : page) {
-            if (y > maxY) {
-                break;
-            }
-            int xOffset = 0;
-            for (RenderSegment segment : line.segments) {
-                String display = replacePlaceholders(segment.text);
-                if (display.isEmpty()) {
-                    continue;
+    private void drawPage(GuiGraphics context,int left,int top,List<RenderLine> page,int mx,int my) {
+        int x=left+CONTENT_X_OFFSET,y=top+CONTENT_Y_OFFSET;
+        for(RenderLine line:page) {
+            int step=Math.round((font.lineHeight+3)*line.scale);
+            if(y+step>top+CONTENT_Y_OFFSET+CONTENT_HEIGHT) break;
+            int offset=0;
+            for(RenderSegment segment:line.segments) {
+                String display=replacePlaceholders(segment.text);
+                boolean interactive=segment.actionType!=null || line.linkId!=null;
+                int color=segment.color!=null?segment.color:line.color!=null?line.color:interactive?VillageUiTheme.TEAL:VillageUiTheme.BODY;
+                int w=Math.round(font.width(display)*line.scale),h=Math.round(font.lineHeight*line.scale);
+                VillageUiTheme.drawStringScaled(context,font,display,x+offset,y,color,line.scale);
+                if(interactive && w>0) {
+                    if(isHover(mx,my,x+offset,y,w,h)) context.fill(x+offset,y+h,x+offset+w,y+h+1,VillageUiTheme.GOLD);
+                    linkHits.add(new LinkHit(x+offset,y,w,h,markerPages.get(line.linkId),segment.actionType,segment.actionValue));
                 }
-                boolean interactive = segment.actionType != null || line.linkId != null;
-                int color = segment.color != null
-                        ? segment.color
-                        : (line.color != null ? line.color : (interactive ? 0xFF6FA9FF : 0xFF9E9E9E));
-                float scale = line.scale;
-                int drawX = x + xOffset;
-                var matrices = context.pose();
-                matrices.pushMatrix();
-                matrices.scale(scale, scale);
-                context.drawString(this.font, display, Math.round(drawX / scale), Math.round(y / scale), color, false);
-                matrices.popMatrix();
-                int width = Math.round(this.font.width(display) * scale);
-                if (interactive) {
-                    Integer target = markerPages.get(line.linkId);
-                    linkHits.add(new LinkHit(
-                            drawX,
-                            y,
-                            width,
-                            Math.round(this.font.lineHeight * scale),
-                            target,
-                            segment.actionType,
-                            segment.actionValue
-                    ));
-                }
-                xOffset += width;
+                offset+=w;
             }
-            y += Math.round((this.font.lineHeight + 2) * line.scale);
+            y+=step;
         }
     }
 
-    private void drawPageIndicator(GuiGraphics context, int left, int top) {
-        if (pages.size() <= 1) {
-            return;
-        }
-        String label = "Seite " + (pageIndex + 1) + " von " + pages.size();
-        int textWidth = this.font.width(label);
-        float scale = 0.5f;
-        int x = left + PAGE_WIDTH - 12 - Math.round(textWidth * scale) - 15;
-        int y = top + 8 + 15 - 8;
-
-        var matrices = context.pose();
-        matrices.pushMatrix();
-        matrices.scale(scale, scale);
-        context.drawString(this.font, label, Math.round(x / scale), Math.round(y / scale), 0xFF9E9E9E, false);
-        matrices.popMatrix();
+    private boolean isHover(int mx,int my,int x,int y,int w,int h) { return mx>=x && mx<x+w && my>=y && my<y+h; }
+    private void goToPage(int target) {
+        int next=Math.max(0,Math.min(target,pages.size()-1));
+        if(next!=pageIndex) { pageIndex=next; linkHits.clear(); playPageTurnSound(); }
     }
-
-    private void drawArrows(GuiGraphics context, int left, int top, int mouseX, int mouseY) {
-        int buttonY = top + PAGE_HEIGHT - 14 - 15 + 8;
-        int prevX = left + 20 + 15;
-        int nextX = left + PAGE_WIDTH - 20 - ARROW_WIDTH - 15;
-        boolean canPrev = pageIndex > 0;
-        boolean canNext = pageIndex + 1 < pages.size();
-
-        if (canPrev) {
-            drawArrowButton(context, prevX, buttonY, isHover(mouseX, mouseY, prevX, buttonY, ARROW_WIDTH, ARROW_HEIGHT), true);
+    @Override protected boolean handleMouseClicked(net.minecraft.client.input.MouseButtonEvent click,boolean doubled) {
+        if(click.button()!=InputConstants.MOUSE_BUTTON_LEFT) return super.handleMouseClicked(click,doubled);
+        int mx=responsiveMouseX(click.x(),PAGE_WIDTH,PAGE_HEIGHT),my=responsiveMouseY(click.y(),PAGE_WIDTH,PAGE_HEIGHT);
+        int left=(width-PAGE_WIDTH)/2,top=(height-PAGE_HEIGHT)/2,buttonY=top+250;
+        if(KingdomUiAssets.closeBounds(left,top,PAGE_WIDTH,PAGE_HEIGHT).contains(mx,my)) { onClose(); return true; }
+        if(isHover(mx,my,left+26,buttonY,ARROW_WIDTH,ARROW_HEIGHT)) { goToPage(pageIndex-1); return true; }
+        if(isHover(mx,my,left+PAGE_WIDTH-26-ARROW_WIDTH,buttonY,ARROW_WIDTH,ARROW_HEIGHT)) { goToPage(pageIndex+1); return true; }
+        for(LinkHit hit:List.copyOf(linkHits)) if(isHover(mx,my,hit.x,hit.y,hit.w,hit.h)) {
+            if(hit.actionType==ActionType.COMMAND) sendCommand(hit.actionValue);
+            else if(hit.actionType==ActionType.SUGGEST) suggestCommand(hit.actionValue);
+            else if(hit.actionType==ActionType.CONFIRM) confirmCommand(hit.actionValue);
+            else if(hit.targetPage!=null) goToPage(hit.targetPage);
+            return true;
         }
-        if (canNext) {
-            drawArrowButton(context, nextX, buttonY, isHover(mouseX, mouseY, nextX, buttonY, ARROW_WIDTH, ARROW_HEIGHT), false);
-        }
-    }
-
-    private void drawArrowButton(GuiGraphics context, int x, int y, boolean hovered, boolean backwards) {
-        context.fill(x, y, x + ARROW_WIDTH, y + ARROW_HEIGHT, ARROW_BORDER);
-        context.fill(x + 1, y + 1, x + ARROW_WIDTH - 1, y + ARROW_HEIGHT - 1, hovered ? ARROW_FILL_HOVER : ARROW_FILL);
-        context.fill(x + 1, y + ARROW_HEIGHT - 2, x + ARROW_WIDTH - 1, y + ARROW_HEIGHT - 1, ARROW_SHADOW);
-
-        String arrow = backwards ? "<" : ">";
-        int arrowX = x + (ARROW_WIDTH - this.font.width(arrow)) / 2;
-        int arrowY = y + Math.max(0, (ARROW_HEIGHT - this.font.lineHeight) / 2) - 1;
-        context.drawString(this.font, arrow, arrowX, arrowY, ARROW_TEXT, false);
-    }
-
-    private boolean isHover(int mouseX, int mouseY, int x, int y, int w, int h) {
-        return mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h;
-    }
-
-    @Override
-    protected boolean handleMouseClicked(net.minecraft.client.input.MouseButtonEvent click, boolean doubled) {
-        int left = (this.width - PAGE_WIDTH) / 2;
-        int top = (this.height - PAGE_HEIGHT) / 2;
-        int buttonY = top + PAGE_HEIGHT - 14 - 15 + 8;
-        int prevX = left + 20 + 15;
-        int nextX = left + PAGE_WIDTH - 20 - ARROW_WIDTH - 15;
-
-        if (click.button() == InputConstants.MOUSE_BUTTON_LEFT) {
-            int mouseX = (int) click.x();
-            int mouseY = (int) click.y();
-            for (LinkHit hit : linkHits) {
-                if (isHover(mouseX, mouseY, hit.x, hit.y, hit.w, hit.h)) {
-                    if (hit.actionType == ActionType.COMMAND) {
-                        sendCommand(hit.actionValue);
-                        return true;
-                    }
-                    if (hit.actionType == ActionType.SUGGEST) {
-                        suggestCommand(hit.actionValue);
-                        return true;
-                    }
-                    if (hit.actionType == ActionType.CONFIRM) {
-                        confirmCommand(hit.actionValue);
-                        return true;
-                    }
-                    if (hit.targetPage != null) {
-                        pageIndex = hit.targetPage;
-                        playPageTurnSound();
-                        return true;
-                    }
-                }
-            }
-            if (pageIndex > 0 && isHover(mouseX, mouseY, prevX, buttonY, ARROW_WIDTH, ARROW_HEIGHT)) {
-                pageIndex--;
-                playPageTurnSound();
-                return true;
-            }
-            if (pageIndex + 1 < pages.size() && isHover(mouseX, mouseY, nextX, buttonY, ARROW_WIDTH, ARROW_HEIGHT)) {
-                pageIndex++;
-                playPageTurnSound();
-                return true;
-            }
-        }
-        return super.handleMouseClicked(click, doubled);
+        return super.handleMouseClicked(click,doubled);
     }
 
     private void playPageTurnSound() {
@@ -249,8 +122,8 @@ public class AdminJournalScreen extends CompatScreen {
         if (this.minecraft == null || command == null || command.isBlank()) {
             return;
         }
-        Component title = Component.literal("NPC loeschen?");
-        Component message = Component.literal("NPC und alle seine Einstellungen gehen verloren. Dieser Vorgang kann nicht rueckgaengig gemacht werden.");
+        Component title = Component.translatable("screen.village-quest.admin_journal.delete_title");
+        Component message = Component.translatable("screen.village-quest.admin_journal.delete_warning");
         UiTestTour.navigate(new ConfirmDeleteScreen(this, title, message, confirmed -> {
             if (confirmed) {
                 sendCommand(command);
@@ -349,7 +222,7 @@ public class AdminJournalScreen extends CompatScreen {
             }
 
             String text = token.text == null ? "" : token.text;
-            int lineHeight = Math.round((this.font.lineHeight + 2) * token.scale);
+            int lineHeight = Math.round((this.font.lineHeight + 3) * token.scale);
             if (text.isEmpty()) {
                 if (usedHeight + lineHeight > CONTENT_HEIGHT && !current.isEmpty()) {
                     result.add(current);
@@ -362,26 +235,12 @@ public class AdminJournalScreen extends CompatScreen {
             }
 
             ParsedSegments parsed = parseSegments(text);
-            if (parsed.hasActions) {
-                if (usedHeight + lineHeight > CONTENT_HEIGHT && !current.isEmpty()) {
-                    result.add(current);
-                    current = new ArrayList<>();
-                    usedHeight = 0;
+            for(List<RenderSegment> row:wrapSegments(parsed.segments,Math.round(CONTENT_WIDTH/token.scale))) {
+                if(usedHeight+lineHeight>CONTENT_HEIGHT && !current.isEmpty()) {
+                    result.add(current); current=new ArrayList<>(); usedHeight=0;
                 }
-                current.add(new RenderLine(parsed.segments, token.linkId, token.color, token.scale));
-                usedHeight += lineHeight;
-                continue;
-            }
-
-            int maxWidth = Math.round(CONTENT_WIDTH / token.scale);
-            for (String wrapped : wrapText(text, maxWidth)) {
-                if (usedHeight + lineHeight > CONTENT_HEIGHT && !current.isEmpty()) {
-                    result.add(current);
-                    current = new ArrayList<>();
-                    usedHeight = 0;
-                }
-                current.add(new RenderLine(List.of(new RenderSegment(wrapped, null, null, null)), token.linkId, token.color, token.scale));
-                usedHeight += lineHeight;
+                current.add(new RenderLine(row,token.linkId,token.color,token.scale));
+                usedHeight+=lineHeight;
             }
         }
         if (!current.isEmpty()) {
@@ -475,35 +334,29 @@ public class AdminJournalScreen extends CompatScreen {
         return new RenderSegment(segmentText, actionType, actionValue, segmentColor);
     }
 
-    private List<String> wrapText(String text, int maxWidth) {
-        List<String> lines = new ArrayList<>();
-        String[] words = text.replace("\n", " \n ").split("\\s+");
-        StringBuilder line = new StringBuilder();
-        for (String word : words) {
-            if ("\n".equals(word)) {
-                if (line.length() > 0) {
-                    lines.add(line.toString());
-                    line.setLength(0);
+    /** Wrap action labels with their action intact, including oversized single identifiers. */
+    private List<List<RenderSegment>> wrapSegments(List<RenderSegment> segments,int limit) {
+        List<List<RenderSegment>> rows=new ArrayList<>();
+        List<RenderSegment> row=new ArrayList<>(); int used=0;
+        for(RenderSegment segment:segments) {
+            var words=java.util.regex.Pattern.compile("\\S+\\s*|\\s+").matcher(segment.text);
+            while(words.find()) {
+                String word=words.group();
+                if(used>0 && used+font.width(word.stripTrailing())>limit) { rows.add(row);row=new ArrayList<>();used=0;word=word.stripLeading(); }
+                StringBuilder part=new StringBuilder();
+                for(int cp:word.codePoints().toArray()) {
+                    String glyph=new String(Character.toChars(cp));
+                    if(used+font.width(part+glyph)>limit && (used>0 || !part.isEmpty())) {
+                        if(!part.isEmpty()) row.add(new RenderSegment(part.toString(),segment.actionType,segment.actionValue,segment.color));
+                        rows.add(row);row=new ArrayList<>();used=0;part.setLength(0);
+                    }
+                    part.append(glyph);
                 }
-                continue;
-            }
-            if (line.length() == 0) {
-                line.append(word);
-                continue;
-            }
-            String candidate = line + " " + word;
-            if (this.font.width(candidate) > maxWidth) {
-                lines.add(line.toString());
-                line.setLength(0);
-                line.append(word);
-            } else {
-                line.append(' ').append(word);
+                if(!part.isEmpty()) { row.add(new RenderSegment(part.toString(),segment.actionType,segment.actionValue,segment.color));used+=font.width(part.toString()); }
             }
         }
-        if (line.length() > 0) {
-            lines.add(line.toString());
-        }
-        return lines;
+        if(!row.isEmpty()) rows.add(row);
+        return rows;
     }
 
     private String replacePlaceholders(String text) {
@@ -525,12 +378,12 @@ public class AdminJournalScreen extends CompatScreen {
         }
         String key = value.trim().toLowerCase();
         return switch (key) {
-            case "gray", "grey" -> 0xFF9E9E9E;
-            case "green" -> 0xFF6BCB6B;
-            case "red" -> 0xFFFF4B4B;
-            case "blue" -> 0xFF6FA9FF;
-            case "yellow" -> 0xFFE3C76A;
-            case "gold" -> 0xFFD7B46A;
+            case "gray", "grey" -> VillageUiTheme.MUTED;
+            case "green" -> 0xFF306C42;
+            case "red" -> 0xFF983E2C;
+            case "blue" -> VillageUiTheme.TEAL;
+            case "yellow" -> VillageUiTheme.GOLD;
+            case "gold" -> VillageUiTheme.GOLD;
             default -> {
                 String hex = key.startsWith("#") ? key.substring(1) : key;
                 if (hex.length() != 6) {
@@ -559,14 +412,10 @@ public class AdminJournalScreen extends CompatScreen {
             if (scale <= 0.0f || Float.isNaN(scale) || Float.isInfinite(scale)) {
                 return BODY_TEXT_SCALE;
             }
-            return scale;
+            return Math.max(.72f,Math.min(1.1f,scale));
         } catch (NumberFormatException ex) {
             return BODY_TEXT_SCALE;
         }
-    }
-
-    private int getButtonRowY(int top) {
-        return top + PAGE_HEIGHT + 4;
     }
 
     private static class RenderLine {
@@ -677,40 +526,30 @@ public class AdminJournalScreen extends CompatScreen {
             this.onClose = onClose;
         }
 
-        @Override
-        protected void init() {
-            int centerX = this.width / 2;
-            int centerY = this.height / 2;
-            int buttonWidth = 80;
-            int buttonY = centerY + 10;
-            addRenderableWidget(Button.builder(Component.literal("Ja"), b -> onClose.accept(true))
-                    .bounds(centerX - buttonWidth - 6, buttonY, buttonWidth, 20)
-                    .build());
-            addRenderableWidget(Button.builder(Component.literal("Nein"), b -> onClose.accept(false))
-                    .bounds(centerX + 6, buttonY, buttonWidth, 20)
-                    .build());
+        private boolean resolved;
+        private void resolve(boolean answer) { if(!resolved) { resolved=true; onClose.accept(answer); } }
+        @Override public void onClose() { resolve(false); }
+        @Override public void render(GuiGraphics g,int mx,int my,float delta) {
+            VillageUiTheme.drawScreenShade(g,width,height);
+            float scale=beginResponsivePanel(g,416,200);
+            int x=(width-416)/2,y=(height-200)/2;
+            try {
+                VillageUiTheme.drawBoard(g,x,y,416,200);
+                VillageUiTheme.drawTitle(g,font,title.getString(),"story",x+64,y+8,288);
+                VillageUiTheme.drawWrappedScaled(g,font,message.getString(),x+28,y+60,360,VillageUiTheme.INK,.85f,6);
+                int px=responsiveMouseX(mx,416,200),py=responsiveMouseY(my,416,200);
+                VillageUiTheme.drawButton(g,font,x+30,y+150,170,22,Component.translatable("gui.no").getString(),true,px>=x+30&&px<x+200&&py>=y+150&&py<y+172,false);
+                VillageUiTheme.drawButton(g,font,x+216,y+150,170,22,Component.translatable("gui.yes").getString(),true,px>=x+216&&px<x+386&&py>=y+150&&py<y+172,false);
+            } finally { endResponsivePanel(g,scale); }
         }
-
-        @Override
-        public boolean shouldCloseOnEsc() {
-            onClose.accept(false);
-            return true;
-        }
-
-        @Override
-        public void onClose() {
-            if (this.minecraft != null) {
-                UiTestTour.navigate(parent);
+        @Override protected boolean handleMouseClicked(net.minecraft.client.input.MouseButtonEvent click,boolean doubled) {
+            if(click.button()!=InputConstants.MOUSE_BUTTON_LEFT) return super.handleMouseClicked(click,doubled);
+            int px=responsiveMouseX(click.x(),416,200)-(width-416)/2,py=responsiveMouseY(click.y(),416,200)-(height-200)/2;
+            if(py>=150&&py<172) {
+                if(px>=30&&px<200) { resolve(false);return true; }
+                if(px>=216&&px<386) { resolve(true);return true; }
             }
-        }
-
-        @Override
-        public void render(GuiGraphics context, int mouseX, int mouseY, float delta) {
-            context.fill(0, 0, this.width, this.height, 0x80000000);
-            int centerX = this.width / 2;
-            context.drawCenteredString(this.font, this.title, centerX, this.height / 2 - 30, 0xFFFFFF);
-            context.drawCenteredString(this.font, this.message, centerX, this.height / 2 - 10, 0xFF9E9E9E);
-            super.render(context, mouseX, mouseY, delta);
+            return super.handleMouseClicked(click,doubled);
         }
     }
 

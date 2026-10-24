@@ -1,5 +1,11 @@
 # Stories and Village Projects
 
+## Living Kingdoms 2.6
+
+See [Living Kingdoms stories and tools](kingdom-stories-and-tools.md) for
+**A Place at the Table**, the Village Seal and **The Unwritten Promise**.
+See [Travelling NPCs](travelling-npcs.md) for Simon, Lutte and Marius.
+
 ## Core Story Order
 
 The visible core `Questmaster` story chain is:

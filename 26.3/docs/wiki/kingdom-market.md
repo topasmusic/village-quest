@@ -5,7 +5,7 @@ Part of [Living Kingdoms 2.6](living-kingdoms.md).
 ## Build and assign a trader place
 
 The **Market Desk** controls the market area. Craft a **Trader Stall** from
-**3 white wool, 3 oak planks and 2 sticks**. Leave safe reachable standing space
+**3 white wool, 3 planks of any wood and 2 sticks**. Leave safe reachable standing space
 directly at it and place an ordinary chest or barrel beside it. The trader space
 must be within one horizontal block of the stall and two of its container, with
 at most one block vertical difference. Each place needs its own resources;

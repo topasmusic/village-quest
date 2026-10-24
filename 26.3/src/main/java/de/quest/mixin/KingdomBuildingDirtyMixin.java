@@ -19,6 +19,8 @@ abstract class KingdomBuildingDirtyMixin {
             at = @At(value="INVOKE",target="Lnet/minecraft/world/level/chunk/LevelChunk;setBlockState(Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;I)Lnet/minecraft/world/level/block/state/BlockState;"))
     private BlockState villageQuest$dirtyBuilding(LevelChunk chunk,BlockPos pos,BlockState state,int flags,Operation<BlockState> original) {
         BlockState before=original.call(chunk,pos,state,flags);
+        if ((Object) this instanceof ServerLevel world)
+            de.quest.village.GuildCornerPlacementService.onBlockReplaced(world, pos, before, state);
         if (BuildingEvidenceChange.affectsReport(before,state) && (Object) this instanceof ServerLevel world)
             if(!de.quest.kingdom.NativeInnBeds.equivalentOwnOccupancy(world,pos,before,state)) KingdomBuildingService.onBlockChanged(world, pos);
         if(before!=null && (Object)this instanceof ServerLevel world && (!before.is(state.getBlock()) || before.is(net.minecraft.world.level.block.Blocks.LANTERN) && before.getValue(net.minecraft.world.level.block.LanternBlock.HANGING)!=state.getValue(net.minecraft.world.level.block.LanternBlock.HANGING)))

@@ -21,12 +21,22 @@ public final class Payloads {
         if (registered) {
             return;
         }
+        PayloadTypeRegistry.clientboundPlay().register(QuestSetupPayloads.View.ID, QuestSetupPayloads.View.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(QuestSetupPayloads.Open.ID, QuestSetupPayloads.Open.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(QuestSetupPayloads.Save.ID, QuestSetupPayloads.Save.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(UiTestTourPayload.ID, UiTestTourPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(RewardPayloads.View.ID, RewardPayloads.View.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(BuildingPayloads.View.ID, BuildingPayloads.View.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(VillageCheckPayload.ID,VillageCheckPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(MarketPayloads.View.ID, MarketPayloads.View.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(NpcSpeechPayload.ID,NpcSpeechPayload.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(MarketPayloads.Action.ID, MarketPayloads.Action.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(BuildingPayloads.Action.ID, BuildingPayloads.Action.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(RewardPayloads.Action.ID, RewardPayloads.Action.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(JournalPayload.ID, JournalPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(AdminJournalPayload.ID, AdminJournalPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(QuestTrackerPayload.ID, QuestTrackerPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(QuestTrackerPositionPayload.ID, QuestTrackerPositionPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(PilgrimTradePayload.ID, PilgrimTradePayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(EconomyPayload.ID, EconomyPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(QuestMasterPayload.ID, QuestMasterPayload.CODEC);
@@ -400,9 +410,31 @@ public final class Payloads {
         }
     }
 
+    /** Saved public village counters, not current scan authorization; -1 explicitly means unavailable. */
+    public record JournalVillageStats(int buildings,int recognition,int routes,int contacts) {
+        public static final JournalVillageStats UNKNOWN=new JournalVillageStats(-1,-1,-1,-1);
+        public JournalVillageStats {
+            if(buildings< -1 || buildings>4 || recognition< -1 || recognition>5 || routes< -1 || routes>100000 || contacts< -1 || contacts>100000)
+                throw new IllegalArgumentException("Invalid journal village counters");
+        }
+    }
     public record NetworkVillageData(int index, Component villageType, Component bondLevel,
                                      Component condition, String conditionKey, Component need,
-                                     int support, int energyProgress, int socialTrust, boolean socialCase) {
+                                     int support, int energyProgress, int socialTrust, boolean socialCase,
+                                     java.util.UUID canonicalId,List<Component> lastKnown,JournalVillageStats stats) {
+        public NetworkVillageData(int index,Component villageType,Component bondLevel,Component condition,String conditionKey,
+                                  Component need,int support,int energyProgress,int socialTrust,boolean socialCase) {
+            this(index,villageType,bondLevel,condition,conditionKey,need,support,energyProgress,socialTrust,socialCase,BuildingPayloads.NONE,List.of());
+        }
+        public NetworkVillageData(int index,Component villageType,Component bondLevel,Component condition,String conditionKey,
+                                  Component need,int support,int energyProgress,int socialTrust,boolean socialCase,
+                                  java.util.UUID canonicalId,List<Component> lastKnown) {
+            this(index,villageType,bondLevel,condition,conditionKey,need,support,energyProgress,socialTrust,socialCase,canonicalId,lastKnown,JournalVillageStats.UNKNOWN);
+        }
+        public NetworkVillageData {
+            if(canonicalId==null || stats==null || lastKnown==null || lastKnown.size()>7) throw new IllegalArgumentException("Invalid village summary");
+            lastKnown=List.copyOf(lastKnown);
+        }
         public static final StreamCodec<RegistryFriendlyByteBuf, NetworkVillageData> CODEC =
                 StreamCodec.of(NetworkVillageData::write, NetworkVillageData::read);
         private static NetworkVillageData read(RegistryFriendlyByteBuf buf) {
@@ -414,7 +446,16 @@ public final class Payloads {
                     buf.readUtf(32),
                     ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf),
                     buf.readVarInt(),
-                    buf.readVarInt(), buf.readVarInt(), buf.readBoolean());
+                    buf.readVarInt(), buf.readVarInt(), buf.readBoolean(),buf.readUUID(),readSummary(buf),
+                    new JournalVillageStats(buf.readVarInt(),buf.readVarInt(),buf.readVarInt(),buf.readVarInt()));
+        }
+
+        private static List<Component> readSummary(RegistryFriendlyByteBuf buf) {
+            int count=buf.readVarInt();
+            if(count<0 || count>7) throw new IllegalArgumentException("Oversized village summary");
+            List<Component> lines=new ArrayList<>();
+            for(int i=0;i<count;i++) lines.add(ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf));
+            return lines;
         }
 
         private static void write(RegistryFriendlyByteBuf buf, NetworkVillageData value) {
@@ -431,6 +472,9 @@ public final class Payloads {
             buf.writeVarInt(safe.support());
             buf.writeVarInt(safe.energyProgress());
             buf.writeVarInt(safe.socialTrust()); buf.writeBoolean(safe.socialCase());
+            buf.writeUUID(safe.canonicalId()); buf.writeVarInt(safe.lastKnown().size());
+            for(var line:safe.lastKnown()) ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf,line);
+            buf.writeVarInt(safe.stats().buildings());buf.writeVarInt(safe.stats().recognition());buf.writeVarInt(safe.stats().routes());buf.writeVarInt(safe.stats().contacts());
         }
     }
 
@@ -1391,7 +1435,12 @@ public final class Payloads {
     public record TradeRouteBondData(int index, int worldX, int worldZ, Component type,
                                      Component level, Component request, int completions,
                                      Component condition, Component need, int support, int energyProgress,
-                                     int lifeStatus, boolean connected, Component identityOrigin) {
+                                     int lifeStatus, boolean connected, Component identityOrigin, List<Component> details) {
+        public TradeRouteBondData(int index,int worldX,int worldZ,Component type,Component level,Component request,int completions,
+                                  Component condition,Component need,int support,int energyProgress,int lifeStatus,boolean connected,Component identityOrigin) {
+            this(index,worldX,worldZ,type,level,request,completions,condition,need,support,energyProgress,lifeStatus,connected,identityOrigin,List.of());
+        }
+        public TradeRouteBondData { details=List.copyOf(details); if(details.size()>64) throw new IllegalArgumentException("Too many village details"); }
         private static TradeRouteBondData read(RegistryFriendlyByteBuf buf) {
             return new TradeRouteBondData(buf.readVarInt(), buf.readInt(), buf.readInt(),
                     ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf),
@@ -1400,7 +1449,14 @@ public final class Payloads {
                     ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf),
                     ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf),
                     buf.readVarInt(), buf.readVarInt(), buf.readVarInt(), buf.readBoolean(),
-                    ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf));
+                    ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf), readDetails(buf));
+        }
+
+        private static List<Component> readDetails(RegistryFriendlyByteBuf buf) {
+            int count=buf.readVarInt(); if(count<0 || count>64) throw new IllegalArgumentException("Too many village details");
+            List<Component> result=new ArrayList<>();
+            for(int i=0;i<count;i++) result.add(ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf));
+            return result;
         }
 
         private static void write(RegistryFriendlyByteBuf buf, TradeRouteBondData value) {
@@ -1418,6 +1474,8 @@ public final class Payloads {
             buf.writeVarInt(value.lifeStatus());
             buf.writeBoolean(value.connected());
             ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, value.identityOrigin());
+            buf.writeVarInt(value.details().size());
+            for(var detail:value.details()) ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf,detail);
         }
     }
 
@@ -1463,8 +1521,13 @@ public final class Payloads {
             List<TradeRouteCaravanData> caravans,
             List<TradeRouteBondData> bonds,
             List<TradeRouteShrineData> shrines,
-            List<TradeRouteDecorationData> decorations
+            List<TradeRouteDecorationData> decorations,
+            boolean manageable
     ) implements CustomPacketPayload {
+        public TradeRouteMapPayload(int action,Component title,Component summary,List<TradeRouteNodeData> nodes,List<TradeRouteLineData> routes,
+                                    List<TradeRouteCaravanData> caravans,List<TradeRouteBondData> bonds,List<TradeRouteShrineData> shrines,List<TradeRouteDecorationData> decorations) {
+            this(action,title,summary,nodes,routes,caravans,bonds,shrines,decorations,true);
+        }
         public static final int ACTION_OPEN = 0;
         public static final int ACTION_UPDATE = 1;
         public static final int ACTION_CLOSE = 2;
@@ -1505,7 +1568,7 @@ public final class Payloads {
             int decorationCount = buf.readVarInt();
             List<TradeRouteDecorationData> decorations = new ArrayList<>(decorationCount);
             for (int i = 0; i < decorationCount; i++) decorations.add(TradeRouteDecorationData.read(buf));
-            return new TradeRouteMapPayload(action, title, summary, nodes, routes, caravans, bonds, shrines, decorations);
+            return new TradeRouteMapPayload(action, title, summary, nodes, routes, caravans, bonds, shrines, decorations,buf.readBoolean());
         }
 
         private static void write(RegistryFriendlyByteBuf buf, TradeRouteMapPayload payload) {
@@ -1530,6 +1593,7 @@ public final class Payloads {
             for (TradeRouteShrineData shrine : payload.shrines()) TradeRouteShrineData.write(buf, shrine);
             buf.writeVarInt(payload.decorations().size());
             for (TradeRouteDecorationData decoration : payload.decorations()) TradeRouteDecorationData.write(buf, decoration);
+            buf.writeBoolean(payload.manageable());
         }
 
         @Override
@@ -1547,6 +1611,7 @@ public final class Payloads {
         public static final int ACTION_REMOVE = 5;
         public static final int ACTION_MINIMAP_TOGGLE = 6;
         public static final int ACTION_MAP_HEARTBEAT = 7;
+        public static final int ACTION_MINIMAP_RESTORE = 8;
 
         public static final CustomPacketPayload.Type<TradeRouteActionPayload> ID =
                 new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "trade_route_action"));

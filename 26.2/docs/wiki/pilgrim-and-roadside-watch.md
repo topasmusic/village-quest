@@ -193,3 +193,16 @@ The late `Shadows on the Trade Road` arc builds directly on the pilgrim rumor la
 - the final convoy fight adds elite `Traitor` bandits as the last wave
 
 Village Quest 2.5 adds [chosen Vanilla reward packages and saved collection](vanilla-rewards.md), including `/vq rewards claim`. Existing accepted contracts and prepaid orders retain their original conditions.
+
+
+## Miniatures and Road Camp Kit
+
+Decorative head variants are explicitly named **Miniature** in the offer and the delivered item's name and lore. They are decorative miniature models for placement. Full-size utility supplies remain separately listed in kits.
+
+The Road Camp Kit contains **1 bed, 2 campfires, 16 lanterns, 4 chests, 64 torches, 32 bread and 24 cooked beef** at its existing price. The description and actual delivery use these quantities.
+
+Notice Post story progress is recorded during play. An already open story page can be refreshed with **Update progress**; it currently does not receive periodic automatic snapshots. The refresh control does not complete or deliver an objective.
+
+### Safe shop deliveries
+
+Shop goods are prepared and checked before payment. A successful payment creates a pending reward claim before items are moved into your inventory. If your inventory is full, free space and use `/vq rewards claim`; do not buy the same offer again merely to recover pending goods. Unavailable or empty goods are rejected without payment. Existing prepaid commissions remain prepaid.

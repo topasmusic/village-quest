@@ -21,6 +21,21 @@ public final class CurrencyService {
 
     private CurrencyService() {}
 
+    /** Native market caller uses the existing wallet, with its receipt proof in the same QuestState document. */
+    public static boolean applyMarketReceipt(ServerLevel world,UUID actor,de.quest.kingdom.MarketTransferMarker after) {
+        if(world==null || actor==null) return false;
+        var state=QuestState.get(world.getServer()); var data=state.getPlayerData(actor); long before=data.getCurrencyBalance();
+        if(!applyMarketBalance(data,actor,after)) return false;
+        ProsperityService.recordCurrencyDelta(world,actor,data.getCurrencyBalance()-before); state.setDirty(); return true;
+    }
+    public static boolean applyMarketBalance(PlayerQuestData data,UUID actor,de.quest.kingdom.MarketTransferMarker after) {
+        if(data==null || after==null || !after.actor().equals(actor) || after.stage()!=de.quest.kingdom.MarketTransferMarker.Stage.AFTER) return false;
+        var current=data.marketWallet().marker();
+        if(current.isEmpty() || current.get().stage()!=de.quest.kingdom.MarketTransferMarker.Stage.BEFORE
+                || !current.get().sameTransfer(after) || data.getCurrencyBalance()!=after.beforeBalance() || !data.marketWallet().advance(after)) return false;
+        data.setCurrencyBalance(after.afterBalance()); return true;
+    }
+
     public static long getBalance(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
             return 0L;

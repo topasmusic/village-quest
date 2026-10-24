@@ -2,9 +2,10 @@ package de.quest.client.screen;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import de.quest.client.config.VillageQuestClientConfig;
-import de.quest.VillageQuest;
 import de.quest.client.ui.SurfaceMapRenderer;
 import de.quest.client.ui.VillageUiTheme;
+import de.quest.client.ui.KingdomUiAssets;
+import de.quest.client.ui.KingdomUiHints;
 import de.quest.network.Payloads;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -14,31 +15,29 @@ import net.minecraft.client.Minecraft;
 import de.quest.client.compat.GuiGraphics;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
 
 /** Full-screen guild map with route, village-bond, and guide views. */
 public final class TradeRouteMapScreen extends CompatScreen {
+    private final KingdomUiHints hints=new KingdomUiHints();
     private enum ViewMode { MAP, ROUTES, BONDS, GUIDE }
 
-    private static final Identifier BOARD_TEXTURE = Identifier.fromNamespaceAndPath(
-            VillageQuest.MOD_ID, "textures/gui/trade_route_board.png");
     private static final int WINDOW_WIDTH = 432;
-    private static final int WINDOW_HEIGHT = 248;
-    private static final int VIEW_X = 31;
-    private static final int VIEW_Y = 43;
-    private static final int VIEW_WIDTH = 370;
-    private static final int VIEW_HEIGHT = 159;
-    private static final int TAB_X = 25;
-    private static final int TAB_Y = 10;
+    private static final int WINDOW_HEIGHT = 326;
+    private static final int VIEW_X = 32;
+    private static final int VIEW_Y = 73;
+    private static final int VIEW_WIDTH = 368;
+    private static final int VIEW_HEIGHT = 166;
+    private static final int TAB_X = 32;
+    private static final int TAB_Y = 45;
     private static final int TAB_SIZE = 22;
+    private static final int TAB_WIDTH = 89;
     private static final int TAB_GAP = 3;
     private static final int ZOOM_X = VIEW_X + VIEW_WIDTH - 25;
     private static final int ZOOM_Y = VIEW_Y + 34;
     private static final int CONTROL_SIZE = 20;
     private static final int CONTROL_GAP = 3;
-    private static final int FOOTER_Y = 204;
+    private static final int FOOTER_Y = 242;
     private static final int CHIP_WIDTH = 23;
     private static final int CHIP_HEIGHT = 17;
     private static final int FRAME = 0xFF4F321B;
@@ -81,6 +80,9 @@ public final class TradeRouteMapScreen extends CompatScreen {
     private boolean mapDragging;
     private int pendingRemovalRoute = -1;
     private long removalConfirmUntil;
+    private int villageX, villageZ, villagePage;
+    private boolean villageOpen;
+    private Component villageTitle = Component.empty();
 
     public TradeRouteMapScreen(Payloads.TradeRouteMapPayload data) {
         super(Component.translatable("screen.village-quest.trade_route.title"));
@@ -130,6 +132,7 @@ public final class TradeRouteMapScreen extends CompatScreen {
 
     @Override
     public void onClose() {
+        if(villageOpen) { villageOpen=false; return; }
         returnToJournal();
     }
 
@@ -149,7 +152,7 @@ public final class TradeRouteMapScreen extends CompatScreen {
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
-        VillageUiTheme.drawScreenShade(graphics, width, height);
+        VillageUiTheme.drawScreenShade(graphics, width, height); hints.clear();
         int uiMouseX = responsiveMouseX(mouseX, WINDOW_WIDTH, WINDOW_HEIGHT);
         int uiMouseY = responsiveMouseY(mouseY, WINDOW_WIDTH, WINDOW_HEIGHT);
         float panelScale = beginResponsivePanel(graphics, WINDOW_WIDTH, WINDOW_HEIGHT);
@@ -157,16 +160,24 @@ public final class TradeRouteMapScreen extends CompatScreen {
             int left = (width - WINDOW_WIDTH) / 2;
             int top = (height - WINDOW_HEIGHT) / 2;
             VillageUiTheme.drawPanelShadow(graphics, left, top, WINDOW_WIDTH, WINDOW_HEIGHT);
-            VillageUiTheme.drawMapBoard(graphics, BOARD_TEXTURE, left, top, WINDOW_WIDTH, WINDOW_HEIGHT);
+            de.quest.client.ui.JournalV3Visuals.insetBoard(graphics,left,top,WINDOW_WIDTH,WINDOW_HEIGHT);
             drawTabs(graphics, left, top, uiMouseX, uiMouseY);
             drawHeader(graphics, left, top);
+            KingdomUiAssets.closeButton(graphics,left,top,WINDOW_WIDTH,WINDOW_HEIGHT,KingdomUiAssets.closeBounds(left,top,WINDOW_WIDTH,WINDOW_HEIGHT).contains(uiMouseX,uiMouseY));
+            if(KingdomUiAssets.closeBounds(left,top,WINDOW_WIDTH,WINDOW_HEIGHT).contains(uiMouseX,uiMouseY)) hints.setTooltipForNextFrame(font,
+                    Component.translatable("screen.village-quest.building.close"),uiMouseX,uiMouseY);
             switch (viewMode) {
                 case MAP -> drawMapView(graphics, left, top, uiMouseX, uiMouseY);
                 case ROUTES -> drawRoutesView(graphics, left, top, uiMouseX, uiMouseY);
                 case BONDS -> drawBondsView(graphics, left, top, uiMouseX, uiMouseY);
                 case GUIDE -> drawGuideView(graphics, left, top);
             }
+            VillageUiTheme.drawButton(graphics,font,left+31,top + 270,88,16,
+                    Component.translatable("screen.village-quest.trade_route.back").getString(),true,
+                    within(uiMouseX,uiMouseY,left+31,top + 270,88,16),false);
+            if(villageOpen) drawVillageDetails(graphics,left,top,uiMouseX,uiMouseY);
             super.render(graphics, uiMouseX, uiMouseY, delta);
+            hints.draw(graphics,font,left,top,WINDOW_WIDTH,WINDOW_HEIGHT);
         } finally {
             endResponsivePanel(graphics, panelScale);
         }
@@ -181,9 +192,21 @@ public final class TradeRouteMapScreen extends CompatScreen {
         int top = (height - WINDOW_HEIGHT) / 2;
         int mouseX = responsiveMouseX(click.x(), WINDOW_WIDTH, WINDOW_HEIGHT);
         int mouseY = responsiveMouseY(click.y(), WINDOW_WIDTH, WINDOW_HEIGHT);
+        if(villageOpen) {
+            if(KingdomUiAssets.closeBounds(left,top,WINDOW_WIDTH,WINDOW_HEIGHT).contains(mouseX,mouseY)) { villageOpen=false; return true; }
+            int pages=villagePages();
+            if(within(mouseX,mouseY,left+315,top + 198,24,18)) villagePage=Math.max(0,villagePage-1);
+            if(within(mouseX,mouseY,left+373,top + 198,24,18)) villagePage=Math.min(pages-1,villagePage+1);
+            if(within(mouseX,mouseY,left+31,top + 198,120,18) && villageRoute()!=null && data.manageable()) {
+                selectedRoute=villageRoute().routeIndex(); villageOpen=false; viewMode=ViewMode.ROUTES;
+            }
+            return true;
+        }
+        if(KingdomUiAssets.closeBounds(left,top,WINDOW_WIDTH,WINDOW_HEIGHT).contains(mouseX,mouseY)) { closeToGame(); return true; }
+        if(within(mouseX,mouseY,left+31,top + 270,88,16)) { returnToJournal(); return true; }
         for (int i = 0; i < ViewMode.values().length; i++) {
-            int x = left + TAB_X + i * (TAB_SIZE + TAB_GAP);
-            if (within(mouseX, mouseY, x, top + TAB_Y, TAB_SIZE, TAB_SIZE)) {
+            int x = left + TAB_X + i * (TAB_WIDTH + TAB_GAP);
+            if (within(mouseX, mouseY, x, top + TAB_Y, TAB_WIDTH, TAB_SIZE)) {
                 mapDragging = false;
                 viewMode = ViewMode.values()[i];
                 return true;
@@ -232,6 +255,7 @@ public final class TradeRouteMapScreen extends CompatScreen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        if(villageOpen) { villagePage=Math.max(0,Math.min(villagePages()-1,villagePage+(verticalAmount>0?-1:1))); return true; }
         int left = (width - WINDOW_WIDTH) / 2;
         int top = (height - WINDOW_HEIGHT) / 2;
         int uiMouseX = responsiveMouseX(mouseX, WINDOW_WIDTH, WINDOW_HEIGHT);
@@ -258,16 +282,18 @@ public final class TradeRouteMapScreen extends CompatScreen {
                 "screen.village-quest.trade_route.tab.guide"
         };
         for (int i = 0; i < icons.length; i++) {
-            int x = left + TAB_X + i * (TAB_SIZE + TAB_GAP);
+            int x = left + TAB_X + i * (TAB_WIDTH + TAB_GAP);
             int y = top + TAB_Y;
-            boolean hovered = within(mouseX, mouseY, x, y, TAB_SIZE, TAB_SIZE);
-            VillageUiTheme.drawTab(graphics, x, y, TAB_SIZE, TAB_SIZE,
+            boolean hovered = within(mouseX, mouseY, x, y, TAB_WIDTH, TAB_SIZE);
+            VillageUiTheme.drawTab(graphics, x, y, TAB_WIDTH, TAB_SIZE,
                     viewMode.ordinal() == i, hovered);
             VillageUiTheme.drawIcon(graphics, VillageUiTheme.icon(icons[i]), x + 4, y + 4, 14);
+            VillageUiTheme.drawStringScaled(graphics,font,compact(Component.translatable(labels[i]).getString(),TAB_WIDTH-26,.75f),x+22,y+7,VillageUiTheme.LIGHT_TEXT,.75f);
             if (hovered) {
-                graphics.setTooltipForNextFrame(font, Component.translatable(labels[i]), mouseX, mouseY);
+                hints.setTooltipForNextFrame(font, Component.translatable(labels[i]), mouseX, mouseY);
             }
         }
+
     }
 
     private void drawHeader(GuiGraphics graphics, int left, int top) {
@@ -278,8 +304,7 @@ public final class TradeRouteMapScreen extends CompatScreen {
             case GUIDE -> "screen.village-quest.trade_route.guide_title";
         };
         String value = Component.translatable(key).getString();
-        graphics.drawString(font, value, left + (WINDOW_WIDTH - font.width(value)) / 2,
-                top + 14, INK, false);
+        de.quest.client.ui.JournalV3Visuals.title(graphics,font,value,left+98,top+5,236,"compass");
     }
 
     private void drawMapView(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
@@ -290,9 +315,16 @@ public final class TradeRouteMapScreen extends CompatScreen {
         SurfaceMapRenderer.drawScreen(graphics, mapX, mapY, VIEW_WIDTH, VIEW_HEIGHT,
                 bounds.minX, bounds.maxX, bounds.minZ, bounds.maxZ, !mapDragging);
         drawRoutesOnMap(graphics, bounds, left, top, mouseX, mouseY);
+        for(var bond:VillageQuestClientConfig.get().showVillageMarkers()?data.bonds():List.<Payloads.TradeRouteBondData>of()) {
+            if(data.nodes().stream().anyMatch(n->n.worldX()==bond.worldX() && n.worldZ()==bond.worldZ()))continue;
+            Point p=pointFor(bond.worldX(),bond.worldZ(),bounds,left,top,false);
+            KingdomUiAssets.detailIcon(graphics,KingdomUiAssets.DetailIcon.FOUNDING,p.x-11,p.y-11,22);
+            drawLifeBadge(graphics,p.x+7,p.y+5,bond.lifeStatus());
+            if(Math.abs(mouseX-p.x)<=12 && Math.abs(mouseY-p.y)<=12)
+                hints.setTooltipForNextFrame(font,List.of(bond.type(),Component.translatable("screen.village-quest.trade_route.village_open")),mouseX,mouseY);
+        }
         graphics.disableScissor();
-        VillageUiTheme.drawEmbeddedMapRim(graphics, BOARD_TEXTURE, left, top, WINDOW_WIDTH, WINDOW_HEIGHT,
-                VIEW_X, VIEW_Y, VIEW_WIDTH, VIEW_HEIGHT);
+        VillageUiTheme.drawMapRim(graphics,mapX,mapY,VIEW_WIDTH,VIEW_HEIGHT);
         drawMapControls(graphics, left, top, mouseX, mouseY);
         drawMapFooter(graphics, left, top, mouseX, mouseY);
     }
@@ -327,8 +359,10 @@ public final class TradeRouteMapScreen extends CompatScreen {
                         drawDashedLine(graphics, from.x, from.y, to.x, to.y, FERRY_ROUTE,
                                 route.routeIndex() == selectedRoute ? 2 : 1, 6, 3);
                     } else {
+                        if(route.routeIndex()==selectedRoute)
+                            drawLine(graphics,from.x,from.y,to.x,to.y,0xFFF1D49A,7);
                         drawLine(graphics, from.x, from.y, to.x, to.y, ROAD_SHADOW,
-                                route.routeIndex() == selectedRoute ? 4 : 3);
+                                route.routeIndex() == selectedRoute ? 5 : 4);
                         drawLine(graphics, from.x, from.y, to.x, to.y, ROAD,
                                 route.routeIndex() == selectedRoute ? 3 : 2);
                         drawLine(graphics, from.x, from.y, to.x, to.y,
@@ -348,7 +382,7 @@ public final class TradeRouteMapScreen extends CompatScreen {
                                     "screen.village-quest.trade_route.ferry_waypoint"));
                         }
                         tooltip.add(Component.literal("[" + waypoint.worldX() + ", " + waypoint.worldZ() + "]"));
-                        graphics.setTooltipForNextFrame(font, tooltip, mouseX, mouseY);
+                        hints.setTooltipForNextFrame(font, tooltip, mouseX, mouseY);
                     }
                 }
             }
@@ -378,39 +412,47 @@ public final class TradeRouteMapScreen extends CompatScreen {
                         tooltip.add(Component.translatable("screen.village-quest.trade_route.event_tooltip",
                                 route.eventLabel()));
                     }
-                    graphics.setTooltipForNextFrame(font, tooltip, mouseX, mouseY);
+                    hints.setTooltipForNextFrame(font, tooltip, mouseX, mouseY);
                 }
             }
         }
         if (config.showVillageMarkers()) {
             List<LabelBox> placedLabels = new ArrayList<>();
+            for(var marker:data.nodes()) {
+                Point p=pointFor(marker.worldX(),marker.worldZ(),bounds,left,top,false);
+                placedLabels.add(new LabelBox(p.x-13,p.y-13,p.x+13,p.y+13));
+            }
+            for(var marker:data.shrines()) {
+                Point p=shrinePoint(marker,bounds,left,top);
+                placedLabels.add(new LabelBox(p.x-10,p.y-10,p.x+10,p.y+10));
+            }
             for (Payloads.TradeRouteNodeData node : data.nodes()) {
                 Point point = pointFor(node.worldX(), node.worldZ(), bounds, left, top, false);
-                String marker = node.lifeStatus() == LIFE_ABANDONED ? "danger"
-                        : node.playerYard() ? "homestead" : node.home() ? "home" : "village";
-                VillageUiTheme.drawMarker(graphics, marker,
-                        point.x, point.y, node.playerYard() ? 27 : node.home() ? 27 : 22);
+                KingdomUiAssets.detailIcon(graphics,node.home()?KingdomUiAssets.DetailIcon.THRONE:KingdomUiAssets.DetailIcon.FOUNDING,
+                        point.x-12, point.y-12,24);
+                if(!node.playerYard()) drawLifeBadge(graphics,point.x+7,point.y+5,node.lifeStatus());
                 boolean hovered = Math.abs(mouseX - point.x) <= 13 && Math.abs(mouseY - point.y) <= 13;
                 if (hovered) {
                     List<Component> tooltip = new ArrayList<>();
                     tooltip.add(node.name());
-                    if (node.lifeStatus() != 0) {
+                    if (!node.playerYard()) {
                         tooltip.add(lifeStatusLabel(node.lifeStatus()));
                     }
                     tooltip.add(Component.literal("X " + node.worldX() + "  Z " + node.worldZ()));
-                    graphics.setTooltipForNextFrame(font, tooltip, mouseX, mouseY);
+                    hints.setTooltipForNextFrame(font, tooltip, mouseX, mouseY);
                 } else {
                     float labelScale = nodeLabelScale();
                     if (labelScale > 0.0f) {
-                        int renderedLimit = zoomLevel <= 3 ? 52 : zoomLevel <= 5 ? 64 : 80;
+                        int renderedLimit = zoomLevel <= 3 ? 80 : zoomLevel <= 5 ? 120 : 180;
                         String label = compact(node.name().getString(), renderedLimit, labelScale);
                         float labelWidth = font.width(label) * labelScale;
-                        float labelX = point.x - labelWidth / 2.0f;
-                        float labelY = point.y + (node.home() ? 14 : 12);
+                        float labelX = Math.max(left+VIEW_X+3,Math.min(left+VIEW_X+VIEW_WIDTH-labelWidth-3,point.x-labelWidth/2f));
+                        float labelY = Math.min(top+VIEW_Y+VIEW_HEIGHT-10,point.y+(node.home()?14:12));
                         LabelBox candidate = new LabelBox(labelX - 2.0f, labelY - 1.0f,
                                 labelX + labelWidth + 2.0f,
                                 labelY + font.lineHeight * labelScale + 1.0f);
                         if (placedLabels.stream().noneMatch(candidate::overlaps)) {
+                            de.quest.client.ui.JournalV3Visuals.paper(graphics,(int)labelX-3,(int)labelY-2,Math.round(labelWidth)+6,12);
                             VillageUiTheme.drawStringScaled(graphics, font, label,
                                     labelX, labelY, INK, labelScale);
                             placedLabels.add(candidate);
@@ -426,10 +468,12 @@ public final class TradeRouteMapScreen extends CompatScreen {
     private void drawShrineMarkers(GuiGraphics graphics, Bounds bounds, int left, int top,
                                    int mouseX, int mouseY) {
         for (Payloads.TradeRouteShrineData shrine : data.shrines()) {
-            Point point = pointFor(shrine.worldX(), shrine.worldZ(), bounds, left, top, false);
-            VillageUiTheme.drawMarker(graphics, "shrine", point.x, point.y, 19);
+            Point anchor=pointFor(shrine.worldX(),shrine.worldZ(),bounds,left,top,false);
+            Point point=shrinePoint(shrine,bounds,left,top);
+            if(!anchor.equals(point))drawLine(graphics,anchor.x,anchor.y,point.x,point.y,INK,1);
+            VillageUiTheme.drawMarker(graphics, "shrine", point.x, point.y, 17);
             if (Math.abs(mouseX - point.x) <= 9 && Math.abs(mouseY - point.y) <= 9) {
-                graphics.setTooltipForNextFrame(font, List.of(shrine.name(), Component.translatable(
+                hints.setTooltipForNextFrame(font, List.of(shrine.name(), Component.translatable(
                         "screen.village-quest.trade_route.shrine_coordinates",
                         shrine.worldX(), shrine.worldY(), shrine.worldZ())), mouseX, mouseY);
             }
@@ -439,12 +483,22 @@ public final class TradeRouteMapScreen extends CompatScreen {
             VillageUiTheme.drawMarker(graphics, decoration.type() == 0 ? "notice" : "milestone",
                     point.x, point.y, decoration.type() == 0 ? 13 : 11);
             if (Math.abs(mouseX - point.x) <= 7 && Math.abs(mouseY - point.y) <= 7) {
-                graphics.setTooltipForNextFrame(font, Component.translatable(
+                hints.setTooltipForNextFrame(font, Component.translatable(
                         decoration.type() == 0 ? "screen.village-quest.trade_route.notice_coordinates"
                                 : "screen.village-quest.trade_route.milestone_coordinates",
                         decoration.worldX(), decoration.worldY(), decoration.worldZ()), mouseX, mouseY);
             }
         }
+    }
+
+    /** Offset a co-located shrine badge, retaining a leader to its true world anchor. */
+    private Point shrinePoint(Payloads.TradeRouteShrineData shrine,Bounds bounds,int left,int top) {
+        Point p=pointFor(shrine.worldX(),shrine.worldZ(),bounds,left,top,false);
+        boolean grouped=VillageQuestClientConfig.get().showVillageMarkers() &&
+                (data.nodes().stream().anyMatch(n->{Point q=pointFor(n.worldX(),n.worldZ(),bounds,left,top,false);return Math.abs(q.x-p.x)<24 && Math.abs(q.y-p.y)<24;})
+                || data.bonds().stream().anyMatch(n->{Point q=pointFor(n.worldX(),n.worldZ(),bounds,left,top,false);return Math.abs(q.x-p.x)<24 && Math.abs(q.y-p.y)<24;}));
+        return grouped?new Point(Math.clamp(p.x+21,left+VIEW_X+10,left+VIEW_X+VIEW_WIDTH-10),
+                Math.clamp(p.y-18,top+VIEW_Y+10,top+VIEW_Y+VIEW_HEIGHT-10)):p;
     }
 
     private void drawPlayerMarker(GuiGraphics graphics, Bounds bounds, int left, int top,
@@ -456,7 +510,7 @@ public final class TradeRouteMapScreen extends CompatScreen {
         Point player = pointFor(client.player.getX(), client.player.getZ(), bounds, left, top, true);
         VillageUiTheme.drawMarker(graphics, "player", player.x, player.y, 21);
         if (Math.abs(mouseX - player.x) <= 11 && Math.abs(mouseY - player.y) <= 11) {
-            graphics.setTooltipForNextFrame(font,
+            hints.setTooltipForNextFrame(font,
                     Component.translatable("screen.village-quest.trade_route.player_coordinates",
                             client.player.getBlockX(), client.player.getBlockZ()), mouseX, mouseY);
         }
@@ -479,7 +533,7 @@ public final class TradeRouteMapScreen extends CompatScreen {
                     "", enabled, hovered, false);
             VillageUiTheme.drawIcon(graphics, VillageUiTheme.icon(icons[i]), x + 3, y + 3, 14);
             if (within(mouseX, mouseY, x, y, CONTROL_SIZE, CONTROL_SIZE)) {
-                graphics.setTooltipForNextFrame(font, Component.translatable(labels[i]), mouseX, mouseY);
+                hints.setTooltipForNextFrame(font, Component.translatable(labels[i]), mouseX, mouseY);
             }
         }
         String zoom = ZOOM_LABELS[zoomLevel];
@@ -493,30 +547,36 @@ public final class TradeRouteMapScreen extends CompatScreen {
 
     private void drawMapFooter(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
         List<Payloads.TradeRouteLineData> routes = sortedRoutes();
-        for (int i = 0; i < 5; i++) {
-            int x = left + VIEW_X + i * (CHIP_WIDTH + 3);
-            int y = top + FOOTER_Y;
-            Payloads.TradeRouteLineData route = i < routes.size() ? routes.get(i) : null;
-            boolean selected = route != null && route.routeIndex() == selectedRoute;
-            boolean hovered = route != null && within(mouseX, mouseY, x, y, CHIP_WIDTH, CHIP_HEIGHT);
-            VillageUiTheme.drawButton(graphics, font, x, y, CHIP_WIDTH, CHIP_HEIGHT,
-                    route == null ? "–" : Integer.toString(route.routeIndex() + 1),
-                    route != null, hovered, selected);
-        }
+        VillageUiTheme.drawPaper(graphics,left+VIEW_X,top+FOOTER_Y-3,VIEW_WIDTH,30);
         Payloads.TradeRouteLineData selected = selectedRoute();
+        VillageUiTheme.drawButton(graphics,font,left+VIEW_X,top+FOOTER_Y,VIEW_WIDTH-82,CHIP_HEIGHT,
+                selected==null?"—":selected.name().getString(),selected!=null,
+                within(mouseX,mouseY,left+VIEW_X,top+FOOTER_Y,VIEW_WIDTH-82,CHIP_HEIGHT),true);
+        if(selected!=null && within(mouseX,mouseY,left+VIEW_X,top+FOOTER_Y,VIEW_WIDTH-82,CHIP_HEIGHT))
+            hints.setTooltipForNextFrame(font,List.of(selected.name(),Component.translatable("screen.village-quest.trade_route.next_route")),mouseX,mouseY);
         String summary = selected == null
                 ? Component.translatable("screen.village-quest.trade_route.empty").getString()
-                : selected.name().getString() + " · "
-                + (selected.availabilityLabel().getString().isEmpty()
+                : (selected.availabilityLabel().getString().isEmpty()
                 ? selected.statusLabel().getString() : selected.availabilityLabel().getString());
-        summary = VillageUiTheme.ellipsize(font, summary, 145);
+        summary = VillageUiTheme.ellipsize(font, summary, 500);
         VillageUiTheme.drawStringScaled(graphics, font, summary,
-                left + VIEW_X + 137, top + FOOTER_Y + 6, MUTED, 0.75f);
+                left + VIEW_X + 5, top + FOOTER_Y + 20, MUTED, 0.75f);
         int manageX = left + VIEW_X + VIEW_WIDTH - 72;
         boolean hovered = within(mouseX, mouseY, manageX, top + FOOTER_Y, 72, CHIP_HEIGHT);
         VillageUiTheme.drawButton(graphics, font, manageX, top + FOOTER_Y, 72, CHIP_HEIGHT,
                 Component.translatable("screen.village-quest.trade_route.manage").getString(),
-                true, hovered, false);
+                data.manageable() && !routes.isEmpty(), hovered, false);
+        if(hovered && (!data.manageable() || routes.isEmpty())) hints.setTooltipForNextFrame(font,
+                Component.translatable("screen.village-quest.trade_route.empty_help"),mouseX,mouseY);
+        VillageUiTheme.drawPaper(graphics,left+124,top + 269,270,17);
+        String[] legend={"road","ferry","suspended"};
+        for(int i=0;i<legend.length;i++) {
+            int x=left+130+i*88,y=top + 278;
+            if(i==0) drawLine(graphics,x,y,x+12,y,ROAD_SHADOW,2);
+            else drawDashedLine(graphics,x,y,x+12,y,i==1?FERRY_ROUTE:MUTED,2,3,2);
+            VillageUiTheme.drawStringScaled(graphics,font,compact(Component.translatable(
+                    "screen.village-quest.trade_route.legend."+legend[i]).getString(),66,.62f),x+17,y-3,INK,.62f);
+        }
     }
 
     private void drawRoutesView(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
@@ -543,7 +603,7 @@ public final class TradeRouteMapScreen extends CompatScreen {
                     : route.statusLabel().getString();
             VillageUiTheme.drawStringScaled(graphics, font, compact(status, 105, 0.72f),
                     listX + 14, y + 18,
-                    route.settlementSuspended() ? SUSPENDED : routeColor(route.status()), 0.72f);
+                    route.settlementSuspended() ? SUSPENDED : route.paused() ? MUTED : INK, 0.82f);
             String quality = route.roadQuality() + "%";
             VillageUiTheme.drawStringScaled(graphics, font, quality,
                     listX + rowWidth - font.width(quality) * 0.75f - 8,
@@ -555,12 +615,12 @@ public final class TradeRouteMapScreen extends CompatScreen {
                             ? MUTED : routeColorByIndex(route.liveryIndex()), 0.70f);
             boolean operationHovered = within(mouseX, mouseY, operationX - 2, y + 15, 12, 12);
             if (operationHovered) {
-                graphics.setTooltipForNextFrame(font, route.settlementSuspended()
+                hints.setTooltipForNextFrame(font, route.settlementSuspended()
                         ? route.availabilityLabel() : Component.translatable(route.paused()
                         ? "screen.village-quest.trade_route.state.paused.tooltip"
                         : "screen.village-quest.trade_route.state.running.tooltip"), mouseX, mouseY);
             } else if (hovered) {
-                graphics.setTooltipForNextFrame(font, routeTooltip(route), mouseX, mouseY);
+                hints.setTooltipForNextFrame(font, routeTooltip(route), mouseX, mouseY);
             }
         }
         if (routes.isEmpty()) {
@@ -584,9 +644,9 @@ public final class TradeRouteMapScreen extends CompatScreen {
             VillageUiTheme.drawStringScaled(graphics, font,
                     compact(selected.availabilityLabel().getString().isEmpty()
                             ? selected.statusLabel().getString()
-                            : selected.availabilityLabel().getString(), detailWidth - 24, 0.75f),
+                            : selected.availabilityLabel().getString(), detailWidth - 24, 0.85f),
                     detailX + 12, detailY + 21,
-                    selected.settlementSuspended() ? SUSPENDED : routeColor(selected.status()), 0.75f);
+                    selected.settlementSuspended() ? SUSPENDED : selected.paused() ? MUTED : INK, 0.85f);
             String[] lines = {
                     Component.translatable("screen.village-quest.trade_route.route_stats_short",
                             selected.roadQuality(), selected.waypoints().size()).getString(),
@@ -595,13 +655,13 @@ public final class TradeRouteMapScreen extends CompatScreen {
                     Component.translatable("screen.village-quest.trade_route.specialization",
                             selected.specializationLabel()).getString(),
                     Component.translatable("screen.village-quest.trade_route.approach",
-                            selected.incidentApproachLabel()).getString()
+                            selected.incidentApproachLabel().getString().isBlank()?Component.translatable("screen.village-quest.ui_review.none"):selected.incidentApproachLabel()).getString()
             };
             int y = detailY + 34;
             for (String line : lines) {
                 VillageUiTheme.drawStringScaled(graphics, font,
-                        compact(line, detailWidth - 24, 0.70f),
-                        detailX + 12, y, BODY, 0.70f);
+                        compact(line, detailWidth - 24, 0.82f),
+                        detailX + 12, y, INK, 0.82f);
                 y += 9;
             }
             if (!selected.eventLabel().getString().isEmpty()) {
@@ -626,30 +686,34 @@ public final class TradeRouteMapScreen extends CompatScreen {
                 Component.translatable(route.paused()
                         ? "screen.village-quest.trade_route.resume_short"
                         : "screen.village-quest.trade_route.pause_short").getString(),
-                !route.surveying(), mouseX, mouseY);
+                data.manageable() && !route.surveying(), mouseX, mouseY);
         drawActionButton(graphics, x + buttonWidth + gap, y, buttonWidth,
                 Component.translatable(route.surveying()
                         ? "screen.village-quest.trade_route.survey_finish"
                         : "screen.village-quest.trade_route.survey_start").getString(),
-                true, mouseX, mouseY);
+                data.manageable(), mouseX, mouseY);
         boolean confirming = pendingRemovalRoute == route.routeIndex()
                 && removalConfirmUntil >= System.currentTimeMillis();
         drawActionButton(graphics, x, y + 22, buttonWidth,
                 Component.translatable(route.surveying()
                         ? "screen.village-quest.trade_route.survey_cancel"
                         : "screen.village-quest.trade_route.rename").getString(),
-                true, mouseX, mouseY);
+                data.manageable(), mouseX, mouseY);
         drawActionButton(graphics, x + buttonWidth + gap, y + 22, buttonWidth,
                 Component.translatable(confirming
                         ? "screen.village-quest.trade_route.remove_confirm"
                         : "screen.village-quest.trade_route.remove").getString(),
-                true, mouseX, mouseY);
+                data.manageable(), mouseX, mouseY);
+        graphics.fill(x+buttonWidth+gap,y+42,x+width,y+43,DANGEROUS);
+        if(confirming) graphics.fill(x+buttonWidth+gap,y+22,x+buttonWidth+gap+3,y+40,DANGEROUS);
     }
 
     private void drawActionButton(GuiGraphics graphics, int x, int y, int width, String label,
                                   boolean enabled, int mouseX, int mouseY) {
         VillageUiTheme.drawButton(graphics, font, x, y, width, 18, label, enabled,
                 enabled && within(mouseX, mouseY, x, y, width, 18), false);
+        if(!enabled && !data.manageable() && within(mouseX,mouseY,x,y,width,18))
+            hints.setTooltipForNextFrame(font,Component.translatable("message.village-quest.trade_route.locked"),mouseX,mouseY);
     }
 
     private void drawGuideView(GuiGraphics graphics, int left, int top) {
@@ -662,7 +726,7 @@ public final class TradeRouteMapScreen extends CompatScreen {
                 x + 24, y + 8, INK, 0.86f);
         VillageUiTheme.drawWrappedScaled(graphics, font,
                 Component.translatable("screen.village-quest.trade_route.guide_navigation.body").getString(),
-                x + 24, y + 23, cardWidth - 48, BODY, 0.72f, 4);
+                x + 24, y + 23, cardWidth - 48, INK, 0.85f, 4);
         y += 70;
         VillageUiTheme.drawCard(graphics, x, y, cardWidth, 66, false, false);
         VillageUiTheme.drawStringScaled(graphics, font,
@@ -670,7 +734,7 @@ public final class TradeRouteMapScreen extends CompatScreen {
                 x + 24, y + 8, INK, 0.86f);
         VillageUiTheme.drawWrappedScaled(graphics, font,
                 Component.translatable("screen.village-quest.trade_route.survey_tooltip").getString(),
-                x + 24, y + 23, cardWidth - 128, BODY, 0.72f, 4);
+                x + 24, y + 23, cardWidth - 128, INK, 0.85f, 4);
         VillageUiTheme.drawMarker(graphics, "home", x + cardWidth - 74, y + 31, 25);
         VillageUiTheme.drawMarker(graphics, "caravan", x + cardWidth - 38, y + 31, 23);
     }
@@ -699,6 +763,7 @@ public final class TradeRouteMapScreen extends CompatScreen {
             VillageUiTheme.drawMarker(graphics,
                     bond.lifeStatus() == LIFE_ABANDONED ? "danger" : "village",
                     x + 15, y + 17, 17);
+            drawLifeBadge(graphics,x+20,y+20,bond.lifeStatus());
             VillageUiTheme.drawStringScaled(graphics, font,
                     compact(bond.type().getString(), cardWidth - 78, 0.78f), x + 29, y + 6, INK, 0.78f);
             VillageUiTheme.drawStringScaled(graphics, font,
@@ -719,8 +784,9 @@ public final class TradeRouteMapScreen extends CompatScreen {
                 if (!bond.connected()) {
                     tooltip.add(Component.translatable(
                             "screen.village-quest.trade_route.bond_historical_detail"));
-                    if (bond.lifeStatus() != 0) tooltip.add(lifeStatusLabel(bond.lifeStatus()));
+                    tooltip.add(lifeStatusLabel(bond.lifeStatus()));
                 } else if (bond.lifeStatus() == 0) {
+                    tooltip.add(lifeStatusLabel(bond.lifeStatus()));
                     tooltip.add(bond.condition());
                     tooltip.add(bond.need());
                     tooltip.add(bond.request());
@@ -736,7 +802,7 @@ public final class TradeRouteMapScreen extends CompatScreen {
                         bond.worldX(), bond.worldZ()));
                 tooltip.add(Component.translatable("screen.village-quest.trade_route.bond_requests",
                         bond.completions()));
-                graphics.setTooltipForNextFrame(font, tooltip, mouseX, mouseY);
+                hints.setTooltipForNextFrame(font, tooltip, mouseX, mouseY);
             }
         }
         String summary = Component.translatable("screen.village-quest.trade_route.bonds_summary",
@@ -755,6 +821,11 @@ public final class TradeRouteMapScreen extends CompatScreen {
     }
 
     private boolean handleBondsClick(int mouseX, int mouseY, int left, int top) {
+        for(int n=0;n<BONDS_PER_PAGE;n++) {
+            int index=bondPage*BONDS_PER_PAGE+n; if(index>=data.bonds().size()) break;
+            int x=left+VIEW_X+(n/4)*187,y=top+VIEW_Y+5+(n%4)*38;
+            if(within(mouseX,mouseY,x,y,179,34)) { var b=data.bonds().get(index); openVillage(b.worldX(),b.worldZ(),b.type()); return true; }
+        }
         int y = top + FOOTER_Y + 10;
         if (within(mouseX, mouseY, left + VIEW_X + VIEW_WIDTH - 54, y, 24, 18)) {
             setBondPage(bondPage - 1);
@@ -788,16 +859,25 @@ public final class TradeRouteMapScreen extends CompatScreen {
             }
             return true;
         }
-        List<Payloads.TradeRouteLineData> routes = sortedRoutes();
-        for (int i = 0; i < routes.size() && i < 5; i++) {
-            int x = left + VIEW_X + i * (CHIP_WIDTH + 3);
-            if (within(mouseX, mouseY, x, top + FOOTER_Y, CHIP_WIDTH, CHIP_HEIGHT)) {
-                selectedRoute = routes.get(i).routeIndex();
-                return true;
+        if(VillageQuestClientConfig.get().showVillageMarkers() && within(mouseX,mouseY,left+VIEW_X,top+VIEW_Y,VIEW_WIDTH,VIEW_HEIGHT)) {
+            Bounds bounds=displayBounds();
+            for(var bond:data.bonds()) {
+                Point p=pointFor(bond.worldX(),bond.worldZ(),bounds,left,top,false);
+                if(Math.abs(mouseX-p.x)<=12 && Math.abs(mouseY-p.y)<=12) { openVillage(bond.worldX(),bond.worldZ(),bond.type()); return true; }
+            }
+            for(var node:data.nodes()) {
+                Point p=pointFor(node.worldX(),node.worldZ(),bounds,left,top,false);
+                if(Math.abs(mouseX-p.x)<=12 && Math.abs(mouseY-p.y)<=12) { openVillage(node.worldX(),node.worldZ(),node.name()); return true; }
             }
         }
+        List<Payloads.TradeRouteLineData> routes = sortedRoutes();
+        if(!routes.isEmpty() && within(mouseX,mouseY,left+VIEW_X,top+FOOTER_Y,VIEW_WIDTH-82,CHIP_HEIGHT)) {
+            int current=0;for(int i=0;i<routes.size();i++)if(routes.get(i).routeIndex()==selectedRoute)current=i;
+            selectedRoute=routes.get((current+1)%routes.size()).routeIndex();
+            return true;
+        }
         int manageX = left + VIEW_X + VIEW_WIDTH - 72;
-        if (within(mouseX, mouseY, manageX, top + FOOTER_Y, 72, CHIP_HEIGHT)) {
+        if (data.manageable() && !data.routes().isEmpty() && within(mouseX, mouseY, manageX, top + FOOTER_Y, 72, CHIP_HEIGHT)) {
             viewMode = ViewMode.ROUTES;
             return true;
         }
@@ -816,7 +896,7 @@ public final class TradeRouteMapScreen extends CompatScreen {
             }
         }
         Payloads.TradeRouteLineData route = selectedRoute();
-        if (route == null) {
+        if (route == null || !data.manageable()) {
             return false;
         }
         int x = left + VIEW_X + 181;
@@ -904,7 +984,7 @@ public final class TradeRouteMapScreen extends CompatScreen {
     }
 
     private Bounds networkBounds() {
-        if (data.nodes().isEmpty()) {
+        if (data.nodes().isEmpty() && data.bonds().isEmpty()) {
             Minecraft client = Minecraft.getInstance();
             int x = client.player == null ? 0 : client.player.getBlockX();
             int z = client.player == null ? 0 : client.player.getBlockZ();
@@ -950,6 +1030,61 @@ public final class TradeRouteMapScreen extends CompatScreen {
                 .sorted(Comparator.comparingInt(Payloads.TradeRouteLineData::routeIndex)).toList();
     }
 
+    private void openVillage(int x,int z,Component title) {
+        villageX=x; villageZ=z; villageTitle=title; villagePage=0; villageOpen=true; mapDragging=false;
+    }
+    private Payloads.TradeRouteLineData villageRoute() {
+        return data.nodes().stream().filter(n -> !n.home() && n.worldX()==villageX && n.worldZ()==villageZ)
+                .flatMap(n -> data.routes().stream().filter(r -> r.routeIndex()==n.nodeIndex()-1)).findFirst().orElse(null);
+    }
+    List<String> villageLines() {
+        var paragraphs=new ArrayList<String>();
+        paragraphs.add(Component.translatable("screen.village-quest.trade_route.bond_coordinates",villageX,villageZ).getString());
+        var bond=data.bonds().stream().filter(b -> b.worldX()==villageX && b.worldZ()==villageZ).findFirst();
+        if(bond.isPresent()) {
+            var b=bond.get(); if(b.details().isEmpty()) paragraphs.add(lifeStatusLabel(b.lifeStatus()).getString());
+            paragraphs.add(Component.translatable("screen.village-quest.trade_route.bond_recognition",b.level()).getString());
+            if(b.connected() && b.lifeStatus()==0) {
+                paragraphs.add(b.condition().getString()); paragraphs.add(b.need().getString()); paragraphs.add(b.request().getString());
+                paragraphs.add(Component.translatable("screen.village-quest.trade_route.bond_supply",b.support(),100,b.energyProgress(),3).getString());
+            } else paragraphs.add(Component.translatable("screen.village-quest.trade_route."+(!b.connected()?"bond_not_connected":"bond_inactive")).getString());
+            b.details().forEach(c -> paragraphs.add(c.getString()));
+        }
+        var route=villageRoute();
+        boolean home=data.nodes().stream().anyMatch(n -> n.home() && n.worldX()==villageX && n.worldZ()==villageZ);
+        if(home) {
+            paragraphs.add(data.summary().getString());
+            data.routes().forEach(r -> paragraphs.add(r.name().getString()+" · "+(r.availabilityLabel().getString().isBlank()?r.statusLabel():r.availabilityLabel()).getString()));
+        } else paragraphs.add(route==null?Component.translatable("screen.village-quest.trade_route.village_no_route").getString():route.name().getString());
+        if(route!=null) {
+            paragraphs.add((route.availabilityLabel().getString().isBlank()?route.statusLabel():route.availabilityLabel()).getString());
+            paragraphs.add(Component.translatable("screen.village-quest.trade_route.route_stats_short",route.roadQuality(),route.waypoints().size()).getString());
+        }
+        return BuildingScreen.travelLines(font,paragraphs);
+    }
+    private int villagePages() { return Math.max(1,(villageLines().size()+12)/13); }
+    private void drawVillageDetails(GuiGraphics g,int l,int t,int mx,int my) {
+        hints.clear();
+        KingdomUiAssets.panel(g,l,t,WINDOW_WIDTH,WINDOW_HEIGHT);
+        KingdomUiAssets.header(g,font,villageTitle.getString(),l,t,WINDOW_WIDTH);
+        KingdomUiAssets.detailIcon(g,KingdomUiAssets.DetailIcon.FOUNDING,l+26,t+9,28);
+        KingdomUiAssets.card(g,l+27,t + 36,378,157,false);
+        var lines=villageLines(); villagePage=Math.min(villagePage,villagePages()-1);
+        for(int i=0;i<13 && villagePage*13+i<lines.size();i++) VillageUiTheme.drawStringScaled(g,font,
+                lines.get(villagePage*13+i),l+38,t + 44+i*11,INK,.8f);
+        KingdomUiAssets.closeButton(g,l,t,WINDOW_WIDTH,WINDOW_HEIGHT,KingdomUiAssets.closeBounds(l,t,WINDOW_WIDTH,WINDOW_HEIGHT).contains(mx,my));
+        if(KingdomUiAssets.closeBounds(l,t,WINDOW_WIDTH,WINDOW_HEIGHT).contains(mx,my)) hints.setTooltipForNextFrame(font,Component.translatable("screen.village-quest.building.back"),mx,my);
+        drawActionButton(g,l+31,t + 198,120,Component.translatable("screen.village-quest.trade_route.manage_route").getString(),villageRoute()!=null && data.manageable(),mx,my);
+        if(villageRoute()==null || !data.manageable()) {
+            var reason=Component.translatable("screen.village-quest.trade_route."+(villageRoute()==null?"manage_no_route":"read_only"));
+            VillageUiTheme.drawWrappedScaled(g,font,reason.getString(),l+160,t + 200,143,MUTED,.65f,3);
+            if(within(mx,my,l+31,t + 198,120,18)) hints.setTooltipForNextFrame(font,reason,mx,my);
+        }
+        drawActionButton(g,l+315,t + 198,24,"<",villagePage>0,mx,my);
+        VillageUiTheme.drawStringScaled(g,font,(villagePage+1)+"/"+villagePages(),l+343,t + 204,MUTED,.7f);
+        drawActionButton(g,l+373,t + 198,24,">",villagePage+1<villagePages(),mx,my);
+    }
+
     private Payloads.TradeRouteLineData selectedRoute() {
         return data.routes().stream().filter(route -> route.routeIndex() == selectedRoute)
                 .findFirst().orElse(null);
@@ -959,12 +1094,18 @@ public final class TradeRouteMapScreen extends CompatScreen {
         return data.nodes().stream().filter(node -> node.nodeIndex() == index).findFirst().orElse(null);
     }
 
+    private void drawLifeBadge(GuiGraphics graphics,int x,int y,int status) {
+        int color=status==LIFE_ABANDONED?DANGEROUS:status==LIFE_RECOVERING?SUSPENDED:SECURED;
+        String glyph=status==LIFE_ABANDONED?"!":status==LIFE_RECOVERING?"~":"+";
+        graphics.fill(x-1,y-1,x+8,y+9,PAPER);
+        VillageUiTheme.drawStringScaled(graphics,font,glyph,x,y,color,.8f);
+    }
     private static Component lifeStatusLabel(int status) {
-        return Component.translatable(status == LIFE_ABANDONED
+        return Component.translatable("screen.village-quest.trade_route.saved_village_status",Component.translatable(status == LIFE_ABANDONED
                 ? "screen.village-quest.village_life.abandoned"
                 : status == LIFE_RECOVERING
                 ? "screen.village-quest.village_life.recovering"
-                : "screen.village-quest.village_life.active");
+                : "screen.village-quest.village_life.active"));
     }
 
     private List<Component> routeTooltip(Payloads.TradeRouteLineData route) {
@@ -1001,13 +1142,13 @@ public final class TradeRouteMapScreen extends CompatScreen {
         addWrappedTooltip(tooltip, Component.translatable("screen.village-quest.trade_route.upgrades",
                 route.upgradeSummary()));
         addWrappedTooltip(tooltip, Component.translatable("screen.village-quest.caravan_crew.master",
-                route.masterName()));
+                de.quest.caravan.NpcNames.component(route.masterName())));
         addWrappedTooltip(tooltip, Component.translatable("screen.village-quest.caravan_crew.trader",
-                route.traderName()));
+                de.quest.caravan.NpcNames.component(route.traderName())));
         addWrappedTooltip(tooltip, Component.translatable("screen.village-quest.caravan_crew.guard",
-                route.guardName()));
+                de.quest.caravan.NpcNames.component(route.guardName())));
         addWrappedTooltip(tooltip, Component.translatable("screen.village-quest.caravan_crew.courier",
-                route.courierName()));
+                de.quest.caravan.NpcNames.component(route.courierName())));
         if (!route.eventHelp().getString().isEmpty()) {
             addWrappedTooltip(tooltip, route.eventHelp());
         }

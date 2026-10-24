@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Offline JUnit output belongs to Gradle/JUnit reports, never the mirrored source logs/latest.log. -->
+<Configuration status="WARN">
+    <Appenders>
+        <Console name="TestConsole" target="SYSTEM_OUT">
+            <PatternLayout pattern="[%d{HH:mm:ss}] [%t/%level]: %msg%n"/>
+        </Console>
+    </Appenders>
+    <Loggers>
+        <Root level="info">
+            <AppenderRef ref="TestConsole"/>
+        </Root>
+    </Loggers>
+</Configuration>

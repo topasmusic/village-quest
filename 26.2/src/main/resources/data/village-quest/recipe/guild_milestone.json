@@ -1,1 +1,1 @@
-{"type":"minecraft:crafting_shaped","group":"village_quest","pattern":[" S ","SBS","SSS"],"key":{"S":"minecraft:stone_bricks","B":"minecraft:gold_nugget"},"result":{"id":"village-quest:guild_milestone","count":2}}
+{"type":"minecraft:crafting_shaped","group":"village_quest/guild_milestone","pattern":[" S ","SBS","SSS"],"key":{"S":"minecraft:stone_bricks","B":"minecraft:gold_nugget"},"result":{"id":"village-quest:guild_milestone","count":2}}

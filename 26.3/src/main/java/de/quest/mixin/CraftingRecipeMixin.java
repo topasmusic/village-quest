@@ -13,7 +13,8 @@ public interface CraftingRecipeMixin {
     @Inject(method = "recipeBookCategory", at = @At("HEAD"), cancellable = true)
     private void villagequest$useVillageQuestCategory(CallbackInfoReturnable<RecipeBookCategory> cir) {
         CraftingRecipe recipe = (CraftingRecipe) (Object) this;
-        if ("village_quest".equals(recipe.group()) && ModRecipeBookCategories.VILLAGE_QUEST != null) {
+        if (("village_quest".equals(recipe.group()) || recipe.group().startsWith("village_quest/"))
+                && ModRecipeBookCategories.VILLAGE_QUEST != null) {
             cir.setReturnValue(ModRecipeBookCategories.VILLAGE_QUEST);
         }
     }

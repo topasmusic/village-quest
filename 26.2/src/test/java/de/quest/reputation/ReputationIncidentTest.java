@@ -25,14 +25,42 @@ final class ReputationIncidentTest {
                 new DamageEvidence(null, VICTIM, VictimKind.CREW, VILLAGE, 20, true, 1)).outcome());
         assertNull(data.activeCase()); assertEquals(0, data.guildTrust());
     }
-    @Test void firstWeakSweepIsOneWarningButALaterWeakHitIsAssaultAcrossReload() {
+    @Test void firstWeakSweepAndSecondHitWarnButThirdHitIsAssaultAcrossReload() {
         var data = new SocialReputationData();
         assertEquals(Outcome.WARN, ReputationIncidentService.record(data, damage(VICTIM, 4, false, 100)).outcome());
         assertEquals(Outcome.IGNORED, ReputationIncidentService.record(data, damage(UUID.randomUUID(), 2, false, 100)).outcome());
         assertNull(data.activeCase());
         data = SocialReputationData.fromNbt(data.toNbt());
-        assertEquals(Outcome.ASSAULT, ReputationIncidentService.record(data, damage(VICTIM, 1, false, 101)).outcome());
+        assertEquals(Outcome.WARN, ReputationIncidentService.record(data, damage(VICTIM, 1, false, 101)).outcome());
+        assertEquals(Outcome.ASSAULT, ReputationIncidentService.record(data, damage(VICTIM, 1, false, 102)).outcome());
         assertEquals(-15, data.guildTrust()); assertEquals(-25, data.localTrust(VILLAGE));
+    }
+    @Test void accidentalFirstHitKeepsTradeOpenSecondWarnsAndThirdSanctionsAcrossReload() {
+        var data=new SocialReputationData();
+        assertEquals(Outcome.WARN,ReputationIncidentService.record(data,damage(VICTIM,1,false,100)).outcome());
+        assertFalse(data.traderWarningActive(VICTIM,100),"One accidental light hit must leave trade open");
+        assertEquals(Outcome.WARN,ReputationIncidentService.record(data,damage(VICTIM,1,false,120)).outcome());
+        assertTrue(data.traderWarningActive(VICTIM,120)); assertNull(data.activeCase());
+        data=SocialReputationData.fromNbt(data.toNbt());
+        assertTrue(data.traderWarningActive(VICTIM,3719));
+        assertFalse(data.traderWarningActive(VICTIM,3720));
+        assertEquals(Outcome.ASSAULT,ReputationIncidentService.record(data,damage(VICTIM,1,false,140)).outcome());
+        assertEquals(-15,data.guildTrust()); assertEquals(-25,data.localTrust(VILLAGE));
+    }
+    @Test void switchingVictimsDoesNotResetTheTwoWarningsAndSameTickSweepCountsOnce() {
+        var data=new SocialReputationData();
+        assertEquals(Outcome.WARN,ReputationIncidentService.record(data,damage(VICTIM,1,false,100)).outcome());
+        assertEquals(Outcome.IGNORED,ReputationIncidentService.record(data,damage(UUID.randomUUID(),1,false,100)).outcome());
+        assertEquals(Outcome.WARN,ReputationIncidentService.record(data,damage(UUID.randomUUID(),1,false,120)).outcome());
+        assertEquals(Outcome.ASSAULT,ReputationIncidentService.record(data,damage(UUID.randomUUID(),1,false,140)).outcome());
+    }
+    @Test void laterHitRenewsAnExistingRefusalEvenAfterTheWarningWindowHasExpired() {
+        var data=new SocialReputationData();
+        ReputationIncidentService.record(data,damage(VICTIM,1,false,100));
+        ReputationIncidentService.record(data,damage(VICTIM,1,false,120));
+        assertEquals(Outcome.WARN,ReputationIncidentService.record(data,damage(VICTIM,1,false,1400)).outcome());
+        assertTrue(data.traderWarningActive(VICTIM,4999));
+        assertFalse(data.traderWarningActive(VICTIM,5000));
     }
     @Test void strongOrFatalFirstHitOverridesTheWeakWarningWave() {
         var data = new SocialReputationData();

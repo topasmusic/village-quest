@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "group": "village_quest/storehouse_anchor",
+  "pattern": [
+    " P ",
+    "SCS",
+    " S "
+  ],
+  "key": {
+    "P": "minecraft:paper",
+    "S": "minecraft:stick",
+    "C": "minecraft:chest"
+  },
+  "result": {
+    "id": "village-quest:storehouse_anchor",
+    "count": 1
+  }
+}

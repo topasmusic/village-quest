@@ -14,6 +14,11 @@ import java.time.ZonedDateTime;
 public final class TimeUtil {
     private TimeUtil() {}
 
+    public static String compactResetDuration(long millis) {
+        long minutes = Math.max(0L, millis) / 60000L + (Math.max(0L, millis) % 60000L == 0 ? 0 : 1);
+        return String.format(java.util.Locale.ROOT, "%dh %02dm", minutes / 60, minutes % 60);
+    }
+
     public static long currentDay() {
         return currentResetDateTime(now(), QuestConfig.dailyResetHour()).toLocalDate().toEpochDay();
     }

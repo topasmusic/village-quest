@@ -12,6 +12,14 @@ final class TradeRouteIncidentPolicy {
     static boolean canStart(boolean ownerOnline) {
         return ownerOnline;
     }
+    static boolean ready(de.quest.data.PlayerQuestData data,long now) {
+        if(now<0)return false;String raw=data.getTradeRouteString("network_incident_next_tick");
+        if(raw.isBlank())return true;
+        try{return now>=Long.parseLong(raw);}catch(NumberFormatException invalid){return false;}
+    }
+    static void started(de.quest.data.PlayerQuestData data,long now) {
+        data.setTradeRouteString("network_incident_next_tick",Long.toString(now>Long.MAX_VALUE-6000?Long.MAX_VALUE:now+6000));
+    }
 
     static boolean canProgress(UUID ownerId, UUID actorId) {
         return ownerId != null && ownerId.equals(actorId);

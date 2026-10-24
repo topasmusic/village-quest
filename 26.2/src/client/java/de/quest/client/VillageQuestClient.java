@@ -6,6 +6,7 @@ import de.quest.client.network.ClientQuestNetworking;
 import de.quest.client.hud.QuestTrackerHud;
 import de.quest.client.hud.TradeRouteMinimapHud;
 import de.quest.client.render.CaravanMerchantEntityRenderer;
+import de.quest.client.render.KingdomNpcEntityRenderer;
 import de.quest.client.render.PilgrimEntityRenderer;
 import de.quest.client.render.QuestMasterEntityRenderer;
 import de.quest.client.render.TraitorEntityRenderer;
@@ -49,9 +50,12 @@ public class VillageQuestClient implements ClientModInitializer {
                 context, EquipmentClientInfo.LayerType.MULE_SADDLE, ModelLayers.MULE_SADDLE,
                 DonkeyRenderer.Type.MULE, DonkeyRenderer.Type.MULE_BABY));
         EntityRenderers.register(ModEntities.TRAITOR, TraitorEntityRenderer::new);
+        ModelLayerRegistry.registerModelLayer(KingdomNpcEntityRenderer.LAYER,CaravanMerchantEntityRenderer::createModelData);
+        EntityRenderers.register(ModEntities.KINGDOM_NPC,KingdomNpcEntityRenderer::new);
         BlockEntityRendererRegistry.register(ModBlockEntities.GUILD_WAYSHRINE, WayshrineCrystalRenderer::new);
         ClientQuestNetworking.register();
         QuestTrackerHud.register();
+        de.quest.client.hud.NpcSpeechHud.register();
         TradeRouteMinimapHud.register();
         InventoryJournalTutorialState.bootstrap();
     }

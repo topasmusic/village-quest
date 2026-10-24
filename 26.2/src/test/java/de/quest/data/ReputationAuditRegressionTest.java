@@ -148,7 +148,7 @@ final class ReputationAuditRegressionTest {
     @Test void historicalAnchorWithoutHeightIsSkippedWhenAnchorChunkIsUnloaded() {
         var index = new ProtectedVillageIndex(); index.upsert(VillageKey.overworld(15, 15));
         var world = mock(ServerLevel.class); when(world.dimension()).thenReturn(Level.OVERWORLD);
-        when(world.hasChunkAt(any())).thenReturn(false);
+        when(world.getChunkSource()).thenReturn(mock(net.minecraft.server.level.ServerChunkCache.class));
         assertTrue(index.resolve(world, new BlockPos(40, 64, 15)).isEmpty());
         verify(world, never()).getHeight(any(), anyInt(), anyInt());
     }
@@ -157,14 +157,13 @@ final class ReputationAuditRegressionTest {
         var state = QuestState.fromNbt(new CompoundTag());
         var server = mock(MinecraftServer.class); var world = mock(ServerLevel.class);
         when(world.getServer()).thenReturn(server); when(world.dimension()).thenReturn(Level.OVERWORLD);
-        when(world.hasChunkAt(any())).thenReturn(true);
-        when(world.getHeight(any(), eq(15), eq(15))).thenReturn(64);
+        cachedAnchorChunk(world);
         var village = VillageKey.overworld(15, 15);
         try (var lookup = mockStatic(QuestState.class)) {
             lookup.when(() -> QuestState.get(server)).thenReturn(state);
             ProtectedVillageIndex.register(world, village);
         }
-        when(world.hasChunkAt(any())).thenReturn(false);
+        when(world.getChunkSource().getChunkNow(0,0)).thenReturn(null);
         var loaded = ProtectedVillageIndex.fromNbt(state.protectedVillages().toNbt());
         assertEquals(village, loaded.resolve(world, new BlockPos(40, 64, 15)).orElseThrow());
     }
@@ -174,13 +173,12 @@ final class ReputationAuditRegressionTest {
         state.protectedVillages().upsert(village);
         var server = mock(MinecraftServer.class); var world = mock(ServerLevel.class);
         when(world.getServer()).thenReturn(server); when(world.dimension()).thenReturn(Level.OVERWORLD);
-        when(world.hasChunkAt(any())).thenReturn(true);
-        when(world.getHeight(any(), eq(15), eq(15))).thenReturn(64);
+        var chunk=cachedAnchorChunk(world);
         try (var lookup = mockStatic(QuestState.class)) {
             lookup.when(() -> QuestState.get(server)).thenReturn(state);
-            ProtectedVillageIndex.onChunkLoad(world, new net.minecraft.world.level.ChunkPos(0, 0));
+            ProtectedVillageIndex.onChunkLoad(world, chunk);
         }
-        when(world.hasChunkAt(any())).thenReturn(false);
+        when(world.getChunkSource().getChunkNow(0,0)).thenReturn(null);
         var loaded = ProtectedVillageIndex.fromNbt(state.protectedVillages().toNbt());
         assertEquals(village, loaded.resolve(world, new BlockPos(40, 64, 15)).orElseThrow());
         assertTrue(loaded.resolve(world, new BlockPos(40, 100, 15)).isEmpty());
@@ -192,13 +190,21 @@ final class ReputationAuditRegressionTest {
         var server = mock(MinecraftServer.class); var world = mock(ServerLevel.class);
         when(server.getLevel(net.minecraft.world.level.Level.OVERWORLD)).thenReturn(world);
         when(world.getServer()).thenReturn(server); when(world.dimension()).thenReturn(Level.OVERWORLD);
-        when(world.hasChunkAt(any())).thenReturn(true); when(world.getHeight(any(), eq(15), eq(15))).thenReturn(64);
+        cachedAnchorChunk(world);
         try (var lookup = mockStatic(QuestState.class)) {
             lookup.when(() -> QuestState.get(server)).thenReturn(state);
             ProtectedVillageIndex.primeHistorical(server);
         }
-        when(world.hasChunkAt(any())).thenReturn(false);
+        when(world.getChunkSource().getChunkNow(0,0)).thenReturn(null);
         assertEquals(village, state.protectedVillages().resolve(world, new BlockPos(40, 64, 15)).orElseThrow());
+    }
+
+    private static net.minecraft.world.level.chunk.LevelChunk cachedAnchorChunk(ServerLevel world) {
+        var cache=mock(net.minecraft.server.level.ServerChunkCache.class);var chunk=mock(net.minecraft.world.level.chunk.LevelChunk.class);
+        when(world.getChunkSource()).thenReturn(cache);when(cache.getChunkNow(0,0)).thenReturn(chunk);
+        when(chunk.getPos()).thenReturn(new net.minecraft.world.level.ChunkPos(0,0));
+        when(chunk.getHeight(any(),eq(15),eq(15))).thenReturn(63);
+        return chunk;
     }
 
     @Test void muleKeepsItsConnectionDestinationAfterAnotherRouteIsRemoved() throws Exception {

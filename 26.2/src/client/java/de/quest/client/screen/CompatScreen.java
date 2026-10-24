@@ -34,6 +34,7 @@ public abstract class CompatScreen extends Screen {
     public void extractRenderState(GuiGraphicsExtractor extractor, int mouseX, int mouseY, float delta) {
         GuiGraphics graphics = new GuiGraphics(extractor);
         render(graphics, mouseX, mouseY, delta);
+        graphics.renderDeferredTooltip(font, mouseX, mouseY);
         UiTestTour.render(graphics, font, width, height, mouseX, mouseY);
     }
 
@@ -97,11 +98,11 @@ public abstract class CompatScreen extends Screen {
     private float responsivePanelScale(int panelWidth, int panelHeight) {
         float widthScale = this.width * MAX_PANEL_WIDTH_RATIO / Math.max(1, panelWidth);
         float heightScale = Math.max(40, this.height) * MAX_PANEL_HEIGHT_RATIO / Math.max(1, panelHeight);
-        return Math.max(0.5f, Math.min(1.0f, Math.min(widthScale, heightScale))) * panelSizeFactor();
+        return Math.max(0.25f, Math.min(1.0f, Math.min(widthScale, heightScale))) * panelSizeFactor();
     }
 
-    /** Shared by drawing, pointer conversion and dragging, including the UI tour. */
-    protected float panelSizeFactor() { return 1.0f; }
+    /** Compact size shared by every VQ window, pointer conversion, dragging and the UI tour. */
+    protected float panelSizeFactor() { return 0.8736f * 1.10f; }
 
     private static GuiGraphicsExtractor unwrap(GuiGraphics context) {
         try {

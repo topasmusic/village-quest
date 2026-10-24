@@ -94,6 +94,25 @@ public final class GuildCornerLandmarkState extends SavedData {
         return landmark == null ? Optional.empty() : Optional.of(landmark.snapshot(key));
     }
 
+    /** A never-generated failed reservation may adopt a validated compact site; terminal history stays put. */
+    public boolean relocatePending(VillageKey key, BlockPos post, CornerFacing facing, Footprint footprint) {
+        MutableLandmark old = key == null ? null : landmarks.get(key);
+        if (old == null || old.status != LandmarkStatus.PENDING || post == null || facing == null
+                || footprint == null || !footprint.contains(post)) return false;
+        landmarks.put(key, new MutableLandmark(post, facing, old.style, footprint,
+                LandmarkStatus.PENDING, 0, 0L, old.revision + 1));
+        setDirty();
+        return true;
+    }
+
+    /** Caller has checked the loaded saved root: a lost generated block may recover, deliberate removal may not. */
+    public boolean reopenMissingPost(VillageKey key) {
+        MutableLandmark old = key == null ? null : landmarks.get(key);
+        if (old == null || old.status != LandmarkStatus.GENERATED) return false;
+        old.status = LandmarkStatus.PENDING; old.retryAttempts = MAX_RETRY_ATTEMPTS;
+        old.retryAfterGameTime = 0L; old.revision++; setDirty(); return true;
+    }
+
     public Optional<LandmarkSnapshot> findAt(String dimension, BlockPos cornerPos) {
         if (!validDimension(dimension) || cornerPos == null) return Optional.empty();
         return landmarks.entrySet().stream()

@@ -1,6 +1,6 @@
 {
   "type": "minecraft:crafting_shaped",
-  "group": "village_quest",
+  "group": "village_quest/inn_barrel",
   "pattern": [
     " P ",
     "SBS",

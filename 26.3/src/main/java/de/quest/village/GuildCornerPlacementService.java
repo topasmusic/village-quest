@@ -54,6 +54,7 @@ public final class GuildCornerPlacementService {
     private static final int MAX_SURFACE_DELTA = 1;
     private static final int NETWORK_SAFETY_RADIUS = 8;
     private static final ConcurrentMap<UUID, Long> NEXT_VISIT_CHECK = new ConcurrentHashMap<>();
+    private static final Map<MinecraftServer, Map<GuildCornerLandmarkState.VillageKey, Long>> NEXT_SITE_CHECK = new java.util.WeakHashMap<>();
 
     private GuildCornerPlacementService() {}
 
@@ -70,7 +71,7 @@ public final class GuildCornerPlacementService {
                     ShadowsTradeRoadEncounterService.currentVillage(world, player.blockPosition());
             if (marker != null) {
                 VillageLifeService.observeNearby(world, player, marker);
-                processLocalVillageVisit(world, marker, gameTime);
+                processLocalVillageVisit(world, marker, player.blockPosition(), gameTime);
             }
             VillageLifeService.notifyPending(server, player);
         }
@@ -84,32 +85,44 @@ public final class GuildCornerPlacementService {
         if (gameTime < nextCheck) return;
         NEXT_VISIT_CHECK.put(player.getUUID(), gameTime + VISIT_CHECK_INTERVAL_TICKS);
         VillageLifeService.observeNearby(world, player, marker);
-        processLocalVillageVisit(world, marker, gameTime);
+        processLocalVillageVisit(world, marker, player.blockPosition(), gameTime);
     }
 
     private static void processLocalVillageVisit(ServerLevel world,
                                                  ShadowsTradeRoadEncounterService.VillageMarker marker,
-                                                 long gameTime) {
+                                                 BlockPos visitor, long gameTime) {
         GuildCornerLandmarkState state = GuildCornerLandmarkState.get(world.getServer());
         GuildCornerLandmarkState.VillageKey key = new GuildCornerLandmarkState.VillageKey(
                 GuildCornerLandmarkState.dimensionKey(world), marker.centerX(), marker.centerZ());
-        GuildCornerLandmarkState.LandmarkSnapshot existing = state.snapshot(key).orElse(null);
-        if (existing != null && !state.canAttemptAutomaticPlacement(key, gameTime)) return;
+        GuildCornerLandmarkState.LandmarkSnapshot existing = observedLandmark(world, state, key);
+        if (existing != null && existing.status() != GuildCornerLandmarkState.LandmarkStatus.PENDING) return;
+        var next = NEXT_SITE_CHECK.computeIfAbsent(world.getServer(), ignored -> new HashMap<>());
+        if (gameTime < next.getOrDefault(key, 0L)) return;
+        if (next.size() >= GuildCornerLandmarkState.MAX_LANDMARKS && !next.containsKey(key)) next.clear();
+        next.put(key, gameTime + 600);
+
+        // Previously exhausted or incompatible reservations still get a compact recovery attempt.
+        if (existing != null && !state.canAttemptAutomaticPlacement(key, gameTime)) {
+            placeCompact(world, state, key, marker, visitor); return;
+        }
 
         TemplateHandle template = loadTemplate(world, existing == null
                 ? classifyStyle(world, marker.centerX(), marker.centerZ()) : existing.style());
-        if (template == null) return;
+        if (template == null) { placeCompact(world, state, key, marker, visitor); return; }
 
         if (existing != null) {
             retryReservedPlacement(world, state, existing, template, gameTime);
+            if (state.snapshot(key).filter(s -> s.status() == GuildCornerLandmarkState.LandmarkStatus.PENDING).isPresent())
+                placeCompact(world, state, key, marker, visitor);
             return;
         }
         boolean edited = isExistingOrEditedVillage(world, marker);
-        Site site = findSite(world, marker, template);
+        Site site = edited ? null : findSite(world, marker, template);
         GuildCornerPlacementPolicy.VisitContext context = new GuildCornerPlacementPolicy.VisitContext(
                 true, site != null, edited, false, site != null, false, true);
         if (GuildCornerPlacementPolicy.decide(null, context)
                 != GuildCornerPlacementPolicy.Decision.RESERVE_AND_PLACE_AUTOMATICALLY) {
+            placeCompact(world, state, key, marker, visitor);
             return;
         }
 
@@ -120,8 +133,8 @@ public final class GuildCornerPlacementService {
     }
 
     /**
-     * Explicit local retrofit/recovery path. It never repairs a generated or player-removed corner,
-     * never falls back to another biome preset, and makes no reservation while the preset is absent.
+     * Explicit local retrofit/recovery path. Prefer the authored preset, then a compact board.
+     * Recover failed/missing placements, while deliberate player removal remains terminal.
      */
     public static ManualPlacementResult requestManualPlacement(ServerLevel world, ServerPlayer player,
                                                                ShadowsTradeRoadEncounterService.VillageMarker marker) {
@@ -129,7 +142,7 @@ public final class GuildCornerPlacementService {
         GuildCornerLandmarkState state = GuildCornerLandmarkState.get(world.getServer());
         GuildCornerLandmarkState.VillageKey key = new GuildCornerLandmarkState.VillageKey(
                 GuildCornerLandmarkState.dimensionKey(world), marker.centerX(), marker.centerZ());
-        GuildCornerLandmarkState.LandmarkSnapshot existing = state.snapshot(key).orElse(null);
+        GuildCornerLandmarkState.LandmarkSnapshot existing = observedLandmark(world, state, key);
         if (existing != null && existing.status() == GuildCornerLandmarkState.LandmarkStatus.REMOVED_BY_PLAYER) {
             return ManualPlacementResult.REMOVED_BY_PLAYER;
         }
@@ -139,22 +152,26 @@ public final class GuildCornerPlacementService {
         GuildCornerLandmarkState.CornerStyle style = existing == null
                 ? classifyStyle(world, marker.centerX(), marker.centerZ()) : existing.style();
         TemplateHandle template = loadTemplate(world, style);
-        if (template == null) return ManualPlacementResult.MISSING_OR_INVALID_PRESET;
+        if (template == null) return placeCompact(world, state, key, marker, player.blockPosition())
+                ? ManualPlacementResult.PLACED : ManualPlacementResult.MISSING_OR_INVALID_PRESET;
         long gameTime = world.getGameTime();
         if (existing != null) {
             GuildCornerLandmarkState.Footprint footprint = existing.footprint();
             if (!horizontalChunksLoaded(world, footprint.minX(), footprint.minZ(),
                     footprint.maxX(), footprint.maxZ())) {
-                return ManualPlacementResult.AREA_NOT_LOADED;
+                return placeCompact(world, state, key, marker, player.blockPosition())
+                        ? ManualPlacementResult.PLACED : ManualPlacementResult.AREA_NOT_LOADED;
             }
             retryReservedPlacement(world, state, existing, template, gameTime);
             GuildCornerLandmarkState.LandmarkSnapshot updated = state.snapshot(key).orElse(existing);
             return updated.status() == GuildCornerLandmarkState.LandmarkStatus.GENERATED
+                    || placeCompact(world, state, key, marker, player.blockPosition())
                     ? ManualPlacementResult.PLACED : ManualPlacementResult.SITE_UNSAFE;
         }
 
         Site site = findSite(world, marker, template);
         if (site == null) {
+            if (placeCompact(world, state, key, marker, player.blockPosition())) return ManualPlacementResult.PLACED;
             return hasLoadedCandidateFootprint(world, marker, template)
                     ? ManualPlacementResult.SITE_UNSAFE : ManualPlacementResult.AREA_NOT_LOADED;
         }
@@ -163,6 +180,7 @@ public final class GuildCornerPlacementService {
         if (!reservation.created()) return ManualPlacementResult.SITE_UNSAFE;
         placeReserved(world, state, reservation.landmark(), template, site, gameTime);
         return state.snapshot(key).map(snapshot -> snapshot.status() == GuildCornerLandmarkState.LandmarkStatus.GENERATED
+                || placeCompact(world, state, key, marker, player.blockPosition())
                 ? ManualPlacementResult.PLACED : ManualPlacementResult.SITE_UNSAFE)
                 .orElse(ManualPlacementResult.SITE_UNSAFE);
     }
@@ -173,6 +191,110 @@ public final class GuildCornerPlacementService {
 
     public static void resetRuntimeState() {
         NEXT_VISIT_CHECK.clear();
+        NEXT_SITE_CHECK.clear();
+    }
+
+    /** All normal replacements, including explosions, are terminal so recovery cannot farm dropped boards. */
+    public static void onBlockReplaced(ServerLevel world, BlockPos pos, BlockState before, BlockState after) {
+        if (world == null || pos == null || before == null || after == null || ModBlocks.GUILD_NOTICE_POST == null
+                || !before.is(ModBlocks.GUILD_NOTICE_POST) || after.is(ModBlocks.GUILD_NOTICE_POST)) return;
+        GuildCornerLandmarkState.get(world.getServer()).markRemovedByPlayer(GuildCornerLandmarkState.dimensionKey(world), pos);
+    }
+
+    /** Every visited village gets a board even when a large decorative preset has no safe footprint. */
+    private static boolean placeCompact(ServerLevel world, GuildCornerLandmarkState state,
+            GuildCornerLandmarkState.VillageKey key, ShadowsTradeRoadEncounterService.VillageMarker marker,
+            BlockPos visitor) {
+        var old = observedLandmark(world, state, key);
+        if (old != null) {
+            if (old.status() != GuildCornerLandmarkState.LandmarkStatus.PENDING || !world.hasChunkAt(old.cornerPos())) return false;
+            if (world.getBlockState(old.cornerPos()).is(ModBlocks.GUILD_NOTICE_POST)) {
+                state.markGenerated(key); return true;
+            }
+        }
+        // Dense local search also finds a clearing made beside the village for /vq town retrofit.
+        int checked = 0;
+        for (int radius = 0; radius <= 16; radius++) for (int dx = -radius; dx <= radius; dx++)
+            for (int dz = -radius; dz <= radius; dz++) {
+                if (Math.max(Math.abs(dx), Math.abs(dz)) != radius) continue;
+                int x = visitor.getX() + dx, z = visitor.getZ() + dz;
+                if (x < marker.minX() - 16 || x > marker.maxX() + 16
+                        || z < marker.minZ() - 16 || z > marker.maxZ() + 16) continue;
+                if (++checked > 1089) return false;
+                if (!horizontalChunksLoaded(world, x - 3, z - 3, x + 3, z + 3)) continue;
+                int y = compactSurfaceY(world, x, z, marker) + 1;
+                if (y <= world.getMinY() || y + 2 >= world.getMaxY()) continue;
+                BlockPos root = new BlockPos(x, y, z);
+                for (var facing : GuildCornerLandmarkState.CornerFacing.values()) {
+                    Direction direction = direction(facing);
+                    java.util.function.Function<BlockPos, BlockState> read = pos -> {
+                        if (!world.hasChunkAt(pos) || !world.getWorldBorder().isWithinBounds(pos)
+                                || world.getBlockEntity(pos) != null || GuildNoticePostBlock.blocksPlacementAt(world, pos)) return null;
+                        var block = world.getBlockState(pos);
+                        return clearableTreeLog(world, pos, block, marker) ? Blocks.AIR.defaultBlockState() : block;
+                    };
+                    if (!GuildNoticePostSite.isSafe(root, direction, read)) continue;
+                    // Never fill a standing player's or mob's space, including the board's overhang.
+                    var footprint = GuildNoticePostSite.footprint(root, direction);
+                    var box = new net.minecraft.world.phys.AABB(footprint.minX(), footprint.minY(), footprint.minZ(),
+                            footprint.maxX() + 1, footprint.maxY() + 1, footprint.maxZ() + 1);
+                    if (!world.getEntities((net.minecraft.world.entity.Entity) null, box, entity -> entity.isAlive()).isEmpty()) continue;
+                    var before = new HashMap<BlockPos, BlockState>();
+                    for (BlockPos pos : GuildNoticePostBlock.occupiedPositions(root, direction)) before.put(pos, world.getBlockState(pos));
+                    for (int step = 1; step <= 2; step++) {
+                        var feet = root.relative(direction.getOpposite(), step);
+                        before.put(feet, world.getBlockState(feet)); before.put(feet.above(), world.getBlockState(feet.above()));
+                    }
+                    // Recheck the same complete envelope before changing any block or reservation.
+                    if (!GuildNoticePostSite.isSafe(root, direction, read)) continue;
+                    boolean reserved = old == null
+                            ? state.reserve(key, root, facing, classifyStyle(world, x, z), footprint).created()
+                            : state.relocatePending(key, root, facing, footprint);
+                    if (!reserved) return false;
+                    boolean cleared = true;
+                    for (var pos : before.keySet()) if (!world.getBlockState(pos).isAir())
+                        cleared &= world.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
+                    boolean placed = cleared && world.setBlock(root,
+                            ModBlocks.GUILD_NOTICE_POST.defaultBlockState().setValue(GuildNoticePostBlock.FACING, direction), 3);
+                    if (finalizePlacement(placed, world.getBlockState(root).is(ModBlocks.GUILD_NOTICE_POST), () -> restore(world, before))) {
+                        state.markGenerated(key); return true;
+                    }
+                    state.requireManualPlacement(key); return false;
+                }
+            }
+        return false;
+    }
+
+    private static int compactSurfaceY(ServerLevel world, int x, int z,
+            ShadowsTradeRoadEncounterService.VillageMarker marker) {
+        int top = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) - 1;
+        for (int y = top; y >= world.getMinY() && top - y < 64; y--) {
+            var pos = new BlockPos(x, y, z); var block = world.getBlockState(pos);
+            if (!isNonSupportingSurfaceCover(block) && !(block.getBlock() instanceof net.minecraft.world.level.block.LeavesBlock)
+                    && !clearableTreeLog(world, pos, block, marker)) return y;
+        }
+        return world.getMinY() - 1;
+    }
+
+    private static GuildCornerLandmarkState.LandmarkSnapshot observedLandmark(ServerLevel world,
+            GuildCornerLandmarkState state, GuildCornerLandmarkState.VillageKey key) {
+        var saved = state.snapshot(key).orElse(null);
+        if (saved != null && saved.status() == GuildCornerLandmarkState.LandmarkStatus.GENERATED
+                && world.hasChunkAt(saved.cornerPos()) && !world.getBlockState(saved.cornerPos()).is(ModBlocks.GUILD_NOTICE_POST)) {
+            state.reopenMissingPost(key); return state.snapshot(key).orElseThrow();
+        }
+        return saved;
+    }
+
+    private static boolean clearableTreeLog(ServerLevel world, BlockPos pos, BlockState block,
+            ShadowsTradeRoadEncounterService.VillageMarker marker) {
+        String path = BuiltInRegistries.BLOCK.getKey(block.getBlock()).getPath();
+        if (!(block.getBlock() instanceof RotatedPillarBlock)
+                || !(block.is(BlockTags.LOGS) || path.endsWith("_log") || path.endsWith("_wood")) || path.startsWith("stripped_")
+                || QuestState.get(world.getServer()).isTerrainModified(pos, 0)) return false;
+        // CTOV houses may use real logs; never cut structural pieces to make room for a board.
+        return marker.pieces().stream().noneMatch(piece -> pos.getX() >= piece.minX() && pos.getX() <= piece.maxX()
+                && pos.getZ() >= piece.minZ() && pos.getZ() <= piece.maxZ());
     }
 
     static GuildCornerLandmarkState.CornerStyle classifyStyleName(String biomeId) {
@@ -352,7 +474,7 @@ public final class GuildCornerPlacementService {
                     if (site.preserved().contains(cursor)
                             || y == surfaceY && preservesSurface) continue;
                     BlockState state = world.getBlockState(cursor);
-                    if (!state.canBeReplaced() || world.getBlockEntity(cursor) != null) return false;
+                    if (!isClearableCover(state) || world.getBlockEntity(cursor) != null) return false;
                 }
             }
         }
@@ -449,6 +571,12 @@ public final class GuildCornerPlacementService {
     static boolean isNonSupportingSurfaceCover(BlockState state) {
         return state != null && !state.hasBlockEntity() && state.getFluidState().isEmpty()
                 && (state.isAir() || state.canBeReplaced());
+    }
+
+    static boolean isClearableCover(BlockState state) {
+        return state != null && !state.hasBlockEntity() && state.getFluidState().isEmpty()
+                && (state.canBeReplaced() || state.getBlock() instanceof net.minecraft.world.level.block.LeavesBlock
+                && !state.getValue(net.minecraft.world.level.block.LeavesBlock.PERSISTENT));
     }
 
     static boolean isBetterSurfaceFit(int candidateDelta, int currentBestDelta) {

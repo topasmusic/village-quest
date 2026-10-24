@@ -38,7 +38,8 @@
     "HandledScreenMixin",
     "InventoryScreenMixin",
     "LocalPlayerMixin",
-    "RecipeBookTabButtonMixin"
+    "RecipeBookTabButtonMixin",
+    "SearchRecipeBookCategoryMixin"
   ],
   "injectors": {
     "defaultRequire": 1

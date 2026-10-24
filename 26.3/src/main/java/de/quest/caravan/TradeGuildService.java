@@ -128,6 +128,7 @@ public final class TradeGuildService {
         TradeContractType active = activeContract(world, playerId);
         if (active != null) {
             lines.add(currentContractLine(world, playerId));
+            lines.add(Component.translatable("message.village-quest.trade_guild.contract_help").withStyle(ChatFormatting.GRAY));
             return lines;
         }
         lines.add(Component.translatable("message.village-quest.trade_guild.contract_board")
@@ -143,6 +144,7 @@ public final class TradeGuildService {
                     matchingRouteLabel(world, playerId, type))
                     .withStyle(ChatFormatting.GRAY));
         }
+        if (!offers.isEmpty()) lines.add(Component.translatable("message.village-quest.trade_guild.contract_help").withStyle(ChatFormatting.GRAY));
         return lines;
     }
 

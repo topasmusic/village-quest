@@ -12,7 +12,8 @@ public final class VillagerDialogueService {
     private VillagerDialogueService() {}
 
     public static void sendDialogue(ServerPlayer player, Entity speaker, Component line) {
-        if (player == null || speaker == null || line == null || line.getString().isEmpty()) {
+        if (player == null || speaker == null || speaker instanceof Villager villager && villager.isBaby()
+                || line == null || line.getString().isEmpty()) {
             return;
         }
         de.quest.kingdom.NpcSpeechService.privateLine(player,speaker,line,

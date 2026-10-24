@@ -253,7 +253,9 @@ public final class ApiaristSmokerQuestService {
         Integer honeyLevel = state.getValue(BeehiveBlock.HONEY_LEVEL);
         boolean filledHive = honeyLevel != null && honeyLevel < 5;
         if (filledHive) {
-            world.setBlock(pos, state.setValue(BeehiveBlock.HONEY_LEVEL, 5), 3);
+            boolean changed=world.setBlock(pos, state.setValue(BeehiveBlock.HONEY_LEVEL, 5), 3);
+            if(changed) de.quest.kingdom.ArtifactJourneyService.confirmed(world,player,
+                    de.quest.kingdom.ArtifactJourneyProgress.Deed.HIVE,pos);
         }
 
         calmNearbyBees(world, pos);

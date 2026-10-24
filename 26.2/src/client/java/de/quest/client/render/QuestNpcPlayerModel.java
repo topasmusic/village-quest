@@ -5,7 +5,7 @@ import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.player.PlayerModel;
 import net.minecraft.world.entity.HumanoidArm;
 
-public final class QuestNpcPlayerModel extends PlayerModel {
+public class QuestNpcPlayerModel extends PlayerModel {
     private final boolean slimArms;
 
     public QuestNpcPlayerModel(ModelPart root, boolean slimArms) {

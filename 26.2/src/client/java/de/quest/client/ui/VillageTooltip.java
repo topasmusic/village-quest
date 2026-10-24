@@ -42,12 +42,8 @@ public final class VillageTooltip {
         if (y + boxHeight > screenHeight - 4) y = mouseY - boxHeight - 10;
         x = Math.clamp(x, 4, Math.max(4, screenWidth - boxWidth - 4));
         y = Math.clamp(y, 4, Math.max(4, screenHeight - boxHeight - 4));
-        graphics.fill(x, y, x + boxWidth, y + boxHeight, 0xF0181510);
-        graphics.fill(x, y, x + boxWidth, y + 1, VillageUiTheme.GOLD);
-        graphics.fill(x, y + boxHeight - 1, x + boxWidth, y + boxHeight, VillageUiTheme.GOLD);
-        graphics.fill(x, y, x + 1, y + boxHeight, VillageUiTheme.GOLD);
-        graphics.fill(x + boxWidth - 1, y, x + boxWidth, y + boxHeight, VillageUiTheme.GOLD);
+        VillageUiTheme.drawPaper(graphics,x,y,boxWidth,boxHeight);
         for (int i = 0; i < lines.size(); i++)
-            VillageUiTheme.drawStringScaled(graphics, font, lines.get(i), x + 6, y + 5 + i * step, VillageUiTheme.LIGHT_TEXT, scale);
+            VillageUiTheme.drawStringScaled(graphics, font, lines.get(i), x + 6, y + 5 + i * step, VillageUiTheme.INK, scale);
     }
 }

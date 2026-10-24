@@ -116,12 +116,13 @@ public final class QuestMasterScreen extends CompatScreen {
     private static final int DETAIL_HEADER_X = 295;
     private static final int DETAIL_HEADER_Y = 62;
     private static final int DETAIL_HEADER_WIDTH = 235;
-    private static final int DETAIL_HEADER_HEIGHT = 30;
+    // Two title lines plus the category/party label must fit above the body.
+    private static final int DETAIL_HEADER_HEIGHT = 42;
 
     private static final int DETAIL_BODY_X = DETAIL_HEADER_X;
     private static final int DETAIL_BODY_Y = DETAIL_HEADER_Y + DETAIL_HEADER_HEIGHT;
     private static final int DETAIL_BODY_WIDTH = DETAIL_HEADER_WIDTH;
-    private static final int DETAIL_BODY_HEIGHT = 168;
+    private static final int DETAIL_BODY_HEIGHT = 198 - DETAIL_HEADER_HEIGHT;
     private static final int DETAIL_HEADER_HORIZONTAL_PADDING = 12;
     private static final int DETAIL_TEXT_LEFT = 12;
     private static final int DETAIL_TEXT_RIGHT = 15;
@@ -219,8 +220,12 @@ public final class QuestMasterScreen extends CompatScreen {
         this.selectedCategoryId = previousCategory;
         this.selectedEntryId = previousEntry;
         ensureSelection();
-        clampEntryListScroll();
-        ensureSelectedEntryVisible();
+        updateEntryListScrollBounds(getVisibleEntries().size());
+        // Routine server refreshes must not pull a manually scrolled list back
+        // to its selected card. Reveal only a replacement selection.
+        if (!previousCategory.equals(this.selectedCategoryId) || !previousEntry.equals(this.selectedEntryId)) {
+            ensureSelectedEntryVisible();
+        }
         clampDetailScroll();
         clampPartyDrawerState();
     }
@@ -542,16 +547,22 @@ public final class QuestMasterScreen extends CompatScreen {
             return;
         }
 
-        VillageUiTheme.drawWrappedScaled(context,font,timerText,left+117,top+280,168,MUTED,.68f,2);
-        if(isWithin(mouseX,mouseY,left+114,top+277,172,21))
+        // Match the action row: two wrapped lines must end inside the parchment at y282.
+        VillageUiTheme.drawWrappedScaled(context, font, timerText, left + CONTENT_HEADER_X,
+                top + BUTTON_Y, LIST_PANEL_WIDTH - 4, MUTED, .68f, 2);
+        if (isWithin(mouseX, mouseY, left + LIST_PANEL_X, top + BUTTON_Y - 3, LIST_PANEL_WIDTH, 21))
             context.setTooltipForNextFrame(font,Component.literal(timerText),mouseX,mouseY);
     }
 
     private void drawDetailHeader(GuiGraphics context, int x, int y, EntryView entry) {
         int contentWidth = DETAIL_HEADER_WIDTH - (DETAIL_HEADER_HORIZONTAL_PADDING * 2);
         int badgeWidth=Math.min(104,16+(int)Math.ceil(font.width(entry.status().getString())*.76f));
-        VillageUiTheme.drawWrappedScaled(context,font,entry.title().getString(),
-                x+DETAIL_HEADER_HORIZONTAL_PADDING,y+7,contentWidth-badgeWidth-7,TITLE,1.08f,2);
+        float titleScale = 1.08f;
+        int titleLines = VillageUiTheme.drawWrappedScaled(context,font,entry.title().getString(),
+                x+DETAIL_HEADER_HORIZONTAL_PADDING,y+7,contentWidth-badgeWidth-7,TITLE,titleScale,2);
+        int titleStep = Math.max(7, Math.round((font.lineHeight + 2) * titleScale));
+        int subtitleY = y + 7 + Math.max(0, titleLines - 1) * titleStep
+                + (int) Math.ceil(font.lineHeight * titleScale) + 4;
 
         String subtitle = entry.subtitle().getString();
         if (hasVisibleLabel(entry.partyStatus())) {
@@ -561,7 +572,7 @@ public final class QuestMasterScreen extends CompatScreen {
         }
         VillageUiTheme.drawStringScaled(context, this.font,
                 compactScaled(subtitle, contentWidth, 0.78f),
-                x + DETAIL_HEADER_HORIZONTAL_PADDING, y + 23, BODY, 0.78f);
+                x + DETAIL_HEADER_HORIZONTAL_PADDING, subtitleY, BODY, 0.78f);
         drawStatusTag(context, entry, x+DETAIL_HEADER_WIDTH-DETAIL_HEADER_HORIZONTAL_PADDING-badgeWidth,
                 y+10,badgeWidth);
     }

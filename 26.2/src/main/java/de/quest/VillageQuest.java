@@ -47,7 +47,14 @@ public class VillageQuest implements ModInitializer {
         ModCreativeTabs.register();
         ModEntities.register();
         QuestService.registerEvents();
+        de.quest.quest.WorldNewsService.register();
         QuestNetworking.register();
+        de.quest.kingdom.KingdomNpcService.register();
+        de.quest.kingdom.NpcSpeechService.register();
+        de.quest.kingdom.KingdomBuildingService.register();
+        de.quest.kingdom.KingdomMarketSourceService.register();
+        de.quest.kingdom.KingdomMarketTransferService.register();
+        de.quest.kingdom.KingdomMarketUiService.register();
         QuestCommands.register();
         net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(de.quest.reward.VanillaRewardService::onTick);
         AdminCommands.register();

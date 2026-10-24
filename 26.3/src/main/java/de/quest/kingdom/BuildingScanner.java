@@ -110,13 +110,16 @@ public final class BuildingScanner {
         BlockPos entry = anchor.relative(facing);
         Set<BlockPos> reached = new HashSet<>();
         if (!canStand(entry)) return reached;
+        // A roof beyond BASIC must not hide nearby furnishings. Once this room's roof is known,
+        // keep its sheltered connectivity so another building cannot lend furniture across a yard.
+        boolean followRoof = indoor() && sheltered(entry);
         var queue = new ArrayDeque<BlockPos>(); queue.add(entry); reached.add(entry);
         while (!queue.isEmpty()) {
             BlockPos from = queue.removeFirst();
             for (Direction direction : List.of(Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST)) {
                 for (int dy : new int[] { 0, 1, -1 }) {
                     BlockPos candidate = from.relative(direction).above(dy);
-                    if (!reached.contains(candidate) && canStand(candidate) && (!indoor() || sheltered(candidate))
+                    if (!reached.contains(candidate) && canStand(candidate) && (!followRoof || sheltered(candidate))
                             && (dy <= 0 || cell(from.above(2)).passable)) {
                         reached.add(candidate); queue.addLast(candidate);
                     }

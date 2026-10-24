@@ -20,6 +20,14 @@ public final class QuestNetworking {
 
     public static void register() {
         Payloads.register();
+        ServerPlayNetworking.registerGlobalReceiver(QuestSetupPayloads.Open.ID, (payload, context) ->
+                context.server().execute(() -> de.quest.config.QuestSetupService.open(context.player())));
+        ServerPlayNetworking.registerGlobalReceiver(QuestSetupPayloads.Save.ID, (payload, context) ->
+                context.server().execute(() -> de.quest.config.QuestSetupService.save(context.player(), payload)));
+        ServerPlayNetworking.registerGlobalReceiver(MarketPayloads.Action.ID, (payload, context) ->
+                context.server().execute(() -> de.quest.kingdom.KingdomMarketUiService.handle(context.server(),context.player(),payload)));
+        ServerPlayNetworking.registerGlobalReceiver(BuildingPayloads.Action.ID, (payload, context) ->
+                context.server().execute(() -> de.quest.kingdom.KingdomBuildingService.handle(context.player(), payload)));
         ServerPlayNetworking.registerGlobalReceiver(RewardPayloads.Action.ID, (payload, context) ->
                 context.server().execute(() -> de.quest.reward.VanillaRewardService.handle(context.player(), payload)));
         ServerPlayNetworking.registerGlobalReceiver(ReputationPayloads.PagePayload.ID, (payload, context) ->

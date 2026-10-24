@@ -1,6 +1,11 @@
 {
   "replace": false,
   "values": [
-    "village-quest:guild_notice_post"
+    "village-quest:guild_notice_post",
+    "village-quest:council_seat",
+    "village-quest:inn_barrel",
+    "village-quest:market_desk",
+    "village-quest:storehouse_anchor",
+    "village-quest:market_stall"
   ]
 }
