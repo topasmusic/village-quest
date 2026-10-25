@@ -140,6 +140,10 @@ final class JournalContentBuilder {
     }
 
     private JournalCard nextActionCard() {
+        var focus = de.quest.client.config.QuestTrackerFocus.current();
+        for (var card : activeQuestCards()) if (focus.matches(card.id(), card.title()))
+            return new JournalCard("overview_next", Component.translatable("screen.village-quest.journal.v2.overview.next"),
+                    card.title(), card.details(), card.accent(), -1);
         if (data.storyActive) return nextAction(data.storyTitle, data.storyProgress,
                 "screen.village-quest.journal.v2.active.story_hint", GREEN);
         if (data.specialActive) return nextAction(data.specialTitle, data.specialProgress,

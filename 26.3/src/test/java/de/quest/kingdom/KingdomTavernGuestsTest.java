@@ -38,6 +38,23 @@ final class KingdomTavernGuestsTest {
         assertTrue(s.tavernGuests().draw(HOME,25000,true,always(0)));
         assertFalse(s.tavernGuests().draw(HOME,49000,true,always(0)));
     }
+    @Test void openingReportReadsExactSavedTicksWithoutCatchupAndSurvivesReload() {
+        var s=state(); var g=s.tavernGuests(); var inn=UUID.randomUUID();
+        var before=LivingKingdomsState.toNbt(s).copy();
+        assertEquals(new KingdomTavernGuests.Opening(0,48000,false),g.opening(HOME,inn,999999));
+        assertEquals(before,LivingKingdomsState.toNbt(s),"An observation report must not create an opening record");
+        g.observeInn(HOME,inn,0,true,true);
+        for(long t=100;t<=1200;t+=100)g.observeInn(HOME,inn,t,true,true);
+        assertEquals(new KingdomTavernGuests.Opening(1200,46800,true),g.opening(HOME,inn,1200));
+        assertEquals(new KingdomTavernGuests.Opening(1200,46800,false),g.opening(HOME,inn,999999));
+        s=LivingKingdomsState.fromNbt(LivingKingdomsState.toNbt(s)); g=s.tavernGuests();
+        assertEquals(new KingdomTavernGuests.Opening(1200,46800,false),g.opening(HOME,inn,1200));
+        g.observeInn(HOME,inn,999999,true,true);
+        assertEquals(1200,g.opening(HOME,inn,999999).elapsed(),"Calendar jumps and reload do not supply observed operation");
+        assertEquals(0,g.opening(HOME,UUID.randomUUID(),999999).elapsed());
+        g.observeInn(HOME,inn,1000099,false,true);
+        assertEquals(new KingdomTavernGuests.Opening(0,48000,false),g.opening(HOME,inn,1000099));
+    }
     @Test void visitsCountOnlyContinuousLoadedTimeAndPersistWithoutCatchup() {
         var s=state(); var g=s.tavernGuests(); assertTrue(g.draw(HOME,1000,true,always(0)));
         g.observe(HOME,100,true); for(long t=200;t<=3700;t+=100) g.observe(HOME,t,true);
@@ -59,6 +76,7 @@ final class KingdomTavernGuestsTest {
             var root=LivingKingdomsState.toNbt(state()); root.put("tavernGuests",data);
             var restored=LivingKingdomsState.fromNbt(root);
             assertTrue(restored.tavernGuests().readOnly()); assertFalse(restored.tavernGuests().draw(HOME,1000,true,always(0)));
+            assertEquals(new KingdomTavernGuests.Opening(-1,-1,false),restored.tavernGuests().opening(HOME,UUID.randomUUID(),1000));
             assertEquals(data,LivingKingdomsState.toNbt(restored).get("tavernGuests"));
         }
     }

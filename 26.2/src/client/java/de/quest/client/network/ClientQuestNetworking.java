@@ -43,6 +43,11 @@ public final class ClientQuestNetworking {
 
     public static void register() {
         Payloads.register();
+        ClientPlayNetworking.registerGlobalReceiver(de.quest.network.FriendsQuestPayloads.View.ID,(payload,context) -> context.client().execute(() -> {
+            if(currentScreen(context.client()) instanceof de.quest.client.screen.FriendsQuestScreen screen && screen.session().equals(payload.session())) {
+                screen.update(payload);if(!payload.valid())setScreen(context.client(),null);
+            } else if(payload.initial() && payload.valid())setScreen(context.client(),new de.quest.client.screen.FriendsQuestScreen(payload));
+        }));
         ClientPlayNetworking.registerGlobalReceiver(de.quest.network.VillageCheckPayload.ID,(payload,context) ->
                 context.client().execute(() -> {
                     de.quest.client.hud.VillageCheckHighlights.receive(context.client(),payload);

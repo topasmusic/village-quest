@@ -11,6 +11,7 @@ import net.minecraft.world.level.Level;
 /** Native drink lifecycle; the persisted world effect commits only when drinking finishes. */
 public final class WeatherTonicItem extends Item {
  public WeatherTonicItem(Properties properties) {super(properties);}
+ @Override public net.minecraft.network.chat.Component getName(ItemStack stack) {return net.minecraft.network.chat.Component.translatable(getDescriptionId()).withStyle(net.minecraft.ChatFormatting.GREEN);}
  private boolean available(ServerLevel world,ServerPlayer player) {
   var tonic=QuestState.get(world.getServer()).weatherTonic();
   if(world.dimension()!=Level.OVERWORLD || !player.isAlive() || player.isSpectator() || !tonic.writable()) {

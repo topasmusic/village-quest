@@ -20,17 +20,17 @@ final class MarketPresentationTest {
                 net.minecraft.core.component.DataComponentMap.builder().set(net.minecraft.core.component.DataComponents.MAX_STACK_SIZE,64)
                         .set(net.minecraft.core.component.DataComponents.ITEM_NAME,net.minecraft.network.chat.Component.translatable(item.getDescriptionId())).build());
     }
-    @Test void newMarketVariantsAndJournalDashboardsLeadTheIsolatedTour() {
+    @Test void marketVariantsAndJournalDashboardsFollowTheNewFriendsPages() {
         assertEquals(List.of(new UiTestTourSteps.Step("market","goods"),new UiTestTourSteps.Step("market","limited"),
                 new UiTestTourSteps.Step("market","details"),new UiTestTourSteps.Step("journal","overview"),
-                new UiTestTourSteps.Step("journal","network")),UiTestTourSteps.ALL.subList(0,5));
+                new UiTestTourSteps.Step("journal","network")),UiTestTourSteps.ALL.subList(12,17));
         try(var client=mockStatic(Minecraft.class)){client.when(Minecraft::getInstance).thenReturn(mock(Minecraft.class));
-            for(var step:UiTestTourSteps.ALL.subList(0,5)) assertNotNull(UiTestTourScreens.create(step));}
+            for(var step:UiTestTourSteps.ALL.subList(12,17)) assertNotNull(UiTestTourScreens.create(step));}
     }
     @Test void previewCannotSendTradesRefreshOrClosePackets() throws Exception {
         try(var client=mockStatic(Minecraft.class);var tour=mockStatic(UiTestTour.class);var network=mockStatic(ClientPlayNetworking.class)) {
             client.when(Minecraft::getInstance).thenReturn(mock(Minecraft.class));tour.when(UiTestTour::active).thenReturn(true);
-            var screen=(MarketScreen)UiTestTourScreens.create(UiTestTourSteps.ALL.getFirst());
+            var screen=(MarketScreen)UiTestTourScreens.create(new UiTestTourSteps.Step("market","goods"));
             var action=MarketScreen.class.getDeclaredMethod("action",MarketPayloads.Kind.class,UUID.class,int.class);action.setAccessible(true);
             for(var kind:MarketPayloads.Kind.values()) action.invoke(screen,kind,new UUID(1,1),1);
             screen.onClose();network.verifyNoInteractions();
@@ -46,7 +46,7 @@ final class MarketPresentationTest {
             var named=new ItemStack(Items.WHEAT,64);named.set(net.minecraft.core.component.DataComponents.CUSTOM_NAME,net.minecraft.network.chat.Component.literal("Reserved"));
             when(inventory.getItem(1)).thenReturn(named);when(inventory.getItem(35)).thenReturn(new ItemStack(Items.WHEAT,8));
             when(inventory.getItem(36)).thenReturn(new ItemStack(Items.WHEAT,64));
-            var screen=(MarketScreen)UiTestTourScreens.create(UiTestTourSteps.ALL.getFirst());
+            var screen=(MarketScreen)UiTestTourScreens.create(new UiTestTourSteps.Step("market","goods"));
             var count=MarketScreen.class.getDeclaredMethod("owned",ItemStack.class);count.setAccessible(true);
             assertEquals(40,count.invoke(screen,new ItemStack(Items.WHEAT)));
         }
@@ -55,7 +55,7 @@ final class MarketPresentationTest {
         try(var client=mockStatic(Minecraft.class);var theme=mockStatic(VillageUiTheme.class);var art=mockStatic(KingdomUiAssets.class);var family=mockStatic(JournalV3Visuals.class)) {
             art.when(() -> KingdomUiAssets.closeBounds(anyInt(),anyInt(),anyInt(),anyInt())).thenCallRealMethod();
             client.when(Minecraft::getInstance).thenReturn(mock(Minecraft.class));
-            var screen=(MarketScreen)UiTestTourScreens.create(UiTestTourSteps.ALL.getFirst());
+            var screen=(MarketScreen)UiTestTourScreens.create(new UiTestTourSteps.Step("market","goods"));
             var field=MarketScreen.class.getDeclaredField("data");field.setAccessible(true);var data=(MarketPayloads.View)field.get(screen);
             var rows=new ArrayList<MarketPayloads.Row>();var original=data.rows().getFirst();
             for(int i=0;i<8;i++) rows.add(new MarketPayloads.Row("goods_"+i,original.item(),original.lot(),original.stock(),original.demand(),original.adjustment(),original.buyQuote(),original.buyPrice(),original.sellQuote(),original.sellPrice()));
@@ -86,7 +86,7 @@ final class MarketPresentationTest {
                 client.when(Minecraft::getInstance).thenReturn(mock(Minecraft.class));
                 art.when(() -> KingdomUiAssets.closeBounds(anyInt(),anyInt(),anyInt(),anyInt())).thenCallRealMethod();
                 // Build the real preview model, then exercise it as a normal live screen.
-                var screen=(MarketScreen)UiTestTourScreens.create(UiTestTourSteps.ALL.getFirst());
+                var screen=(MarketScreen)UiTestTourScreens.create(new UiTestTourSteps.Step("market","goods"));
                 var dataField=MarketScreen.class.getDeclaredField("data");dataField.setAccessible(true);var view=(MarketPayloads.View)dataField.get(screen);
                 network.when(() -> ClientPlayNetworking.canSend(MarketPayloads.Action.ID)).thenReturn(true);
                 drawing.when(() -> VillageUiTheme.wrapScaledLines(any(),anyString(),anyInt(),anyFloat())).thenAnswer(a->List.of((String)a.getArgument(1)));
@@ -110,7 +110,7 @@ final class MarketPresentationTest {
             var theme=mockStatic(VillageUiTheme.class);var art=mockStatic(KingdomUiAssets.class);var family=mockStatic(JournalV3Visuals.class)) {
             client.when(Minecraft::getInstance).thenReturn(mock(Minecraft.class));
             theme.when(()->VillageUiTheme.wrapScaledLines(any(),anyString(),anyInt(),anyFloat())).thenAnswer(a->List.of((String)a.getArgument(1)));
-            var screen=(MarketScreen)UiTestTourScreens.create(UiTestTourSteps.ALL.getFirst());screen.width=800;screen.height=500;
+            var screen=(MarketScreen)UiTestTourScreens.create(new UiTestTourSteps.Step("market","goods"));screen.width=800;screen.height=500;
             var font=mock(net.minecraft.client.gui.Font.class);var f=net.minecraft.client.gui.screens.Screen.class.getDeclaredField("font");f.setAccessible(true);f.set(screen,font);
             var g=mock(GuiGraphics.class);when(g.pose()).thenReturn(new Matrix3x2fStack(8));screen.render(g,0,0,0);
             assertTrue(screen.mouseClicked(point(screen,512,266,new MouseButtonInfo(com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT,0)),false));
@@ -133,7 +133,7 @@ final class MarketPresentationTest {
             var theme=mockStatic(VillageUiTheme.class);var art=mockStatic(KingdomUiAssets.class);var family=mockStatic(JournalV3Visuals.class)) {
             client.when(Minecraft::getInstance).thenReturn(mock(Minecraft.class));
             theme.when(()->VillageUiTheme.wrapScaledLines(any(),anyString(),anyInt(),anyFloat())).thenAnswer(a->List.of((String)a.getArgument(1)));
-            var screen=(MarketScreen)UiTestTourScreens.create(UiTestTourSteps.ALL.getFirst());
+            var screen=(MarketScreen)UiTestTourScreens.create(new UiTestTourSteps.Step("market","goods"));
             var f=MarketScreen.class.getDeclaredField("data");f.setAccessible(true);var d=(MarketPayloads.View)f.get(screen);
             screen.updateData(new MarketPayloads.View(d.session(),1,false,true,d.trader(),d.home(),d.market(),d.lots(),0,d.budget(),d.factor(),d.discount(),d.rows(),MarketPayloads.Feedback.COMMITTED));
             screen.selectTourDetails();screen.width=800;screen.height=500;

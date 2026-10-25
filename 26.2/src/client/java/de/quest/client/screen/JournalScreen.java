@@ -244,6 +244,7 @@ public class JournalScreen extends CompatScreen {
     public JournalScreen(JournalScreenData data) {
         super(Component.translatable("screen.village-quest.journal.title"));
         this.data = data;
+        if (data!=null) de.quest.client.config.QuestTrackerFocus.current().reconcile(data.activeTitles());
     }
     void selectTourSection(String state) {
         pendingCancelAction=-1;
@@ -301,6 +302,7 @@ public class JournalScreen extends CompatScreen {
 
     public void updateData(JournalScreenData data) {
         this.data = data;
+        if (data!=null) de.quest.client.config.QuestTrackerFocus.current().reconcile(data.activeTitles());
         pendingCancelAction = -1;
         clampScroll();
     }
@@ -1046,12 +1048,16 @@ public class JournalScreen extends CompatScreen {
         int nx=left+368;
         JournalV3Visuals.paper(g,nx,y,132,136);
         JournalV3Visuals.section(g,font,Component.translatable("screen.village-quest.journal.home.next").getString(),nx+3,y+3,126,.84f,"scroll");
+        var instruction=homeInstruction(next);
         Optional<QuestArtwork.Motif> motif=artworkFor(next);
-        motif.ifPresent(m->JournalV3Visuals.illustration(g,m.largeTexture(),nx+8,top+68,116,44));
-        if(motif.isEmpty())JournalV3Visuals.sprite(g,"scroll",nx+50,top+72,32,32);
+        if (instruction.isEmpty()) {
+            motif.ifPresent(m->JournalV3Visuals.illustration(g,m.largeTexture(),nx+8,top+68,116,44));
+            if(motif.isEmpty())JournalV3Visuals.sprite(g,"scroll",nx+50,top+72,32,32);
+        }
         var nextTitle=VillageUiTheme.wrapScaled(font,next.subtitle().getString(),116,1.04f);
-        for(int row=0;row<Math.min(2,nextTitle.size());row++)JournalV3Visuals.centeredHeading(g,font,nextTitle.get(row),nx+8,top+117+row*10,116,1.04f,INK);
-        if(!next.details().isEmpty()) {
+        for(int row=0;row<Math.min(2,nextTitle.size());row++)JournalV3Visuals.centeredHeading(g,font,nextTitle.get(row),nx+8,top+(instruction.isPresent()?69:117)+row*10,116,1.04f,INK);
+        if (instruction.isPresent()) VillageUiTheme.drawWrappedScaled(g,font,instruction.get().getString(),nx+8,top+92,116,BODY,.76f,8);
+        else if(!next.details().isEmpty()) {
             var objective=de.quest.client.ui.QuestObjectiveRows.rows(next.details().getFirst());
             if(!objective.isEmpty()) {
                 VillageUiTheme.drawStringScaled(g,font,compact(Component.translatable("screen.village-quest.ui_review.continue_objectives").getString(),116,.74f),nx+8,top+137,INK,.74f);
@@ -1080,9 +1086,17 @@ public class JournalScreen extends CompatScreen {
         JournalV3Visuals.action(g,font,Component.translatable("screen.village-quest.journal.home.chronicle_open").getString(),
                 cx+49,cy+56,119,15,within(mouseX,mouseY,cx+49,cy+56,119,15));
     }
+    static Optional<Component> homeInstruction(JournalCard card) {
+        if (!card.details().isEmpty() && card.details().getFirst().getContents()
+                instanceof net.minecraft.network.chat.contents.TranslatableContents content
+                && content.getKey().startsWith("quest.village-quest.story.living_kingdoms.next."))
+            return Optional.of(Component.translatable(content.getKey(),content.getArgs()));
+        return Optional.empty();
+    }
     private List<JournalCard> homeQuests() {
         return new JournalContentBuilder(data).activeQuestCards().stream()
-                .sorted(java.util.Comparator.comparingInt(c->questPriority(c.id()))).toList();
+                .sorted(java.util.Comparator.comparingInt(c -> de.quest.client.config.QuestTrackerFocus.current()
+                        .matches(c.id(),c.title()) ? -1 : questPriority(c.id()))).toList();
     }
     record QuestMasterTarget(int x, int y, int width, int height) {}
 
@@ -1157,7 +1171,7 @@ public class JournalScreen extends CompatScreen {
                 motif.smallTexture(), x + 12, y + 5, 64, 24));
         List<String> headings = cardHeadingLines(card,cardWidth);
         for(int i=0;i<headings.size();i++) JournalV3Visuals.heading(graphics,font,headings.get(i),
-                x+headingInset,y+6+i*10,cardWidth-headingInset-(card.cancelAction()>=0?98:28),.92f,INK);
+                x+headingInset,y+6+i*10,cardWidth-headingInset-headingControlsWidth(card),.92f,INK);
         List<String> subtitles = (card.id().equals("overview_next") || card.id().equals("network_next"))
                 ? wrapText(card.subtitle().getString(), Math.round((cardWidth - headingInset - 28) / CARD_BODY_SCALE))
                 : List.of(compact(card.subtitle().getString(), cardWidth - headingInset - 28, CARD_BODY_SCALE));
@@ -1167,6 +1181,18 @@ public class JournalScreen extends CompatScreen {
         }
         graphics.fill(x+cardWidth-23,y+4,x+cardWidth-5,y+22,TEAL);
         JournalV3Visuals.chevron(graphics,x+cardWidth-22,y+5,16,expanded);
+        if (isActiveQuestCard(card)) {
+            boolean pinned = de.quest.client.config.QuestTrackerFocus.current().matches(card.id(), card.title());
+            int px = x + cardWidth - 55, py = y + 4;
+            graphics.fill(px, py, px + 20, py + 18, pinned ? TEAL : 0xFFC9AF7F);
+            int ink = pinned ? 0xFFF5E4BA : INK;
+            graphics.fill(px+6,py+4,px+14,py+6,ink);
+            graphics.fill(px+8,py+6,px+12,py+11,ink);
+            graphics.fill(px+5,py+10,px+15,py+12,ink);
+            graphics.fill(px+9,py+12,px+11,py+16,ink);
+            if (within(mouseX,mouseY,px,py,20,18)) graphics.setTooltipForNextFrame(font,
+                    Component.translatable("screen.village-quest.tracker."+(pinned?"unpin":"pin")), mouseX,mouseY);
+        }
         if (card.cancelAction() >= 0) {
             int cx=x+cardWidth-78,cy=y+12;
             if(pendingCancelAction==card.cancelAction()) graphics.fill(cx-9,cy-9,cx+10,cy+10,0x44AA3027);
@@ -1236,6 +1262,15 @@ public class JournalScreen extends CompatScreen {
 
     private void drawFooterButtons(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
         if(section==Section.OVERVIEW)return;
+        if (section==Section.QUESTS) {
+            var focus = de.quest.client.config.QuestTrackerFocus.current();
+            int x=left+365;
+            drawButton(graphics,x,top+44,120,Component.translatable(
+                    "screen.village-quest.tracker."+(focus.onlyPinned()?"only":"all")).getString(),
+                    within(mouseX,mouseY,x,top+44,120,BUTTON_HEIGHT));
+            if(within(mouseX,mouseY,x,top+44,120,BUTTON_HEIGHT)) graphics.setTooltipForNextFrame(font,
+                    Component.translatable("screen.village-quest.tracker.filter_hint"),mouseX,mouseY);
+        }
         int doneX = left + WINDOW_WIDTH - FOOTER_RIGHT_INSET - DONE_BUTTON_WIDTH;
         int questMasterX = doneX - 84;
         int prosperityX = questMasterX - 74;
@@ -1293,6 +1328,11 @@ public class JournalScreen extends CompatScreen {
         if (section == Section.NETWORK && handleNetworkTab(mouseX, mouseY, left, top)) return true;
         if (section == Section.OVERVIEW) return handleHomeClick(mouseX,mouseY,left,top);
 
+        if (section==Section.QUESTS && within(mouseX,mouseY,left+365,top+44,120,BUTTON_HEIGHT)) {
+            if (!UiTestTour.active()) de.quest.client.config.QuestTrackerFocus.current().toggleOnlyPinned();
+            playClick(); return true;
+        }
+
         int doneX = left + WINDOW_WIDTH - FOOTER_RIGHT_INSET - DONE_BUTTON_WIDTH;
         int questMasterX = doneX - 84;
         int prosperityX = questMasterX - 74;
@@ -1322,6 +1362,11 @@ public class JournalScreen extends CompatScreen {
         for (JournalCard card : cards) {
             int height = cardHeight(card, cardWidth);
             if (mouseY >= top + contentTop() && mouseY < top + CONTENT_BOTTOM && within(mouseX, mouseY, cardX, y, cardWidth, height)) {
+                if (isActiveQuestCard(card) && within(mouseX,mouseY,cardX+cardWidth-55,y+4,20,18)) {
+                    pendingCancelAction=-1;
+                    if (!UiTestTour.active()) de.quest.client.config.QuestTrackerFocus.current().toggle(card.id(),card.title());
+                    playClick(); return true;
+                }
                 if (card.cancelAction() >= 0
                         && within(mouseX, mouseY, cardX + cardWidth - 87, y + 3, 18, 19)) {
                     if(pendingCancelAction==card.cancelAction()) {
@@ -1687,10 +1732,15 @@ public class JournalScreen extends CompatScreen {
     }
 
     private List<String> cardHeadingLines(JournalCard card,int width) {
-        int available=Math.max(24,width-cardHeadingInset(card)-(card.cancelAction()>=0?98:28));
+        int available=Math.max(24,width-cardHeadingInset(card)-headingControlsWidth(card));
         var lines=VillageUiTheme.wrapScaledLines(font,card.title().getString(),available,.92f);
         return lines.isEmpty()?List.of(card.title().getString()):lines;
     }
+
+    private int headingControlsWidth(JournalCard card) {
+        return card.cancelAction()>=0 ? 98 : isActiveQuestCard(card) ? 65 : 28;
+    }
+    private boolean isActiveQuestCard(JournalCard card) { return data!=null && data.activeTitles().containsKey(card.id()); }
 
     static Optional<QuestArtwork.Motif> artworkFor(JournalCard card) {
         Optional<QuestArtwork.Motif> motif = QuestArtwork.forQuest(card.id(), card.title());

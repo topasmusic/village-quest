@@ -87,6 +87,10 @@ public final class KingdomVillageService {
             lines.add(Component.translatable(text+"building",Component.translatable("screen.village-quest.building.role."+role.name().toLowerCase(java.util.Locale.ROOT)),
                     Component.translatable(text+"building."+anchor.map(a -> state.anchors().knownDetached(id,role)?"detached":a.phase().name().toLowerCase(java.util.Locale.ROOT)).orElse("unconfirmed"))));
         }
+        if(state.anchors().official(id,BuildingScanner.Role.INN).isPresent()) {
+            lines.add(state.tavernGuests().openingText(id,now));
+            lines.add(Component.translatable("screen.village-quest.inn.opening.recorded"));
+        }
         lines.add(Component.translatable(text+(status==de.quest.village.VillageLifeState.Status.ACTIVE?"route_hint":"rebuild_hint")));
         return List.copyOf(lines);
     }

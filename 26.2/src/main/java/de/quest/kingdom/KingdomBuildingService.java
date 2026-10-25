@@ -613,7 +613,9 @@ public final class KingdomBuildingService {
                     evidence == null ? 0 : evidence.adults(), evidence == null ? 0 : evidence.beds(), evidence != null && evidence.hasJob(), name,
                     snapshot.map(s -> rows(s.report())).orElse(List.of()), desk.choices, desk.feedback,desk.layout,
                     desk.role==BuildingScanner.Role.COUNCIL?KingdomRecognitionService.view(player,desk.policy.selected()):BuildingPayloads.Recognition.EMPTY,desk.diplomacy,
-                    foundingEvidenceFresh(evidence,desk.evidenceTick,now),binding(state,desk.policy.dimension(),desk.policy.position(),desk.role,desk.facing,desk.range,desk.policy.selected()));
+                    foundingEvidenceFresh(evidence,desk.evidenceTick,now),binding(state,desk.policy.dimension(),desk.policy.position(),desk.role,desk.facing,desk.range,desk.policy.selected()),
+                    desk.role==BuildingScanner.Role.INN && official.filter(a -> a.position().equals(desk.policy.position())).isPresent()
+                            ? state.tavernGuests().openingText(desk.policy.selected(),now) : Component.empty());
             if (ServerPlayNetworking.canSend(player, BuildingPayloads.View.ID)) ServerPlayNetworking.send(player, payload);
             else player.sendSystemMessage(Component.translatable(TEXT + "fallback", Component.translatable(TEXT + "role." + desk.role.name().toLowerCase(java.util.Locale.ROOT))), false);
         }

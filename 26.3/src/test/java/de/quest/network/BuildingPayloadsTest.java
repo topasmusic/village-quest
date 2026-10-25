@@ -11,6 +11,15 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import org.junit.jupiter.api.Test;
 
 final class BuildingPayloadsTest {
+    @Test void innOpeningDetailsRoundTripWithTheirUntranslatedParameters() {
+        var opening=net.minecraft.network.chat.Component.translatable("screen.village-quest.inn.opening.paused",12,40,28,"00");
+        var view=new BuildingPayloads.View(UUID.randomUUID(),1,true,BlockPos.ZERO,BuildingScanner.Role.INN,BuildingScanner.Range.BASIC,
+                BuildingScanner.Status.VALID,UUID.randomUUID(),0,UUID.randomUUID(),0,true,false,0,0,false,"Home",List.of(),List.of(),"",
+                BuildingPayloads.MarketLayout.EMPTY,BuildingPayloads.Recognition.EMPTY,BuildingPayloads.Diplomacy.EMPTY,false,BuildingPayloads.Binding.REGISTERED,opening);
+        var buf=new RegistryFriendlyByteBuf(Unpooled.buffer(),RegistryAccess.EMPTY);
+        try { BuildingPayloads.View.CODEC.encode(buf,view); assertEquals(view,BuildingPayloads.View.CODEC.decode(buf)); assertEquals(0,buf.readableBytes()); }
+        finally { buf.release(); }
+    }
     @Test void savedHereChangedAndElsewhereAreDistinctAuthoritativeSnapshots() {
         for(var binding:BuildingPayloads.Binding.values()) {
             var view=new BuildingPayloads.View(UUID.randomUUID(),1,true,BlockPos.ZERO,BuildingScanner.Role.INN,BuildingScanner.Range.BASIC,

@@ -13,6 +13,9 @@ import net.minecraft.world.item.alchemy.PotionContents;
 /** Complete native components are frozen once with the world's registry codec. */
 public final class RewardItems {
     public static List<ItemStack> create(ServerLevel world, List<VanillaRewardRegistry.Goods> goods) {
+        return create(world.registryAccess(),goods);
+    }
+    public static List<ItemStack> create(net.minecraft.core.HolderLookup.Provider registries, List<VanillaRewardRegistry.Goods> goods) {
         List<ItemStack> result = new ArrayList<>();
         for (var g : goods) {
             var item = BuiltInRegistries.ITEM.getValue(Identifier.withDefaultNamespace(g.item()));
@@ -23,7 +26,7 @@ public final class RewardItems {
                 if (!g.potion().isEmpty()) stack.set(DataComponents.POTION_CONTENTS, new PotionContents(
                         BuiltInRegistries.POTION.getOrThrow(ResourceKey.create(Registries.POTION, Identifier.withDefaultNamespace(g.potion())))));
                 for (var enchantment : g.enchantments().entrySet()) stack.enchant(
-                        world.registryAccess().lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(ResourceKey.create(
+                        registries.lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(ResourceKey.create(
                                 Registries.ENCHANTMENT, Identifier.withDefaultNamespace(enchantment.getKey()))), enchantment.getValue());
                 result.add(stack); remaining -= stack.getCount();
             }
@@ -43,6 +46,11 @@ public final class RewardItems {
     }
     static ItemStack decode(net.minecraft.core.HolderLookup.Provider registries, Tag tag) {
         return ItemStack.CODEC.parse(RegistryOps.create(NbtOps.INSTANCE, registries), tag).getOrThrow();
+    }
+    public static List<ItemStack> lutteTool(net.minecraft.core.HolderLookup.Provider registries, VanillaRewardRegistry.Option option) {
+        var items=create(registries,option.goods());
+        for(var item:items)item.set(DataComponents.ITEM_NAME,de.quest.quest.special.FriendsQuestService.tr("lutte.tool."+option.id()));
+        return items;
     }
     private RewardItems() { }
 }

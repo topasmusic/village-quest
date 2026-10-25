@@ -274,7 +274,7 @@ This focused `2.1.0` fixture unlocks the five matching project branches, prepare
 
 ### Interface preview
 
-Operators can use `/vq admin uitest` for the interface tour. Its sample screens
+Operators can use `/vq admin uitest` for the interface tour. The first twelve pages show the new Friends NPC windows: Simon, Lutte and Marius quests, herb exchange, coastal-chart actions, raid preparation, completed dialogue and Raphael lore. These isolated previews cannot accept quests, consume items or grant rewards. Its sample screens
 do not grant quest progress or execute gameplay actions. Escape exits.
 
 ### Pilgrim

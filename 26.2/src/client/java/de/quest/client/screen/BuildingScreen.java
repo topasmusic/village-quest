@@ -197,6 +197,11 @@ public final class BuildingScreen extends CompatScreen {
         if(data.manageable()&&official) button(g,l,t,262,256,128,text("release"),true,false,mx,my,() -> releasing=true);
         button(g,l,t,18,226,110,text("recheck"),true,false,mx,my,() -> action(BuildingPayloads.Kind.RECHECK));
         button(g,l,t,134,226,112,text(data.range()==BuildingScanner.Range.BASIC?"extend":"basic"),true,false,mx,my,() -> action(BuildingPayloads.Kind.EXTEND));
+        if (!data.innOpening().getString().isBlank()) {
+            VillageUiTheme.drawWrappedScaled(g,font,data.innOpening().getString(),l+22,t+251,220,INK,.72f,3);
+            if(within(mx,my,l+18,t+249,228,25)) hints.setTooltipForNextFrame(font,List.of(data.innOpening(),
+                    Component.translatable("screen.village-quest.inn.opening.conditions")),mx,my);
+        }
         String feedback=data.feedback().isBlank()?(data.status()!=BuildingScanner.Status.VALID?text("found_missing"):""):Component.translatable(data.feedback()).getString();
         VillageUiTheme.drawWrappedScaled(g,font,feedback,l+22,t+277,220,INK,.72f,4);
         if(within(mx,my,l+18,t+273,228,39)) hints.setTooltipForNextFrame(font,Component.literal(feedback),mx,my);

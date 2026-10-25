@@ -22,6 +22,13 @@ offline members receive the same change. Party membership grants no village
 management mandate. See [Buildings](kingdom-buildings.md) for the separate empty
 settlement and inhabited-recognition requirements.
 
+In **2.6.2-unreleased.1**, the Journal's next-step card names the first unfinished
+requirement of the current chapter, including trader-place assignment, each staff
+conversation, paid trade, freight and recognition. When all chapter requirements
+are earned it directs you to the Questmaster to claim. The original objective
+list remains below it. These hints read recorded evidence without remotely
+inspecting a building or granting progress.
+
 ## Village Seal
 
 Finish **A Place at the Table** to earn the **Village Seal** (Village Check tool).

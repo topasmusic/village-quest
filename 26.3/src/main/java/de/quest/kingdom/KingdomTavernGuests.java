@@ -40,6 +40,29 @@ public final class KingdomTavernGuests {
     public boolean ready(UUID village) {
         return state.anchors().official(village,BuildingScanner.Role.INN).filter(a -> a.phase()==BuildingOperation.Phase.ACTIVE && ready(village,a.id())).isPresent();
     }
+
+    public record Opening(int elapsed, int remaining, boolean progressing) {}
+
+    /** Saved observation only. Never advances the clock, draws a guest or creates a record. */
+    public Opening opening(UUID village, UUID inn, long now) {
+        if (readOnly()) return new Opening(-1,-1,false);
+        var record = records.get(village);
+        if (record == null || inn == null || !inn.equals(record.inn)) return new Opening(0,48000,false);
+        return new Opening(record.warmup,48000-record.warmup,record.warmupTick>=0
+                && now>=record.warmupTick && now-record.warmupTick<=100);
+    }
+
+    public net.minecraft.network.chat.Component openingText(UUID village, long now) {
+        String text="screen.village-quest.inn.opening.";
+        var inn=state.anchors().official(village,BuildingScanner.Role.INN);
+        if (inn.isEmpty()) return net.minecraft.network.chat.Component.translatable(text+"unregistered");
+        var view=opening(village,inn.get().id(),now);
+        if (view.elapsed()<0) return net.minecraft.network.chat.Component.translatable(text+"unknown");
+        if (view.remaining()==0) return net.minecraft.network.chat.Component.translatable(text+"ready");
+        int seconds=(view.remaining()+19)/20;
+        return net.minecraft.network.chat.Component.translatable(text+(view.progressing()?"progress":"paused"),
+                view.elapsed()/1200,40,seconds/60,String.format(java.util.Locale.ROOT,"%02d",seconds%60));
+    }
     boolean draw(UUID village,long clock,boolean eligible,java.util.random.RandomGenerator random) {
         if(readOnly() || !eligible || clock<0 || state.village(village).isEmpty()) return false;
         if(!records.containsKey(village) && records.size()>=16384) return false;

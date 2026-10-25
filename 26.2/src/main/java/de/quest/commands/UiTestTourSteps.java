@@ -7,6 +7,10 @@ public final class UiTestTourSteps {
     private UiTestTourSteps() {}
     public record Step(String family, String state) {}
     public static final List<Step> ALL = List.of(
+            new Step("friends", "simon_offer"),new Step("friends", "simon_active"),new Step("friends", "simon_friends"),new Step("friends", "simon_herbs"),
+            new Step("friends", "lutte_offer"),new Step("friends", "lutte_map"),new Step("friends", "lutte_masterpiece"),
+            new Step("friends", "marius_offer"),new Step("friends", "marius_healing"),new Step("friends", "marius_raid"),
+            new Step("friends", "friends_complete"),new Step("friends", "ravel_lore"),
             new Step("market", "goods"), new Step("market", "limited"), new Step("market", "details"),
             new Step("journal", "overview"), new Step("journal", "network"), new Step("journal", "quests"), new Step("journal", "quests_reset"),
             new Step("journal", "atlas"), new Step("journal", "atlas_trust"), new Step("journal", "atlas_charters"), new Step("journal", "guide"),

@@ -44,8 +44,7 @@ public final class MariusQuestService {
   }
  }
  public static boolean turnIn(ServerLevel world,ServerPlayer player,FriendsQuestProgress p) {
-  if(!new MariusQuestProgress(p).ready())return false;int stage=p.stage("marius");var goods=new ArrayList<ItemStack>();
-  if(stage==2) {var seal=new ItemStack(ModItems.VILLAGE_WATCH_SEAL);CustomData.update(DataComponents.CUSTOM_DATA,seal,t -> t.putString("watchOwner",player.getUUID().toString()));goods.add(seal);}
+  if(!new MariusQuestProgress(p).ready())return false;int stage=p.stage("marius");var goods=FriendsQuestRewards.create(world.registryAccess(),"marius",stage+1,false,player.getUUID()).items();
   if(!FriendsQuestService.enqueue(world,player,goods))return false;
   if(!p.complete("marius"))throw new IllegalStateException("Watch quest changed in server turn-in");
   if(stage<2) {CurrencyService.addBalance(world,player.getUUID(),stage==0?12:20);FriendsQuestService.experience(player,stage==0?2:3);}

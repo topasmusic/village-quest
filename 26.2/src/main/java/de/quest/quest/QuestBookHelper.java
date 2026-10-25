@@ -72,6 +72,13 @@ public final class QuestBookHelper {
         Component storyProgress = storyActive
                 ? de.quest.reward.VanillaRewardService.joinLines(story.lines())
                 : Component.empty();
+        var storyData = de.quest.data.QuestState.get(world.getServer()).getPlayerData(pid);
+        if (storyActive && storyData.getActiveStoryArc()==de.quest.quest.story.StoryArcType.LIVING_KINGDOMS) {
+            Component next = de.quest.kingdom.KingdomStoryGuidance.next(storyData,
+                    de.quest.kingdom.LivingKingdomsState.get(world.getServer()),
+                    storyData.getStoryChapterProgress(de.quest.kingdom.KingdomStoryProgress.ARC));
+            if (!next.getString().isBlank()) storyProgress = next.copy().append("\n").append(storyProgress);
+        }
         PilgrimContractService.PilgrimContractStatus pilgrim = PilgrimContractService.openStatus(world, pid);
         boolean pilgrimActive = pilgrim != null;
         Component pilgrimTitle = pilgrimActive ? pilgrim.title() : Component.empty();

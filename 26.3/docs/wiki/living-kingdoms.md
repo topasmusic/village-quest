@@ -1,6 +1,6 @@
 # Living Kingdoms — 2.6
 
-Living Kingdoms is Village Quest **2.6.1 for Minecraft 26.3**.
+Living Kingdoms is Village Quest **2.6.2 for Minecraft 26.3**.
 
 ## Where to start
 

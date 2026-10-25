@@ -46,6 +46,7 @@ public final class QuestArtwork {
     public record ContentArea(int textureWidth,int textureHeight,int x,int y,int width,int height) {}
     public static ContentArea contentArea(Identifier image) {
         String path=image.getPath();
+        if(path.endsWith("/friends_herbs.png") || path.endsWith("/friends_coastal_signals.png") || path.endsWith("/friends_golem_repair.png") || path.endsWith("/raphael_harp.png"))return new ContentArea(2048,768,0,0,2048,768);
         boolean small=path.endsWith("_64x24.png");
         int width=small?64:192,height=small?24:72;
         String name=path.substring(path.lastIndexOf('/')+1);

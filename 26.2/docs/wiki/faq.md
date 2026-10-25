@@ -14,7 +14,7 @@ an empty settlement. The first recognition project separately needs three adults
 three assigned reachable beds and a matching assigned reachable workplace.
 [Building guide](kingdom-buildings.md).
 
-**Can I connect a village I built myself?** In 2.6.1 for Minecraft 26.2, found it
+**Can I connect a village I built myself?** In 2.6.2 for Minecraft 26.2, found it
 through a confirmed Council Seat and meet its normal inhabited/active-village
 requirements. Register it with the Caravan Ledger inside the confirmed area;
 Guild Notice Posts use that same settlement identity. Route unlocks still apply.
@@ -47,7 +47,7 @@ world options; everyone can set their own tracker, minimap, news, sounds and bub
 [Configuration](configuration.md).
 
 **Which versions have Living Kingdoms?** Minecraft 26.2 and 26.3 share the
-2.6.1 content release with native APIs. Other versions retain their published
+2.6.2 content release with native APIs. Other versions retain their published
 releases and may receive scoped maintenance.
 [Support policy](../../../VERSION_SUPPORT.md).
 

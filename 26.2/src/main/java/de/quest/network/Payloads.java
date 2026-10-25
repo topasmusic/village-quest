@@ -30,6 +30,8 @@ public final class Payloads {
         PayloadTypeRegistry.clientboundPlay().register(VillageCheckPayload.ID,VillageCheckPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(MarketPayloads.View.ID, MarketPayloads.View.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(NpcSpeechPayload.ID,NpcSpeechPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(FriendsQuestPayloads.View.ID,FriendsQuestPayloads.View.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(FriendsQuestPayloads.Action.ID,FriendsQuestPayloads.Action.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(MarketPayloads.Action.ID, MarketPayloads.Action.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(BuildingPayloads.Action.ID, BuildingPayloads.Action.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(RewardPayloads.Action.ID, RewardPayloads.Action.CODEC);

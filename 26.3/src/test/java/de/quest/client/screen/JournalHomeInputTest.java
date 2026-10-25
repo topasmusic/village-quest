@@ -123,6 +123,57 @@ final class JournalHomeInputTest {
             assertEquals(get(screen,"scrollMax"),get(screen,"scrollOffset"));
         }
     }
+    @Test void pinAndFilterControlsNeverCancelOrRemoveJournalTasksAtAnyResponsiveSize() throws Exception {
+        try (var client=mockStatic(Minecraft.class); var tour=mockStatic(UiTestTour.class);
+             var focusStatic=mockStatic(de.quest.client.config.QuestTrackerFocus.class)) {
+            var mc=clientWithSound(); client.when(Minecraft::getInstance).thenReturn(mc);
+            var focus=mock(de.quest.client.config.QuestTrackerFocus.class);
+            focusStatic.when(de.quest.client.config.QuestTrackerFocus::current).thenReturn(focus);
+            for(int[] size:new int[][]{{800,500},{480,270},{320,200}}) {
+                var screen=new JournalScreen(data(true,false,false,false,false,""));
+                screen.width=size[0];screen.height=size[1];font(screen);screen.selectTourSection("quests");
+                click(screen,430,74);
+                verify(focus).toggle(eq("daily"),any(Component.class));
+                assertEquals(-1,get(screen,"pendingCancelAction"));
+                click(screen,420,52);
+                verify(focus).toggleOnlyPinned();
+                var method=JournalScreen.class.getDeclaredMethod("cardsForSection");method.setAccessible(true);
+                @SuppressWarnings("unchecked") var cards=(List<JournalCard>)method.invoke(screen);
+                assertEquals(List.of("daily","weekly_reset"),cards.stream().map(JournalCard::id).toList(),
+                        "The fixture's completed Weekly reset card must remain available too");
+                clearInvocations(focus);
+            }
+            tour.verify(()->UiTestTour.send(any()),never());
+        }
+    }
+    @Test void pinnedDailyBecomesTheHomeNextActionAndItsOpenButtonTargetsThatQuest() throws Exception {
+        try(var client=mockStatic(Minecraft.class);var tour=mockStatic(UiTestTour.class);
+            var focusStatic=mockStatic(de.quest.client.config.QuestTrackerFocus.class)) {
+            var mc=clientWithSound(); client.when(Minecraft::getInstance).thenReturn(mc);
+            var focus=mock(de.quest.client.config.QuestTrackerFocus.class);
+            focusStatic.when(de.quest.client.config.QuestTrackerFocus::current).thenReturn(focus);
+            when(focus.matches(eq("daily"),any(Component.class))).thenReturn(true);
+            var view=data(true,true,true,true,true,"Village");
+            var next=new JournalContentBuilder(view).overviewCards().get(2);
+            assertTrue(next.details().stream().anyMatch(c -> c.getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents t
+                    && t.getKey().equals("screen.village-quest.journal.active.daily_hint")));
+            var screen=new JournalScreen(view);screen.width=600;screen.height=450;font(screen);
+            click(screen,430,166);
+            assertEquals("daily",get(screen,"expandedCardId"));
+            tour.verify(()->UiTestTour.send(any()),never());
+        }
+    }
+    @Test void homeInstructionKeepsTheConcreteLocalizedActionSeparateFromTheFullObjectiveList() {
+        var guidance=Component.translatable("quest.village-quest.story.living_kingdoms.next.place","Home")
+                .append("\nTarget and objective counters");
+        var card=new JournalCard("overview_next",Component.literal("Next"),Component.literal("Village story"),List.of(guidance),0,-1);
+        var instruction=JournalScreen.homeInstruction(card).orElseThrow();
+        assertEquals(Component.translatable("quest.village-quest.story.living_kingdoms.next.place","Home"),instruction);
+        assertTrue(instruction.getSiblings().isEmpty());
+        assertTrue(card.details().getFirst().getString().contains("Target and objective counters"));
+        assertTrue(JournalScreen.homeInstruction(new JournalCard("overview_next",Component.empty(),Component.empty(),
+                List.of(Component.literal("Ordinary quest progress")),0,-1)).isEmpty());
+    }
     @Test void cancellationNeedsSecondClickAndNavigationDisarmsIt() throws Exception {
         try (var client = mockStatic(Minecraft.class); var tour = mockStatic(UiTestTour.class)) {
             var mc=clientWithSound(); client.when(Minecraft::getInstance).thenReturn(mc);

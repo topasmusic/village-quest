@@ -7,6 +7,8 @@ import java.util.Objects;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.ComponentSerialization;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
@@ -120,7 +122,15 @@ public final class BuildingPayloads {
                        BuildingScanner.Range range, BuildingScanner.Status status, UUID selectedVillage,
                        long villageRevision, UUID official, long anchorRevision, boolean manageable, boolean canFound,
                        int adults, int beds, boolean job, String name, List<Row> rows, List<Choice> villages,
-                       String feedback,MarketLayout marketLayout,Recognition recognition,Diplomacy diplomacy,boolean foundingObserved,Binding binding) implements CustomPacketPayload {
+                       String feedback,MarketLayout marketLayout,Recognition recognition,Diplomacy diplomacy,boolean foundingObserved,Binding binding,
+                       Component innOpening) implements CustomPacketPayload {
+        public View(UUID session,long revision,boolean open,BlockPos position,BuildingScanner.Role role,BuildingScanner.Range range,
+                    BuildingScanner.Status status,UUID selectedVillage,long villageRevision,UUID official,long anchorRevision,
+                    boolean manageable,boolean canFound,int adults,int beds,boolean job,String name,List<Row> rows,List<Choice> villages,
+                    String feedback,MarketLayout marketLayout,Recognition recognition,Diplomacy diplomacy,boolean foundingObserved,Binding binding) {
+            this(session,revision,open,position,role,range,status,selectedVillage,villageRevision,official,anchorRevision,
+                    manageable,canFound,adults,beds,job,name,rows,villages,feedback,marketLayout,recognition,diplomacy,foundingObserved,binding,Component.empty());
+        }
         public View(UUID session,long revision,boolean open,BlockPos position,BuildingScanner.Role role,BuildingScanner.Range range,
                     BuildingScanner.Status status,UUID selectedVillage,long villageRevision,UUID official,long anchorRevision,
                     boolean manageable,boolean canFound,int adults,int beds,boolean job,String name,List<Row> rows,List<Choice> villages,
@@ -157,6 +167,7 @@ public final class BuildingPayloads {
                     manageable,canFound,adults,beds,job,name,rows,villages,feedback,MarketLayout.EMPTY);
         }
         public View {
+            Objects.requireNonNull(innOpening);
             Objects.requireNonNull(binding);
             Objects.requireNonNull(diplomacy);
             Objects.requireNonNull(recognition);
@@ -206,6 +217,7 @@ public final class BuildingPayloads {
               buf.writeVarInt(crisis.remaining()); buf.writeVarInt(crisis.heard()); buf.writeVarInt(crisis.personality()); buf.writeBoolean(crisis.competing()); buf.writeUtf(crisis.kind(),16);
             buf.writeBoolean(view.foundingObserved());
             buf.writeEnum(view.binding());
+            ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf,view.innOpening());
         }, buf -> {
             UUID session = buf.readUUID(); long revision = buf.readVarLong(); boolean open = buf.readBoolean(); BlockPos position = buf.readBlockPos();
             var role = buf.readEnum(BuildingScanner.Role.class); var range = buf.readEnum(BuildingScanner.Range.class);
@@ -243,7 +255,8 @@ public final class BuildingPayloads {
             return new View(session, revision, open, position, role, range, status, village, villageRevision, official,
                     anchorRevision, manageable, canFound, adults, beds, job, name, rows, choices, feedback,layout,new Recognition(recognitionRevision,level,missing,readOnly,voices),
                     new Diplomacy(page,pages,partners,diplomacyReadOnly,new Crisis(buf.readUUID(),buf.readVarLong(),buf.readUtf(96),buf.readUtf(96),
-                            buf.readUtf(16),buf.readUtf(32),buf.readVarInt(),buf.readVarInt(),buf.readVarInt(),buf.readBoolean(),buf.readUtf(16))),buf.readBoolean(),buf.readEnum(Binding.class));
+                            buf.readUtf(16),buf.readUtf(32),buf.readVarInt(),buf.readVarInt(),buf.readVarInt(),buf.readBoolean(),buf.readUtf(16))),buf.readBoolean(),buf.readEnum(Binding.class),
+                    ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf));
         });
         @Override public Type<? extends CustomPacketPayload> type() { return ID; }
     }

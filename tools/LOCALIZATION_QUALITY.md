@@ -1,5 +1,18 @@
 # Language and UI quality workflow
 
+## Writing new content — user rule, 2026-10-25
+
+Use the current, editorially revised EN/DE/ES catalogs as the reference for new
+quests, NPC dialogue, instructions and UI text. Continue their established tone,
+personal address and terminology. Write natural, understandable sentences in
+each language; literal translation alone is insufficient. State the actual
+action, target, quantity, prerequisite, progress and reward clearly where they
+matter. Match actual Minecraft/mod item names and the existing glossary.
+Preserve previous editorial improvements. Review new content in all three
+languages together with its actual source context, then apply the targeted
+review and verification steps below. This is a continuing writing requirement,
+not only a condition for the Friends NPC UI.
+
 The checks run offline in Python and JUnit. They do not use computer/browser automation, screenshots, an LLM, or a Minecraft client/server. No external service or recurring task is required.
 
 For local Windows checks, use `tools/Invoke-TopasProject.ps1` from the actual Topas Mods root with project `MC MODS/Topas Mods/Village Quest/26.3` (or `26.2`), task `verifyQuality`, and task arguments `@('--offline')`. `-CheckOnly` inspects the local plan without running it. The starter selects this PC's configured Python/JDK/cache/build mirror. Missing local tools require `tools/Setup-TopasLocalTools.ps1`; do not install dependencies in the shared source folder.
@@ -30,3 +43,7 @@ The initial text baseline is the complete 2026-10-12 editorial language/context 
 These checks prevent the known classes of regressions and make changed inputs require an explicit context assessment. A fingerprint cannot understand prose or determine whether a new translation is natural. Real Minecraft glyphs, resource-pack fonts, pixel appearance, GUI scaling, multiplayer and gameplay/save behavior are not covered by the modeled layout tests. Those checks remain separate and must be recorded as `NOT RUN` when not performed. No automated computer-use step is part of this workflow.
 
 Single-line source/audit checkouts carry their own resource validator, context validator, review sidecar and Gradle verification script. Their native test/build gate validates that line without requiring other lines or the central Python regression files. Full repository CI additionally tests the validators themselves and all supported catalogs.
+
+## Quest reward name colors — 2026-10-25
+
+Use green for smaller named special quest rewards (Wayfarer’s Token, Village Watch Seal, Weather Tonic), gold for major story artifacts and native vanilla colors for ordinary materials, equipment, enchanted books and potions. Color is independent of ownership; describe any actual binding explicitly. Preserve existing major-artifact colors and check native reward tooltips as well as preview cards.

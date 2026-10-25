@@ -4,6 +4,33 @@ This inventory records the provenance of creative resources in the Minecraft
 `26.3` package. Paths below are relative to `26.3` unless stated otherwise.
 
 
+## Project-generated coastal signals and golem repair — 2026-10-25
+
+`src/main/resources/assets/village-quest/textures/gui/artwork/friends_coastal_signals.png`
+and `friends_golem_repair.png` in the same directory were made with the built-in
+Imagegen tool for the authorized screenshot corrections. Actual fields_harvest
+and caravan_road art provided palette/pixel-style references. Both opaque
+2048x768PNGs are unchanged generated outputs. Prompt/provenance:
+26.3/design/friends-npc-ui/refinement-unreleased.4/PROMPTS.md. No external asset
+was downloaded; existing herb/harp art is retained.
+
+## Project-generated Raphael harp — 2026-10-25
+
+`src/main/resources/assets/village-quest/textures/gui/artwork/raphael_harp.png`
+was created with the built-in Imagegen tool on explicit user request, matching
+the existing fields_harvest and caravan_road pixel-art references. Opaque
+2048x768PNG of a medieval wooden harp, manuscript and quill in an inn; no quest
+or reward is attached. Prompt/provenance:26.3/design/friends-npc-ui/PROMPT.md.
+
+## Project-generated Friends herb vignette — 2026-10-25
+
+`src/main/resources/assets/village-quest/textures/gui/artwork/friends_herbs.png`
+was created with the built-in Imagegen tool for this project, using the existing
+fields_harvest and caravan_road illustrations as style references. Opaque
+2048x768 PNG, displayed through the existing artwork renderer. No third-party
+asset download or Vanilla texture replacement. Prompt/provenance: the shared
+26.3/design/friends-npc-ui/PROMPT.md implementation note.
+
 ## Project-generated golden weather tonic — pending sources after55
 
 `src/main/resources/assets/village-quest/textures/item/weather_tonic.png` was

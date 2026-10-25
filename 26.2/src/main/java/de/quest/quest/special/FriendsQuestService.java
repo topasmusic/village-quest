@@ -39,6 +39,8 @@ public final class FriendsQuestService {
         if(who.equals("simon") && p.stage(who)==3 && !visit.equals(p.text("simon.lastVisit"))) p.rollHerbs(visit,world.getRandom().nextInt(4));
         if(who.equals("simon")) p.text("simon.currentVisit",visit);
         QuestState.get(world.getServer()).setDirty();
+        FriendsQuestUiService.open(world,player,npc,visit);
+        if(net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(player,de.quest.network.FriendsQuestPayloads.View.ID)) return;
         int stage=p.stage(who); String quest=who+"."+Math.min(3,stage+1);
         Component line=stage>=3?tr(who+".again"):tr(quest+".dialogue");
         NpcSpeechService.privateLine(player,npc,line);
@@ -122,10 +124,7 @@ public final class FriendsQuestService {
         var p=progress(world,player.getUUID()); int stage=p.stage(who);
         if(who.equals("marius")) return MariusQuestService.turnIn(world,player,p);
         if(who.equals("lutte")) return turnInLutte(world,player,p);
-        List<ItemStack> goods;
-        if(stage==0) { var potion=new ItemStack(Items.POTION); potion.set(DataComponents.POTION_CONTENTS,new PotionContents(Potions.SWIFTNESS)); goods=List.of(potion.copy(),potion.copy(),potion.copy()); }
-        else if(stage==1) { var mark=new ItemStack(Items.FEATHER); mark.set(DataComponents.ITEM_NAME,tr("simon.keepsake")); goods=List.of(mark); }
-        else goods=List.of(new ItemStack(de.quest.registry.ModItems.WEATHER_TONIC,3));
+        var goods=FriendsQuestRewards.create(world.registryAccess(),"simon",stage+1,false,player.getUUID()).items();
         if(!enqueue(world,player,goods)) return false;
         if(stage==0) consume(player,plants());
         if(!p.complete(who)) throw new IllegalStateException("Guest quest state changed during server turn-in");
@@ -133,7 +132,7 @@ public final class FriendsQuestService {
         CurrencyService.addBalance(world,player.getUUID(),new int[]{10,30,25}[stage]);
         experience(player,stage==0?1.5:4); VanillaRewardService.deliverItems(world,player); return true;
     }
-    private static Map<Item,Integer> forgeCosts() {return Map.of(Items.NETHERITE_INGOT,1,Items.REDSTONE,16,Items.AMETHYST_SHARD,8);}
+    static Map<Item,Integer> forgeCosts() {return Map.of(Items.ANCIENT_DEBRIS,2,Items.REDSTONE,16,Items.AMETHYST_SHARD,8);}
     private static boolean turnInLutte(ServerLevel world,ServerPlayer player,FriendsQuestProgress p) {
         int stage=p.stage("lutte");
         if(stage==2) {
@@ -142,7 +141,7 @@ public final class FriendsQuestService {
             consume(player,forgeCosts());p.complete("lutte");QuestState.get(world.getServer()).setDirty();
             VanillaRewardService.complete(world,player,"friends_lutte","lutte_masterpiece");return true;
         }
-        List<ItemStack> goods=stage==1?RewardItems.create(world,List.of(new VanillaRewardRegistry.Goods("enchanted_book",1,"",Map.of("unbreaking",2)))):List.of();
+        List<ItemStack> goods=FriendsQuestRewards.create(world.registryAccess(),"lutte",stage+1,false,player.getUUID()).items();
         if(!enqueue(world,player,goods)) return false;
         if(!p.complete("lutte")) return false;
         if(stage==1)LutteCoastalQuest.finished(world,player.getUUID());
@@ -176,11 +175,13 @@ public final class FriendsQuestService {
             weather.tick(); state.setDirty();
         }
         if(server.overworld().getGameTime()%20!=0) return;
+        FriendsQuestUiService.tick(server);
         var players=new ArrayList<>(server.getPlayerList().getPlayers());
         if(!players.isEmpty()) Collections.rotate(players,-Math.floorMod(server.overworld().getGameTime()/20,players.size()));
         int surveyBudget=128;
         for(var player:players) {
             if(!player.isAlive() || player.isSpectator() || !(player.level() instanceof ServerLevel world)) continue;
+            WayfarersTokenService.refreshInventory(player);
             var p=progress(world,player.getUUID()); boolean change=false;
             if(p.active("simon") && p.stage("simon")==1) { int before=p.number("simon.walk"); p.walking(stat(player,Stats.WALK_ONE_CM),stat(player,Stats.SPRINT_ONE_CM),stat(player,Stats.CROUCH_ONE_CM)); change=p.number("simon.walk")!=before; }
             if(p.active("lutte") && p.stage("lutte")==0 && world.dimension()==Level.OVERWORLD) {

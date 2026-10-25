@@ -1,5 +1,49 @@
 # Changelog
 
+## 2.6.2 — Living Kingdoms
+
+Release date: 2026-10-25
+
+- Talk to Simon, Lutte and Marius in illustrated quest windows with live objectives, native item tooltips and clear rewards. Raphael has his own harp illustration and conversation page.
+- Pin a Journal quest in the tracker, choose whether other tasks stay visible and follow concrete next steps through all five village-story chapters.
+- Read your inn’s recorded opening-time progress and remaining operating time.
+- Use Simon’s green Wayfarer’s Token for 30 seconds of Speed II, with a shared five-minute cooldown per player and remaining-time messages in chat. Tokens are reusable and freely transferable; existing Simon reward feathers gain the new function.
+
+- Fix the Guild Wayshrine loot-table error that could stop Minecraft 26.3 from opening or creating worlds (GitHub #7). Minecraft 26.2 keeps its own valid native loot format.
+- Inspect actual enchantments, potion effects and both exclusive Lutte tool choices. Friends windows share a fixed size and keep scrolling separate from their action buttons.
+- Simon gives three Swiftness II potions (1:30 each) for his first quest. His Weather Tonics remain freely transferable.
+- Lutte’s coastal quest rewards an Unbreaking III book. His masterpiece now needs 2 ancient debris, 16 redstone and 8 amethyst shards instead of a netherite ingot; you still choose exactly one tool.
+- Green names identify smaller special quest rewards, including the token, Watch Seal and Weather Tonic. Major story artifacts retain gold names; the Watch Seal retains its owner restriction.
+- Retain existing story progress, party sharing, saved reward choices and safe inventory delivery. English, German and Spanish guidance matches the updated requirements and effects.
+
+
+## 2.6.2-unreleased.5
+
+- Keep every Friends guest and conversation state at the same fixed window size, including Raphael; lift names inside their gold plaque. Long text scrolls above the separate hint and action rows.
+- Inspect actual quest items and rewards with native item tooltips, including enchantments, potion tier/duration and both exclusive Lutte tools. Show XP as experience and currency in the existing 10-Silvermarks-per-Crown denominations; payouts are unchanged.
+
+## 2.6.2-unreleased.4
+
+- Compact Friends conversations to their content, keep the scroll hint above the action row and clear of the wood/ivy/lantern frame, and bound action widths without chat-label brackets.
+- Use a centered name plaque, quiet gold section rules, larger readable body/item icons and reward cards with native money/experience/item icons. Keep quantities and Lutte's single tool choice unchanged; normalize Marius reward labels across EN/DE/ES.
+- Give Lutte's coastal signals and Marius's iron-golem repair their own matching pixel-art illustrations. Keep all twelve Friends previews first in the admin UI tour, including Raphael's informational harp/lore page.
+
+## 2.6.2-unreleased.3
+
+- Give Raphael a medieval harp illustration and his existing composition lore in a purely informational window, without a quest or reward. Rejected stale conversation clicks now acknowledge the current view so controls remain usable.
+
+- Right-click inn guests for a shared illustrated quest window with story, live progress, rewards and contextual actions. Retains Lutte’s chart/survey and tool choice, Marius’s readiness and Simon’s later herb deliveries; completed series and Raphael show lore.
+- Put twelve isolated Friends previews first in `/vq admin uitest`. Scrollable content and keyboard controls support long EN/DE/ES text and small GUI sizes.
+- Simon’s first reward is exactly three native Swiftness II potions (1:30 each), alongside the existing currency and experience.
+
+## 2.6.2-unreleased.2
+
+- Pin an active Journal quest in the tracker and choose whether other tasks remain visible. The chosen task stays in place while other pages rotate; on very small displays its heading remains visible. Personal choices are saved separately for each world/server and player. Finished or replaced tasks release their pin.
+- Follow a concrete next action through all five chapters of A Place at the Table, using the actual recorded target, earned buildings and confirmed deeds. A pinned task also becomes the Journal home page's preferred task.
+- Read the inn's opening-time progress and remaining observed operating time at its anchor, with an explanation of pauses and resets. Village reports label the time as last recorded; rare guest arrivals still have no guaranteed arrival time.
+- Add matching English, German and Spanish guidance. Quest requirements, rewards, market rules, guest chances and saved progress remain unchanged.
+
+
 ## 2.6.1 — Living Kingdoms
 
 Release date: 2026-10-24

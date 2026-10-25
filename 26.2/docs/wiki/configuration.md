@@ -95,6 +95,18 @@ Run `/vq diagnose` for a read-only report covering active reset settings, home t
 
 ### Quest tracker placement and appearance
 
+In **2.6.2-unreleased.1**, open the Journal's Quests tab and click the pin beside
+an active task. Click again to release it. **Tracker: all / pinned** chooses
+whether other tasks appear too; all Journal cards remain available. With no pin,
+the tracker shows all active tasks. A fitting pinned task stays visible while
+other pages rotate. On small displays its heading stays visible while overflow
+objectives rotate. The pinned task also takes priority on the Journal home page.
+
+The pin and filter are personal presentation preferences saved under
+`config/village-quest/tracker-focus/`, scoped to world/server and player. A
+completed, cancelled or differently titled replacement task releases its pin;
+changing progress alone does not. Hiding the tracker retains the selection.
+
 `/vq questtracker left` and `/vq questtracker right` move the tracker immediately and save the side in the local client configuration. A configured bottom anchor stays at the bottom. These commands do not toggle tracking. The default scale is `0.85` and background opacity is `0.5` (50%); existing stock `1.0` / `0.55` settings upgrade once. Other custom values are preserved. Minecraft GUI scale and window scaling are unchanged.
 ## Quiet world reports
 

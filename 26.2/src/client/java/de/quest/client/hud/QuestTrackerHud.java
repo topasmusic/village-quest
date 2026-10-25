@@ -2,6 +2,7 @@ package de.quest.client.hud;
 
 import de.quest.VillageQuest;
 import de.quest.client.config.VillageQuestClientConfig;
+import de.quest.client.config.QuestTrackerFocus;
 import de.quest.network.Payloads;
 import de.quest.client.ui.VillageUiTheme;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
@@ -52,6 +53,31 @@ public final class QuestTrackerHud {
 
     public static void update(TrackerState trackerState) {
         state = trackerState == null ? TrackerState.disabled() : trackerState;
+        if (state.enabled()) QuestTrackerFocus.current().reconcile(activeTitles(state));
+    }
+
+    private static java.util.Map<String, Component> activeTitles(TrackerState s) {
+        var titles = new java.util.LinkedHashMap<String, Component>();
+        if (s.storyActive()) titles.put("story", s.storyTitle());
+        if (s.specialActive()) titles.put("special", s.specialTitle());
+        if (s.weeklyActive()) titles.put("weekly", s.weeklyTitle());
+        if (s.dailyActive()) titles.put("daily", s.dailyTitle());
+        if (s.pilgrimActive()) titles.put("pilgrim", s.pilgrimTitle());
+        return titles;
+    }
+
+    record Page<T>(List<T> lines, int number, int count, int rows) {}
+    static <T> Page<T> page(List<T> pinned, List<T> others, int capacity, long milliseconds) {
+        capacity = Math.max(2, capacity);
+        // Keep the whole chosen quest fixed when it fits; retain its heading on very small HUDs.
+        int fixed = pinned.size() >= capacity ? 1 : pinned.size();
+        var rotating = new ArrayList<T>(pinned.subList(fixed, pinned.size()));
+        rotating.addAll(others);
+        int room = capacity - fixed, count = Math.max(1, (rotating.size() + room - 1) / room);
+        int page = (int) Math.floorMod(milliseconds / 7000, count);
+        var shown = new ArrayList<T>(pinned.subList(0, fixed));
+        shown.addAll(rotating.subList(Math.min(rotating.size(), page * room), Math.min(rotating.size(), (page + 1) * room)));
+        return new Page<>(List.copyOf(shown), page + 1, count, count>1 ? capacity : shown.size());
     }
 
     private static void render(GuiGraphics drawContext, net.minecraft.client.DeltaTracker tickCounter) {
@@ -73,26 +99,38 @@ public final class QuestTrackerHud {
         int margin = Math.max(4, Math.round(8.0f / scale));
         int wrapWidth = Math.min(MAX_CONTENT_WIDTH,Math.max(24,logicalWidth-margin*2-20));
         List<RenderEntry> renderLines = new ArrayList<>();
-        if (tracker.storyActive()) addSection(renderLines,renderer,tracker.storyTitle(),tracker.storyLines(),wrapWidth);
-        if (tracker.specialActive()) addSection(renderLines,renderer,tracker.specialTitle(),tracker.specialLines(),wrapWidth);
-        if (tracker.weeklyActive()) addSection(renderLines,renderer,tracker.weeklyTitle(),tracker.weeklyLines(),wrapWidth);
-        if (tracker.dailyActive()) addSection(renderLines,renderer,tracker.dailyTitle(),tracker.dailyLines(),wrapWidth);
-        if (tracker.pilgrimActive()) addSection(renderLines,renderer,tracker.pilgrimTitle(),tracker.pilgrimLines(),wrapWidth);
+        List<RenderEntry> pinnedLines = new ArrayList<>();
+        var focus = QuestTrackerFocus.current();
+        var titles = activeTitles(tracker);
+        boolean pinned = titles.containsKey(focus.quest()) && focus.matches(focus.quest(), titles.get(focus.quest()));
+        for (var entry : titles.entrySet()) {
+            boolean chosen = pinned && entry.getKey().equals(focus.quest());
+            if (pinned && focus.onlyPinned() && !chosen) continue;
+            List<Component> lines = switch (entry.getKey()) {
+                case "story" -> tracker.storyLines(); case "special" -> tracker.specialLines();
+                case "weekly" -> tracker.weeklyLines(); case "daily" -> tracker.dailyLines();
+                default -> tracker.pilgrimLines();
+            };
+            addSection(chosen ? pinnedLines : renderLines, renderer, entry.getValue(), lines, wrapWidth);
+        }
+
+        var pinnedFlat = new ArrayList<RenderEntry>();
+        var otherFlat = new ArrayList<RenderEntry>();
+        for (RenderEntry entry : pinnedLines) for (String line : entry.lines()) pinnedFlat.add(new RenderEntry(List.of(line), entry.color()));
+        for (RenderEntry entry : renderLines) for (String line : entry.lines()) otherFlat.add(new RenderEntry(List.of(line), entry.color()));
+        renderLines = new ArrayList<>(pinnedFlat); renderLines.addAll(otherFlat);
 
         int maxWidth = 1;
-        int contentLines = 0;
         for (RenderEntry line : renderLines) {
             for (String wrappedLine : line.lines()) {
                 maxWidth = Math.max(maxWidth, renderer.width(wrappedLine));
-                contentLines++;
             }
         }
-        int capacity=Math.max(1,(logicalHeight-2*margin-42)/LINE_HEIGHT);
-        int pages=Math.max(1,(contentLines+capacity-1)/capacity);
-        int page=(int)((System.currentTimeMillis()/7000)%pages);
-        int shown=Math.min(capacity,contentLines-page*capacity);
+        int capacity=Math.max(2,(logicalHeight-2*margin-42)/LINE_HEIGHT);
+        var visible = page(pinnedFlat, otherFlat, capacity, System.currentTimeMillis());
+        int pages=visible.count();
         int boxWidth=Math.min(logicalWidth-2*margin,maxWidth+20);
-        int boxHeight=shown*LINE_HEIGHT+30+(pages>1?12:0);
+        int boxHeight=visible.rows()*LINE_HEIGHT+30+(pages>1?12:0);
         int x = switch (config.questTrackerPosition()) {
             case TOP_LEFT, BOTTOM_LEFT -> margin;
             case TOP_RIGHT, BOTTOM_RIGHT -> logicalWidth - boxWidth - margin;
@@ -110,16 +148,13 @@ public final class QuestTrackerHud {
         String header=VillageUiTheme.ellipsize(renderer,Component.translatable("text.village-quest.tracker.header").getString(),boxWidth-16);
         drawContext.drawString(renderer,header,x+8,y+6,VillageUiTheme.LIGHT_TEXT,false);
         boolean transparent=config.questTrackerBackgroundOpacity()<=.5f;
-        int textX=x+10,textY=y+24,index=0;
-        for(RenderEntry entry:renderLines) for(String line:entry.lines()) {
-            if(index>=page*capacity && index<(page+1)*capacity) {
+        int textX=x+10,textY=y+24;
+        for(RenderEntry entry:visible.lines()) for(String line:entry.lines()) {
                 int color=transparent?(entry.color()==COMPLETED_OBJECTIVE_COLOR?0xFF94C68F:VillageUiTheme.LIGHT_TEXT):entry.color();
                 drawContext.drawString(renderer,line,textX,textY,color,transparent); textY+=LINE_HEIGHT;
-            }
-            index++;
         }
         if(pages>1) drawContext.drawString(renderer,
-                Component.translatable("screen.village-quest.journal.page",page+1,pages),textX,y+boxHeight-12,transparent?VillageUiTheme.LIGHT_TEXT:VillageUiTheme.MUTED,transparent);
+                Component.translatable("screen.village-quest.journal.page",visible.number(),pages),textX,y+boxHeight-12,transparent?VillageUiTheme.LIGHT_TEXT:VillageUiTheme.MUTED,transparent);
         matrices.popMatrix();
     }
 

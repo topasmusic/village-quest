@@ -38,9 +38,7 @@ public final class VanillaRewardService {
         for (var option : all) {
             if (option.diamondGate() && !PlayerProgressionSignals.diamonds(player)) continue;
             var choice = new CompoundTag(); choice.putString("option", option.id()); choice.putLong("currency", option.currency());
-            var goods=RewardItems.create(world,option.goods());
-            if(key.equals("friends:lutte")) for(var item:goods) item.set(net.minecraft.core.component.DataComponents.ITEM_NAME,
-                    de.quest.quest.special.FriendsQuestService.tr("lutte.tool."+option.id()));
+            var goods=key.equals("friends:lutte")?RewardItems.lutteTool(world.registryAccess(),option):RewardItems.create(world,option.goods());
             choice.put("items", RewardItems.encode(world, goods));
             choice.put("summaryComponent", ComponentSerialization.CODEC.encodeStart(NbtOps.INSTANCE, summary(option)).getOrThrow());
             var lines = new ListTag();

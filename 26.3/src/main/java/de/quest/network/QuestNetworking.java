@@ -20,6 +20,10 @@ public final class QuestNetworking {
 
     public static void register() {
         Payloads.register();
+        net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.DISCONNECT.register((handler,server)->de.quest.quest.special.FriendsQuestUiService.disconnected(handler.player.getUUID()));
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPED.register(de.quest.quest.special.FriendsQuestUiService::stopped);
+        ServerPlayNetworking.registerGlobalReceiver(FriendsQuestPayloads.Action.ID,(payload,context) ->
+                context.server().execute(() -> de.quest.quest.special.FriendsQuestUiService.handle(context.player(),payload)));
         ServerPlayNetworking.registerGlobalReceiver(QuestSetupPayloads.Open.ID, (payload, context) ->
                 context.server().execute(() -> de.quest.config.QuestSetupService.open(context.player())));
         ServerPlayNetworking.registerGlobalReceiver(QuestSetupPayloads.Save.ID, (payload, context) ->

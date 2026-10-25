@@ -1,6 +1,6 @@
 # Village Quest Wiki
 
-Current stable release: `2.6.1` — Living Kingdoms for Minecraft `26.2`.
+Current stable release: `2.6.2` — Living Kingdoms for Minecraft `26.2`.
 
 Help villages, earn trust, follow stories and connect your world through trade.
 Living Kingdoms adds named village staff, player-built council/inn/market/storehouse

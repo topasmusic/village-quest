@@ -47,6 +47,7 @@ public class VillageQuest implements ModInitializer {
         ModCreativeTabs.register();
         ModEntities.register();
         QuestService.registerEvents();
+        de.quest.quest.special.WayfarersTokenService.register();
         de.quest.quest.WorldNewsService.register();
         QuestNetworking.register();
         de.quest.kingdom.KingdomNpcService.register();

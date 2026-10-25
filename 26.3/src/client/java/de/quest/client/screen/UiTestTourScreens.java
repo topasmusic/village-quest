@@ -28,6 +28,7 @@ final class UiTestTourScreens {
     static CompatScreen create(Step step) {
         String state = step.state();
         return switch (step.family()) {
+            case "friends" -> new FriendsQuestScreen(FriendsQuestPreview.view(state));
             case "building" -> { var screen=new BuildingScreen(building(state)); screen.selectTourPage(state); yield screen; }
             case "villagecheck" -> new VillageCheckScreen(new VillageCheckPayload("minecraft:overworld",List.of(
                     new VillageCheckPayload.Marker(net.minecraft.core.BlockPos.ZERO,de.quest.kingdom.BuildingScanner.Status.VALID,

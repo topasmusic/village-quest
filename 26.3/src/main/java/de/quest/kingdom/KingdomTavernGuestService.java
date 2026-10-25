@@ -117,6 +117,9 @@ final class KingdomTavernGuestService {
         String id=NpcNames.GUESTS.get(person.guest()),memory="kingdoms.guests.familiar."+id;
         String greeting=data.hasTradeRouteFlag(memory)?"again":"hello";
         var line=Component.translatable("message.village-quest.guest."+id+"."+greeting,person.displayName(),state.village(person.village()).orElseThrow().name());
+        // Raphael's information window always explains his current composing, without a quest.
+        var windowLine=line.copy();
+        if(person.guest()==3) windowLine.append(" ").append(Component.translatable("message.village-quest.guest.ravel.music"));
         var routes=de.quest.caravan.KingdomRouteConnections.read(state,VillageLifeState.get(world.getServer()),actor.getUUID(),data);
         int music=data.getTradeRouteInt("kingdoms.guests.raphael.dialogue");
         if(person.guest()==3 && Math.floorMod(music,2)==1) line.append(" ").append(Component.translatable("message.village-quest.guest.ravel.music"));
@@ -136,6 +139,7 @@ final class KingdomTavernGuestService {
             }
         } else state.population(person.village()).filter(p -> !p.readOnly()).ifPresent(p -> line.append(" ").append(Component.translatable(
                 "message.village-quest.guest.milestone",p.reachedTen()?10:p.reachedFive()?5:Math.max(0,p.adults()))));
+        de.quest.quest.special.FriendsQuestUiService.openLore(world,actor,npc,person.village()+":"+state.tavernGuests().visitToken(person.village()),person.guest()==3?windowLine:line);
         if(NpcSpeechService.privateLine(actor,npc,line)) {
             data.setTradeRouteFlag(memory,true);
             if(person.guest()==3) data.setTradeRouteInt("kingdoms.guests.raphael.dialogue",Math.floorMod(music,2)+1);

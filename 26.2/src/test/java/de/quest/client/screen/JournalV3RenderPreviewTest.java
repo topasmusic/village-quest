@@ -27,6 +27,8 @@ final class JournalV3RenderPreviewTest {
         for(var item:net.minecraft.core.registries.BuiltInRegistries.ITEM)
             item.builtInRegistryHolder().bindComponents(net.minecraft.core.component.DataComponentMap.builder()
                 .set(net.minecraft.core.component.DataComponents.MAX_STACK_SIZE,64)
+                .set(net.minecraft.core.component.DataComponents.ENCHANTMENTS,net.minecraft.world.item.enchantment.ItemEnchantments.EMPTY)
+                .set(net.minecraft.core.component.DataComponents.STORED_ENCHANTMENTS,net.minecraft.world.item.enchantment.ItemEnchantments.EMPTY)
                 .set(net.minecraft.core.component.DataComponents.ITEM_NAME,Component.translatable(item.getDescriptionId())).build());
     }
     private static final class Canvas {
@@ -75,6 +77,13 @@ final class JournalV3RenderPreviewTest {
     private Language language(String locale)throws Exception {
         var json=JsonParser.parseReader(new java.io.InputStreamReader(getClass().getClassLoader().getResourceAsStream(
                 "assets/village-quest/lang/"+locale+".json"),java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();
+        String[] friendIds={"block.minecraft.dandelion","block.minecraft.poppy","block.minecraft.fern","item.minecraft.netherite_ingot","item.minecraft.redstone","item.minecraft.amethyst_shard"};
+        String[] friendNames=locale.equals("de_de")?new String[]{"Löwenzahn","Mohn","Farn","Netheritbarren","Redstone","Amethystscherbe"}:locale.equals("es_es")?new String[]{"Diente de león","Amapola","Helecho","Lingote de netherita","Redstone","Fragmento de amatista"}:new String[]{"Dandelion","Poppy","Fern","Netherite Ingot","Redstone Dust","Amethyst Shard"};
+        for(int i=0;i<friendIds.length;i++)json.addProperty(friendIds[i],friendNames[i]);
+        json.addProperty("item.minecraft.potion.effect.swiftness",locale.equals("de_de")?"Trank der Schnelligkeit":locale.equals("es_es")?"Poción de rapidez":"Potion of Swiftness");
+        json.addProperty("item.minecraft.enchanted_book",locale.equals("de_de")?"Verzaubertes Buch":locale.equals("es_es")?"Libro encantado":"Enchanted Book");
+        json.addProperty("item.minecraft.honey_bottle",json.get("item.village-quest.weather_tonic").getAsString());
+        json.addProperty("item.minecraft.gold_ingot",json.get("item.village-quest.village_watch_seal").getAsString());
         var lang=mock(Language.class);
         String[] itemNames=locale.equals("de_de")?new String[]{"Fass","Eichenholzzaun","Strohballen","Weizen","Buch"}:
             locale.equals("es_es")?new String[]{"Barril","Valla de roble","Bala de heno","Trigo","Libro"}:new String[]{"Barrel","Oak Fence","Hay Bale","Wheat","Book"};
@@ -92,9 +101,10 @@ final class JournalV3RenderPreviewTest {
     }
     @Test void exportActualJournalDrawCommandsForReferenceReview()throws Exception {
         var previous=Language.getInstance();
-        var crown=de.quest.registry.ModItems.CROWN;var silver=de.quest.registry.ModItems.SILVERMARK;
+        var crown=de.quest.registry.ModItems.CROWN;var silver=de.quest.registry.ModItems.SILVERMARK;var tonic=de.quest.registry.ModItems.WEATHER_TONIC;var seal=de.quest.registry.ModItems.VILLAGE_WATCH_SEAL;
         de.quest.registry.ModItems.CROWN=net.minecraft.world.item.Items.GOLD_NUGGET;
         de.quest.registry.ModItems.SILVERMARK=net.minecraft.world.item.Items.IRON_NUGGET;
+        de.quest.registry.ModItems.WEATHER_TONIC=net.minecraft.world.item.Items.HONEY_BOTTLE;de.quest.registry.ModItems.VILLAGE_WATCH_SEAL=net.minecraft.world.item.Items.GOLD_INGOT;
         try(var client=mockStatic(Minecraft.class);
             var tutorial=mockStatic(de.quest.client.ui.InventoryJournalTutorialState.class);
             var tour=mockStatic(UiTestTour.class);
@@ -103,6 +113,7 @@ final class JournalV3RenderPreviewTest {
             var theme=mockStatic(de.quest.client.ui.VillageUiTheme.class,org.mockito.Answers.CALLS_REAL_METHODS)) {
             client.when(Minecraft::getInstance).thenReturn(mock(Minecraft.class));
             tour.when(UiTestTour::active).thenReturn(true);
+            var friendRegistries=net.minecraft.data.registries.VanillaRegistries.createLookup();
             for(String locale:java.util.List.of("de_de","en_us","es_es")) {
                 Language.inject(language(locale));
                 var font=mock(Font.class);when(font.width(anyString())).thenAnswer(a->((String)a.getArgument(0)).length()*6);
@@ -187,7 +198,8 @@ final class JournalV3RenderPreviewTest {
                     theme.clearInvocations();kingdom.clearInvocations();tour.clearInvocations();client.clearInvocations();surface.clearInvocations();
                 }
                 for(int step:java.util.stream.IntStream.range(0,de.quest.commands.UiTestTourSteps.ALL.size()).toArray()) {
-                    var screen=UiTestTourScreens.create(de.quest.commands.UiTestTourSteps.ALL.get(step));
+                    var tourStep=de.quest.commands.UiTestTourSteps.ALL.get(step);
+                    var screen=tourStep.family().equals("friends")?new FriendsQuestScreen(FriendsQuestPreview.view(tourStep.state(),friendRegistries)):UiTestTourScreens.create(tourStep);
                     screen.width=700;screen.height=440;
                     if(screen instanceof QuestMasterScreen q){var d=QuestMasterScreen.class.getDeclaredField("data");d.setAccessible(true);q.updateData((QuestMasterScreen.QuestMasterData)d.get(q));}
                     var f=Screen.class.getDeclaredField("font");f.setAccessible(true);f.set(screen,font);
@@ -215,6 +227,6 @@ final class JournalV3RenderPreviewTest {
                     theme.clearInvocations();kingdom.clearInvocations();tour.clearInvocations();client.clearInvocations();surface.clearInvocations();
                 }
             }
-        }finally{Language.inject(previous);de.quest.registry.ModItems.CROWN=crown;de.quest.registry.ModItems.SILVERMARK=silver;}
+        }finally{Language.inject(previous);de.quest.registry.ModItems.CROWN=crown;de.quest.registry.ModItems.SILVERMARK=silver;de.quest.registry.ModItems.WEATHER_TONIC=tonic;de.quest.registry.ModItems.VILLAGE_WATCH_SEAL=seal;}
     }
 }

@@ -97,6 +97,16 @@ public final class JournalScreenData {
                 || hasSurveyorCompass || hasCaravanLedger;
     }
 
+    public java.util.Map<String, Component> activeTitles() {
+        var titles = new java.util.LinkedHashMap<String, Component>();
+        if (storyActive) titles.put("story", storyTitle);
+        if (specialActive) titles.put("special", specialTitle);
+        if (weeklyActive) titles.put("weekly", weeklyTitle);
+        if (dailyActive) titles.put("daily", dailyTitle);
+        if (pilgrimActive) titles.put("pilgrim", pilgrimTitle);
+        return titles;
+    }
+
     private static Component safe(Component value) {
         return value == null ? Component.empty() : value;
     }

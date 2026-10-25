@@ -75712,7 +75712,7 @@
     "message.village-quest.guest.ravel.hello": {
       "context": "message",
       "subject": "message.village-quest.guest.ravel.hello",
-      "note": "NPC V2 reviewed: only explicitly generated crew names localized client-side; legacy/manual names and IDs retained. Four inn-only guests use private speech with no rewards/progress; 10% daily persisted draw, loaded-time duration, cooldown. Admin gallery requires op and empty loaded space; freeze/unfreeze and remaining platform explained EN/DE/ES. Guest given names and Raphael music line match latest user request.",
+      "note": "2026-10-25 Friends UI: reviewed existing Simon/Lutte/Marius dialogue, objectives and fixed/choice rewards against command/ready/turnIn. New EN/DE/ES labels keep personal address and explicit actions; 12 first admin tour pages use isolated existing quest prose. Server session checks preserve visit/inn/body/range/sight authority and reward escrow. Simon first reward remains exactly three native STRONG_SWIFTNESS potions (tier II, 1800 ticks). Full prose remains scrollable. Raphael information always uses the existing composition lore and a medieval harp image, with no quest/objectives/reward; alternating speech stays unchanged. Rejected stale actions increment revision and always acknowledge the view to release pending client controls.",
       "translations": {
         "en_us": "396861ab8629e9d4f3b6214ab67a4e0ab9cd0178b5b3feab30e138161a84caa5",
         "de_de": "cb55b54a3d37766067e78411521a5ee9175937aa092add413f170c0c14c39af9",
@@ -75729,7 +75729,7 @@
     "message.village-quest.guest.ravel.again": {
       "context": "message",
       "subject": "message.village-quest.guest.ravel.again",
-      "note": "NPC V2 reviewed: only explicitly generated crew names localized client-side; legacy/manual names and IDs retained. Four inn-only guests use private speech with no rewards/progress; 10% daily persisted draw, loaded-time duration, cooldown. Admin gallery requires op and empty loaded space; freeze/unfreeze and remaining platform explained EN/DE/ES. Guest given names and Raphael music line match latest user request.",
+      "note": "2026-10-25 Friends UI: reviewed existing Simon/Lutte/Marius dialogue, objectives and fixed/choice rewards against command/ready/turnIn. New EN/DE/ES labels keep personal address and explicit actions; 12 first admin tour pages use isolated existing quest prose. Server session checks preserve visit/inn/body/range/sight authority and reward escrow. Simon first reward remains exactly three native STRONG_SWIFTNESS potions (tier II, 1800 ticks). Full prose remains scrollable. Raphael information always uses the existing composition lore and a medieval harp image, with no quest/objectives/reward; alternating speech stays unchanged. Rejected stale actions increment revision and always acknowledge the view to release pending client controls.",
       "translations": {
         "en_us": "46ff4063170731e9648dc857ef40097990068995844aa5edefb1dbd971abd6a0",
         "de_de": "cb33d201140479cc9a1f21bbc4c12b3e6931fe838f37a6f83f1f63fc50adec04",
@@ -75739,6 +75739,10 @@
         {
           "path": "src/main/java/de/quest/kingdom/KingdomTavernGuestService.java",
           "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestPreview.java",
+          "match": "literal"
         }
       ],
       "trace": "Targeted source/context review; see note and source contracts."
@@ -75746,7 +75750,7 @@
     "message.village-quest.guest.ravel.music": {
       "context": "message",
       "subject": "message.village-quest.guest.ravel.music",
-      "note": "NPC V2 reviewed: only explicitly generated crew names localized client-side; legacy/manual names and IDs retained. Four inn-only guests use private speech with no rewards/progress; 10% daily persisted draw, loaded-time duration, cooldown. Admin gallery requires op and empty loaded space; freeze/unfreeze and remaining platform explained EN/DE/ES. Guest given names and Raphael music line match latest user request.",
+      "note": "2026-10-25 Friends UI: reviewed existing Simon/Lutte/Marius dialogue, objectives and fixed/choice rewards against command/ready/turnIn. New EN/DE/ES labels keep personal address and explicit actions; 12 first admin tour pages use isolated existing quest prose. Server session checks preserve visit/inn/body/range/sight authority and reward escrow. Simon first reward remains exactly three native STRONG_SWIFTNESS potions (tier II, 1800 ticks). Full prose remains scrollable. Raphael information always uses the existing composition lore and a medieval harp image, with no quest/objectives/reward; alternating speech stays unchanged. Rejected stale actions increment revision and always acknowledge the view to release pending client controls.",
       "translations": {
         "en_us": "fda696f61e48fbf07867865750ff4b1c61425f84da006fb5288d548d1052d530",
         "de_de": "4b1e824d55e0375329759e1745219b6c0c1ce87776274a618d8452f7045dabf1",
@@ -75755,6 +75759,10 @@
       "uses": [
         {
           "path": "src/main/java/de/quest/kingdom/KingdomTavernGuestService.java",
+          "match": "literal"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestPreview.java",
           "match": "literal"
         }
       ],
@@ -76856,15 +76864,19 @@
     "quest.village-quest.friends.simon.1.reward": {
       "context": "quest",
       "subject": "quest.village-quest.friends.simon.1.reward",
-      "note": "Friends quest integration reviewed against DESIGN and USER_PROPOSAL: native walk baselines, canonical resident contacts, personal persistent stages, actual inn guest required for acceptance/turn-in; 8 of each plant consumed; fixed 10/30/25 silver, 1.5/4/4 XP bars; S3 three 20-minute weather tonics. Lutte authored texts retain 3 biomes/3 coastal signals/Silent Forge gate, implementation still in progress. No party sharing, daily reset or questmaster hand-in. Weather item is separate, Overworld-only and retains 24000 active ticks across reload.",
+      "note": "2026-10-25 Friends UI: reviewed existing Simon/Lutte/Marius dialogue, objectives and fixed/choice rewards against command/ready/turnIn. New EN/DE/ES labels keep personal address and explicit actions; 12 first admin tour pages use isolated existing quest prose. Server session checks preserve visit/inn/body/range/sight authority and reward escrow. Simon first reward remains exactly three native STRONG_SWIFTNESS potions (tier II, 1800 ticks). Full prose remains scrollable. Raphael information always uses the existing composition lore and a medieval harp image, with no quest/objectives/reward; alternating speech stays unchanged. Rejected stale actions increment revision and always acknowledge the view to release pending client controls.",
       "translations": {
-        "en_us": "ef083434ebfa16546d862fb442029fd3d0451a16540fda364aa07edb5f8e5243",
-        "de_de": "30e7cd7dcdc91eecda7bbfd28a2a9429b401da794aaed0f1a03db2c4a2ab6245",
-        "es_es": "27476db95b0b244d0bea95a2e9730ad59d497663bac5625dbcf0dbdfb6c42e38"
+        "en_us": "0ab82d067f15746907cb5bc6949aa047903b6c698016ea51f00574690c76c75d",
+        "de_de": "cca02dc7d3be4af77aeb7b593b8de033d6228d29f190a5cbfaaae50ade72d87d",
+        "es_es": "4b99fc08eb5ab16a681590f24a971f3b2a23a1d37fec9a407eeb2a271824a4cd"
       },
       "uses": [
         {
           "path": "src/main/java/de/quest/quest/special/FriendsQuestService.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestPreview.java",
           "match": "dynamic-prefix"
         },
         {
@@ -76940,15 +76952,19 @@
     "quest.village-quest.friends.simon.2.reward": {
       "context": "quest",
       "subject": "quest.village-quest.friends.simon.2.reward",
-      "note": "Friends quest integration reviewed against DESIGN and USER_PROPOSAL: native walk baselines, canonical resident contacts, personal persistent stages, actual inn guest required for acceptance/turn-in; 8 of each plant consumed; fixed 10/30/25 silver, 1.5/4/4 XP bars; S3 three 20-minute weather tonics. Lutte authored texts retain 3 biomes/3 coastal signals/Silent Forge gate, implementation still in progress. No party sharing, daily reset or questmaster hand-in. Weather item is separate, Overworld-only and retains 24000 active ticks across reload.",
+      "note": "2026-10-25: reviewed actual Friends reward construction, persistent per-player Speed II token/callback/legacy recognition, shared exact two-Ancient-Debris costs, Unbreaking III, green item names and EN/DE/ES usage/cooldown/transfer guidance. No owner requirement on token or tonics; Watch Seal ownership retained.",
       "translations": {
-        "en_us": "81c04e64387ae609ce7efa8bd18f13b446e66257e0842470974fb3f60eaac7fc",
-        "de_de": "42b29f7163dc32104464a83c465c0a2230e4e9340b0a0665c1e995e0d5642d91",
-        "es_es": "c81ab18c4dab348a2966dd5138bbf5d9eeef8656d87af00f2fff5ad4d2d0d71f"
+        "en_us": "4f24135f544d14b160b11e4dc960ea6652f25657d1c008424cc646925fec2cf7",
+        "de_de": "2669599a283e15e40b5828e46ae075db9dd35803225cb8a5d4554c3417f8d329",
+        "es_es": "28d7c6ba4120dba8f9a109f0280364be1f0267d91ee7f48f384024a47d03143c"
       },
       "uses": [
         {
           "path": "src/main/java/de/quest/quest/special/FriendsQuestService.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestPreview.java",
           "match": "dynamic-prefix"
         },
         {
@@ -77297,15 +77313,19 @@
     "quest.village-quest.friends.lutte.2.reward": {
       "context": "quest",
       "subject": "quest.village-quest.friends.lutte.2.reward",
-      "note": "Friends quest integration reviewed against DESIGN and USER_PROPOSAL: native walk baselines, canonical resident contacts, personal persistent stages, actual inn guest required for acceptance/turn-in; 8 of each plant consumed; fixed 10/30/25 silver, 1.5/4/4 XP bars; S3 three 20-minute weather tonics. Lutte authored texts retain 3 biomes/3 coastal signals/Silent Forge gate, implementation still in progress. No party sharing, daily reset or questmaster hand-in. Weather item is separate, Overworld-only and retains 24000 active ticks across reload.",
+      "note": "2026-10-25: reviewed actual Friends reward construction, persistent per-player Speed II token/callback/legacy recognition, shared exact two-Ancient-Debris costs, Unbreaking III, green item names and EN/DE/ES usage/cooldown/transfer guidance. No owner requirement on token or tonics; Watch Seal ownership retained.",
       "translations": {
-        "en_us": "2bca1da18713bf7a1df74c1530c2b5cfc615a9ac8ddf0b5ea71e486390cb1cb1",
-        "de_de": "6ec3a35db62969fd227a0bdeeed5362024309f814e8e6aa2508511133a3c8c8a",
-        "es_es": "f13374b2af2481b0a9147a1c855d313c894e693b33d6f1e902c14fe129cbb49f"
+        "en_us": "fa5aebce2be8595969611725b6fde5564aec24968571c45166d347dd4618e664",
+        "de_de": "78d2a9fbe89d8ecbda4ed5389a72115019929c9bb65d920f1f33bb0d3df07364",
+        "es_es": "2d98f34c599adc8380124b7d0dfc9bb524c3feb70317144463ffba8aea9da3fa"
       },
       "uses": [
         {
           "path": "src/main/java/de/quest/quest/special/FriendsQuestService.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestPreview.java",
           "match": "dynamic-prefix"
         },
         {
@@ -77360,11 +77380,11 @@
     "quest.village-quest.friends.lutte.3.objective": {
       "context": "quest",
       "subject": "quest.village-quest.friends.lutte.3.objective",
-      "note": "2026-10-24 targeted EN/DE/ES review. Lutte delivery: 16 REDSTONE items, grammatical quantity and official item name.",
+      "note": "2026-10-25: reviewed actual Friends reward construction, persistent per-player Speed II token/callback/legacy recognition, shared exact two-Ancient-Debris costs, Unbreaking III, green item names and EN/DE/ES usage/cooldown/transfer guidance. No owner requirement on token or tonics; Watch Seal ownership retained.",
       "translations": {
-        "en_us": "0a4f40fbcff761f911f431e35c7848a11f37ce828ed14b7d3f504bf45c76e97e",
-        "de_de": "33d0da6a416cc35e9a15a36576083b232651275ddfb8ad5b000b25b7c6ce79ac",
-        "es_es": "4db2fb4208979162c6af6e037d89c09dd19c9ec3ed96a203898a0ff358e91985"
+        "en_us": "3cc1be750f2fe49fac704c11467e8565b8e48db28cba5c2ca07a64362c3d2fb1",
+        "de_de": "77e0fed9a961940fab26ee69f77caf4552e3602db17fae216cdccd166752535b",
+        "es_es": "52fa888ffae4eac60c169c93d13b0932a71b680402cce1acfe3ff4c649c1ce11"
       },
       "uses": [
         {
@@ -77372,11 +77392,15 @@
           "match": "dynamic-prefix"
         },
         {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestPreview.java",
+          "match": "dynamic-prefix"
+        },
+        {
           "path": "src/client/java/de/quest/client/ui/QuestArtwork.java",
           "match": "dynamic-prefix"
         }
       ],
-      "trace": "Targeted text/context review; existing literal/dynamic source consumers unchanged. See note and source contracts."
+      "trace": "Targeted source/context review; see note and source contracts."
     },
     "quest.village-quest.friends.lutte.3.reward": {
       "context": "quest",
@@ -77914,15 +77938,19 @@
     "quest.village-quest.friends.marius.1.reward": {
       "context": "quest",
       "subject": "quest.village-quest.friends.marius.1.reward",
-      "note": "Marius source/context review: 15 nighttime village monsters; 50 actual HP on one native village golem; explicit ready/prepare then next-night native raid omen I, same-raid 3 kills plus victory, retry without loss. Personal seal 60s night vision/20s glow24/12000 active-tick cooldown. No rejected-holiday collectible. Existing registry14/guest2/reward escrow and EN-DE-ES journal/questmaster/tracker quantities inspected. Guest arrivals use saved active inn/population after warmup, no terrain probes, personal per-visit high water and unnamed village/X/Z notice; physical spawning remains certified and loaded.",
+      "note": "2026-10-25 Screenshot refinement: only FriendsQuestScreen/QuestArtwork presentation changed. Measured compact height, reserved hint/footer clear of frame/lantern, bounded actions with display-only bracket removal, quiet gold section rules, larger items/body. Native reward icons use unchanged localized reward quantities; Lutte tools remain one alternative-choice row. Marius EN/DE/ES reward labels match existing12/20Silvermark,2/3XPbar/seal mechanics and remove duplicate heading. Coastal signal/golem repair art now matches actual tasks. No server, quest, reward or save logic changed.",
       "translations": {
-        "en_us": "2d388df09dfd2c128f1d32dea566f0752a2180299ccdb9f18847994778c15064",
-        "de_de": "5e84703a2d523b5f877676d13585bbd4815ddf9694346c4b9bbb2b8d205d2292",
-        "es_es": "8f6ffd309398778d28c988b8a4f405bc910b4cc6e2f7ef69d075aaceae8eb479"
+        "en_us": "b3e2af37c9465a9b03f551894a3612bfbdfc2c16ebfb9b1dc2ddfebed81338fd",
+        "de_de": "a9399c486bc93b0ad0d147b877e36684f38de2b071dcc9c9f49721ec60d811ba",
+        "es_es": "f4c306f2d449fca95c0994e382df06e57f760cf5b7bed4b7a3ca2dc522ed5a4b"
       },
       "uses": [
         {
           "path": "src/main/java/de/quest/quest/special/FriendsQuestService.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestPreview.java",
           "match": "dynamic-prefix"
         },
         {
@@ -77998,15 +78026,19 @@
     "quest.village-quest.friends.marius.2.reward": {
       "context": "quest",
       "subject": "quest.village-quest.friends.marius.2.reward",
-      "note": "Marius source/context review: 15 nighttime village monsters; 50 actual HP on one native village golem; explicit ready/prepare then next-night native raid omen I, same-raid 3 kills plus victory, retry without loss. Personal seal 60s night vision/20s glow24/12000 active-tick cooldown. No rejected-holiday collectible. Existing registry14/guest2/reward escrow and EN-DE-ES journal/questmaster/tracker quantities inspected. Guest arrivals use saved active inn/population after warmup, no terrain probes, personal per-visit high water and unnamed village/X/Z notice; physical spawning remains certified and loaded.",
+      "note": "2026-10-25 Screenshot refinement: only FriendsQuestScreen/QuestArtwork presentation changed. Measured compact height, reserved hint/footer clear of frame/lantern, bounded actions with display-only bracket removal, quiet gold section rules, larger items/body. Native reward icons use unchanged localized reward quantities; Lutte tools remain one alternative-choice row. Marius EN/DE/ES reward labels match existing12/20Silvermark,2/3XPbar/seal mechanics and remove duplicate heading. Coastal signal/golem repair art now matches actual tasks. No server, quest, reward or save logic changed.",
       "translations": {
-        "en_us": "51d2e1998946b1e058abb6050e4de2d2c4ce47d16496508c862ca03acf96c379",
-        "de_de": "af831c1765dcb9951c47b361f76413db872371ac7ab6d529634d202002548751",
-        "es_es": "b39c5f4aaa48b4a29a0fe2f026a76972e9ada53daffb5dd3adf99153879ec92d"
+        "en_us": "dfc65ae0c0cc1979ad51fb93b47f4777a66502c9966ab273e6e7582b98209700",
+        "de_de": "a588138a19d830dd0a34f093d73a57b6eb4d07c5a627f2671515b762eb004836",
+        "es_es": "aabef5004869e0259fb364c73f64cf1810acc865fc8a3c05c2d3d02d88bfd8dc"
       },
       "uses": [
         {
           "path": "src/main/java/de/quest/quest/special/FriendsQuestService.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestPreview.java",
           "match": "dynamic-prefix"
         },
         {
@@ -78082,15 +78114,19 @@
     "quest.village-quest.friends.marius.3.reward": {
       "context": "quest",
       "subject": "quest.village-quest.friends.marius.3.reward",
-      "note": "Marius source/context review: 15 nighttime village monsters; 50 actual HP on one native village golem; explicit ready/prepare then next-night native raid omen I, same-raid 3 kills plus victory, retry without loss. Personal seal 60s night vision/20s glow24/12000 active-tick cooldown. No rejected-holiday collectible. Existing registry14/guest2/reward escrow and EN-DE-ES journal/questmaster/tracker quantities inspected. Guest arrivals use saved active inn/population after warmup, no terrain probes, personal per-visit high water and unnamed village/X/Z notice; physical spawning remains certified and loaded.",
+      "note": "2026-10-25 Screenshot refinement: only FriendsQuestScreen/QuestArtwork presentation changed. Measured compact height, reserved hint/footer clear of frame/lantern, bounded actions with display-only bracket removal, quiet gold section rules, larger items/body. Native reward icons use unchanged localized reward quantities; Lutte tools remain one alternative-choice row. Marius EN/DE/ES reward labels match existing12/20Silvermark,2/3XPbar/seal mechanics and remove duplicate heading. Coastal signal/golem repair art now matches actual tasks. No server, quest, reward or save logic changed.",
       "translations": {
-        "en_us": "1eae186c9dec2f062f9b8cffd16c5decc340b61a2deb04ff1040ea5bb44b439d",
-        "de_de": "c9042435ce74e838bd96d5f59ee445833ecd61090a0aab905a274a6d7f8497a8",
-        "es_es": "97ce756732b64735842cfd736ea60774bb4b912a9efb4e76c123b25f99b178b7"
+        "en_us": "42f217f9d6a08c1ad1842cba1de3ba7924e8738010df654b51b58e032cb55d37",
+        "de_de": "ef0fa14e2d1a59d7e65d0ef4933ddd34d4676f058b50ccac63999a8df12ff993",
+        "es_es": "1be1c5c6d9c464c841a218fe65eb81b644bae3de1e2c6ec84f29ff5f4369f4c2"
       },
       "uses": [
         {
           "path": "src/main/java/de/quest/quest/special/FriendsQuestService.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestPreview.java",
           "match": "dynamic-prefix"
         },
         {
@@ -78890,6 +78926,1227 @@
         }
       ],
       "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "quest.village-quest.story.living_kingdoms.next.building": {
+      "context": "quest",
+      "subject": "quest.village-quest.story.living_kingdoms.next.building",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks.",
+      "translations": {
+        "en_us": "40c5e4f0b1db61f616d85152013c9d4861b7ddcfb44abc68e625d6483e06822f",
+        "de_de": "14ac0f1cf498a3c28789d20e6dec1cd14fb8061bfb9e880d7f09851ed0d6a598",
+        "es_es": "ef8401cf67060488dd5efb3f8723cb9795e60b9c661fe05060f461dc6d3f2e09"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/content/story/LivingKingdomsStoryArc.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/main/java/de/quest/kingdom/KingdomStoryGuidance.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/main/java/de/quest/reputation/ReputationService.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/JournalScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/ui/QuestArtwork.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "quest.village-quest.story.living_kingdoms.next.claim": {
+      "context": "quest",
+      "subject": "quest.village-quest.story.living_kingdoms.next.claim",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks.",
+      "translations": {
+        "en_us": "785947cfae18b9d3ec2acd7aaa4bc6eb52388e09537110dfe31b2bfdc5627463",
+        "de_de": "5a4d31179aa9bbc956ca7b56ded4bbad0bcf87d8925bcc6008fc516ef1088afc",
+        "es_es": "806280340fd983a5f36a5e385d103830fdf61400fc9adfc53ecca58e50ac7f09"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/content/story/LivingKingdomsStoryArc.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/main/java/de/quest/kingdom/KingdomStoryGuidance.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/main/java/de/quest/reputation/ReputationService.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/JournalScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/ui/QuestArtwork.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "quest.village-quest.story.living_kingdoms.next.first_project": {
+      "context": "quest",
+      "subject": "quest.village-quest.story.living_kingdoms.next.first_project",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks.",
+      "translations": {
+        "en_us": "4757ac04a555613fa2281eafa06bb08c9955e301ff09835cd67b2747355a9c03",
+        "de_de": "503548504009ef908e0f5b681738a319a905efa817df7d290626d51888f6cbdf",
+        "es_es": "8c523272e7ba72f27439b0b899f803aba161730c4c761325af03cb77441b36a7"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/content/story/LivingKingdomsStoryArc.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/main/java/de/quest/kingdom/KingdomStoryGuidance.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/main/java/de/quest/reputation/ReputationService.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/JournalScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/ui/QuestArtwork.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "quest.village-quest.story.living_kingdoms.next.market_trade": {
+      "context": "quest",
+      "subject": "quest.village-quest.story.living_kingdoms.next.market_trade",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks.",
+      "translations": {
+        "en_us": "888ad26ea91e5407f4f5b618bf7432c835593618a4227f28097a89600e511a47",
+        "de_de": "2ff38c534861c069000f867b858293022142000431473ffd3146a29c3ff30710",
+        "es_es": "5352ff62d8cdd878a0b7a247b395fb350c2ad1c886171d74cbb8883f21709ef5"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/content/story/LivingKingdomsStoryArc.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/main/java/de/quest/kingdom/KingdomStoryGuidance.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/main/java/de/quest/reputation/ReputationService.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/JournalScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/ui/QuestArtwork.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "quest.village-quest.story.living_kingdoms.next.meet_innkeeper": {
+      "context": "quest",
+      "subject": "quest.village-quest.story.living_kingdoms.next.meet_innkeeper",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks.",
+      "translations": {
+        "en_us": "8b0c94e2abb672d47eb8d29c22683ee72182c96a6c7390378e875da81f6ea545",
+        "de_de": "39ab8c36748ce2ea0e5f67f1077c9a1974b20583460423380f38b904981bd329",
+        "es_es": "df463e6e276b23102c26d62280b015aef2d1b4d549ed5d431883766595d3bf49"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/content/story/LivingKingdomsStoryArc.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/main/java/de/quest/kingdom/KingdomStoryGuidance.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/main/java/de/quest/reputation/ReputationService.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/JournalScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/ui/QuestArtwork.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "quest.village-quest.story.living_kingdoms.next.meet_leader": {
+      "context": "quest",
+      "subject": "quest.village-quest.story.living_kingdoms.next.meet_leader",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks.",
+      "translations": {
+        "en_us": "5f18883a9f8d49fa5da26590c00642322a6755522c0d5944304d797d4a0bf1a4",
+        "de_de": "de3da9b311c4dde73d8dbe7eccfde9089003c53868435fdf5bc76db2494b44d7",
+        "es_es": "4974ed41f992619cc6e84a33e43a396dc2495658b600dd5c6d08a580b632cf6e"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/content/story/LivingKingdomsStoryArc.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/main/java/de/quest/kingdom/KingdomStoryGuidance.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/main/java/de/quest/reputation/ReputationService.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/JournalScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/ui/QuestArtwork.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "quest.village-quest.story.living_kingdoms.next.meet_storekeeper": {
+      "context": "quest",
+      "subject": "quest.village-quest.story.living_kingdoms.next.meet_storekeeper",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks.",
+      "translations": {
+        "en_us": "d8b2a0ce4ba37797a4ced81ec1dcc80e3c27ab4f7285ac9d9a0c3347f90221d7",
+        "de_de": "55565b68191f6a2689ad4b729cc9326133046562009e65f48bf365493ff88870",
+        "es_es": "4606003fb73f409ef1840b69b1d1b02ebaceab53b56e651f02141c4d0e1e8330"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/content/story/LivingKingdomsStoryArc.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/main/java/de/quest/kingdom/KingdomStoryGuidance.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/main/java/de/quest/reputation/ReputationService.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/JournalScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/ui/QuestArtwork.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "quest.village-quest.story.living_kingdoms.next.place": {
+      "context": "quest",
+      "subject": "quest.village-quest.story.living_kingdoms.next.place",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks.",
+      "translations": {
+        "en_us": "9fd2ca2e3d1f3596f1a93f207ff87137af6be82ddb4356831cd0ec0f2184d9bb",
+        "de_de": "34cea7ffd564b4a5ca99d94bacb57ec51273c3ecabfce352ddb16a325f6db47e",
+        "es_es": "810fb3d2406bb8a99f04f80a979b0b99149a5feb4f5e8d77961ce79823bd72d6"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/content/story/LivingKingdomsStoryArc.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/main/java/de/quest/kingdom/KingdomStoryGuidance.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/main/java/de/quest/reputation/ReputationService.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/JournalScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/ui/QuestArtwork.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "quest.village-quest.story.living_kingdoms.next.recover_target": {
+      "context": "quest",
+      "subject": "quest.village-quest.story.living_kingdoms.next.recover_target",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks.",
+      "translations": {
+        "en_us": "016503786737a7d7ff451d9feeb1bb1b4d3d1e874fa197697e7395e846ee725e",
+        "de_de": "55a3e31ee414f969f346c8b846aca2c4fed15eb9c47a6d6b4060b8d8635db8d7",
+        "es_es": "9c59cce11361b117ba655bf4edac5e7bca40ff222a296822fa257fc5e0ed6c16"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/content/story/LivingKingdomsStoryArc.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/main/java/de/quest/kingdom/KingdomStoryGuidance.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/main/java/de/quest/reputation/ReputationService.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/JournalScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/ui/QuestArtwork.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "quest.village-quest.story.living_kingdoms.next.store_delivery": {
+      "context": "quest",
+      "subject": "quest.village-quest.story.living_kingdoms.next.store_delivery",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks.",
+      "translations": {
+        "en_us": "3b025750d61668bea43e9e2ce148f80550c1bafa50e1ff2d86d9a663042ab6b7",
+        "de_de": "4d9c85746416e64ae425c78585f8f71a95e1261c5dd5ed111f65095f62facbd3",
+        "es_es": "6f3881c6fa7e039780ad3d032338acd0c659957780e8a937be1c82560e336788"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/content/story/LivingKingdomsStoryArc.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/main/java/de/quest/kingdom/KingdomStoryGuidance.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/main/java/de/quest/reputation/ReputationService.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/JournalScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/ui/QuestArtwork.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "quest.village-quest.story.living_kingdoms.next.target": {
+      "context": "quest",
+      "subject": "quest.village-quest.story.living_kingdoms.next.target",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks.",
+      "translations": {
+        "en_us": "dc447b4ff82d4a7e919d6adebd014786784597bea4674d46cdfd22dd8c0676b9",
+        "de_de": "6c5861341b89acaa1653da1512af84cc4c5b891fd08aad696f8405ff8c0ea87b",
+        "es_es": "901baa8dd5ddb46fca9f4e5734c316d5a6d7f95b5483e92760d8458ea64c5240"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/content/story/LivingKingdomsStoryArc.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/main/java/de/quest/kingdom/KingdomStoryGuidance.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/main/java/de/quest/reputation/ReputationService.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/JournalScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/ui/QuestArtwork.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.inn.opening.conditions": {
+      "context": "screen",
+      "subject": "screen.village-quest.inn.opening.conditions",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks.",
+      "translations": {
+        "en_us": "123a6322fe575d4979895aedac3d123c3b3f929f7b919a8469a8cde6b9692d21",
+        "de_de": "4f29732a2a7cd547e2844db71524bfcc280fe274ae21b9a1a4ee63c5c8d97bde",
+        "es_es": "2cc02f878f4f6e56f3d57fe9746a95091d9571a00f36bd80090c024a18820325"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/kingdom/KingdomTavernGuests.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/BuildingScreen.java",
+          "match": "literal"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.inn.opening.paused": {
+      "context": "screen",
+      "subject": "screen.village-quest.inn.opening.paused",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks.",
+      "translations": {
+        "en_us": "f0be45f84be0e5e079e673dd3a32314bb458a02b44e85b0a5f1d682639fa3b25",
+        "de_de": "29be2cf3e968f76da033211efa83371a303d35fdeddeef18167188c8ed39bad2",
+        "es_es": "5b2a79be2306bba9f68693bf969af622430e9d2b59e6e9f49babbed526d275f7"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/kingdom/KingdomTavernGuests.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.inn.opening.progress": {
+      "context": "screen",
+      "subject": "screen.village-quest.inn.opening.progress",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks.",
+      "translations": {
+        "en_us": "e6455fec26914ebfe71e1a09652dadd5f32253fb4ef7216bda4575873bc18bca",
+        "de_de": "900a0c0e6a1e2ec263cc0ced6ae0d7c9eb39d908e6aefdf5b60dceee29ed3ac8",
+        "es_es": "71b9c69345542a92c54d02c24edf9ce1ecec921103a3df6608c53d6a404af3c4"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/kingdom/KingdomTavernGuests.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.inn.opening.ready": {
+      "context": "screen",
+      "subject": "screen.village-quest.inn.opening.ready",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks.",
+      "translations": {
+        "en_us": "9577d515f24ed0563cc7f5ef8437d68cd2eaed5edcf402a4a417c2e2e3e4ee24",
+        "de_de": "bcbf8979c87d303b1ba5e0385b565ceefd281bc21b70ca8f4ba27a33f2b8ce31",
+        "es_es": "c0fb17c418aa3535f5474238b191142d8e48e8bccf93b1979de0844b1c510fdf"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/kingdom/KingdomTavernGuests.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.inn.opening.recorded": {
+      "context": "screen",
+      "subject": "screen.village-quest.inn.opening.recorded",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks.",
+      "translations": {
+        "en_us": "850b4257dc71d0d8a29989465d6f5a6f4bf67594baa8118a81146f4dbbc8f19f",
+        "de_de": "f213c01e66cccfa8e9e3e2b0e94d66fd86b4972ae32b828fbfb14ea2988314a5",
+        "es_es": "7b0d5fdfd14463652c693247379e2f28c10e821f9d002ab62e80b5767da5306a"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/kingdom/KingdomTavernGuests.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/main/java/de/quest/kingdom/KingdomVillageService.java",
+          "match": "literal"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.inn.opening.unknown": {
+      "context": "screen",
+      "subject": "screen.village-quest.inn.opening.unknown",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks.",
+      "translations": {
+        "en_us": "5dc40645c7b602697a053a77fa3a3dc677eb48ba9a812e9467ed69d282abd4f1",
+        "de_de": "8d3b6e3b580a4bed2e185cf820d8b827e5122d6e84c2d4f26df37798bdae94f6",
+        "es_es": "3c337b84aec9e8447a201573fd25d339d385f75266bac0b4fb604eed1d414ad0"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/kingdom/KingdomTavernGuests.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.inn.opening.unregistered": {
+      "context": "screen",
+      "subject": "screen.village-quest.inn.opening.unregistered",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks.",
+      "translations": {
+        "en_us": "3379a72ccf7c966c17feb5e822a9e517e65b29697db32ba535a1ec1a04b6fa3c",
+        "de_de": "717a33bbac0054e7a34a7236d9cb8aedebcf8a45ff0d6ca0741e01f692e73123",
+        "es_es": "bd95c004a81795241a682b8f4ef493e4f788066f9083b19885d114a0292013d4"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/kingdom/KingdomTavernGuests.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.tracker.all": {
+      "context": "screen",
+      "subject": "screen.village-quest.tracker.all",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks.",
+      "translations": {
+        "en_us": "32514a773cac270967304ee3cbaed03e57980b56a6f72b3fc9be5b9de2deac45",
+        "de_de": "c2984e8c204b2a493613b4c4b1d577724609ddb62d3c17d06b21271c8e8f2d45",
+        "es_es": "36fa0fe37eafa43d49d0d1cc02a189ec0f68c4cc98349f11df8069a6e32027aa"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/JournalScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.tracker.filter_hint": {
+      "context": "screen",
+      "subject": "screen.village-quest.tracker.filter_hint",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks.",
+      "translations": {
+        "en_us": "cd88154dce7c43258b23e8e5cf350c54083213892b6e20aa3c7a6a45a98dfa53",
+        "de_de": "b47f5e4451d4c54e39e2ecbd27e88cdc4e887d405b0b6dd1108316249bd73756",
+        "es_es": "77757129a17bc86fb4f346a68eb9b97cd095f6e71f1815700365064c88c5e8ca"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/JournalScreen.java",
+          "match": "literal"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.tracker.only": {
+      "context": "screen",
+      "subject": "screen.village-quest.tracker.only",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks.",
+      "translations": {
+        "en_us": "55972ee951f623bcb4801b17ddf4d971684c9d3f7b9402e86a288a23b64ea190",
+        "de_de": "4d2c70375342ce0f69ee030d551dd27b21457434b67c833741dd0ffaa42eb62b",
+        "es_es": "e78e4ec465a183bb1bd4c490d1681d658abf72d5d7bf44acadc0eb58757a4d40"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/JournalScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.tracker.pin": {
+      "context": "screen",
+      "subject": "screen.village-quest.tracker.pin",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks.",
+      "translations": {
+        "en_us": "a6a28ac02e8dd28ca768d0febcf890a3ce624f0a70377554916089ce44904795",
+        "de_de": "9cb2180fe0d0670e67627d9edfa5c71d012fb9da9ac96e872f76a94efe80a007",
+        "es_es": "a79093bb9c142475787ea7c8e08eba30c1ff5e4fec2381a0572e95d4190a51a6"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/JournalScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.tracker.unpin": {
+      "context": "screen",
+      "subject": "screen.village-quest.tracker.unpin",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks.",
+      "translations": {
+        "en_us": "d6f2c9f3efd9682cb7c7f97d0257cf30b81ca3edb587de09a4773a6c4f5e4768",
+        "de_de": "15dbbb7f1c626d9ecbe4bf15874336fdf50f3dde354899989d8d7ef4966994ad",
+        "es_es": "cd17abe951d2d1fb5d967a645435904767d86ad2d32d44f0f8c928360abe436f"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/JournalScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.friends.chapter": {
+      "context": "screen",
+      "subject": "screen.village-quest.friends.chapter",
+      "note": "2026-10-25 Friends UI: reviewed existing Simon/Lutte/Marius dialogue, objectives and fixed/choice rewards against command/ready/turnIn. New EN/DE/ES labels keep personal address and explicit actions; 12 first admin tour pages use isolated existing quest prose. Server session checks preserve visit/inn/body/range/sight authority and reward escrow. Simon first reward remains exactly three native STRONG_SWIFTNESS potions (tier II, 1800 ticks). Full prose remains scrollable. Raphael information always uses the existing composition lore and a medieval harp image, with no quest/objectives/reward; alternating speech stays unchanged. Rejected stale actions increment revision and always acknowledge the view to release pending client controls.",
+      "translations": {
+        "en_us": "5336909d3bfb8510c4b800afbcdb808a36e2378b3cfa4c8687a09e4d5e61f80f",
+        "de_de": "a11dc2f71988ba50d4f119bf659a48475a282f94c78ea268e5b50ffbb18582c6",
+        "es_es": "f1f706f1b6dc7f00ba66157bfa3398effb78965091fc7f06a09670c0c9595c44"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/quest/special/FriendsQuestUiService.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestPreview.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.friends.objectives": {
+      "context": "screen",
+      "subject": "screen.village-quest.friends.objectives",
+      "note": "2026-10-25 Friends UI: reviewed existing Simon/Lutte/Marius dialogue, objectives and fixed/choice rewards against command/ready/turnIn. New EN/DE/ES labels keep personal address and explicit actions; 12 first admin tour pages use isolated existing quest prose. Server session checks preserve visit/inn/body/range/sight authority and reward escrow. Simon first reward remains exactly three native STRONG_SWIFTNESS potions (tier II, 1800 ticks). Full prose remains scrollable. Raphael information always uses the existing composition lore and a medieval harp image, with no quest/objectives/reward; alternating speech stays unchanged. Rejected stale actions increment revision and always acknowledge the view to release pending client controls.",
+      "translations": {
+        "en_us": "ccbed60abfd385123b3fffb147ef6eb0603dbb24d4ef0c53145d8143493395a3",
+        "de_de": "63868a6971959ca1e9cda68fd0df36c2d1c54265150ca57934900699e1a0c17e",
+        "es_es": "cc5a7957839e2b4684b5e2f37f21f7f8c7083e184cb217ca39fb02adf0362747"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/quest/special/FriendsQuestUiService.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestPreview.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.friends.reward": {
+      "context": "screen",
+      "subject": "screen.village-quest.friends.reward",
+      "note": "2026-10-25 Friends UI: reviewed existing Simon/Lutte/Marius dialogue, objectives and fixed/choice rewards against command/ready/turnIn. New EN/DE/ES labels keep personal address and explicit actions; 12 first admin tour pages use isolated existing quest prose. Server session checks preserve visit/inn/body/range/sight authority and reward escrow. Simon first reward remains exactly three native STRONG_SWIFTNESS potions (tier II, 1800 ticks). Full prose remains scrollable. Raphael information always uses the existing composition lore and a medieval harp image, with no quest/objectives/reward; alternating speech stays unchanged. Rejected stale actions increment revision and always acknowledge the view to release pending client controls.",
+      "translations": {
+        "en_us": "55ac8cbae095aacceaf1e9d9efdf022f597a39780820ed9bc24e2f3e5271c351",
+        "de_de": "cff2512e202e6b60fc3e4ce0c01d53a0e5c44e6a9d8b83098be5db00ea7dd1e7",
+        "es_es": "7f30bf3c40109460f6f4757f7cf43ed1a2620c3948a6c7da8b09e40c1e42a7c1"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/quest/special/FriendsQuestUiService.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestPreview.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.friends.later": {
+      "context": "screen",
+      "subject": "screen.village-quest.friends.later",
+      "note": "2026-10-25 Friends UI: reviewed existing Simon/Lutte/Marius dialogue, objectives and fixed/choice rewards against command/ready/turnIn. New EN/DE/ES labels keep personal address and explicit actions; 12 first admin tour pages use isolated existing quest prose. Server session checks preserve visit/inn/body/range/sight authority and reward escrow. Simon first reward remains exactly three native STRONG_SWIFTNESS potions (tier II, 1800 ticks). Full prose remains scrollable. Raphael information always uses the existing composition lore and a medieval harp image, with no quest/objectives/reward; alternating speech stays unchanged. Rejected stale actions increment revision and always acknowledge the view to release pending client controls.",
+      "translations": {
+        "en_us": "17d1e2686fb5aa92ef68574cf7a40e8cb9a813b6b38a3b76182a2e1653f9ff99",
+        "de_de": "f703a91cabbe4073b5c0f0dc1348e1b2451c6e97109bf07555cbf7ab3995cd3e",
+        "es_es": "40aa3ca8d1de8d992cb73c98040e561a06314cd4787e99042bdf092a15720c26"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/quest/special/FriendsQuestUiService.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestPreview.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.friends.conversation": {
+      "context": "screen",
+      "subject": "screen.village-quest.friends.conversation",
+      "note": "2026-10-25 Friends UI: reviewed existing Simon/Lutte/Marius dialogue, objectives and fixed/choice rewards against command/ready/turnIn. New EN/DE/ES labels keep personal address and explicit actions; 12 first admin tour pages use isolated existing quest prose. Server session checks preserve visit/inn/body/range/sight authority and reward escrow. Simon first reward remains exactly three native STRONG_SWIFTNESS potions (tier II, 1800 ticks). Full prose remains scrollable. Raphael information always uses the existing composition lore and a medieval harp image, with no quest/objectives/reward; alternating speech stays unchanged. Rejected stale actions increment revision and always acknowledge the view to release pending client controls.",
+      "translations": {
+        "en_us": "ccca1817575365871461752f3229dd59ede742ae69e350e20fd00a6ce3d149e3",
+        "de_de": "8f5bd1adbb4c7a9f29ffbe47a27873348246056daab1d4a95d970f0934a18409",
+        "es_es": "2f2f743c939c0eb3220cfc81a21eac983556a866ad0a35cdf30e3990a4e98d13"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/quest/special/FriendsQuestUiService.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestPreview.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.friends.ready": {
+      "context": "screen",
+      "subject": "screen.village-quest.friends.ready",
+      "note": "2026-10-25 Friends UI: reviewed existing Simon/Lutte/Marius dialogue, objectives and fixed/choice rewards against command/ready/turnIn. New EN/DE/ES labels keep personal address and explicit actions; 12 first admin tour pages use isolated existing quest prose. Server session checks preserve visit/inn/body/range/sight authority and reward escrow. Simon first reward remains exactly three native STRONG_SWIFTNESS potions (tier II, 1800 ticks). Full prose remains scrollable. Raphael information always uses the existing composition lore and a medieval harp image, with no quest/objectives/reward; alternating speech stays unchanged. Rejected stale actions increment revision and always acknowledge the view to release pending client controls.",
+      "translations": {
+        "en_us": "a064dd165e0ed8080d229b96eb018f11046176d4bca66e232f051a50662195b2",
+        "de_de": "d5d8991674f4a06c27f7d7db7d9d03a73e88bf87ddacb4c49cc1b465441b94f2",
+        "es_es": "561bdfe6c8e3cb06a47f83f8d45cceeb708e86668d07d5efe322b0b11a786f7c"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/quest/special/FriendsQuestUiService.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestPreview.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.friends.in_progress": {
+      "context": "screen",
+      "subject": "screen.village-quest.friends.in_progress",
+      "note": "2026-10-25 Friends UI: reviewed existing Simon/Lutte/Marius dialogue, objectives and fixed/choice rewards against command/ready/turnIn. New EN/DE/ES labels keep personal address and explicit actions; 12 first admin tour pages use isolated existing quest prose. Server session checks preserve visit/inn/body/range/sight authority and reward escrow. Simon first reward remains exactly three native STRONG_SWIFTNESS potions (tier II, 1800 ticks). Full prose remains scrollable. Raphael information always uses the existing composition lore and a medieval harp image, with no quest/objectives/reward; alternating speech stays unchanged. Rejected stale actions increment revision and always acknowledge the view to release pending client controls.",
+      "translations": {
+        "en_us": "a120aaa42bf8b44be9143d52026f0dcfe18c4679cdc1fe48b525e21fd6eb51dd",
+        "de_de": "e168fb9c99724d5fcb315ae3da8d64ecff1c64e141045ec28359c6c22428a77c",
+        "es_es": "12788f3142e17ac1fcf977df9ae3969a3e61d96cdb6eeb68548498ae7ae4e8f0"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/quest/special/FriendsQuestUiService.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestPreview.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.friends.replace": {
+      "context": "screen",
+      "subject": "screen.village-quest.friends.replace",
+      "note": "2026-10-25 Friends UI: reviewed existing Simon/Lutte/Marius dialogue, objectives and fixed/choice rewards against command/ready/turnIn. New EN/DE/ES labels keep personal address and explicit actions; 12 first admin tour pages use isolated existing quest prose. Server session checks preserve visit/inn/body/range/sight authority and reward escrow. Simon first reward remains exactly three native STRONG_SWIFTNESS potions (tier II, 1800 ticks). Full prose remains scrollable. Raphael information always uses the existing composition lore and a medieval harp image, with no quest/objectives/reward; alternating speech stays unchanged. Rejected stale actions increment revision and always acknowledge the view to release pending client controls.",
+      "translations": {
+        "en_us": "f88822b1eef29e0a86c04838c6cd26a6e12410a33696ab5bc54ca386c5f09211",
+        "de_de": "ac09924c3990db8fc5417d6464061ce3ea8fa9ee5036748424ae5aa816bcff07",
+        "es_es": "f447f76492aff35e63dc50b7a08fe92ca9b8c7df639175ffc5418afec1112880"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/quest/special/FriendsQuestUiService.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestPreview.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.friends.survey": {
+      "context": "screen",
+      "subject": "screen.village-quest.friends.survey",
+      "note": "2026-10-25 Friends UI: reviewed existing Simon/Lutte/Marius dialogue, objectives and fixed/choice rewards against command/ready/turnIn. New EN/DE/ES labels keep personal address and explicit actions; 12 first admin tour pages use isolated existing quest prose. Server session checks preserve visit/inn/body/range/sight authority and reward escrow. Simon first reward remains exactly three native STRONG_SWIFTNESS potions (tier II, 1800 ticks). Full prose remains scrollable. Raphael information always uses the existing composition lore and a medieval harp image, with no quest/objectives/reward; alternating speech stays unchanged. Rejected stale actions increment revision and always acknowledge the view to release pending client controls.",
+      "translations": {
+        "en_us": "d952e48a5eb6dbd1ab01f5017a1f25418f15757c691e630e7a0f0c61427de3cd",
+        "de_de": "e0f2309942a5aed27fcfa5ebe2aa90f849ba38d2c8aa5ea6081308bc3188b1b1",
+        "es_es": "db5ca9b3dfe52a48f9606bcf7d3124cc32ba86937e45ea125bcc29e8de4a093c"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/quest/special/FriendsQuestUiService.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestPreview.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.friends.waiting": {
+      "context": "screen",
+      "subject": "screen.village-quest.friends.waiting",
+      "note": "2026-10-25 Friends UI: reviewed existing Simon/Lutte/Marius dialogue, objectives and fixed/choice rewards against command/ready/turnIn. New EN/DE/ES labels keep personal address and explicit actions; 12 first admin tour pages use isolated existing quest prose. Server session checks preserve visit/inn/body/range/sight authority and reward escrow. Simon first reward remains exactly three native STRONG_SWIFTNESS potions (tier II, 1800 ticks). Full prose remains scrollable. Raphael information always uses the existing composition lore and a medieval harp image, with no quest/objectives/reward; alternating speech stays unchanged. Rejected stale actions increment revision and always acknowledge the view to release pending client controls.",
+      "translations": {
+        "en_us": "6fdd6b55e095e1bb032e4dfa530c09fcd951f36f76190fdd5061ab9b25898067",
+        "de_de": "8d38b2937d9479a52858a0f03ed9d928269abd8760a50f321aebb290af59a0d1",
+        "es_es": "5664fa7820337e084f42991f45664fac4a6d06ea8ad4af9d16a1b52843b3dfae"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/quest/special/FriendsQuestUiService.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestPreview.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.friends.scroll": {
+      "context": "screen",
+      "subject": "screen.village-quest.friends.scroll",
+      "note": "2026-10-25 Friends UI: reviewed existing Simon/Lutte/Marius dialogue, objectives and fixed/choice rewards against command/ready/turnIn. New EN/DE/ES labels keep personal address and explicit actions; 12 first admin tour pages use isolated existing quest prose. Server session checks preserve visit/inn/body/range/sight authority and reward escrow. Simon first reward remains exactly three native STRONG_SWIFTNESS potions (tier II, 1800 ticks). Full prose remains scrollable. Raphael information always uses the existing composition lore and a medieval harp image, with no quest/objectives/reward; alternating speech stays unchanged. Rejected stale actions increment revision and always acknowledge the view to release pending client controls.",
+      "translations": {
+        "en_us": "9e00589cdafdd1130a803664eefed7c4b7751501f5bbcc3376f2af4290256652",
+        "de_de": "e058a8e0da946fb4f92697922c968878c72b259b676dadfa41593cd2b7f69a28",
+        "es_es": "e8a1d270ff5c7b6f26bd0f65a3accf60969a561d9f692426e38dc0f28e4bf6bc"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/quest/special/FriendsQuestUiService.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestPreview.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.ui_tour.family.friends": {
+      "context": "screen",
+      "subject": "screen.village-quest.ui_tour.family.friends",
+      "note": "2026-10-25 Friends UI: reviewed existing Simon/Lutte/Marius dialogue, objectives and fixed/choice rewards against command/ready/turnIn. New EN/DE/ES labels keep personal address and explicit actions; 12 first admin tour pages use isolated existing quest prose. Server session checks preserve visit/inn/body/range/sight authority and reward escrow. Simon first reward remains exactly three native STRONG_SWIFTNESS potions (tier II, 1800 ticks). Full prose remains scrollable. Raphael information always uses the existing composition lore and a medieval harp image, with no quest/objectives/reward; alternating speech stays unchanged. Rejected stale actions increment revision and always acknowledge the view to release pending client controls.",
+      "translations": {
+        "en_us": "bd104d1b98d032274986497eeb7997c44a1d674b29140e43cd525d33468ecb6e",
+        "de_de": "f72d71d3376f5fb1ec0821b9958345d60edb640a1160a0f78d245f73dcd1c761",
+        "es_es": "bead8677698a4b14b029e51ee373b7548953d132ec0f6f5505cba9bad89f0f01"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/UiTestTour.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.ui_tour.state.simon_offer": {
+      "context": "screen",
+      "subject": "screen.village-quest.ui_tour.state.simon_offer",
+      "note": "2026-10-25 Friends UI: reviewed existing Simon/Lutte/Marius dialogue, objectives and fixed/choice rewards against command/ready/turnIn. New EN/DE/ES labels keep personal address and explicit actions; 12 first admin tour pages use isolated existing quest prose. Server session checks preserve visit/inn/body/range/sight authority and reward escrow. Simon first reward remains exactly three native STRONG_SWIFTNESS potions (tier II, 1800 ticks). Full prose remains scrollable. Raphael information always uses the existing composition lore and a medieval harp image, with no quest/objectives/reward; alternating speech stays unchanged. Rejected stale actions increment revision and always acknowledge the view to release pending client controls.",
+      "translations": {
+        "en_us": "9e1dd631274a0b02f411ca59d8e823b726a3f0703d65e4d037c9f06ffe135c6b",
+        "de_de": "62f54880447abc8b495d14065bf00f9110a76e95999eb946cf6181f4d139ada9",
+        "es_es": "50186c685ff01ef9a83bd9afcd4e473555dbc531f48c5ea1c9e708ebc91abed7"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/UiTestTour.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.ui_tour.state.simon_active": {
+      "context": "screen",
+      "subject": "screen.village-quest.ui_tour.state.simon_active",
+      "note": "2026-10-25 Friends UI: reviewed existing Simon/Lutte/Marius dialogue, objectives and fixed/choice rewards against command/ready/turnIn. New EN/DE/ES labels keep personal address and explicit actions; 12 first admin tour pages use isolated existing quest prose. Server session checks preserve visit/inn/body/range/sight authority and reward escrow. Simon first reward remains exactly three native STRONG_SWIFTNESS potions (tier II, 1800 ticks). Full prose remains scrollable. Raphael information always uses the existing composition lore and a medieval harp image, with no quest/objectives/reward; alternating speech stays unchanged. Rejected stale actions increment revision and always acknowledge the view to release pending client controls.",
+      "translations": {
+        "en_us": "2b43daf05355b65d912ad5b071aef5fdbb91b52d62345b5c308366055c69e06a",
+        "de_de": "ccdfce55dc08a20f0f34c0ec86ea656651a1a9f3a851328a83e0d227324d764a",
+        "es_es": "a9ee8143c052f178ff21e4c41827b5d7f17f6b178eecc43c964c44a246ce41d1"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/UiTestTour.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.ui_tour.state.simon_friends": {
+      "context": "screen",
+      "subject": "screen.village-quest.ui_tour.state.simon_friends",
+      "note": "2026-10-25 Friends UI: reviewed existing Simon/Lutte/Marius dialogue, objectives and fixed/choice rewards against command/ready/turnIn. New EN/DE/ES labels keep personal address and explicit actions; 12 first admin tour pages use isolated existing quest prose. Server session checks preserve visit/inn/body/range/sight authority and reward escrow. Simon first reward remains exactly three native STRONG_SWIFTNESS potions (tier II, 1800 ticks). Full prose remains scrollable. Raphael information always uses the existing composition lore and a medieval harp image, with no quest/objectives/reward; alternating speech stays unchanged. Rejected stale actions increment revision and always acknowledge the view to release pending client controls.",
+      "translations": {
+        "en_us": "69a684bf90e3941a2c4cfef4e5ff7403c086989ae9f67ad5ef1254ace5877355",
+        "de_de": "05046d1ed25f391165d1e635a9c3c7d4c8acb21d1fa4fcabf14cc05ae973de5b",
+        "es_es": "e73903e18df1cb469b5921267670921da142ce03b5d870b3a5da3244ed9777af"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/UiTestTour.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.ui_tour.state.simon_herbs": {
+      "context": "screen",
+      "subject": "screen.village-quest.ui_tour.state.simon_herbs",
+      "note": "2026-10-25 Friends UI: reviewed existing Simon/Lutte/Marius dialogue, objectives and fixed/choice rewards against command/ready/turnIn. New EN/DE/ES labels keep personal address and explicit actions; 12 first admin tour pages use isolated existing quest prose. Server session checks preserve visit/inn/body/range/sight authority and reward escrow. Simon first reward remains exactly three native STRONG_SWIFTNESS potions (tier II, 1800 ticks). Full prose remains scrollable. Raphael information always uses the existing composition lore and a medieval harp image, with no quest/objectives/reward; alternating speech stays unchanged. Rejected stale actions increment revision and always acknowledge the view to release pending client controls.",
+      "translations": {
+        "en_us": "60b959dd0761dc19f924c8bd04f3bce88a235d6326317d869526d9a40113b28a",
+        "de_de": "01f25b7b34f013e1fae2a51bbc4dee45a48a22bcefd2344dc59c1989dfa2d4cf",
+        "es_es": "94b54400b9297f5c6b9bbac80e62743d3dfc81820c72c3946332cb68227f3b7f"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/UiTestTour.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.ui_tour.state.lutte_offer": {
+      "context": "screen",
+      "subject": "screen.village-quest.ui_tour.state.lutte_offer",
+      "note": "2026-10-25 Friends UI: reviewed existing Simon/Lutte/Marius dialogue, objectives and fixed/choice rewards against command/ready/turnIn. New EN/DE/ES labels keep personal address and explicit actions; 12 first admin tour pages use isolated existing quest prose. Server session checks preserve visit/inn/body/range/sight authority and reward escrow. Simon first reward remains exactly three native STRONG_SWIFTNESS potions (tier II, 1800 ticks). Full prose remains scrollable. Raphael information always uses the existing composition lore and a medieval harp image, with no quest/objectives/reward; alternating speech stays unchanged. Rejected stale actions increment revision and always acknowledge the view to release pending client controls.",
+      "translations": {
+        "en_us": "36f9e3dba55bdca4671033031742b9be77bdfb284f03be2a97c8282d52028237",
+        "de_de": "8850a112fd154e8e203e49ac4efd8e6f3f9c56dc9ccfe11e13e34b220ef518d4",
+        "es_es": "df7edd6cf7ca3530877138d2e707dfb8a3f35c49ab68d54ed792801633b5526d"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/UiTestTour.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.ui_tour.state.lutte_map": {
+      "context": "screen",
+      "subject": "screen.village-quest.ui_tour.state.lutte_map",
+      "note": "2026-10-25 Friends UI: reviewed existing Simon/Lutte/Marius dialogue, objectives and fixed/choice rewards against command/ready/turnIn. New EN/DE/ES labels keep personal address and explicit actions; 12 first admin tour pages use isolated existing quest prose. Server session checks preserve visit/inn/body/range/sight authority and reward escrow. Simon first reward remains exactly three native STRONG_SWIFTNESS potions (tier II, 1800 ticks). Full prose remains scrollable. Raphael information always uses the existing composition lore and a medieval harp image, with no quest/objectives/reward; alternating speech stays unchanged. Rejected stale actions increment revision and always acknowledge the view to release pending client controls.",
+      "translations": {
+        "en_us": "68d99b7326f808a48644b69e3a5c7cb260ba68022d87281f13d76fd8b2e1ca8d",
+        "de_de": "2337a4dc48f67c64233c44fcc9520e8bd5a8557a225d1a74082ddb900dd923f1",
+        "es_es": "7e52afa5756546648a8924f940ea07f639b08c7c30b78fb675ba752c782de2e2"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/UiTestTour.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.ui_tour.state.lutte_masterpiece": {
+      "context": "screen",
+      "subject": "screen.village-quest.ui_tour.state.lutte_masterpiece",
+      "note": "2026-10-25 Friends UI: reviewed existing Simon/Lutte/Marius dialogue, objectives and fixed/choice rewards against command/ready/turnIn. New EN/DE/ES labels keep personal address and explicit actions; 12 first admin tour pages use isolated existing quest prose. Server session checks preserve visit/inn/body/range/sight authority and reward escrow. Simon first reward remains exactly three native STRONG_SWIFTNESS potions (tier II, 1800 ticks). Full prose remains scrollable. Raphael information always uses the existing composition lore and a medieval harp image, with no quest/objectives/reward; alternating speech stays unchanged. Rejected stale actions increment revision and always acknowledge the view to release pending client controls.",
+      "translations": {
+        "en_us": "059bbfb9a00f4553a212b29469c158db88fa0eeaa0adcfa13fd818a708583f01",
+        "de_de": "35bf3a33554d84e5fb4821b1de0cbf9054f644366b769e50840b47eba358bc77",
+        "es_es": "08351f6c0f3e5147988c6dac1044163913bfa77e9fe90cc8bd152cb93f2222f1"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/UiTestTour.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.ui_tour.state.marius_offer": {
+      "context": "screen",
+      "subject": "screen.village-quest.ui_tour.state.marius_offer",
+      "note": "2026-10-25 Friends UI: reviewed existing Simon/Lutte/Marius dialogue, objectives and fixed/choice rewards against command/ready/turnIn. New EN/DE/ES labels keep personal address and explicit actions; 12 first admin tour pages use isolated existing quest prose. Server session checks preserve visit/inn/body/range/sight authority and reward escrow. Simon first reward remains exactly three native STRONG_SWIFTNESS potions (tier II, 1800 ticks). Full prose remains scrollable. Raphael information always uses the existing composition lore and a medieval harp image, with no quest/objectives/reward; alternating speech stays unchanged. Rejected stale actions increment revision and always acknowledge the view to release pending client controls.",
+      "translations": {
+        "en_us": "951715b661cfc9016aa183cb1f2729c472f63579c339043d1991afe1a9d6b1a3",
+        "de_de": "90bb87bba6ad5bbb598cefae213701a95a05c6d0eae602aa592ed7ec41730ff1",
+        "es_es": "3183ec07334ac2895c1bca2fa9196dc8ae1511f7f59b99cbaa92ea6c98bb82a1"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/UiTestTour.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.ui_tour.state.marius_healing": {
+      "context": "screen",
+      "subject": "screen.village-quest.ui_tour.state.marius_healing",
+      "note": "2026-10-25 Friends UI: reviewed existing Simon/Lutte/Marius dialogue, objectives and fixed/choice rewards against command/ready/turnIn. New EN/DE/ES labels keep personal address and explicit actions; 12 first admin tour pages use isolated existing quest prose. Server session checks preserve visit/inn/body/range/sight authority and reward escrow. Simon first reward remains exactly three native STRONG_SWIFTNESS potions (tier II, 1800 ticks). Full prose remains scrollable. Raphael information always uses the existing composition lore and a medieval harp image, with no quest/objectives/reward; alternating speech stays unchanged. Rejected stale actions increment revision and always acknowledge the view to release pending client controls.",
+      "translations": {
+        "en_us": "99b8960dec0859c2ccdd6f4cad75f59721e6efbbbd67cf5fd066d26e6a59403f",
+        "de_de": "aca6a14d290e4ecca0bc3729a4643c3187a0081b499d87b8f05f247b48f90a6e",
+        "es_es": "d7150c11d828122570f4b662ee37b931c987c02c45a94dd838aa7af79393e42a"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/UiTestTour.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.ui_tour.state.marius_raid": {
+      "context": "screen",
+      "subject": "screen.village-quest.ui_tour.state.marius_raid",
+      "note": "2026-10-25 Friends UI: reviewed existing Simon/Lutte/Marius dialogue, objectives and fixed/choice rewards against command/ready/turnIn. New EN/DE/ES labels keep personal address and explicit actions; 12 first admin tour pages use isolated existing quest prose. Server session checks preserve visit/inn/body/range/sight authority and reward escrow. Simon first reward remains exactly three native STRONG_SWIFTNESS potions (tier II, 1800 ticks). Full prose remains scrollable. Raphael information always uses the existing composition lore and a medieval harp image, with no quest/objectives/reward; alternating speech stays unchanged. Rejected stale actions increment revision and always acknowledge the view to release pending client controls.",
+      "translations": {
+        "en_us": "53012acd20a81055a5e043f73530866b1c660c78bb6d491ff731fa2c16d64378",
+        "de_de": "a1c31058d5a5e640da67b270c244f5e70eef521f3958672551a3e35a94964bb7",
+        "es_es": "0f778230460adb3173eaef30995f73fb0752eb26d2115c1f0a349cffb22cf22f"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/UiTestTour.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.ui_tour.state.friends_complete": {
+      "context": "screen",
+      "subject": "screen.village-quest.ui_tour.state.friends_complete",
+      "note": "2026-10-25 Friends UI: reviewed existing Simon/Lutte/Marius dialogue, objectives and fixed/choice rewards against command/ready/turnIn. New EN/DE/ES labels keep personal address and explicit actions; 12 first admin tour pages use isolated existing quest prose. Server session checks preserve visit/inn/body/range/sight authority and reward escrow. Simon first reward remains exactly three native STRONG_SWIFTNESS potions (tier II, 1800 ticks). Full prose remains scrollable. Raphael information always uses the existing composition lore and a medieval harp image, with no quest/objectives/reward; alternating speech stays unchanged. Rejected stale actions increment revision and always acknowledge the view to release pending client controls.",
+      "translations": {
+        "en_us": "a0ad6c461be790418cad9e1f1797e352a0468a832c30c1f943db54e7bcf1f696",
+        "de_de": "9c6209f66193c875e759b6c5fbe392d49bf2acd0a8d48031bd3f3f79a047b81a",
+        "es_es": "0c80178894116f07c4868d861ec435f36ede2ca7f7346c3a78546cf1cf7349d6"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/UiTestTour.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.ui_tour.state.ravel_lore": {
+      "context": "screen",
+      "subject": "screen.village-quest.ui_tour.state.ravel_lore",
+      "note": "2026-10-25 Friends UI: reviewed existing Simon/Lutte/Marius dialogue, objectives and fixed/choice rewards against command/ready/turnIn. New EN/DE/ES labels keep personal address and explicit actions; 12 first admin tour pages use isolated existing quest prose. Server session checks preserve visit/inn/body/range/sight authority and reward escrow. Simon first reward remains exactly three native STRONG_SWIFTNESS potions (tier II, 1800 ticks). Full prose remains scrollable. Raphael information always uses the existing composition lore and a medieval harp image, with no quest/objectives/reward; alternating speech stays unchanged. Rejected stale actions increment revision and always acknowledge the view to release pending client controls.",
+      "translations": {
+        "en_us": "a062d5df5ffbd0d63beefab8969f4e2c5de61c5a4824187a6c19bd1198aaee98",
+        "de_de": "2426256fd73a6a2af92185eb34129185bf0249e9ed76c9076c226abfaf657669",
+        "es_es": "098d2c0b4f96ccaa3c3742038e21969b62a1c716ae65a65b065d222e87ed9990"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/UiTestTour.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.friends.experience": {
+      "context": "screen",
+      "subject": "screen.village-quest.friends.experience",
+      "note": "Reviewed fixed Friends geometry and native progress/reward components: bounded read-only snapshots, native potion/book/tool/name/owner data, existing 10:1 denominations, XP bars without bottle, clipped hover after transforms. Shared item factories preserve exact existing payout/escrow and Lutte exclusive frozen choices; session and save rules unchanged.",
+      "translations": {
+        "en_us": "a0b3ac3b33daae6f4b1ae7880dbfb118053e021e65788e3e193928308bfa914e",
+        "de_de": "40fc8b4e6f002ebc40d3e39028eeeda637eb9ee0c8f4c7f64f88b4500857bbb2",
+        "es_es": "e8bc98fd87d4583c6fdfbd0ea10b5267261acd7a12fec4ab30d96ab4d158cef8"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/quest/special/FriendsQuestUiService.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestPreview.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "quest.village-quest.friends.simon.token.lore.1": {
+      "context": "quest",
+      "subject": "quest.village-quest.friends.simon.token.lore.1",
+      "note": "2026-10-25: reviewed actual Friends reward construction, persistent per-player Speed II token/callback/legacy recognition, shared exact two-Ancient-Debris costs, Unbreaking III, green item names and EN/DE/ES usage/cooldown/transfer guidance. No owner requirement on token or tonics; Watch Seal ownership retained.",
+      "translations": {
+        "en_us": "ef23d33dfa73ec524fb38ecbb984ac5af6a067050619c933ed1ff4f7379eb150",
+        "de_de": "3f997da2ee38ed9f52acbbb0c3801f751827ec81c9ccd173326dffa666c69794",
+        "es_es": "a83c450eb9aa70cd01d0d719675a02a81ca35e69c259aa27cd4b65e9df503261"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/quest/special/FriendsQuestService.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestPreview.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/ui/QuestArtwork.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "quest.village-quest.friends.simon.token.lore.2": {
+      "context": "quest",
+      "subject": "quest.village-quest.friends.simon.token.lore.2",
+      "note": "2026-10-25: reviewed actual Friends reward construction, persistent per-player Speed II token/callback/legacy recognition, shared exact two-Ancient-Debris costs, Unbreaking III, green item names and EN/DE/ES usage/cooldown/transfer guidance. No owner requirement on token or tonics; Watch Seal ownership retained.",
+      "translations": {
+        "en_us": "7877e4a5e8e2cf71a22d582bdc508c6f357548fc6f84dba846f3e60c20b8adf8",
+        "de_de": "a01c98fce178468f422fb5b4715dd190a272344fa6fc00578701c44ad8b4ff82",
+        "es_es": "060269743e4478a0a6c3cf8df7a3eec65a99bc54d5e06830a4a2d1b58f076945"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/quest/special/FriendsQuestService.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestPreview.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/ui/QuestArtwork.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "quest.village-quest.friends.simon.token.recharging": {
+      "context": "quest",
+      "subject": "quest.village-quest.friends.simon.token.recharging",
+      "note": "2026-10-25: reviewed actual Friends reward construction, persistent per-player Speed II token/callback/legacy recognition, shared exact two-Ancient-Debris costs, Unbreaking III, green item names and EN/DE/ES usage/cooldown/transfer guidance. No owner requirement on token or tonics; Watch Seal ownership retained.",
+      "translations": {
+        "en_us": "5367ced3ce8b23e1db8360c38da9c13d921a6be3c3587e163bc2612cc9023842",
+        "de_de": "8ca6465d0f2c7e573a3b3533fab9d5d9c45ed224ee6086a0ef7e21b155564a5c",
+        "es_es": "dde03acc34df41084fdcecd515b4aae72f80de32f4485d958de1a44f6c37527c"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/quest/special/FriendsQuestService.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestPreview.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/ui/QuestArtwork.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "quest.village-quest.friends.simon.token.unavailable": {
+      "context": "quest",
+      "subject": "quest.village-quest.friends.simon.token.unavailable",
+      "note": "2026-10-25: reviewed actual Friends reward construction, persistent per-player Speed II token/callback/legacy recognition, shared exact two-Ancient-Debris costs, Unbreaking III, green item names and EN/DE/ES usage/cooldown/transfer guidance. No owner requirement on token or tonics; Watch Seal ownership retained.",
+      "translations": {
+        "en_us": "47ff613befc4857e99f0575f54f44c2e2ce53b739cc90dba33d81470d289caeb",
+        "de_de": "3bcdb31b54c8016f5095f0782bc0f91605caddac8384172d168a079eb78cf269",
+        "es_es": "74d496058369c08fd3f43a9257c28796ea7b26f1099b7a1231178db4978edc0a"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/quest/special/FriendsQuestService.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestPreview.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/ui/QuestArtwork.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "quest.village-quest.friends.simon.token.used": {
+      "context": "quest",
+      "subject": "quest.village-quest.friends.simon.token.used",
+      "note": "2026-10-25: reviewed actual Friends reward construction, persistent per-player Speed II token/callback/legacy recognition, shared exact two-Ancient-Debris costs, Unbreaking III, green item names and EN/DE/ES usage/cooldown/transfer guidance. No owner requirement on token or tonics; Watch Seal ownership retained.",
+      "translations": {
+        "en_us": "c6d880fa57faee4746a66bb41587f21673aacf339e9a6fadeab32ea926ed1222",
+        "de_de": "6859a09b35536557546454c659d57c4ca08e54bc4192d0641b47cd1f1d62cdca",
+        "es_es": "acef1941d42ec4ed1a5860dda2cb423ebf793a66b109943338573c8d09597c1e"
+      },
+      "uses": [
+        {
+          "path": "src/main/java/de/quest/quest/special/FriendsQuestService.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/FriendsQuestPreview.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/ui/QuestArtwork.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
     }
   },
   "sources": {
@@ -79090,8 +80347,8 @@
       "note": "21 Oct 2026 .36 screenshot follow-up: inspected coordinated paper/footer/map rectangles and matching pointer/scissor geometry; expertise displays existing five reputation tracks/ranks/next unlocks. Path tour mirrors all eleven live builder IDs/items/ability/requirement keys. Local Trust navigation keeps gameplay packets blocked; preview economy costs and Caravan endpoints checked against production definitions. No live prices, permissions, quest or save mechanics changed."
     },
     "src/main/java/de/quest/commands/UiTestTourSteps.java": {
-      "sha256": "3f473b00c2f372db81eab9f48ad4232630481a1d35cd6478615a9376a53db571",
-      "note": "2026-10-23 temporary-test removal: traced command registration, special quest selection/hooks, guide payload/HUD/F8, building/archive access, market/story observations and normal unlocks. Removed runtime special privileges; saved opaque player namespaces remain unchanged. Only regular quest/map text is retained in DE/EN/ES."
+      "sha256": "89f8b4dd3e3545310218a6e1444f2ff45fe4ba3861751ea70790fb720839e384",
+      "note": "2026-10-25 Friends UI: reviewed existing Simon/Lutte/Marius dialogue, objectives and fixed/choice rewards against command/ready/turnIn. New EN/DE/ES labels keep personal address and explicit actions; 12 first admin tour pages use isolated existing quest prose. Server session checks preserve visit/inn/body/range/sight authority and reward escrow. Simon first reward remains exactly three native STRONG_SWIFTNESS potions (tier II, 1800 ticks). Full prose remains scrollable. Raphael information always uses the existing composition lore and a medieval harp image, with no quest/objectives/reward; alternating speech stays unchanged. Rejected stale actions increment revision and always acknowledge the view to release pending client controls."
     },
     "src/main/java/de/quest/commands/VillageNetworkCommands.java": {
       "sha256": "8999c26e2cd0c914b573e0648ac2beda64bd2f46cb33c6efe8ef4c1a816ab814",
@@ -79534,12 +80791,12 @@
       "note": "2026-10-12: Context-audit source snapshot; review affected texts whenever this source changes. This is not a whole-code approval."
     },
     "src/main/java/de/quest/network/Payloads.java": {
-      "sha256": "e2c397f5453ed9e5bcac9a8d2f3ec5e753c7a0f417e9b2083322f29839de4af5",
-      "note": "Confirmed live feedback58: chart lore split into localized short native ItemLore rows, coordinates separate with two placeholders; schema2 updates old charts, distinguishes next target/search exhausted/all built and removes last cross after3. TEMP three near targets preserve58 first signal and materials. Minimap join uses dedicated idempotent silent restore; access/dimension checks unchanged, manual toggle retains feedback. Read all affected runtime consumers and EN/DE/ES values."
+      "sha256": "173c73ab7016458507e3b66bd1bdf59504f4f4fb71d3eac5e11bfd09dd3a1295",
+      "note": "2026-10-25 Friends UI: reviewed existing Simon/Lutte/Marius dialogue, objectives and fixed/choice rewards against command/ready/turnIn. New EN/DE/ES labels keep personal address and explicit actions; 12 first admin tour pages use isolated existing quest prose. Server session checks preserve visit/inn/body/range/sight authority and reward escrow. Simon first reward remains exactly three native STRONG_SWIFTNESS potions (tier II, 1800 ticks). Full prose remains scrollable. Raphael information always uses the existing composition lore and a medieval harp image, with no quest/objectives/reward; alternating speech stays unchanged. Rejected stale actions increment revision and always acknowledge the view to release pending client controls."
     },
     "src/main/java/de/quest/network/QuestNetworking.java": {
-      "sha256": "d9ab6b9505ab90075f4be5d15e46942e28862cce5d20ebb41a9a19d8017fa03f",
-      "note": "2026-10-23 journal setup reviewed end-to-end: persistent per-player 2.6 mark also gates migrating players; per-world settings inherit original file values until explicitly changed, server rechecks owner/OP, snapshot and session. Clock sampled before/after change preserves IDs. Client saves only six presentation options retaining unknown/custom properties; tracker/minimap use existing unlocks. DE/EN/ES labels and wrapped complex-option/server-lock tooltips match real modes; no grants or progression changes."
+      "sha256": "ae7cbec6b82e2899606432fd1579afd1ee179faf05167bd2dc59c26fff5712c0",
+      "note": "2026-10-25 Friends UI: reviewed existing Simon/Lutte/Marius dialogue, objectives and fixed/choice rewards against command/ready/turnIn. New EN/DE/ES labels keep personal address and explicit actions; 12 first admin tour pages use isolated existing quest prose. Server session checks preserve visit/inn/body/range/sight authority and reward escrow. Simon first reward remains exactly three native STRONG_SWIFTNESS potions (tier II, 1800 ticks). Full prose remains scrollable. Raphael information always uses the existing composition lore and a medieval harp image, with no quest/objectives/reward; alternating speech stays unchanged. Rejected stale actions increment revision and always acknowledge the view to release pending client controls."
     },
     "src/main/java/de/quest/network/ReputationPayloads.java": {
       "sha256": "69c69f2b901a4e1d5afc07c0ae11cb1c2ccb2babbb64732a6e248ef07e78a45e",
@@ -79666,8 +80923,8 @@
       "note": "2026-10-23 quest calendar source/context review: opt-in server clock (1/7 advancing Overworld days), durable unchanged IDs on clock switches, same daily/weekly/bonus/party/offline/reward consumers; Pilgrim/economy/social real-time caps retain TimeUtil. Reset arguments now server Components (remaining Minecraft days or real-time duration), footer uses server line and periodic authoritative updates. DE in ... Minecraft-Tagen, EN in ... Minecraft days, ES en ... dias; no wall-clock estimate for game time. Native verification pending client project lock; this review is not gameplay approval."
     },
     "src/main/java/de/quest/quest/QuestBookHelper.java": {
-      "sha256": "050f79d323d36637cd60cb7e59582beaf405ee660bb02c9b74b5d2645138d05f",
-      "note": "Marius source/context review: 15 nighttime village monsters; 50 actual HP on one native village golem; explicit ready/prepare then next-night native raid omen I, same-raid 3 kills plus victory, retry without loss. Personal seal 60s night vision/20s glow24/12000 active-tick cooldown. No rejected-holiday collectible. Existing registry14/guest2/reward escrow and EN-DE-ES journal/questmaster/tracker quantities inspected. Guest arrivals use saved active inn/population after warmup, no terrain probes, personal per-visit high water and unnamed village/X/Z notice; physical spawning remains certified and loaded."
+      "sha256": "37b760645c56467dc7f609c0a73a58b1195f44b88e2fd2298e504a91ea23187a",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks."
     },
     "src/main/java/de/quest/quest/QuestCompletionMode.java": {
       "sha256": "63cfae06a1021e864f148d4c5edecf6ce80ebe864b7557652c3e2350c088cb42",
@@ -79942,8 +81199,8 @@
       "note": "2026-10-12: Context-audit source snapshot; review affected texts whenever this source changes. This is not a whole-code approval."
     },
     "src/main/java/de/quest/reward/RewardItems.java": {
-      "sha256": "6743623f48bb7bc174f8863bd3dda34d139205ccd971a4dfe99f7220c8d879d8",
-      "note": "2026-10-12: Context-audit source snapshot; review affected texts whenever this source changes. This is not a whole-code approval."
+      "sha256": "0a148c93623ec5f6c1d5ca1c2abd86f0631c1d059e851ff537fcb377de58b13b",
+      "note": "Reviewed fixed Friends geometry and native progress/reward components: bounded read-only snapshots, native potion/book/tool/name/owner data, existing 10:1 denominations, XP bars without bottle, clipped hover after transforms. Shared item factories preserve exact existing payout/escrow and Lutte exclusive frozen choices; session and save rules unchanged."
     },
     "src/main/java/de/quest/reward/RewardShopCatalog.java": {
       "sha256": "2c9a0be135694c89fe8f2bc99d1b5198db85f8b6e9e88a0e71404f25c4a2257f",
@@ -79954,8 +81211,8 @@
       "note": "Reviewed Simon/Lutte integration: Lutte three surface biomes, 3 coast areas separated >=512 blocks, 16-block radius, personal 4-part placement proofs and mutation invalidation, one initial 3/6/3 materials package and owner/generation map. Paid replacement ledger uses 3 paper+1 ink /2 MC days, from third +5 diamonds /14 days; old generations invalidated on order, no materials repeated. L3 acceptance AND hand-in require personal Silent Forge; one persistent prepared Netherite pickaxe Efficiency4/Unbreaking3 OR sword Sharpness4/Unbreaking3 choice via existing reward escrow. Simon visit roll tracks per-village monotonic visit token, preventing cross-inn rerolls. New DE/EN/ES humor and quantities reviewed in dialogue contexts."
     },
     "src/main/java/de/quest/reward/VanillaRewardService.java": {
-      "sha256": "dc661e1dc69a6f85f1c2d5213e444431b9df68f4b342089b28c5f591a22f9175",
-      "note": "26.3 ChunkPos record constructor uses explicit x/z chunk indices, preserving negative coordinates via arithmetic shift. Saved replacementReady predicate now used for actual collection. Restored existing reward quantity multiplication symbol after a detected local text-encoding conversion; no authored reward numbers changed. Guest-scoped two-tool escrow/restart verification behavior reviewed as documented."
+      "sha256": "c5845877f9b21f679d4f221fd9bdcc9825e3279ce6ac98e872d3ad17ee20a5c6",
+      "note": "Reviewed fixed Friends geometry and native progress/reward components: bounded read-only snapshots, native potion/book/tool/name/owner data, existing 10:1 denominations, XP bars without bottle, clipped hover after transforms. Shared item factories preserve exact existing payout/escrow and Lutte exclusive frozen choices; session and save rules unchanged."
     },
     "src/main/java/de/quest/shop/ShopOffer.java": {
       "sha256": "2190517121cb0d77f9d1d4b4819daf6c903e7307d2144978998fbabe16018800",
@@ -80086,8 +81343,8 @@
       "note": "2026-10-12: Context-audit source snapshot; review affected texts whenever this source changes. This is not a whole-code approval."
     },
     "src/main/java/de/quest/VillageQuest.java": {
-      "sha256": "8c733062bf786fcc966d46cf7ff50050d1c66dfd7f6608bc97a8866fa5242314",
-      "note": "World-life/balance source review: saved active councils8/s, inns16/s, direct known-route needs only, online mandate and no terrain reads; remote initiative credits bounded observed intervals with no restart/gap catch-up, crisis choice clock still safe-local. Shared optional reports max3 rows/6000 ticks,32 pending identities, persistent send spacing, existing preference relabelled World/caravan news EN-DE-ES; no money change. Ordinary route incident5min shared start gap with tutorial/story exceptions, immediate hazards preserved; same-incident attack warning deduped, compass reminder moved to action bar. WORLD_LIFE_BALANCE.md contains evidence and manual limits."
+      "sha256": "1647cdfb08c862f837ca19af56bf6b36577ee4b54c8d7f2d304e5dc8df199e7c",
+      "note": "2026-10-25: reviewed actual Friends reward construction, persistent per-player Speed II token/callback/legacy recognition, shared exact two-Ancient-Debris costs, Unbreaking III, green item names and EN/DE/ES usage/cooldown/transfer guidance. No owner requirement on token or tonics; Watch Seal ownership retained."
     },
     "src/client/java/de/quest/client/compat/ClientModCompat.java": {
       "sha256": "c4f73bd003ae2b4c150914d75a2865abfaf02b9d29b13c009d278e6b0ba9b764",
@@ -80102,16 +81359,16 @@
       "note": "2026-10-23 journal setup reviewed end-to-end: persistent per-player 2.6 mark also gates migrating players; per-world settings inherit original file values until explicitly changed, server rechecks owner/OP, snapshot and session. Clock sampled before/after change preserves IDs. Client saves only six presentation options retaining unknown/custom properties; tracker/minimap use existing unlocks. DE/EN/ES labels and wrapped complex-option/server-lock tooltips match real modes; no grants or progression changes."
     },
     "src/client/java/de/quest/client/hud/QuestTrackerHud.java": {
-      "sha256": "afa3270c29a75b51171608cb09e2cbde113ca36944f48aaa44bb265fe100bb66",
-      "note": "26.2 client signature adaptation inspected: native pipeline package, GLFW period/comma and left-button 0, submitModel null crumbling, equivalent quaternion pose rotations, attackArm/mainArm with attackTime=0 and WHACK held-item state. Released 2.6.0 layout/text/unlocks unchanged; visual acceptance NOT RUN."
+      "sha256": "1152e3002cfa924892286904912f258cba9b60ae3b588b2174c6de8d14d1595d",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks."
     },
     "src/client/java/de/quest/client/hud/TradeRouteMinimapHud.java": {
       "sha256": "5868ebf123c8cbd3632aa0789ce5fc90796710d0454b11897bdc9ca451eb4841",
       "note": "26.2 client signature adaptation inspected: native pipeline package, GLFW period/comma and left-button 0, submitModel null crumbling, equivalent quaternion pose rotations, attackArm/mainArm with attackTime=0 and WHACK held-item state. Released 2.6.0 layout/text/unlocks unchanged; visual acceptance NOT RUN."
     },
     "src/client/java/de/quest/client/network/ClientQuestNetworking.java": {
-      "sha256": "e15b3e28f30c57d697501b53b0a112077e11c667c97553dcd5d9cf8c48e18b66",
-      "note": "Confirmed live feedback58: chart lore split into localized short native ItemLore rows, coordinates separate with two placeholders; schema2 updates old charts, distinguishes next target/search exhausted/all built and removes last cross after3. TEMP three near targets preserve58 first signal and materials. Minimap join uses dedicated idempotent silent restore; access/dimension checks unchanged, manual toggle retains feedback. Read all affected runtime consumers and EN/DE/ES values."
+      "sha256": "98a1d95c8f65d33133036d60817424c80bd79006a63713750c829036b72545bf",
+      "note": "2026-10-25 Friends UI: reviewed existing Simon/Lutte/Marius dialogue, objectives and fixed/choice rewards against command/ready/turnIn. New EN/DE/ES labels keep personal address and explicit actions; 12 first admin tour pages use isolated existing quest prose. Server session checks preserve visit/inn/body/range/sight authority and reward escrow. Simon first reward remains exactly three native STRONG_SWIFTNESS potions (tier II, 1800 ticks). Full prose remains scrollable. Raphael information always uses the existing composition lore and a medieval harp image, with no quest/objectives/reward; alternating speech stays unchanged. Rejected stale actions increment revision and always acknowledge the view to release pending client controls."
     },
     "src/client/java/de/quest/client/render/CaravanMerchantEntityRenderer.java": {
       "sha256": "0856a291fa6980338b808077a19d47254027ac68cb54ce060019a56346ac7f40",
@@ -80174,16 +81431,16 @@
       "note": "2026-10-12: Context-audit source snapshot; review affected texts whenever this source changes. This is not a whole-code approval."
     },
     "src/client/java/de/quest/client/screen/JournalContentBuilder.java": {
-      "sha256": "fdfe4d85af1e698ccb1879cb9a7c831904bb3396251c022cf48b9e1f2f6b5e9e",
-      "note": "22.10.2026 .41 solo source/context review: same preview/production transform and input bounds; compact completed headings with retained shard explanation, server schedule and rounded h/m duration; actual Weekly/reward fixture IDs with no gameplay sends; incoming/outgoing deal status and active route label; four contact cards, tree, full-name tooltips, paged explanations; Council content/widget geometry, centered diagnosis/header, ivy-safe notice status and oak/paper controls. No reward amounts, inventories, market transaction rules, NPC identities or save contracts changed. EN/DE/ES meanings/placeholders compared in source context; native appearance remains manual."
+      "sha256": "e6557d6bc2caf9c843d402c04da6464933332fb837fa1c86b4a054bb3cc2022a",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks."
     },
     "src/client/java/de/quest/client/screen/JournalScreen.java": {
-      "sha256": "0417070abcae960092253d55a68d8476ceab94af0c1b96f8536aed8c0d2f019a",
-      "note": "Journal header settings now use the existing localized settings key as the top-left gold-frame gear tooltip. Render and input share SETTINGS_X/Y/SIZE with existing responsive mouse transform; unchanged server Open payload/canSend gate. Large top-right label removed so wallet remains unobstructed. No first-run or permission behavior changes."
+      "sha256": "9c8786e93d48ef61719bbe9144d54616904572261f32a560a6550904364a29b4",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks."
     },
     "src/client/java/de/quest/client/screen/JournalScreenData.java": {
-      "sha256": "aa4b5a96ffbd0a154dc11e13dfe5c07ef429ec73ccef21b3737d00bf08358f19",
-      "note": "2026-10-12: Context-audit source snapshot; review affected texts whenever this source changes. This is not a whole-code approval."
+      "sha256": "011f195464e44a0295a2358daf5893c9858e2e7ace98c4a7565be96ca513456b",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks."
     },
     "src/client/java/de/quest/client/screen/NoticeJourneyLayout.java": {
       "sha256": "fe34c3920fb81a2a92504eaa4b52786f1014bf19d61b772942ca9fac3abbb551",
@@ -80230,8 +81487,8 @@
       "note": "22.10.2026 .41 solo source/context review: same preview/production transform and input bounds; compact completed headings with retained shard explanation, server schedule and rounded h/m duration; actual Weekly/reward fixture IDs with no gameplay sends; incoming/outgoing deal status and active route label; four contact cards, tree, full-name tooltips, paged explanations; Council content/widget geometry, centered diagnosis/header, ivy-safe notice status and oak/paper controls. No reward amounts, inventories, market transaction rules, NPC identities or save contracts changed. EN/DE/ES meanings/placeholders compared in source context; native appearance remains manual."
     },
     "src/client/java/de/quest/client/screen/UiTestTourScreens.java": {
-      "sha256": "849658833e0accf54bc254788e7378b273e3ae8ccf85d439ea8ad936800db356",
-      "note": "2026-10-23 temporary-test removal: traced command registration, special quest selection/hooks, guide payload/HUD/F8, building/archive access, market/story observations and normal unlocks. Removed runtime special privileges; saved opaque player namespaces remain unchanged. Only regular quest/map text is retained in DE/EN/ES."
+      "sha256": "5c5fd0d16af47dd49c76f49ac9b172a7c8161ef6a55ddc9c564292521dbebced",
+      "note": "2026-10-25 Friends UI: reviewed existing Simon/Lutte/Marius dialogue, objectives and fixed/choice rewards against command/ready/turnIn. New EN/DE/ES labels keep personal address and explicit actions; 12 first admin tour pages use isolated existing quest prose. Server session checks preserve visit/inn/body/range/sight authority and reward escrow. Simon first reward remains exactly three native STRONG_SWIFTNESS potions (tier II, 1800 ticks). Full prose remains scrollable. Raphael information always uses the existing composition lore and a medieval harp image, with no quest/objectives/reward; alternating speech stays unchanged. Rejected stale actions increment revision and always acknowledge the view to release pending client controls."
     },
     "src/client/java/de/quest/client/screen/VanillaRewardScreen.java": {
       "sha256": "7d1137300afab6b5f906b613447e913cb9c62e4893e808504fa6dd68f96f66cf",
@@ -80450,8 +81707,8 @@
       "note": "NPC V2 reviewed: only explicitly generated crew names localized client-side; legacy/manual names and IDs retained. Four inn-only guests use private speech with no rewards/progress; 10% daily persisted draw, loaded-time duration, cooldown. Admin gallery requires op and empty loaded space; freeze/unfreeze and remaining platform explained EN/DE/ES. Guest given names and Raphael music line match latest user request."
     },
     "src/main/java/de/quest/kingdom/KingdomVillageService.java": {
-      "sha256": "543ece897c92a23c6fdd60959935f7c92670c9b069afbcd072b8bd64ca841801",
-      "note": "Marius source/context review: 15 nighttime village monsters; 50 actual HP on one native village golem; explicit ready/prepare then next-night native raid omen I, same-raid 3 kills plus victory, retry without loss. Personal seal 60s night vision/20s glow24/12000 active-tick cooldown. No rejected-holiday collectible. Existing registry14/guest2/reward escrow and EN-DE-ES journal/questmaster/tracker quantities inspected. Guest arrivals use saved active inn/population after warmup, no terrain probes, personal per-visit high water and unnamed village/X/Z notice; physical spawning remains certified and loaded."
+      "sha256": "e8dd7ff7ba387fa03adefcb528b327c97c8faf137f59275f764577b6208d10fc",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks."
     },
     "src/main/java/de/quest/caravan/KingdomRouteEndpoints.java": {
       "sha256": "92905d2ca9b9c98ccd45e89a1fe807c37fd844c21204199011f3f2a5718aaef8",
@@ -80498,8 +81755,8 @@
       "note": "Private Session bindet offizielle Anchor-ID/Revision aus letzter View; stale Move/Detach verweigert, unveränderte Views invalidieren nicht. Umbenennung nur am Rat; PendingFound prüft Freischaltung/Auswahl erneut und endet bei sicher ungültigem Bau. Alte Preview-Einträge invalidieren keinen neuen Anker; native Rotation/Mirror erhalten korrekte Front."
     },
     "src/main/java/de/quest/network/BuildingPayloads.java": {
-      "sha256": "b9da0f1651b8a8469075981b0ede11dbddbc8917639694319874317e56d84866",
-      "note": "r50: server projects retain per-player per-village confirmed role evidence; bounded recognition payload adds only missing roles for tooltip, no new progression. Real terrain refresh uses monotonic time and restarts after late disk reads, no unseen terrain inference."
+      "sha256": "d1f1836e7dceea2ee6ad1c0010cc70c5f29dd0083cc76b744e8c7186fe9aec5a",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks."
     },
     "src/main/java/de/quest/kingdom/BuildingWorkBudget.java": {
       "sha256": "ddf5a19a34c361be66d0c55173557d252f797123a3dba35e55e5b1f1d649c4b7",
@@ -80514,16 +81771,16 @@
       "note": "Anker-Registrierung und private serverautorisierte Checkliste geprüft: keine Inventare/NPC-Kopien; 256 Block-/12 Pathbudget, geladene Evidenz, Rechte und Storyflags. Neues UI DE/EN/ES mit räumlichen Anforderungen, 3/3-Gründung, neutraler UNKNOWN-Hilfe und begrenzter lokaler Markierung; Vanilla-Zutaten, Self-Drops und vier Blocknamen."
     },
     "src/main/java/de/quest/kingdom/KingdomBuildingService.java": {
-      "sha256": "ba64d5915bbd592c6e3ba7a0c37ede07458f5f3eaffb9fef603430dd227e52cd",
-      "note": "2026-10-23 temporary-test removal: traced command registration, special quest selection/hooks, guide payload/HUD/F8, building/archive access, market/story observations and normal unlocks. Removed runtime special privileges; saved opaque player namespaces remain unchanged. Only regular quest/map text is retained in DE/EN/ES."
+      "sha256": "8fe82a89f8b556f4d686db1ee8889e6ca2d91084749c234c9d4bf8127feaf0a6",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks."
     },
     "src/main/java/de/quest/mixin/KingdomBuildingDirtyMixin.java": {
       "sha256": "ff4134893875b042705d54d70f9d0df3d78880c469e450ef103731ee91e870d8",
       "note": "2026-10-24 final solo safety review: the successful native setBlock callback uses before/after identities to mark every normal Notice Post removal terminal, including explosion/drop paths. This prevents the newly added missing-root recovery from repeatedly granting dropped boards. Placement while PENDING and rollback never become terminal; deliberate removal and generated-state identity checks retained. No chunk/block reads added to the existing dirty mixin; saved history lookup only for an actual removed Notice Post."
     },
     "src/client/java/de/quest/client/screen/BuildingScreen.java": {
-      "sha256": "37a2b8c0c238a34b1fedb35a12d09dce9e389940b86ec9873fbd5f22e9069527",
-      "note": "2026-10-23 temporary-test removal: traced command registration, special quest selection/hooks, guide payload/HUD/F8, building/archive access, market/story observations and normal unlocks. Removed runtime special privileges; saved opaque player namespaces remain unchanged. Only regular quest/map text is retained in DE/EN/ES. Reviewed 2026-10-23: whitespace-only removal of eight spaces on an empty line; screen text, behavior and layout unchanged."
+      "sha256": "363b3d89bb455251830012dc7b103de19a16aa5fe15125ad8324368d156a4593",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks."
     },
     "src/main/resources/data/village-quest/recipe/council_seat.json": {
       "sha256": "115b892fff12585936864d67d164e041a0e678288d8623baf796f712d2f1bc3c",
@@ -80994,8 +82251,8 @@
       "note": "19.10 approved bugreport: inspected native loaded/unchanged continuation versus fresh40t transactional gates, sleeping/speech pacing, private expiring diagnosis sessions, preview-only admin story access, genuine saved journal counters, existing UI actions and complete detail paths; reviewed short DE/EN/ES text, coin amounts and indexed percentage placeholders."
     },
     "src/client/java/de/quest/client/ui/QuestArtwork.java": {
-      "sha256": "85af5f4e9fa0b4d98c7c7c7049dc0f144e733f492680f2b91645a8a727a4833a",
-      "note": "21 Oct .36 annotated screenshots: explicit wood/paper wallet surfaces keep every balance, counts and zero silver; market only optical icon and aligned demand rows. Verified content-bound metadata excludes pale asset rows on large/small scenes, shared frame/crop used by actual notice and journey paths. New dispatch art affects no rules. Allied end-state benefit deduplicated; charge singular for exactly one in EN/DE/ES with original prices and costs; structured objective icons keep actual row identity and amounts. Quest description image slightly shorter, scroll measurement updated consistently."
+      "sha256": "53fd080a411f5f1172b3d5e3bc67edc40fe9fbfdd1b10d0a443cf93bca2988af",
+      "note": "2026-10-25 Screenshot refinement: only FriendsQuestScreen/QuestArtwork presentation changed. Measured compact height, reserved hint/footer clear of frame/lantern, bounded actions with display-only bracket removal, quiet gold section rules, larger items/body. Native reward icons use unchanged localized reward quantities; Lutte tools remain one alternative-choice row. Marius EN/DE/ES reward labels match existing12/20Silvermark,2/3XPbar/seal mechanics and remove duplicate heading. Coastal signal/golem repair art now matches actual tasks. No server, quest, reward or save logic changed."
     },
     "src/client/java/de/quest/client/ui/JournalV3Visuals.java": {
       "sha256": "a0f2d7c95550fc902a8695c32041056032ccd2a736894699d0b8fbd6c8171a1f",
@@ -81030,12 +82287,12 @@
       "note": "NPC V2 reviewed: only explicitly generated crew names localized client-side; legacy/manual names and IDs retained. Four inn-only guests use private speech with no rewards/progress; 10% daily persisted draw, loaded-time duration, cooldown. Admin gallery requires op and empty loaded space; freeze/unfreeze and remaining platform explained EN/DE/ES. Guest given names and Raphael music line match latest user request."
     },
     "src/main/java/de/quest/kingdom/KingdomTavernGuests.java": {
-      "sha256": "477c9f44800b4d0560adcd64995a12fb411910d4802af1b8e380236ef05f8259",
-      "note": "Friends quest integration reviewed against DESIGN and USER_PROPOSAL: native walk baselines, canonical resident contacts, personal persistent stages, actual inn guest required for acceptance/turn-in; 8 of each plant consumed; fixed 10/30/25 silver, 1.5/4/4 XP bars; S3 three 20-minute weather tonics. Lutte authored texts retain 3 biomes/3 coastal signals/Silent Forge gate, implementation still in progress. No party sharing, daily reset or questmaster hand-in. Weather item is separate, Overworld-only and retains 24000 active ticks across reload."
+      "sha256": "170500f4954aa744691e03697c1894ec9aafd375b0d9557fc5e596eeb6b1a0ca",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks."
     },
     "src/main/java/de/quest/kingdom/KingdomTavernGuestService.java": {
-      "sha256": "1a312e3eba15f5ef0ceca60627873e8161bb66bfbbd0ca9211a1c2d329e8e11e",
-      "note": "External audit56 F-01-F-05 reviewed against source: active Lutte signal block/chunk index rebuilt per SavedData and primed at startup, offline mutation and restart proof retained; changed-only placement refresh. Guest source reconstructs current pending arrival after relog, persisted delivered high-water only after visible-row send acknowledgement, respects preference and max3/5min. Friends Wiki/Manual updated, DE Marius singular address and village-watch-seal name corrected; quantities/EN-ES placeholders unchanged."
+      "sha256": "05eda3c1a693b154e0195840f701ebbd7b1f199617f20349bbf29d0abd05b5e2",
+      "note": "2026-10-25 Friends UI: reviewed existing Simon/Lutte/Marius dialogue, objectives and fixed/choice rewards against command/ready/turnIn. New EN/DE/ES labels keep personal address and explicit actions; 12 first admin tour pages use isolated existing quest prose. Server session checks preserve visit/inn/body/range/sight authority and reward escrow. Simon first reward remains exactly three native STRONG_SWIFTNESS potions (tier II, 1800 ticks). Full prose remains scrollable. Raphael information always uses the existing composition lore and a medieval harp image, with no quest/objectives/reward; alternating speech stays unchanged. Rejected stale actions increment revision and always acknowledge the view to release pending client controls."
     },
     "src/main/java/de/quest/kingdom/NpcSkinCatalog.java": {
       "sha256": "53068fec800d80816b08fba6477281f2cd9dd7d81e22b00e73911de4379dbc3b",
@@ -81070,16 +82327,16 @@
       "note": "2026-10-23 r55: retained duplicate-blur crash guard. Reviewed server View issued by QuestSetupService/open, session Save and normal minimap unlocks: personal minimap now takes next.minimap like tracker, while notification/sound/speech values remain local. Regression covers conflicting defaults, unchanged Save payload, server update and reconnected View; labels and translations unchanged."
     },
     "src/main/java/de/quest/content/item/WeatherTonicItem.java": {
-      "sha256": "a54f798565b3a83c7f2c507f22e5fcc62d1f7bbc4834a4e9cbaf683491434854",
-      "note": "Removed accepted private NPC test command and its item observers; no executable temporary grant/skip/raid path remains. Retired known-step saved test ledgers restore only original friends.* backup during complete QuestState decode (before runtime indexes), preserve currency/rewards/world effects/unrelated keys and clear their test marker once. Unknown markers preserved. Normal NPC rewards/unlocks and item behavior unchanged."
+      "sha256": "ca244335673a62e2d82e2531a98cc4a142804d7e5ca462dd906182474c9e2f44",
+      "note": "2026-10-25: reviewed actual Friends reward construction, persistent per-player Speed II token/callback/legacy recognition, shared exact two-Ancient-Debris costs, Unbreaking III, green item names and EN/DE/ES usage/cooldown/transfer guidance. No owner requirement on token or tonics; Watch Seal ownership retained."
     },
     "src/main/java/de/quest/quest/special/FriendsQuestProgress.java": {
       "sha256": "a203b9e50750650c287f71276c0cb460b1bb07d97ae5c72bad5cce0c8c7b55e0",
       "note": "Full-suite regression exposed unnecessary biome read in unrelated resident dialogue: added active personal S3 guard before any biome access, preserving pre-existing NPC speech/story paths. Village evidence now retains first3 identities plus a distinct-biome fourth only if needed; arbitrary same-biome contacts cannot fill a cap and permanently block S3. Costs, authored reward quantities and guest validation unchanged."
     },
     "src/main/java/de/quest/quest/special/FriendsQuestService.java": {
-      "sha256": "6afdae8450a5816abd4d389a13eb4991e79cb38c210be81a7478f7204f233efb",
-      "note": "External audit56 F-01-F-05 reviewed against source: active Lutte signal block/chunk index rebuilt per SavedData and primed at startup, offline mutation and restart proof retained; changed-only placement refresh. Guest source reconstructs current pending arrival after relog, persisted delivered high-water only after visible-row send acknowledgement, respects preference and max3/5min. Friends Wiki/Manual updated, DE Marius singular address and village-watch-seal name corrected; quantities/EN-ES placeholders unchanged."
+      "sha256": "e259c5cdddfe6cdc93727c4054af6047707dddbf4f881fa069e5df1ec06d01aa",
+      "note": "2026-10-25: reviewed actual Friends reward construction, persistent per-player Speed II token/callback/legacy recognition, shared exact two-Ancient-Debris costs, Unbreaking III, green item names and EN/DE/ES usage/cooldown/transfer guidance. No owner requirement on token or tonics; Watch Seal ownership retained."
     },
     "src/main/java/de/quest/quest/special/WeatherTonicState.java": {
       "sha256": "6b7686a35883565fa89559acde42e4e6478552c838b0a22b12c2ec88c7ffafc4",
@@ -81090,8 +82347,8 @@
       "note": "Live JVM5412 thread dump confirms CHUNK_LOAD -> observeLoaded -> complete -> Level.getBlockState -> ServerChunkCache.getChunk waiting on same unfinished FULL future. Event now reads only four states of its delivered LevelChunk per indexed signal column. No world reads, neighbor chunk requests or player refresh in callback; persisted certified flag plus placement bits still required; broken column revokes runtime proof and saved certificate. Normal quest, costs, text and hand-in unchanged."
     },
     "src/main/java/de/quest/content/item/VillageWatchSealItem.java": {
-      "sha256": "0576d2cd649608077408fdad87c042ef65ec9ec85a231a227d9e80dbb910550e",
-      "note": "Marius source/context review: 15 nighttime village monsters; 50 actual HP on one native village golem; explicit ready/prepare then next-night native raid omen I, same-raid 3 kills plus victory, retry without loss. Personal seal 60s night vision/20s glow24/12000 active-tick cooldown. No rejected-holiday collectible. Existing registry14/guest2/reward escrow and EN-DE-ES journal/questmaster/tracker quantities inspected. Guest arrivals use saved active inn/population after warmup, no terrain probes, personal per-visit high water and unnamed village/X/Z notice; physical spawning remains certified and loaded."
+      "sha256": "024b1851ca1d5c2c0603e0e423eab734817b13cf7236ec99a30a6feb9e9100e7",
+      "note": "2026-10-25: reviewed actual Friends reward construction, persistent per-player Speed II token/callback/legacy recognition, shared exact two-Ancient-Debris costs, Unbreaking III, green item names and EN/DE/ES usage/cooldown/transfer guidance. No owner requirement on token or tonics; Watch Seal ownership retained."
     },
     "src/main/java/de/quest/mixin/IronGolemRepairMixin.java": {
       "sha256": "49d70ea38740e206aa4ad9f4dcffee1b8d5d9cc5bd154a5391668d9d1205fef4",
@@ -81110,8 +82367,8 @@
       "note": "Reviewed61: native drink commits only at completion with one escrow bottle; 50 actual HP across any golems preserves legacy progress; owner-earned seal anywhere with 2400/1200tick effects,24block radius,12000tick personal recharge and actual min:sec. Short EN/DE/ES item lines and quest prose checked against these paths."
     },
     "src/main/java/de/quest/quest/special/MariusQuestService.java": {
-      "sha256": "0c7636b3b7134f923e8e3d8f70188ed449ed8cef479b09cc8d5d369cef8b7534",
-      "note": "Removed accepted private NPC test command and its item observers; no executable temporary grant/skip/raid path remains. Retired known-step saved test ledgers restore only original friends.* backup during complete QuestState decode (before runtime indexes), preserve currency/rewards/world effects/unrelated keys and clear their test marker once. Unknown markers preserved. Normal NPC rewards/unlocks and item behavior unchanged."
+      "sha256": "f2905cb75026ebfef8d49928c8aa25ddeaa0f57aa42200d9275414c46bc163ee",
+      "note": "Reviewed fixed Friends geometry and native progress/reward components: bounded read-only snapshots, native potion/book/tool/name/owner data, existing 10:1 denominations, XP bars without bottle, clipped hover after transforms. Shared item factories preserve exact existing payout/escrow and Lutte exclusive frozen choices; session and save rules unchanged."
     },
     "src/main/java/de/quest/quest/WorldNewsService.java": {
       "sha256": "6f0834128dd8fd9abbbbc824ce028aa773cab99d9d0901abed663605878141ae",
@@ -81136,6 +82393,38 @@
     "src/main/java/de/quest/village/GuildNoticePostSite.java": {
       "sha256": "4b3114a52603e764f65347bfdf66109afe421cd2c2d56886a32dac33be0011f5",
       "note": "2026-10-24 solo source/context review for bug report 2.6: LivingKingdomsStoryArc chapters and KingdomStoryProgress/Recognition checked against actual unlocks, staff life policy, assigned beds/jobs and TradeGuildService contract commands/arrival; immersive quest voice with detailed building/contract help only where needed. EN/DE/ES meanings aligned; Spanish physical chair Silla del consejo checked against RAE silla/asiento/sede. Four recipes use actual minecraft:planks tag; distinct groups preserve category/progression IDs. Baby contacts return before state/dialogue access. BASIC diagnostic fallback retains roof/room separation. Loaded-only 3x2 compact Notice Post validates support/access/entities, preserves containers/buildings, clears authorized natural tree obstacles, recovers pending/missing roots without duplicating generated or deliberately removed posts. No reward/economy mutation changes; contract help is display-only."
+    },
+    "src/client/java/de/quest/client/config/QuestTrackerFocus.java": {
+      "sha256": "81b2f1ba99542ca52f05452610dac28d698c1c0aa575194b59f8188c088abadb",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks."
+    },
+    "src/main/java/de/quest/kingdom/KingdomStoryGuidance.java": {
+      "sha256": "060cff387579b6d7254e8fe536fae57d17e1c48977e3a0f5cafca702bac9a007",
+      "note": "2026-10-25: complete 2.6.2 comfort port from qualified26.3; personal world/player pins, tracker paging, Journal preferred action, actual five chapter next steps and saved inn opening-time text. Same23 EN/DE/ES keys; no requirements/rewards/market/clock/save-schema changes. Kept native26.2 GLFW key registration and unchanged valid Wayshrine loot. Ported source tests and native packet checks."
+    },
+    "src/main/java/de/quest/network/FriendsQuestPayloads.java": {
+      "sha256": "8422d4ae255e524f5b6f4d1a9d06bc816820b699e3b92c8f8633c70a1b7452c5",
+      "note": "Qualified outer item-id helper; bounded native stack codecs preserve component snapshots and semantic equality."
+    },
+    "src/main/java/de/quest/quest/special/FriendsQuestUiService.java": {
+      "sha256": "d0bc930b41fcc739d3ad50f1ff1a17095ab7908bdfe0f4f7f05cd4cace342a1f",
+      "note": "2026-10-25: reviewed actual Friends reward construction, persistent per-player Speed II token/callback/legacy recognition, shared exact two-Ancient-Debris costs, Unbreaking III, green item names and EN/DE/ES usage/cooldown/transfer guidance. No owner requirement on token or tonics; Watch Seal ownership retained."
+    },
+    "src/client/java/de/quest/client/screen/FriendsQuestScreen.java": {
+      "sha256": "4214a2011835712b3e92d1351de782dcc3da389c6a340211500148bd59b05e3c",
+      "note": "Reviewed fixed geometry and clipped native hover routing; reward cards use actual components, 10:1 denominations and XP with selected-language decimal formatting (EN 1.5, DE/ES 1,5). No payout or choice changes."
+    },
+    "src/client/java/de/quest/client/screen/FriendsQuestPreview.java": {
+      "sha256": "8fceedb0da35ce534d9b3044be8955b33a22f51bc4826c24723ff429cde19862",
+      "note": "Reviewed fixed Friends geometry and native progress/reward components: bounded read-only snapshots, native potion/book/tool/name/owner data, existing 10:1 denominations, XP bars without bottle, clipped hover after transforms. Shared item factories preserve exact existing payout/escrow and Lutte exclusive frozen choices; session and save rules unchanged."
+    },
+    "src/main/java/de/quest/quest/special/FriendsQuestRewards.java": {
+      "sha256": "cc8a26840be38dce06c6fbfe2ee4fb762bffcd3411dc91edc334d7ba10708523",
+      "note": "2026-10-25: reviewed actual Friends reward construction, persistent per-player Speed II token/callback/legacy recognition, shared exact two-Ancient-Debris costs, Unbreaking III, green item names and EN/DE/ES usage/cooldown/transfer guidance. No owner requirement on token or tonics; Watch Seal ownership retained."
+    },
+    "src/main/java/de/quest/quest/special/WayfarersTokenService.java": {
+      "sha256": "125afbdf3b631b00689cba672b2dddea27dd2c752b5a82ef28857478a4bcd702",
+      "note": "Native 26.3 MobEffects.SPEED verified with pinned javap; amplifier 1 (Speed II), 600 ticks, 6000 tick per-player saved cooldown. Same valid native field on 26.2; transferable legacy-compatible named feather."
     }
   }
 }

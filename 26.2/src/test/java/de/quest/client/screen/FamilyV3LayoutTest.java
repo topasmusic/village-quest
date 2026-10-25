@@ -31,7 +31,7 @@ final class FamilyV3LayoutTest {
             var font=mock(Font.class);when(font.width(anyString())).thenAnswer(a->((String)a.getArgument(0)).length()*6);
             var g=mock(GuiGraphics.class);when(g.pose()).thenReturn(new Matrix3x2fStack(12));
             for(int index=0;index<3;index++) {
-                var screen=(MarketScreen)UiTestTourScreens.create(UiTestTourSteps.ALL.get(index));screen.width=800;screen.height=500;
+                var screen=(MarketScreen)UiTestTourScreens.create(UiTestTourSteps.ALL.stream().filter(step->step.family().equals("market")).toList().get(index));screen.width=800;screen.height=500;
                 var f=Screen.class.getDeclaredField("font");f.setAccessible(true);f.set(screen,font);
                 theme.clearInvocations();art.clearInvocations();screen.render(g,0,0,0);
                 int left=(800-number(MarketScreen.class,"W"))/2,top=(500-number(MarketScreen.class,"H"))/2;

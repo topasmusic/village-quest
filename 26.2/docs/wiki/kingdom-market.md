@@ -136,6 +136,14 @@ this clock; an invalidated or newly registered replacement inn starts again.
 Traveling market traders and the four special guests appear only after it ends.
 Ordinary village staff and already saved identities are preserved.
 
+In **2.6.2-unreleased.1**, the official inn's anchor shows the recorded minutes
+and remaining loaded operating time. Hover that status for pause/reset conditions.
+Village reports show the same saved time with an explicit last-recorded label;
+opening a remote report does not advance it. An unknown or unloaded observation
+pauses the clock. Confirmed invalid operation or a replacement inn restarts it.
+Sleeping and offline time do not count. Fulfilling the opening period does not
+guarantee a trader or special guest immediately; normal visit conditions remain.
+
 Lutte, Simon, Marius and Raphael occasionally visit populated player-managed
 villages with a valid inn and a nearby managing player. Each eligible Minecraft
 day has one saved 10% draw for the village; extra inns, joins and reloads cannot

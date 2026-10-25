@@ -2,7 +2,14 @@
 
 Village Quest uses a single-active-line development policy.
 
-## 2.6.1 current release
+## 2.6.2 current release
+
+`Village Quest 2.6.2 — Living Kingdoms` is released for Minecraft `26.3` and
+`26.2`, with illustrated Friends quests, tracker pins, village-story guidance,
+updated optional quest rewards and the Minecraft 26.3 world-loading fix.
+Both lines retain native APIs and dependencies; older supported lines remain unchanged.
+
+## 2.6.1 release
 
 `Village Quest 2.6.1 — Living Kingdoms` is released for Minecraft `26.3` and
 `26.2` with matching mod content and target-native APIs/dependencies. The 26.2

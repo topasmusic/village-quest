@@ -47,7 +47,7 @@ world options; everyone can set their own tracker, minimap, news, sounds and bub
 [Configuration](configuration.md).
 
 **Which versions have Living Kingdoms?** Minecraft 26.2 and 26.3 share the
-2.6.1 content release with native APIs. Other versions retain their published
+2.6.2 content release with native APIs. Other versions retain their published
 releases and may receive scoped maintenance.
 [Support policy](../../../VERSION_SUPPORT.md).
 

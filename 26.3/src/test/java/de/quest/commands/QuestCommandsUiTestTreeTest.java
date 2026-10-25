@@ -46,8 +46,10 @@ final class QuestCommandsUiTestTreeTest {
         assertTrue(command.getChildren().isEmpty());
     }
     @Test void tourCoversEveryFrameConsumerAndNavigationNeverLeavesTheCatalog() {
-        assertEquals(Set.of("market", "journal", "questmaster", "trust", "pilgrim", "prosperity", "noticeboard", "noticejourney", "dispatch", "caravan", "wayshrine", "routes", "guildpath", "building", "villagecheck", "reward", "adminjournal"),
+        assertEquals(Set.of("friends", "market", "journal", "questmaster", "trust", "pilgrim", "prosperity", "noticeboard", "noticejourney", "dispatch", "caravan", "wayshrine", "routes", "guildpath", "building", "villagecheck", "reward", "adminjournal"),
                 UiTestTourSteps.ALL.stream().map(UiTestTourSteps.Step::family).collect(Collectors.toSet()));
+        assertTrue(UiTestTourSteps.ALL.subList(0,12).stream().allMatch(s->s.family().equals("friends")),"All new Friends windows must start the admin tour");
+        assertEquals("simon_offer",UiTestTourSteps.ALL.getFirst().state());
         assertEquals(UiTestTourSteps.ALL.size(), UiTestTourSteps.ALL.stream().distinct().count());
         assertEquals(0, UiTestTourSteps.move(0, -1));
         assertEquals(UiTestTourSteps.ALL.size() - 1, UiTestTourSteps.move(UiTestTourSteps.ALL.size() - 1, 1));
