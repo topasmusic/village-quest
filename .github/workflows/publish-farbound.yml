@@ -1,0 +1,86 @@
+name: Publish Farbound using protected Topas platform credentials
+run-name: Farbound ${{ inputs.mode }} ${{ inputs.minecraft }}
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        type: choice
+        options: [inspect, publish]
+        default: inspect
+      minecraft:
+        type: choice
+        options: ['26.2', '26.3']
+        default: '26.3'
+      modrinth_id:
+        type: string
+        default: ''
+      sha256:
+        type: string
+        default: ''
+permissions:
+  contents: read
+concurrency:
+  group: farbound-1.0.2-${{ inputs.minecraft }}
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Identify owned Farbound project
+        if: inputs.mode == 'inspect'
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          import os,json,urllib.request
+          def get(url,headers):
+              with urllib.request.urlopen(urllib.request.Request(url,headers=headers),timeout=30) as r:return json.load(r)
+          h={'Authorization':os.environ['MODRINTH_TOKEN'],'User-Agent':'topasmusic/Farbound-publisher'}
+          u=get('https://api.modrinth.com/v2/user',h)
+          if u['username'].lower()!='topasmusic':raise SystemExit('Unexpected account')
+          p=get('https://api.modrinth.com/v2/user/'+u['id']+'/projects',h)
+          print(json.dumps([{k:x.get(k) for k in ['id','slug','title','project_type','status']} for x in p if x['title'].lower()=='farbound']))
+          v=get('https://minecraft.curseforge.com/api/game/versions',{'X-Api-Token':os.environ['CURSEFORGE_TOKEN']})
+          print('CurseForge authenticated; versions:',json.dumps([x for x in v if x['name'] in ['26.2','26.3']]))
+          PY
+      - name: Verify exact Farbound release
+        if: inputs.mode == 'publish'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MC: ${{ inputs.minecraft }}
+          SHA256: ${{ inputs.sha256 }}
+          MODRINTH_ID: ${{ inputs.modrinth_id }}
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          [[ "$MC" == '26.2' || "$MC" == '26.3' ]]
+          [[ "$SHA256" =~ ^[a-fA-F0-9]{64}$ ]]
+          [[ "$MODRINTH_ID" =~ ^[A-Za-z0-9]{8}$ ]]
+          curl --fail --silent -H "Authorization: $MODRINTH_TOKEN" "https://api.modrinth.com/v2/project/$MODRINTH_ID" | jq -e '.title == "Farbound" and .project_type == "mod"'
+          mkdir dist
+          gh api "repos/topasmusic/Farbound/releases/tags/v1.0.2-mc$MC" > dist/release.json
+          jq -e '.draft == false and .prerelease == false' dist/release.json
+          gh release download "v1.0.2-mc$MC" --repo topasmusic/Farbound --pattern "farbound-1.0.2-mc$MC.jar" --dir dist
+          printf '%s  %s\n' "$SHA256" "dist/farbound-1.0.2-mc$MC.jar" | sha256sum -c -
+          unzip -p "dist/farbound-1.0.2-mc$MC.jar" fabric.mod.json | jq -e --arg mc "$MC" '.id == "farbound" and .version == "1.0.2" and .depends.minecraft == ("~"+$mc)'
+          jq -r '.body' dist/release.json > dist/changelog.md
+      - name: Publish to existing Farbound projects
+        if: inputs.mode == 'publish'
+        uses: Kira-NT/mc-publish@52307b03863581dec6b652b83e597aec02ebb075
+        with:
+          files: dist/farbound-1.0.2-mc${{ inputs.minecraft }}.jar
+          name: Farbound 1.0.2
+          version: 1.0.2
+          curseforge-name: farbound-1.0.2-mc${{ inputs.minecraft }}.jar
+          version-type: release
+          changelog-file: dist/changelog.md
+          loaders: fabric
+          environment: client | server
+          game-versions: ${{ inputs.minecraft }}
+          game-version-filter: none
+          dependencies: fabric-api(required){modrinth:P7dR8mSH}{curseforge:306612}
+          modrinth-id: ${{ inputs.modrinth_id }}
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          curseforge-id: '1759592'
+          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
