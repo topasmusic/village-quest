@@ -328,6 +328,8 @@ public final class ApiaristSmokerQuestService {
     }
 
     private static void showProgress(ServerLevel world, ServerPlayer player, PlayerQuestData data) {
+        player.sendSystemMessage(Component.translatable("quest.village-quest.special.apiarist_smoker.offer.1"),false);
+        player.sendSystemMessage(Component.translatable("quest.village-quest.special.apiarist_smoker.offer.2"),false);
         player.sendSystemMessage(Texts.dailyTitle(title(), ChatFormatting.GREEN), false);
         for (Component line : progressLines(data, player)) {
             player.sendSystemMessage(line, false);
@@ -339,15 +341,19 @@ public final class ApiaristSmokerQuestService {
         Component comb = Component.translatable("quest.village-quest.special.apiarist_smoker.progress.comb", data.getApiaristSmokerCombProgress(), COMB_TARGET).withStyle(ChatFormatting.GRAY);
         Component bees = Component.translatable("quest.village-quest.special.apiarist_smoker.progress.bees", data.getApiaristSmokerBeeBreedProgress(), BEE_BREED_TARGET).withStyle(ChatFormatting.GRAY);
         Component honeyBlocks = Component.translatable("quest.village-quest.special.apiarist_smoker.progress.honey_blocks", data.getApiaristSmokerHoneyBlockProgress(), HONEY_BLOCK_TARGET).withStyle(ChatFormatting.GRAY);
-        Component blocked = player == null ? null : turnInBlockedMessage(data, player);
+        Component blocked = player == null ? null : turnInBlockedMessage(data, player, true);
         return blocked == null ? List.of(honey, comb, bees, honeyBlocks) : List.of(honey, comb, bees, honeyBlocks, blocked);
     }
 
     private static Component turnInBlockedMessage(PlayerQuestData data, ServerPlayer player) {
+        return turnInBlockedMessage(data, player, false);
+    }
+
+    private static Component turnInBlockedMessage(PlayerQuestData data, ServerPlayer player, boolean allRequirements) {
         if (player == null || !isComplete(data) || hasTurnInItems(player)) {
             return null;
         }
-        return Texts.turnInMissing(
+        return Texts.turnInMissing(allRequirements,
                 Items.HONEY_BOTTLE.getDefaultInstance().getHoverName(),
                 DailyQuestService.countInventoryItem(player, Items.HONEY_BOTTLE),
                 HONEY_DELIVERY_TARGET,

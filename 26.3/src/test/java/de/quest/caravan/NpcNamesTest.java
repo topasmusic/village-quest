@@ -42,4 +42,17 @@ final class NpcNamesTest {
         assertEquals(32,NpcNames.FIRST.stream().distinct().count()); assertEquals(32,NpcNames.SURNAMES.stream().distinct().count());
         for(var guest:java.util.List.of("Lutte","Simon","Marius","Raphael")) assertFalse(NpcNames.FIRST.contains(guest));
     }
+    @Test void ambientPoolsBindThreeIndividualHeadsToNamesWithoutChangingOldRollPools() {
+        var ids=new java.util.HashSet<String>();var names=new java.util.HashSet<String>();
+        for(var pool:java.util.List.of(NpcNames.WANDERERS,NpcNames.NIGHTRUNNERS)) {
+            assertEquals(3,pool.size());assertEquals(1,pool.stream().filter(NpcNames.AmbientProfile::female).count());
+            for(var profile:pool) {
+                assertTrue(ids.add(profile.id()));assertTrue(names.add(profile.first()));
+                assertFalse(NpcNames.FIRST.contains(profile.first()));
+                assertEquals("@vq2:"+profile.first()+":"+profile.surname(),NpcNames.generated(profile.first()+" "+profile.surname()));
+                assertTrue(NpcNames.SURNAMES.contains(profile.surname()));
+                assertEquals(profile.first()+" "+profile.surname(),NpcNames.component(profile.first()+" "+profile.surname()).getString(),"Literal names must never be adopted by spelling");
+            }
+        }
+    }
 }

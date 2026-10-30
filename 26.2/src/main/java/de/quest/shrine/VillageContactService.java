@@ -20,6 +20,25 @@ public final class VillageContactService {
 
     private VillageContactService() {}
 
+    /** Resolve existing canonical history before considering a newly observed contact. */
+    static ContactResult resolve(ServerLevel world, UUID playerId,
+                                 ShadowsTradeRoadEncounterService.VillageMarker marker) {
+        var state = LivingKingdomsState.get(world.getServer());
+        var known = state.byLegacy(new VillageKey(VillageBondService.dimensionKey(world),
+                marker.centerX(), marker.centerZ()));
+        PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(playerId);
+        if (known.isPresent()) {
+            for (int i = 0; i < VillageBondService.historicalVillageCount(data); i++) {
+                if (known.orElseThrow().id().toString().equals(data.getTradeRouteString(
+                        VillageBondService.villageKey(i, "canonical_id")))) {
+                    VillageContact existing = read(data, i);
+                    if (existing != null) return new ContactResult(existing, false);
+                }
+            }
+        }
+        return establish(world, playerId, marker);
+    }
+
     public static ContactResult establish(ServerLevel world, UUID playerId,
                                           ShadowsTradeRoadEncounterService.VillageMarker marker) {
         if (world == null || playerId == null || marker == null) {

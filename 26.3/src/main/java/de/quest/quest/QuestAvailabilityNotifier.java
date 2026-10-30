@@ -97,25 +97,31 @@ public final class QuestAvailabilityNotifier {
 
     private static boolean notifyStory(ServerLevel world, ServerPlayer player, PlayerQuestData data) {
         if (!QuestMasterProgressionService.isStoryCategoryUnlocked(world, player.getUUID())
-                || StoryQuestService.activeArcType(world, player.getUUID()) != null) {
-            return false;
-        }
+                || !data.storyLanesWritable()) return false;
+        boolean changed = false;
+        if (StoryQuestService.activeArcType(world, player.getUUID()) == null)
+            changed = rememberStoryOffer(world, player, data,
+                    StoryQuestService.availableArcType(world, player.getUUID()), false);
+        var kingdom = StoryArcType.LIVING_KINGDOMS;
+        var arc = StoryQuestService.definition(kingdom);
+        if (!StoryQuestService.isActive(world, player.getUUID(), kingdom)
+                && !StoryQuestService.isCompleted(world, player.getUUID(), kingdom)
+                && arc != null && arc.isUnlocked(world, player.getUUID()))
+            changed |= rememberStoryOffer(world, player, data, kingdom, true);
+        return changed;
+    }
 
-        StoryArcType story = StoryQuestService.availableArcType(world, player.getUUID());
-        if (story == null) {
-            return false;
-        }
+    private static boolean rememberStoryOffer(ServerLevel world, ServerPlayer player, PlayerQuestData data,
+                                               StoryArcType story, boolean kingdom) {
+        if (story == null) return false;
         int chapterIndex = StoryQuestService.chapterIndex(world, player.getUUID(), story);
         StoryChapterDefinition chapter = StoryQuestService.chapter(world, player.getUUID(), story);
-        if (chapter == null || !chapter.canAccept(world, player)) {
-            return false;
-        }
-
+        if (chapter == null || !chapter.canAccept(world, player)) return false;
         String offerKey = story.id() + ":" + chapterIndex;
-        if (offerKey.equals(data.getStoryOfferNoticeKey())) {
-            return false;
-        }
-        data.setStoryOfferNoticeKey(offerKey);
+        String previous = kingdom ? data.getTradeRouteString("kingdoms.story.offer_notice") : data.getStoryOfferNoticeKey();
+        if (offerKey.equals(previous)) return false;
+        if (kingdom) data.setTradeRouteString("kingdoms.story.offer_notice", offerKey);
+        else data.setStoryOfferNoticeKey(offerKey);
         return true;
     }
 

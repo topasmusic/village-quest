@@ -67,6 +67,20 @@ final class QuestArtworkTest {
         }
     }
 
+    @Test void smithyThumbnailExcludesTheBakedPaleStripe() throws IOException {
+        var texture = QuestArtwork.Motif.FORGE.smallTexture();
+        var area = QuestArtwork.contentArea(texture);
+        var image = load(texture.getPath());
+        for (int y = area.y(); y < area.y() + area.height(); y++) {
+            long pale = 0;
+            for (int x = area.x(); x < area.x() + area.width(); x++) {
+                int color = image.getRGB(x, y);
+                if (((color >>> 16) & 255) > 205 && ((color >>> 8) & 255) > 205 && (color & 255) > 205) pale++;
+            }
+            assertTrue(pale < area.width(), "full-width pale matte must not enter the thumbnail");
+        }
+    }
+
     private static QuestArtwork.Motif motif(String suffix) {
         return QuestArtwork.forComponent(Component.translatable(
                 "quest.village-quest." + suffix + ".title")).orElseThrow();

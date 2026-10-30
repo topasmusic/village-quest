@@ -17,6 +17,46 @@ import net.minecraft.server.level.ServerPlayer;
 public final class GuildConvoyService {
     private GuildConvoyService() {}
 
+    /** Read-only counterpart of start/join; UI never infers permission from trust alone. */
+    public static de.quest.network.ReputationPayloads.ServiceView access(ServerLevel world,ServerPlayer player) {
+        var data=QuestState.get(world.getServer()).getPlayerData(player.getUUID());
+        var guild=VillageGuildState.get(world.getServer()).guildFor(player.getUUID()).orElse(null);
+        var state=GuildConvoyState.get(world.getServer()); var active=guild==null?null:state.active(guild.id());
+        var social=de.quest.reputation.SocialReputationRules.decision(de.quest.reputation.SocialReputationRules.ServiceKind.CONVOY_START,data.socialReputation(),null);
+        var hints=new ArrayList<Component>(); String reason="";
+        if(active!=null) {
+            hints.add(Component.translatable("screen.village-quest.reputation.desk.logistics.convoy_progress",active.stopNumber(),active.participants().size()));
+            var owner=QuestState.get(world.getServer()).getPlayerData(active.ownerId());
+            boolean nearby=TradeRouteService.isNearHome(world,active.ownerId(),player.blockPosition(),20)
+                    || TradeRouteService.isNearRouteMaster(world,player,active.ownerId(),active.currentConnection());
+            boolean join=valid(world,player) && player.isAlive() && !player.isSpectator() && social.allowed() && data.socialReputation().writable()
+                    && !active.participants().contains(player.getUUID()) && active.participants().size()<64 && nearby && routeIndex(owner,active.currentConnection())>=0;
+            if(!active.participants().contains(player.getUUID())) hints.add(Component.translatable("message.village-quest.convoy.join_nearby"));
+            return new de.quest.network.ReputationPayloads.ServiceView(join?3:4,"screen.village-quest.reputation.desk.logistics.active",hints);
+        }
+        if(!social.allowed()) { reason="trust"; hints.add(Component.translatable(social.reasonKey())); }
+        if(!data.socialReputation().writable()) { reason="unknown"; hints.add(Component.translatable("screen.village-quest.reputation.readonly")); }
+        if(guild==null || !guild.role(player.getUUID()).canChooseProject()) {
+            if(reason.isEmpty()) reason="guild"; hints.add(Component.translatable("screen.village-quest.reputation.desk.logistics.convoy_guild"));
+        }
+        if(!GuildTownProgress.hasReward(data,"concord_title")) {
+            if(reason.isEmpty()) reason="concord"; hints.add(Component.translatable("screen.village-quest.reputation.desk.logistics.convoy_concord"));
+        }
+        int routes=0;
+        for(int i=0;i<Math.min(TradeRouteService.MAX_ROUTES,Math.max(0,data.getTradeRouteInt("route_count")));i++) if(TradeRouteService.dispatchReady(world,data,i)) routes++;
+        if(routes<3) { if(reason.isEmpty()) reason="routes"; hints.add(Component.translatable("message.village-quest.convoy.need_routes")); }
+        if(!valid(world,player)) { if(reason.isEmpty()) reason="overworld"; hints.add(Component.translatable("screen.village-quest.reputation.desk.logistics.overworld_hint")); }
+        if(!TradeRouteService.isNearHome(world,player.getUUID(),player.blockPosition(),20)) {
+            if(reason.isEmpty()) reason="hub"; hints.add(Component.translatable("screen.village-quest.reputation.desk.logistics.convoy_hub"));
+        }
+        if(guild!=null && !state.canStart(guild.id(),world.getGameTime())) {
+            if(reason.isEmpty()) reason="cooldown"; hints.add(Component.translatable("message.village-quest.convoy.cooldown"));
+        }
+        if(!reason.isEmpty()) return new de.quest.network.ReputationPayloads.ServiceView(0,"screen.village-quest.reputation.desk.logistics."+reason,hints);
+        return new de.quest.network.ReputationPayloads.ServiceView(2,"screen.village-quest.reputation.desk.logistics.ready",
+                List.of(Component.translatable("screen.village-quest.reputation.desk.logistics.convoy_confirm")));
+    }
+
     public static int status(ServerLevel world, ServerPlayer player) {
         if (!valid(world, player)) return 0;
         VillageGuildState.GuildSnapshot guild = VillageGuildState.get(world.getServer())

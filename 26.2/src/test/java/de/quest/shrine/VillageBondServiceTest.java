@@ -34,15 +34,16 @@ final class VillageBondServiceTest {
     }
 
     @Test
-    void requestCatalogHasFourVariantsForEveryVillageType() {
+    void requestCatalogPreservesOldIdsAndAddsOneUpkeepVariantPerIdentity() {
         VillageRequestType[] requests = VillageRequestType.values();
         int[] expectedAmounts = {
                 160, 80, 160, 80, 60, 120, 120, 40, 160, 60,
-                160, 160, 80, 160, 60, 120, 60, 40, 40, 120
+                160, 160, 80, 160, 60, 120, 60, 40, 40, 120,
+                32, 32, 32, 32, 32
         };
         assertEquals(expectedAmounts.length, requests.length);
         for (VillageBondType type : VillageBondType.values()) {
-            assertEquals(4, VillageRequestType.countFor(type));
+            assertEquals(5, VillageRequestType.countFor(type));
         }
         for (int i = 0; i < requests.length; i++) {
             VillageRequestType request = requests[i];
@@ -61,7 +62,7 @@ final class VillageBondServiceTest {
             VillageRequestType start = VillageRequestType.forVillage(type, 0);
             VillageRequestType current = start;
             Set<VillageRequestType> seen = new HashSet<>();
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < VillageRequestType.countFor(type); i++) {
                 assertTrue(seen.add(current));
                 VillageRequestType next = VillageRequestType.nextAfter(type, current);
                 assertNotEquals(current, next);

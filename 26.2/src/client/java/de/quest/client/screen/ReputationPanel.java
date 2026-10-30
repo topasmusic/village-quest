@@ -22,18 +22,23 @@ final class ReputationPanel {
         if (!view.enabled()) details.add(text("disabled"));
         if (!view.writable()) details.add(text("readonly"));
         details.add(text("trade_limit", view.buyLimit()));
-        details.add(text("dispatch", yes(view.dispatchAllowed()))); details.add(text("convoy", yes(view.convoyAllowed())));
+        details.add(text("dispatch", text(view.dispatchAllowed()?"desk.logistics.standing_clear":"desk.logistics.standing_blocked")));
+        details.add(text("convoy", text(view.convoyAllowed()?"desk.logistics.standing_clear":"desk.logistics.standing_blocked")));
         if (view.rewardPercent() > 0) details.add(text("reward_bonus", view.rewardPercent()));
+        if (view.enabled() && view.writable()) {
         if (view.probation() > 0) details.add(text("probation", view.probation()));
-        if (view.guildTrust() < 100) {
+        if (SocialReputationRules.rankFor(view.guildTrust()) != SocialReputationRules.SocialRank.RESPECTED) {
             int next = progressTarget(view.guildTrust());
             details.add(text("next_rank", next));
         }
-        details.add(text("earn")); details.add(text("daily_cap", 8, 8));
-        cards.add(new JournalCard("social_guild", text("guild"), text("standing", rank(view.guildTrust()), view.guildTrust()), details, view.guildTrust() < -19 ? RED : TEAL, -1));
+        details.add(progressHint(view.guildTrust()));
+        details.add(text("earn")); details.add(text("quest_sources")); details.add(text("mandate_bond")); details.add(text("daily_cap", 8, 8));
+        }
+        cards.add(new JournalCard("social_guild", text("guild"), !view.enabled() ? text("disabled") : !view.writable() ? text("readonly") : standing(view.guildTrust()), details, view.guildTrust() < -19 ? RED : TEAL, -1));
         if (view.reparation() != null) cards.add(caseCard(view.reparation()));
         for (var village : view.villages()) cards.add(new JournalCard("social_village_" + village.key(), village(village.key()),
-                text("standing", rank(village.trust()), village.trust()), List.of(text("local_separate"), text(village.affected() ? "local_case" : "local_open")),
+                relationshipSummary(village.bond(),village.trust(),village.hints(),village.affected()),
+                relationshipDetails(village.bond(),village.trust(),village.affected(),village.hints()),
                 village.affected() ? RED : GOLD, -1));
         if (view.villageTotal() == 0) cards.add(new JournalCard("social_no_village", text("villages"), text("no_village"), List.of(text("no_village_body")), GOLD, -1));
         if (!view.history().isEmpty()) {
@@ -46,7 +51,45 @@ final class ReputationPanel {
         }
         return List.copyOf(cards);
     }
-    static int progressTarget(int trust) { return trust < 0 ? 0 : trust < 20 ? 20 : trust < 60 ? 60 : 100; }
+    static Component relationshipText(String key, Object... args) { return de.quest.reputation.VillageRelationship.text(key,args); }
+    static Component localStanding(int trust, de.quest.reputation.VillageRelationship.Hints hints) {
+        return !hints.enabled() ? relationshipText("disabled") : !hints.available() ? relationshipText("unavailable")
+                : text("local_standing",rank(trust),trust);
+    }
+    static Component relationshipSummary(Component bond, int trust, de.quest.reputation.VillageRelationship.Hints hints, boolean affected) {
+        return relationshipText("summary",relationshipText("bond",bond),localStanding(trust,hints),
+                hints.conflict()==2 || hints.enabled() && hints.available() && affected ? relationshipText("conflict_short") : Component.empty());
+    }
+    static List<Component> relationshipDetails(Component bond, int trust, boolean affected, de.quest.reputation.VillageRelationship.Hints hints) {
+        List<Component> lines=new ArrayList<>();
+        lines.add(relationshipText("title"));
+        lines.add(relationshipText("bond",bond)); lines.add(relationshipText("earned"));
+        lines.add(localStanding(trust,hints));
+        if(hints.enabled() && hints.available()) {
+            lines.add(text(affected ? "local_case" : "local_open"));
+            if(affected || trust <= -20) lines.add(text("case_locations"));
+            else { lines.add(progressHint(trust)); lines.add(relationshipText("improve")); }
+        }
+        if(hints.conflict()==2) { lines.add(relationshipText("conflict")); lines.add(hints.repair()); }
+        else if(hints.conflict()==0) lines.add(relationshipText("conflict_unavailable"));
+        lines.add(hints.nextBond()); lines.add(text("mandate_bond"));
+        return List.copyOf(lines);
+    }
+    static int progressTarget(int trust) {
+        var current=SocialReputationRules.rankFor(trust);
+        for(int next=SocialReputationRules.clamp(trust)+1;next<=100;next++)
+            if(SocialReputationRules.rankFor(next)!=current)return next;
+        return 100;
+    }
+    static Component standing(int trust) { return text("standing",rank(trust),trust,progressTarget(trust)); }
+    static Component nextRank(int trust) {
+        return SocialReputationRules.rankFor(trust)==SocialReputationRules.SocialRank.RESPECTED
+                ? text("desk.maximum_rank") : text("desk.next_rank",rank(progressTarget(trust)),progressTarget(trust));
+    }
+    static Component progressHint(int trust) {
+        return SocialReputationRules.rankFor(trust)==SocialReputationRules.SocialRank.RESPECTED
+                ? text("desk.maximum_hint",100) : text("desk.remaining",progressTarget(trust)-trust);
+    }
     static int progressFloor(int trust) { return trust < 0 ? -100 : 0; }
     static int progressPixels(int trust, int width) {
         int floor = progressFloor(trust), target = progressTarget(trust);

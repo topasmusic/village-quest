@@ -14,6 +14,18 @@ final class VillageGuildStateTest {
     private static final UUID LEADER = UUID.fromString("e3724fcf-8cd9-46f0-b9b1-c65a22db6485");
     private static final UUID MEMBER = UUID.fromString("7007b5ec-9176-4a4c-bf2b-e5a39403494d");
 
+    @Test void personalRestartTransfersLeadershipAndPreservesOtherMembersProjectAndRenown() {
+        var state=new VillageGuildState();state.create(LEADER,"Keep this guild");
+        state.invite(LEADER,MEMBER);state.accept(MEMBER);state.addRenown(LEADER,100);
+        state.selectProject(LEADER,VillageGuildProject.WAYSTATION);
+        var before=state.guildFor(MEMBER).orElseThrow();
+        state.detachForPersonalRestart(LEADER);
+        assertTrue(state.guildFor(LEADER).isEmpty());
+        var after=VillageGuildState.fromNbt(VillageGuildState.toNbt(state)).guildFor(MEMBER).orElseThrow();
+        assertEquals(before.id(),after.id());assertEquals(before.project(),after.project());
+        assertEquals(before.renown(),after.renown());assertEquals(VillageGuildRole.LEADER,after.role(MEMBER));
+    }
+
     @Test
     void guildRolesProjectsAndPersistenceRemainShared() {
         VillageGuildState state = new VillageGuildState();
@@ -92,7 +104,9 @@ final class VillageGuildStateTest {
         state.create(LEADER, "Future");
         CompoundTag root = VillageGuildState.toNbt(state);
         root.putInt("schemaVersion", VillageGuildState.CURRENT_SCHEMA_VERSION + 1);
-        assertTrue(VillageGuildState.fromNbt(root).guildFor(LEADER).isEmpty());
+        var loaded=VillageGuildState.fromNbt(root);
+        assertTrue(loaded.guildFor(LEADER).isEmpty());assertTrue(loaded.readOnly());assertEquals(root,VillageGuildState.toNbt(loaded));
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,()->loaded.detachForPersonalRestart(LEADER));
     }
 
     @Test

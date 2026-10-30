@@ -62,7 +62,7 @@ All Village Quest crafting recipes share a dedicated tab in the vanilla recipe b
 - `Wayfarer's Sigil`: binds and activates Wayshrines; sneak-use it to inspect shrine bindings, milestones, and distance to the nearest surveyed route.
 - `Guild Courier's Satchel`: one dedicated cargo slot for the active freight contract. Use it to pack matching inventory goods; sneak-use to unload. Supplying a contract consumes its cargo first.
 
-Villages can receive one Guild Corner when a fully loaded safe site is available. When the full decorative structure does not fit, a compact Guild Notice Post can use a safe nearby site, including forests and existing villages. `/vq town retrofit` retries local placement and failed reservations. Necessary natural cover may clear, while buildings, containers, edited timber and unloaded areas remain protected. A generated board is not duplicated on revisits or reloads, and normal removal does not regenerate free boards. A fully occupied or unloaded area can still require another safe site or a later retry.
+Villages can receive one Guild Corner when a fully loaded safe site is available. When the full decorative structure does not fit, a compact Guild Notice Post can use a safe nearby site, including forests and existing villages. `/vq town retrofit` retries local placement and failed reservations. Necessary natural cover may clear, while buildings, containers, edited timber and unloaded areas remain protected. A generated board is not duplicated on revisits or reloads, and normal removal does not automatically regenerate boards; explicit retrofit can restore a missing or deliberately removed board. A fully occupied or unloaded area can still require another safe site or a later retry.
 
 ## Testing
 
@@ -80,3 +80,5 @@ For non-persistent interface previews without changing quest or world state:
 /vq admin uitest noticeboard [known|trusted|allied]
 /vq admin uitest wayshrine [owner|guest]
 ```
+
+Placement uses actual Vanilla/CTOV house and jobsite footprints: the Notice Post stays within 10 horizontal blocks of a real building; distant roads and the combined village bounds do not count. Automatic placement keeps the entire footprint at least 8 horizontal blocks from every nearby player and waits for a safe loaded site if necessary. Generated posts drop no item, so repeated retrofit cannot farm them; crafted posts keep their ordinary drops, including crafted replacements at an old generated site. Recovery restores the compact board rather than replenishing decorative materials.

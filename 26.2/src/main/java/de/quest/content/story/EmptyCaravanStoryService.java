@@ -1,5 +1,7 @@
 package de.quest.content.story;
 
+import de.quest.quest.EncounterEntityLifecycle;
+
 import de.quest.entity.CaravanMerchantEntity;
 import de.quest.entity.QuestMasterEntity;
 import de.quest.entity.TraitorEntity;
@@ -38,6 +40,8 @@ public final class EmptyCaravanStoryService {
     public static final int BAIT_ACTIVE = 2;
     public static final int BAIT_WON = 3;
     public static final int PEACEFUL_CHECKPOINT_TARGET = 3;
+    static final int PEACEFUL_SUPPLY_BREAD = 12;
+    static final int PEACEFUL_SUPPLY_PLANKS = 16;
 
     private static final int MIN_TARGET_DISTANCE = 88;
     private static final int MAX_TARGET_DISTANCE = 150;
@@ -48,6 +52,11 @@ public final class EmptyCaravanStoryService {
     private static final Map<UUID, BaitRuntime> ACTIVE_BAITS = new HashMap<>();
 
     private EmptyCaravanStoryService() {}
+
+    public static boolean ambientConflict(ServerLevel world,BlockPos position) {
+        return ACTIVE_BAITS.values().stream().flatMap(r -> r.allIds().stream()).map(world::getEntity)
+                .anyMatch(e -> e!=null && e.blockPosition().distSqr(position)<=64*64);
+    }
 
     public static void onServerTick(MinecraftServer server) {
         if (server == null || server.overworld().getGameTime() % 10L != 0L) {
@@ -60,6 +69,7 @@ public final class EmptyCaravanStoryService {
                 cleanupPlayer(world, playerId);
                 continue;
             }
+            if (player.level() != world) continue;
             int chapter = StoryQuestService.chapterIndex(world, playerId, StoryArcType.THE_EMPTY_CARAVAN);
             if (chapter == 0) {
                 tickEmptySite(world, player);
@@ -111,6 +121,8 @@ public final class EmptyCaravanStoryService {
                 || StoryQuestService.chapterIndex(world, player.getUUID(), StoryArcType.THE_EMPTY_CARAVAN) != 4) {
             return false;
         }
+        if (player.level() != world || world != world.getServer().overworld()
+                || StoryQuestService.getQuestInt(world, player.getUUID(), StoryQuestKeys.EMPTY_CARAVAN_BAIT_STATE) != 0) return false;
         boolean amnesty = inHand.getItem() instanceof BannerItem;
         boolean justice = inHand.is(Items.IRON_SWORD);
         if (!amnesty && !justice) {
@@ -139,7 +151,7 @@ public final class EmptyCaravanStoryService {
         if (x == 0 && z == 0) {
             return null;
         }
-        int y = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+        int y = world.hasChunk(x >> 4, z >> 4) ? world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) : world.getSeaLevel();
         return new BlockPos(x, y, z);
     }
 
@@ -256,8 +268,15 @@ public final class EmptyCaravanStoryService {
         }
         runtime.attackerIds.removeIf(id -> {
             Entity entity = findEntity(world, id);
-            return entity == null || entity.isRemoved() || !entity.isAlive();
+            boolean defeated = EncounterEntityLifecycle.defeated(id, entity);
+            if (defeated) EncounterEntityLifecycle.forget(id);
+            return defeated;
         });
+        if (runtime.attackerIds.stream().anyMatch(id -> EncounterEntityLifecycle.terminated(id))) {
+            cleanupPlayer(world, playerId);
+            StoryQuestService.setQuestInt(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_BAIT_STATE, BAIT_SCHEDULED);
+            return;
+        }
         if (runtime.attackerIds.isEmpty()) {
             discardEntities(world, runtime);
             ACTIVE_BAITS.remove(playerId);
@@ -281,17 +300,17 @@ public final class EmptyCaravanStoryService {
         boolean supplies = StoryQuestService.hasStoryFlag(
                 world, playerId, StoryQuestKeys.EMPTY_CARAVAN_PEACEFUL_SUPPLIES);
         if (!supplies) {
-            if (DailyQuestService.countInventoryItem(player, Items.BREAD) < 12
-                    || DailyQuestService.countInventoryItem(player, Items.OAK_PLANKS) < 16) {
+            if (DailyQuestService.countInventoryItem(player, Items.BREAD) < PEACEFUL_SUPPLY_BREAD
+                    || DailyQuestService.countInventoryItem(player, Items.OAK_PLANKS) < PEACEFUL_SUPPLY_PLANKS) {
                 player.sendSystemMessage(Component.translatable(
                         "message.village-quest.story.the_empty_caravan.peaceful.supplies_required",
-                        12,
-                        16
+                        PEACEFUL_SUPPLY_BREAD,
+                        PEACEFUL_SUPPLY_PLANKS
                 ).withStyle(ChatFormatting.YELLOW), true);
                 return;
             }
-            if (!DailyQuestService.consumeInventoryItem(player, Items.BREAD, 12)
-                    || !DailyQuestService.consumeInventoryItem(player, Items.OAK_PLANKS, 16)) {
+            if (!DailyQuestService.consumeInventoryItem(player, Items.BREAD, PEACEFUL_SUPPLY_BREAD)
+                    || !DailyQuestService.consumeInventoryItem(player, Items.OAK_PLANKS, PEACEFUL_SUPPLY_PLANKS)) {
                 return;
             }
             supplies = true;
@@ -332,7 +351,7 @@ public final class EmptyCaravanStoryService {
             merchant.setCustomName(Component.translatable("entity.village-quest.bait_caravan_merchant"));
             merchant.addTag(TAG_BAIT);
             merchant.addTag(ownerTag(player.getUUID()));
-            if (world.noCollision(merchant) && world.addFreshEntity(merchant)) {
+            if (EncounterEntityLifecycle.spawn(world, merchant)) {
                 runtime.merchantIds.add(merchant.getUUID());
             }
         }
@@ -350,7 +369,7 @@ public final class EmptyCaravanStoryService {
             traitor.setPos(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
             traitor.addTag(TAG_ATTACKER);
             traitor.addTag(ownerTag(player.getUUID()));
-            if (world.noCollision(traitor) && world.addFreshEntity(traitor)) {
+            if (EncounterEntityLifecycle.spawn(world, traitor)) {
                 traitor.setTarget(player);
                 runtime.attackerIds.add(traitor.getUUID());
             }
@@ -369,6 +388,7 @@ public final class EmptyCaravanStoryService {
     }
 
     private static void scheduleTarget(ServerLevel world, ServerPlayer player, String messageKey) {
+        if (world == null || player == null || player.level() != world || world != world.getServer().overworld()) return;
         BlockPos target = findTarget(world, player.blockPosition());
         StoryQuestService.setQuestInt(world, player.getUUID(), StoryQuestKeys.EMPTY_CARAVAN_TARGET_X, target.getX());
         StoryQuestService.setQuestInt(world, player.getUUID(), StoryQuestKeys.EMPTY_CARAVAN_TARGET_Z, target.getZ());
@@ -414,10 +434,11 @@ public final class EmptyCaravanStoryService {
     }
 
     private static boolean isNear(ServerPlayer player, BlockPos target, int radius) {
-        return player != null && target != null && player.blockPosition().distSqr(target) <= radius * (double) radius;
+        return player != null && target != null && player.level() == player.level().getServer().overworld()
+                && player.level().hasChunkAt(target) && player.blockPosition().distSqr(target) <= radius * (double) radius;
     }
 
-    private static void cleanupPlayer(ServerLevel world, UUID playerId) {
+    public static void cleanupPlayer(ServerLevel world, UUID playerId) {
         BaitRuntime runtime = ACTIVE_BAITS.remove(playerId);
         if (runtime != null) {
             discardEntities(world, runtime);
@@ -426,6 +447,7 @@ public final class EmptyCaravanStoryService {
 
     private static void discardEntities(ServerLevel world, BaitRuntime runtime) {
         for (UUID id : runtime.allIds()) {
+            EncounterEntityLifecycle.forget(id);
             Entity entity = findEntity(world, id);
             if (entity != null) {
                 entity.discard();

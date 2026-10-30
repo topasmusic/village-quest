@@ -33,6 +33,7 @@ public final class QuestHarvestTracker {
 
     private QuestHarvestTracker() {}
 
+    public static void clearPlayer(UUID owner) { PENDING_HARVESTS.removeIf(source -> owner.equals(source.playerId)); }
     public static void clear() {
         PENDING_HARVESTS.clear();
     }
@@ -53,6 +54,7 @@ public final class QuestHarvestTracker {
 
             ServerPlayer player = server.getPlayerList().getPlayer(pending.playerId);
             if (player != null && player.level() == pending.world) {
+                pending.dispatchIntro(player);
                 dispatchHarvest(pending.world, player, pending.pos, pending.originalState);
                 dispatchTrackedCropDrops(pending.world, player, pending.trackedDrops);
             }
@@ -74,6 +76,10 @@ public final class QuestHarvestTracker {
 
     public static void onBlockBreakFinished(ServerLevel world, ServerPlayer player, BlockPos pos) {
         // Vanilla/Fabric AFTER handlers already dispatched this harvest directly.
+        if (world != null && player != null && pos != null) {
+            var pending = findPotentialHarvest(world, player.getUUID(), pos);
+            if (pending != null && !pending.isExpired() && pending.hasVerifiedHarvestTransition()) pending.dispatchIntro(player);
+        }
         removePotentialHarvest(world, player, pos);
     }
 
@@ -98,9 +104,10 @@ public final class QuestHarvestTracker {
                 player.getUUID(),
                 pos.immutable(),
                 state,
-                state.getValue(CropBlock.AGE),
+                ((CropBlock) state.getBlock()).getAge(state),
                 allowReplacement,
                 trackedCropDrops(world, player, pos, state),
+                de.quest.shrine.VillageIntroRequestService.harvestTicket(player),
                 world.getGameTime() + HARVEST_VERIFY_TICKS
         ));
     }
@@ -108,8 +115,7 @@ public final class QuestHarvestTracker {
     private static boolean isMatureCrop(BlockState state) {
         return state != null
                 && state.getBlock() instanceof CropBlock crop
-                && state.hasProperty(CropBlock.AGE)
-                && state.getValue(CropBlock.AGE) >= crop.getMaxAge();
+                && crop.isMaxAge(state);
     }
 
     private static PendingHarvest findPotentialHarvest(ServerLevel world, UUID playerId, BlockPos pos) {
@@ -175,6 +181,7 @@ public final class QuestHarvestTracker {
         private final BlockState originalState;
         private final int originalAge;
         private final Map<Item, Integer> trackedDrops;
+        private final de.quest.shrine.VillageIntroRequestService.HarvestTicket introTicket;
         private boolean allowReplacement;
         private long expiresAtTick;
 
@@ -185,6 +192,7 @@ public final class QuestHarvestTracker {
                                int originalAge,
                                boolean allowReplacement,
                                Map<Item, Integer> trackedDrops,
+                               de.quest.shrine.VillageIntroRequestService.HarvestTicket introTicket,
                                long expiresAtTick) {
             this.world = world;
             this.playerId = playerId;
@@ -193,6 +201,7 @@ public final class QuestHarvestTracker {
             this.originalAge = originalAge;
             this.allowReplacement = allowReplacement;
             this.trackedDrops = trackedDrops == null ? Map.of() : trackedDrops;
+            this.introTicket = introTicket;
             this.expiresAtTick = expiresAtTick;
         }
 
@@ -203,16 +212,20 @@ public final class QuestHarvestTracker {
         }
 
         private boolean hasVerifiedHarvestTransition() {
+            if (!world.hasChunkAt(pos)) return false;
             BlockState currentState = world.getBlockState(pos);
             if (currentState.getBlock() == originalState.getBlock()) {
-                return currentState.hasProperty(CropBlock.AGE)
-                        && currentState.getValue(CropBlock.AGE) < originalAge;
+                return currentState.getBlock() instanceof CropBlock crop
+                        && crop.getAge(currentState) < originalAge;
             }
             return allowReplacement;
         }
 
         private boolean isExpired() {
             return world == null || world.getGameTime() > expiresAtTick;
+        }
+        private void dispatchIntro(ServerPlayer player) {
+            de.quest.shrine.VillageIntroRequestService.onVerifiedHarvest(world, player, pos, originalState, introTicket);
         }
     }
 }

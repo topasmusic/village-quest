@@ -19,7 +19,9 @@ public final class TimeUtil {
         return String.format(java.util.Locale.ROOT, "%dh %02dm", minutes / 60, minutes % 60);
     }
 
-    public static long currentDay() {
+    public static long currentDay() { return QuestCalendarService.currentDay(); }
+
+    static long realTimeDay() {
         return currentResetDateTime(now(), QuestConfig.dailyResetHour()).toLocalDate().toEpochDay();
     }
 
@@ -29,7 +31,9 @@ public final class TimeUtil {
         return Math.max(0L, Duration.between(now, nextReset).toMillis());
     }
 
-    public static long currentWeekCycle() {
+    public static long currentWeekCycle() { return QuestCalendarService.currentWeekCycle(); }
+
+    static long realTimeWeekCycle() {
         return currentWeeklyResetStart(now(), QuestConfig.weeklyResetDay(), QuestConfig.weeklyResetHour())
                 .toLocalDate().toEpochDay();
     }

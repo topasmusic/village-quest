@@ -6,7 +6,7 @@ New qualifying quests open a compact package selector after successful quest tur
 
 Each eligible party member selects and receives the full personal package. Existing participation, disconnect and shared turn-in rules remain. Old accepted/shared quests gain no retroactive extras. Already accepted repeatable contracts with incompatible target profiles keep their own objectives rather than merging into a different shared profile.
 
-NORMAL extras: Honey, Potato, Autumn and Stall give 8 golden carrots or 3 SM; Wheat gives 12 or 5 SM; River gives 16 or 6 SM. Wood gives 16 iron and 16 coal or 8 SM. Coal Mining and Smith Smelting give 16 iron and 32 coal, 2 diamonds, or 12 SM. The introductory Daily gives 6 ordinary carrots or 2 SM. Other Dailies retain their existing rewards.
+NORMAL extras: Honey, Potato, Autumn and Stall give 8 golden carrots or 3 SM; Wheat gives 12 or 5 SM; River gives 16 or 6 SM. Wood gives 16 iron and 16 coal or 8 SM. Coal Mining and Smith Smelting give 16 iron and 32 coal, 2 diamonds, or 12 SM. The introductory Daily gives 8 bread or 2 SM. Other Dailies retain their existing rewards.
 
 Weekly Harvest offers 48 golden carrots, 64 glass and 16 lanterns, or 20 SM. Bake offers 64 carrots, 64 rails and 8 powered rails, or 26 SM. Smith offers 64 carrots and 2 golden apples, 6 diamonds, or 32 SM. Pasture offers 48 carrots, 48 leather, or 20 SM. LIGHT/NORMAL/HEAVY counts use rounded 0.88/1/1.18 factors; Smith diamonds are exactly 5/6/7. Potion duration/strength and enchantments never scale. Other Weeklies retain their existing rewards.
 

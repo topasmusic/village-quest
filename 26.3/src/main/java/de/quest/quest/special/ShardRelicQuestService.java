@@ -243,11 +243,13 @@ public final class ShardRelicQuestService {
                 yield true;
             }
             case CACHE_HUNT -> {
+                player.sendSystemMessage(Component.translatable("quest.village-quest.special.shards.offer.1"),false);
+                player.sendSystemMessage(Component.translatable("quest.village-quest.special.shards.offer.2",10),false);
                 if (hasStarreachRing(player)) {
                     completeQuest(world, player, data);
                     yield true;
                 }
-                ensureCacheChest(world, data);
+                ensureCacheChest(world, player.getUUID(), data);
                 giveTreasureMap(world, player, data, false);
                 yield true;
             }
@@ -495,6 +497,7 @@ public final class ShardRelicQuestService {
             if (chestPos == null) {
                 return false;
             }
+            if(!placeInitialCacheChest(world,data,chestPos)) return false;
             data.setShardRelicChestX(chestPos.getX());
             data.setShardRelicChestY(chestPos.getY());
             data.setShardRelicChestZ(chestPos.getZ());
@@ -502,7 +505,7 @@ public final class ShardRelicQuestService {
         }
 
         world.getChunk(chestPos.getX() >> 4, chestPos.getZ() >> 4);
-        ensureCacheChest(world, data);
+        ensureCacheChest(world, player.getUUID(), data);
         player.teleportTo(
                 world,
                 chestPos.getX() + 0.5,
@@ -529,7 +532,7 @@ public final class ShardRelicQuestService {
                     completeQuest(world, player, data);
                     yield true;
                 }
-                ensureCacheChest(world, data);
+                ensureCacheChest(world, player.getUUID(), data);
                 yield giveTreasureMap(world, player, data, false);
             }
             default -> false;
@@ -669,6 +672,8 @@ public final class ShardRelicQuestService {
     }
 
     private static void showTrialProgress(ServerPlayer player, PlayerQuestData data) {
+        player.sendSystemMessage(Component.translatable("quest.village-quest.special.shards.offer.1"),false);
+        player.sendSystemMessage(Component.translatable("quest.village-quest.special.shards.offer.2",10),false);
         player.sendSystemMessage(Texts.dailyTitle(title(), ChatFormatting.LIGHT_PURPLE), false);
         for (Component line : trialProgressLines(data)) {
             player.sendSystemMessage(line, false);
@@ -676,13 +681,18 @@ public final class ShardRelicQuestService {
     }
 
     private static List<Component> trialProgressLines(PlayerQuestData data) {
-        return List.of(
+        var lines = new java.util.ArrayList<Component>(List.of(
                 Component.translatable("quest.village-quest.special.shards.progress.amethyst", data.getShardRelicAmethystProgress(), AMETHYST_TARGET).withStyle(ChatFormatting.GRAY),
                 Component.translatable("quest.village-quest.special.shards.progress.potions", data.getShardRelicPotionProgress(), POTION_TARGET).withStyle(ChatFormatting.GRAY),
                 Component.translatable("quest.village-quest.special.shards.progress.enchant", data.getShardRelicEnchantProgress(), ENCHANT_TARGET).withStyle(ChatFormatting.GRAY),
                 Component.translatable("quest.village-quest.special.shards.progress.ender_pearl", data.getShardRelicEnderPearlProgress(), ENDER_PEARL_TARGET).withStyle(ChatFormatting.GRAY),
                 Component.translatable("quest.village-quest.special.shards.progress.blaze_rod", data.getShardRelicBlazeRodProgress(), BLAZE_ROD_TARGET).withStyle(ChatFormatting.GRAY)
-        );
+        ));
+        if (data.getShardRelicBlazeRodProgress() < BLAZE_ROD_TARGET)
+            lines.add(Component.translatable("quest.village-quest.special.shards.blaze_source",
+                    Component.translatable("quest.village-quest.pilgrim.contract.ash_on_the_pass.title"),
+                    Component.translatable("reward.village-quest.option.materials")).withStyle(ChatFormatting.GRAY));
+        return List.copyOf(lines);
     }
 
     private static boolean giveTreasureMap(ServerLevel world, ServerPlayer player, PlayerQuestData data, boolean firstTime) {
@@ -759,32 +769,48 @@ public final class ShardRelicQuestService {
                 || block == Blocks.GRAVEL;
     }
 
-    private static void ensureCacheChest(ServerLevel world, PlayerQuestData data) {
+    public static boolean hasIssuedCacheRing(PlayerQuestData data) {
+        return data!=null && data.getShardRelicQuestStage()==ShardRelicQuestStage.CACHE_HUNT
+                && data.hasTradeRouteFlag("relic.shards.cache_issued");
+    }
+    private static void ensureCacheChest(ServerLevel world, UUID owner, PlayerQuestData data) {
+        if(owner==null || QuestState.get(world.getServer()).getPlayersView().get(owner)!=data
+                || de.quest.data.PersonalResetService.blocksActions(world,owner))return;
         BlockPos chestPos = chestPos(data);
         if (chestPos == null) {
             return;
         }
-        if (!world.getBlockState(chestPos).is(Blocks.CHEST)) {
-            world.setBlock(chestPos, Blocks.CHEST.defaultBlockState(), 3);
-        }
+        ServerPlayer player=world.getServer().getPlayerList().getPlayer(owner);
+        if (!nearbyCachePlayer(world,player) || !world.hasChunkAt(chestPos)
+                || player.blockPosition().distSqr(chestPos)>CACHE_RESOLVE_DISTANCE*CACHE_RESOLVE_DISTANCE
+                || !world.getBlockState(chestPos).is(Blocks.CHEST)) return;
         BlockEntity blockEntity = world.getBlockEntity(chestPos);
         if (!(blockEntity instanceof ChestBlockEntity chest)) {
             return;
         }
-        if (!containsRing(chest)) {
-            chest.clearContent();
-            chest.setItem(13, createRingStack());
-            chest.setChanged();
+        for(int i=0;i<chest.getContainerSize();i++)if(GuildArchiveService.isIssuedTo(world,owner,chest.getItem(i),ArchiveItem.STARREACH_RING)) {
+            if(!hasIssuedCacheRing(data)){data.setTradeRouteFlag("relic.shards.cache_issued",true);markDirty(world);}return;
         }
+        // A removed issue is recovered through the existing paid, generation-raising archive path.
+        if(hasIssuedCacheRing(data))return;
+        int slot=chest.getItem(13).isEmpty()?13:-1;
+        if(slot<0)for(int i=0;i<chest.getContainerSize();i++)if(chest.getItem(i).isEmpty()){slot=i;break;}
+        if(slot<0)return;
+        data.setTradeRouteFlag("relic.shards.cache_issued",true);markDirty(world);
+        chest.setItem(slot,GuildArchiveService.issueInitial(world,owner,ArchiveItem.STARREACH_RING,createRingStack()));
+        chest.setChanged();
     }
 
-    private static boolean containsRing(ChestBlockEntity chest) {
-        for (int slot = 0; slot < chest.getContainerSize(); slot++) {
-            if (chest.getItem(slot).is(ModItems.STARREACH_RING)) {
-                return true;
-            }
-        }
-        return false;
+    private static boolean nearbyCachePlayer(ServerLevel world,ServerPlayer player) {
+        return world!=null && player!=null && world==world.getServer().overworld() && player.level()==world;
+    }
+
+    /** Only called immediately after a fresh natural-site validation, never for saved positions. */
+    private static boolean placeInitialCacheChest(ServerLevel world,PlayerQuestData data,BlockPos pos) {
+        if(hasIssuedCacheRing(data) || !world.hasChunkAt(pos) || world.getBlockEntity(pos)!=null) return false;
+        BlockState ground=world.getBlockState(pos);
+        if(!ground.is(net.minecraft.tags.BlockTags.BASE_STONE_OVERWORLD) && !isValidSurface(world,pos)) return false;
+        return world.setBlock(pos,Blocks.CHEST.defaultBlockState(),3);
     }
 
     private static BlockPos chestPos(PlayerQuestData data) {
@@ -806,17 +832,18 @@ public final class ShardRelicQuestService {
     }
 
     private static void prepareCacheChestIfNearby(ServerLevel world, ServerPlayer player, PlayerQuestData data) {
-        if (world == null || player == null || data == null) {
+        if (!nearbyCachePlayer(world,player) || data == null) {
             return;
         }
         if (data.getShardRelicQuestStage() != ShardRelicQuestStage.CACHE_HUNT || !hasCacheTarget(data)) {
             return;
         }
-        if (!isCachePositionUnresolved(data)) {
-            ensureCacheChest(world, data);
+        if(de.quest.data.PersonalResetService.blocksActions(world,player.getUUID())) return;
+        if ((world.getGameTime() + player.getId()) % CACHE_SEARCH_INTERVAL != 0L) {
             return;
         }
-        if ((world.getGameTime() + player.getId()) % CACHE_SEARCH_INTERVAL != 0L) {
+        if (!isCachePositionUnresolved(data)) {
+            ensureCacheChest(world, player.getUUID(), data);
             return;
         }
 
@@ -843,10 +870,11 @@ public final class ShardRelicQuestService {
             return;
         }
 
+        if (!placeInitialCacheChest(world,data,resolved)) return;
         data.setShardRelicChestX(resolved.getX());
         data.setShardRelicChestY(resolved.getY());
         data.setShardRelicChestZ(resolved.getZ());
-        ensureCacheChest(world, data);
+        ensureCacheChest(world, player.getUUID(), data);
         markDirty(world);
     }
 
@@ -881,6 +909,10 @@ public final class ShardRelicQuestService {
                     if (!world.getBlockState(chestPos).getFluidState().isEmpty()) {
                         continue;
                     }
+                    // Match initial placement eligibility before choosing a site; skip blocked underground cells.
+                    if (!world.hasChunkAt(chestPos) || world.getBlockEntity(chestPos) != null) continue;
+                    if (!world.getBlockState(chestPos).is(net.minecraft.tags.BlockTags.BASE_STONE_OVERWORLD)
+                            && !isValidSurface(world, chestPos)) continue;
                     return chestPos;
                 }
             }
@@ -889,6 +921,7 @@ public final class ShardRelicQuestService {
     }
 
     private static Optional<UUID> findCacheOwner(ServerLevel world, BlockPos pos) {
+        if(world!=world.getServer().overworld()) return Optional.empty();
         for (Map.Entry<UUID, PlayerQuestData> entry : QuestState.get(world.getServer()).getPlayersView().entrySet()) {
             PlayerQuestData data = entry.getValue();
             if (data == null || data.getShardRelicQuestStage() != ShardRelicQuestStage.CACHE_HUNT) {

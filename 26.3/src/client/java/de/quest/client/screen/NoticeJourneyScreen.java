@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import de.quest.client.compat.GuiGraphics;
 import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
 
 /** The first-village and local-story page of the physical Notice Post. */
@@ -62,7 +63,7 @@ public final class NoticeJourneyScreen extends CompatScreen {
                     : Component.translatable("screen.village-quest.reputation.title").getString(),
                     left+272,top + 56,244,INK,1.2f,2);
             List<String> description = wrap(trustFeedback.isBlank() ? (data.stage()==VillageNetworkPayloads.NoticeJourneyPayload.CHOOSE
-                    ? Component.translatable("screen.village-quest.notice_journey.choice_prompt").getString():activeInstruction())
+                    ? Component.translatable("screen.village-quest.notice_journey.choice_prompt").getString() + "\n\n" + activeInstruction():activeInstruction())
                     : Component.translatable(trustFeedback).getString(), 255);
             int visibleLines = 7;
             descriptionScrollMax = Math.max(0, description.size() - visibleLines);
@@ -101,6 +102,25 @@ public final class NoticeJourneyScreen extends CompatScreen {
         return super.mouseScrolled(x, y, horizontal, vertical);
     }
 
+    @Override public boolean keyPressed(KeyEvent key) {
+        if (descriptionScrollMax > 0) {
+            int change = switch (key.key()) {
+                case InputConstants.KEY_DOWN -> 1;
+                case InputConstants.KEY_UP -> -1;
+                case InputConstants.KEY_PAGEDOWN -> 7;
+                case InputConstants.KEY_PAGEUP -> -7;
+                case InputConstants.KEY_HOME -> -descriptionScrollMax;
+                case InputConstants.KEY_END -> descriptionScrollMax;
+                default -> 0;
+            };
+            if (change != 0) {
+                descriptionScroll = Math.max(0, Math.min(descriptionScrollMax, descriptionScroll + change));
+                return true;
+            }
+        }
+        return super.keyPressed(key);
+    }
+
     private void drawProgress(GuiGraphics graphics, int left, int top) {
         if (data.firstTarget() > 0 && data.stage() != VillageNetworkPayloads.NoticeJourneyPayload.READY
                 && data.stage() != VillageNetworkPayloads.NoticeJourneyPayload.AFTERSTORY_READY) {
@@ -133,11 +153,15 @@ public final class NoticeJourneyScreen extends CompatScreen {
     }
 
     private String activeInstruction() {
-        if (data.stage() == VillageNetworkPayloads.NoticeJourneyPayload.ACTIVE
+        if ((data.stage() == VillageNetworkPayloads.NoticeJourneyPayload.ACTIVE
+                || data.stage() == VillageNetworkPayloads.NoticeJourneyPayload.AVAILABLE
+                || data.stage() == VillageNetworkPayloads.NoticeJourneyPayload.READY
+                || data.stage() == VillageNetworkPayloads.NoticeJourneyPayload.CHOOSE)
                 && data.title().getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents title) {
             for (var story : de.quest.guildtown.GuildTownStory.values())
                 if (title.getKey().equals("quest.village-quest.guild_town.story." + story.key() + ".title"))
-                    return Component.translatable("screen.village-quest.notice_journey.instruction." + story.key()).getString();
+                    return String.join("\n\n", story.instructionLines().stream().map(Component::getString).toList())
+                            + "\n\n" + data.detail().getString();
         }
         return data.detail().getString();
     }
@@ -174,8 +198,12 @@ public final class NoticeJourneyScreen extends CompatScreen {
             VillageUiTheme.drawPaper(graphics,left+28,top + 253,504,22);
         } else VillageUiTheme.drawPaper(graphics,left+28,top + 228,504,46);
         for (var button : NoticeJourneyLayout.buttons(data.stage(), data.requests() != null)) {
+            if(button.action()==VillageNetworkPayloads.NoticeJourneyActionPayload.REFRESH
+                    && within(mouseX,mouseY,left+button.x(),top+button.y(),button.width(),button.height()))
+                graphics.setTooltipForNextFrame(font,Component.translatable("screen.village-quest.notice_journey.refresh_hint"),mouseX,mouseY);
             VillageUiTheme.drawButton(graphics, font, left + button.x(), top + button.y(),
-                    button.width(), button.height(), Component.translatable(button.key()).getString(),
+                    button.width(), button.height(), Component.translatable(button.action()==NoticeJourneyLayout.REQUESTS
+                            && data.requests()!=null && data.requests().intro()!=null ? "screen.village-quest.intro.tab" : button.key()).getString(),
                     true, button.contains(mouseX - left, mouseY - top), button.primary(),
                     button.primary()?VillageUiTheme.ButtonTone.OAK:VillageUiTheme.ButtonTone.PAPER);
             if (button.contains(mouseX - left, mouseY - top)) {

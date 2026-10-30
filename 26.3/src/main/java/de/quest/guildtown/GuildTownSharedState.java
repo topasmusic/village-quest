@@ -33,6 +33,8 @@ public final class GuildTownSharedState extends SavedData {
     /** Completed-project rewards survive independently until their recorded participant claims them. */
     private final Map<UUID, List<RewardEntitlement>> entitlements = new HashMap<>();
     private final Map<UUID, List<String>> chronicle = new HashMap<>();
+    private CompoundTag unsupported;
+    public boolean readOnly() { return unsupported != null; }
 
     GuildTownSharedState() {}
 
@@ -121,6 +123,7 @@ public final class GuildTownSharedState extends SavedData {
         if (changed) setDirty();
     }
 
+    public void discardPersonalEntitlements(UUID player) { if (entitlements.remove(player) != null) setDirty(); }
     public void resetAllProgress() {
         if (projects.isEmpty() && entitlements.isEmpty() && chronicle.isEmpty()) return;
         projects.clear(); entitlements.clear(); chronicle.clear(); setDirty();
@@ -130,7 +133,9 @@ public final class GuildTownSharedState extends SavedData {
         GuildTownSharedState state = new GuildTownSharedState();
         if (root == null || root.isEmpty()) return state;
         int schema = root.getIntOr("schemaVersion", 0);
-        if (schema < 0 || schema > CURRENT_SCHEMA_VERSION) return state;
+        if (schema < 0 || schema > CURRENT_SCHEMA_VERSION || root.contains("schemaVersion") && !(root.get("schemaVersion") instanceof net.minecraft.nbt.IntTag)) {
+            state.unsupported=root.copy();return state;
+        }
         for (int i = 0; i < root.getListOrEmpty("projects").size(); i++) {
             CompoundTag entry = root.getListOrEmpty("projects").getCompoundOrEmpty(i);
             UUID guildId = parseUuid(entry.getStringOr("guild", ""));
@@ -160,6 +165,7 @@ public final class GuildTownSharedState extends SavedData {
     }
 
     static CompoundTag toNbt(GuildTownSharedState state) {
+        if (state.unsupported != null) return state.unsupported.copy();
         CompoundTag root = new CompoundTag();
         root.putInt("schemaVersion", CURRENT_SCHEMA_VERSION);
         ListTag projects = new ListTag();

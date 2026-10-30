@@ -67,12 +67,12 @@ final class QuestAvailabilityNotifierTest {
              var stories = mockStatic(StoryQuestService.class);
              var progression = mockStatic(QuestMasterProgressionService.class);
              var ui = mockStatic(QuestMasterUiService.class);
-             var time = mockStatic(TimeUtil.class);
+             var time = mockStatic(de.quest.util.QuestCalendarService.class);
              var preferences = mockStatic(ClientPreferenceService.class);
              var sound = mockStatic(QuestSoundFeedback.class)) {
             lookup.when(() -> QuestState.get(server)).thenReturn(state);
-            time.when(TimeUtil::currentDay).thenReturn(123L);
-            time.when(TimeUtil::currentWeekCycle).thenReturn(45L);
+            time.when(de.quest.util.QuestCalendarService::currentDay).thenReturn(123L);
+            time.when(de.quest.util.QuestCalendarService::currentWeekCycle).thenReturn(45L);
             preferences.when(() -> ClientPreferenceService.questAvailableChatNotifications(player)).thenReturn(chatEnabled);
             daily.when(() -> DailyQuestService.canShowDailyOffer(world, id)).thenReturn((mask & 1) != 0);
             daily.when(() -> DailyQuestService.previewQuestChoice(world, id)).thenReturn(DailyQuestType.values()[0]);
@@ -118,7 +118,7 @@ final class QuestAvailabilityNotifierTest {
             if (reconnect) {
                 QuestAvailabilityNotifier.handleDisconnect(id);
                 QuestAvailabilityNotifier.handleJoin(player);
-                time.when(TimeUtil::currentDay).thenReturn(124L);
+                time.when(de.quest.util.QuestCalendarService::currentDay).thenReturn(124L);
                 when(server.getTickCount()).thenReturn(820);
                 QuestAvailabilityNotifier.onServerTick(server);
                 assertEquals(123L, data.getDailyOfferNoticeDay());

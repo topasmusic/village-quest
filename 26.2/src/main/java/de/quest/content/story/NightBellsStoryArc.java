@@ -3,7 +3,6 @@ package de.quest.content.story;
 import de.quest.economy.CurrencyService;
 import de.quest.quest.DifficultyObjectiveMode;
 import de.quest.quest.DifficultyObjectiveState;
-import de.quest.quest.DistinctObjectiveProgress;
 import de.quest.quest.story.StoryArcDefinition;
 import de.quest.quest.story.StoryArcType;
 import de.quest.quest.story.StoryChapterCompletion;
@@ -61,6 +60,7 @@ public final class NightBellsStoryArc implements StoryArcDefinition {
             default -> { return List.of(); }
         }
         keys.add(StoryQuestKeys.NIGHT_BELLS_PEACEFUL_BELL);
+        keys.addAll(NightBellsMarkerProgress.keys(chapterIndex));
         for (int i = 0; i < 4; i++) {
             keys.add(StoryQuestKeys.NIGHT_BELLS_PEACEFUL_MARKER_PREFIX + chapterIndex + "_" + i);
         }
@@ -103,12 +103,52 @@ public final class NightBellsStoryArc implements StoryArcDefinition {
     }
 
     private abstract static class NightBellsChapter implements StoryChapterDefinition {
-        private static final int PEACEFUL_MARKER_SLOTS = 4;
         private static final String PEACEFUL_VILLAGE_BOUND = StoryQuestKeys.NIGHT_BELLS_VILLAGE_BOUND;
         private static final String PEACEFUL_VILLAGE_X = StoryQuestKeys.NIGHT_BELLS_VILLAGE_X;
         private static final String PEACEFUL_VILLAGE_Z = StoryQuestKeys.NIGHT_BELLS_VILLAGE_Z;
 
         protected abstract int chapterIndex();
+
+        @Override
+        public StoryChapterCompletion buildCompletion(ServerLevel world, UUID id) {
+            var base=buildCompletion();
+            if(mode(world,id)!=DifficultyObjectiveMode.PEACEFUL) return base;
+            String prefix="quest.village-quest.story.night_bells.peaceful.complete.";
+            return new StoryChapterCompletion(base.title(),Component.translatable(prefix+chapterIndex()+".1"),
+                    Component.translatable(prefix+"supplies"),chapterIndex()==3?base.completionLine3():Component.translatable(prefix+"recorded"),
+                    base.currencyReward(),base.levels(),base.reputationTrack(),base.reputationAmount(),base.unlockedProject());
+        }
+
+        @Override
+        public List<Component> descriptionLines(ServerLevel world, UUID id) {
+            if (mode(world,id)!=DifficultyObjectiveMode.PEACEFUL) return descriptionLines();
+            var result=new ArrayList<Component>();
+            result.add(de.quest.quest.QuestRuleText.translate("quest.village-quest.story.night_bells.peaceful.description."+chapterIndex()));
+            result.add(Component.translatable("quest.village-quest.story.night_bells.peaceful.protection_help"));
+            for(var entry:orderedSupplies()) result.add(Component.translatable("quest.village-quest.story.night_bells.peaceful.supply_help",
+                    Component.translatable(entry.getKey().getDescriptionId()),entry.getValue()));
+            if(chapterIndex()==3)result.add(Component.translatable("quest.village-quest.story.night_bells.peaceful.final_help"));
+            return List.copyOf(result);
+        }
+
+        @Override
+        public Component shortObjective(ServerLevel world, UUID id, List<Component> lines) {
+            if(mode(world,id)!=DifficultyObjectiveMode.PEACEFUL) return de.quest.quest.QuestShortObjective.current(lines);
+            if(!NightBellsMarkerProgress.supported(k->progress(world,id,k),chapterIndex()))
+                return Component.translatable("quest.village-quest.story.night_bells.peaceful.unsupported");
+            if(progress(world,id,PEACEFUL_VILLAGE_BOUND)==0)return Component.translatable("quest.village-quest.story.night_bells.peaceful.bind");
+            var objectives=lines.stream().filter(line->line.getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents text
+                    && (text.getKey().contains(".peaceful.progress.") || text.getKey().equals("screen.village-quest.ui_review.objective_row"))).toList();
+            var next=de.quest.quest.QuestShortObjective.current(objectives);
+            if(next.getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents text
+                    && text.getKey().equals("quest.village-quest.guidance.claim")) {
+                var player=world.getServer().getPlayerList().getPlayer(id);
+                if(player==null || !inStoryVillage(world,id,player.blockPosition(),false))
+                    return Component.translatable("quest.village-quest.story.night_bells.peaceful.return_village",
+                            progress(world,id,PEACEFUL_VILLAGE_X),progress(world,id,PEACEFUL_VILLAGE_Z));
+            }
+            return next;
+        }
 
         protected void addProgress(ServerLevel world, ServerPlayer player, String key, int amount, int target) {
             StoryQuestService.addQuestIntClamped(world, player.getUUID(), key, amount, target);
@@ -164,8 +204,9 @@ public final class NightBellsStoryArc implements StoryArcDefinition {
             boolean marker = isProtectionMarker(state);
             boolean confirmationPost = chapterIndex() == 3
                     && ModBlocks.GUILD_NOTICE_POST != null && state.is(ModBlocks.GUILD_NOTICE_POST);
-            if ((!bell && !marker && !confirmationPost)
-                    || !inStoryVillage(world, player.getUUID(), pos, true)) {
+            if (!bell && !marker && !confirmationPost) return;
+            if (!inStoryVillage(world, player.getUUID(), pos, true)) {
+                player.sendSystemMessage(Component.translatable("quest.village-quest.story.night_bells.peaceful.wrong_village"),true);
                 return;
             }
             if (bell) {
@@ -175,7 +216,7 @@ public final class NightBellsStoryArc implements StoryArcDefinition {
                 }
             }
             if (marker) {
-                recordMarker(world, player, markerToken(pos));
+                recordMarker(world, player, pos);
             }
             if (confirmationPost) {
                 StoryQuestService.setStoryFlag(world, player.getUUID(), StoryQuestKeys.NIGHT_BELLS_PEACEFUL_CONFIRMED, true);
@@ -185,8 +226,9 @@ public final class NightBellsStoryArc implements StoryArcDefinition {
 
         protected boolean peacefulComplete(ServerLevel world, ServerPlayer player) {
             UUID playerId = player.getUUID();
+            if(!NightBellsMarkerProgress.supported(k->progress(world,playerId,k),chapterIndex()))return false;
             return NightBellsPeacefulProgress.complete(
-                    inStoryVillage(world, playerId, player.blockPosition(), false),
+                    player.level() == world && inStoryVillage(world, playerId, player.blockPosition(), false),
                     chapterIndex(),
                     progress(world, playerId, StoryQuestKeys.NIGHT_BELLS_PEACEFUL_BELL),
                     markerCount(world, playerId),
@@ -222,25 +264,59 @@ public final class NightBellsStoryArc implements StoryArcDefinition {
         }
 
         protected List<Component> peacefulProgressLines(ServerLevel world, UUID playerId) {
-            return List.of(Component.translatable(
-                    peacefulProgressKey(),
-                    progress(world, playerId, StoryQuestKeys.NIGHT_BELLS_PEACEFUL_BELL),
-                    chapterIndex() == 0 || chapterIndex() == 3 ? 1 : 0,
-                    markerCount(world, playerId),
-                    chapterIndex() == 3 ? 4 : 3,
-                    peacefulSupplyCount(world, playerId),
-                    peacefulSupplyTarget()
-            ).withStyle(ChatFormatting.GRAY));
+            var lines=new ArrayList<Component>();
+            if(!NightBellsMarkerProgress.supported(k->progress(world,playerId,k),chapterIndex())) {
+                lines.add(Component.translatable("quest.village-quest.story.night_bells.peaceful.unsupported"));return List.copyOf(lines);
+            }
+            if(progress(world,playerId,PEACEFUL_VILLAGE_BOUND)==0) {
+                lines.add(Component.translatable("quest.village-quest.story.night_bells.peaceful.bind"));
+                return List.copyOf(lines);
+            }
+            if(chapterIndex()==0 || chapterIndex()==3) lines.add(Component.translatable(
+                    "quest.village-quest.story.night_bells.peaceful.progress.bell",progress(world,playerId,StoryQuestKeys.NIGHT_BELLS_PEACEFUL_BELL),1));
+            lines.add(Component.translatable("quest.village-quest.story.night_bells.peaceful.progress.markers",markerCount(world,playerId),chapterIndex()==3?4:3));
+            if(markerCount(world,playerId)<(chapterIndex()==3?4:3)) lines.add(nextSector(world,playerId));
+            for(var entry:orderedSupplies())lines.add(Component.translatable("screen.village-quest.ui_review.objective_row",
+                    Component.translatable(entry.getKey().getDescriptionId()),Math.min(entry.getValue(),StoryQuestService.countCompletionItem(world,playerId,entry.getKey())),entry.getValue()));
+            if(chapterIndex()==3) {
+                lines.add(Component.translatable("quest.village-quest.story.night_bells.peaceful.progress.golem",
+                        StoryQuestService.hasStoryFlag(world,playerId,StoryQuestKeys.NIGHT_BELLS_PEACEFUL_GUARDIAN)?1:0,1));
+                lines.add(Component.translatable("quest.village-quest.story.night_bells.peaceful.progress.confirm",
+                        StoryQuestService.hasStoryFlag(world,playerId,StoryQuestKeys.NIGHT_BELLS_PEACEFUL_CONFIRMED)?1:0,1));
+            }
+            // Keep destination and known exact evidence in full details, after the next action.
+            lines.add(Component.translatable("quest.village-quest.story.night_bells.peaceful.destination",
+                    progress(world,playerId,PEACEFUL_VILLAGE_X),progress(world,playerId,PEACEFUL_VILLAGE_Z)));
+            for(var sector:NightBellsMarkerProgress.exactSectors(k->progress(world,playerId,k),chapterIndex()))
+                lines.add(Component.translatable("quest.village-quest.story.night_bells.peaceful.checked",sector.getX(),sector.getX()+7,sector.getZ(),sector.getZ()+7));
+            return List.copyOf(lines);
         }
 
-        private String peacefulProgressKey() {
-            return switch (chapterIndex()) {
-                case 0 -> "quest.village-quest.story.night_bells.chapter_1.progress_peaceful";
-                case 1 -> "quest.village-quest.story.night_bells.chapter_2.progress_peaceful";
-                case 2 -> "quest.village-quest.story.night_bells.chapter_3.progress_peaceful";
-                case 3 -> "quest.village-quest.story.night_bells.chapter_4.progress_peaceful";
-                default -> throw new IllegalStateException("Unexpected Night Bells chapter: " + chapterIndex());
-            };
+        private List<Map.Entry<Item,Integer>> orderedSupplies() {
+            return peacefulSupplies().entrySet().stream().sorted(java.util.Comparator.comparing(entry->entry.getKey().getDescriptionId())).toList();
+        }
+
+        private Component nextSector(ServerLevel world,UUID id) {
+            var player=world.getServer().getPlayerList().getPlayer(id);
+            var village=player==null?null:ShadowsTradeRoadEncounterService.currentVillage(world,player.blockPosition());
+            if(village!=null && village.centerX()==progress(world,id,PEACEFUL_VILLAGE_X) && village.centerZ()==progress(world,id,PEACEFUL_VILLAGE_Z)) {
+                int startX=Math.floorDiv(player.blockPosition().getX(),8),startZ=Math.floorDiv(player.blockPosition().getZ(),8);
+                for(int radius=0;radius<=4;radius++)for(int dx=-radius;dx<=radius;dx++)for(int dz=-radius;dz<=radius;dz++) {
+                    if(Math.max(Math.abs(dx),Math.abs(dz))!=radius)continue;
+                    int x=startX+dx,z=startZ+dz;
+                    var at=new BlockPos(x*8+4,player.blockPosition().getY(),z*8+4);
+                    if(!world.hasChunkAt(at) || !NightBellsPeacefulProgress.inStoryVillage(village,at,true,village.centerX(),village.centerZ())
+                            || !NightBellsMarkerProgress.available(k->progress(world,id,k),chapterIndex(),x,z))continue;
+                    // Only suggest an entire square inside the known accepted footprint.
+                    if(x*8<(long)village.minX()-16 || x*8+7>(long)village.maxX()+16
+                            || z*8<(long)village.minZ()-16 || z*8+7>(long)village.maxZ()+16)continue;
+                    var candidate=ShadowsTradeRoadEncounterService.currentVillage(world,at);
+                    if(!NightBellsPeacefulProgress.inStoryVillage(candidate,at,true,village.centerX(),village.centerZ()))continue;
+                    return Component.translatable("quest.village-quest.story.night_bells.peaceful.next_sector",x*8,x*8+7,z*8,z*8+7);
+                }
+            }
+            return Component.translatable("quest.village-quest.story.night_bells.peaceful.return_village",
+                    progress(world,id,PEACEFUL_VILLAGE_X),progress(world,id,PEACEFUL_VILLAGE_Z));
         }
 
         private DifficultyObjectiveState.Transition initializeMode(ServerLevel world,
@@ -291,50 +367,19 @@ public final class NightBellsStoryArc implements StoryArcDefinition {
             return !peacefulSupplies().isEmpty();
         }
 
-        private int peacefulSupplyCount(ServerLevel world, UUID playerId) {
-            int count = 0;
-            for (Map.Entry<Item, Integer> requirement : peacefulSupplies().entrySet()) {
-                count += Math.min(requirement.getValue(), StoryQuestService.countCompletionItem(world, playerId, requirement.getKey()));
-            }
-            return count;
-        }
-
-        private int peacefulSupplyTarget() {
-            return peacefulSupplies().values().stream().mapToInt(Integer::intValue).sum();
-        }
-
-        private void recordMarker(ServerLevel world, ServerPlayer player, int token) {
+        private void recordMarker(ServerLevel world, ServerPlayer player, BlockPos pos) {
             UUID playerId = player.getUUID();
-            int[] slots = new int[PEACEFUL_MARKER_SLOTS];
-            for (int i = 0; i < slots.length; i++) {
-                slots[i] = progress(world, playerId, markerKey(i));
+            if(!NightBellsMarkerProgress.supported(k->progress(world,playerId,k),chapterIndex())) {
+                player.sendSystemMessage(Component.translatable("quest.village-quest.story.night_bells.peaceful.unsupported"),true);return;
             }
-            int[] updated = DistinctObjectiveProgress.record(slots, token);
-            for (int i = 0; i < updated.length; i++) {
-                if (slots[i] != updated[i]) {
-                    StoryQuestService.setQuestInt(world, playerId, markerKey(i), updated[i]);
-                }
-            }
+            boolean recorded=NightBellsMarkerProgress.record(k->progress(world,playerId,k),
+                    (key,value)->StoryQuestService.setQuestIntQuietly(world,playerId,key,value),chapterIndex(),pos,chapterIndex()==3?4:3);
+            player.sendSystemMessage(Component.translatable("quest.village-quest.story.night_bells.peaceful."
+                    +(recorded?"new_sector":"repeat_sector"),markerCount(world,playerId),chapterIndex()==3?4:3),true);
         }
 
         private int markerCount(ServerLevel world, UUID playerId) {
-            int count = 0;
-            for (int i = 0; i < PEACEFUL_MARKER_SLOTS; i++) {
-                if (progress(world, playerId, markerKey(i)) != 0) {
-                    count++;
-                }
-            }
-            return count;
-        }
-
-        private String markerKey(int slot) {
-            return StoryQuestKeys.NIGHT_BELLS_PEACEFUL_MARKER_PREFIX + chapterIndex() + "_" + slot;
-        }
-
-        private static int markerToken(BlockPos pos) {
-            int sectorX = Math.floorDiv(pos.getX(), 8);
-            int sectorZ = Math.floorDiv(pos.getZ(), 8);
-            return 31 * sectorX + sectorZ;
+            return NightBellsMarkerProgress.count(k->progress(world,playerId,k),chapterIndex());
         }
 
         private static boolean isProtectionMarker(BlockState state) {
@@ -586,7 +631,7 @@ public final class NightBellsStoryArc implements StoryArcDefinition {
         @Override
         protected void onModeTick(ServerLevel world, ServerPlayer player, DifficultyObjectiveMode mode) {
             if (mode == DifficultyObjectiveMode.PEACEFUL) {
-                boolean nearVillage = inStoryVillage(world, player.getUUID(), player.blockPosition(), false);
+                boolean nearVillage = player.level() == world && inStoryVillage(world, player.getUUID(), player.blockPosition(), false);
                 boolean guardian = nearVillage && !world.getEntitiesOfClass(
                         IronGolem.class, player.getBoundingBox().inflate(48.0D), golem ->
                                 golem.isAlive() && inStoryVillage(world, player.getUUID(),

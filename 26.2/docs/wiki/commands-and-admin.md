@@ -6,6 +6,41 @@ In Village Quest 2.5, messages about features that still need a project, rank or
 
 ## Player Commands
 
+### Personal restart
+
+Back up a real save before testing a personal restart or updating an existing
+world. In the Progression Overhaul build, a living Survival player can use
+`/vq reset`, read the warning and run `/vq reset confirm`
+within two minutes. A direct `/vq reset confirm` first shows the warning; repeat it to confirm. Each confirmation works once, on the same
+server and for its requesting player. There is no other-player or console form;
+operator permission does not bypass these rules.
+
+This resets your quests in both story slots, personal reputation, village links,
+routes and VQ money, and leaves your party and guild. It removes VQ items from
+your inventory and Ender Chest, including nested portable storage, cursor and
+crafting inputs. Ordinary Minecraft items are kept. Before removal, all cursor
+and crafting contents must fit in saved inventory slots, and ordinary contents
+inside removed VQ bags must have room. Close other containers first.
+
+Placed world blocks and buildings, shared village rights, other players,
+in-progress shared contributions and earned shared-project claims remain. If you are the last guild member, finish any active shared project before restarting. The reset is blocked before item removal while that project is unfinished.
+Collect other earned reward choices/item deliveries and settle supplied freight
+or market transfers before restarting. Existing reward limits, first rewards
+and transaction records are preserved. Repeating already paid one-time stories does not pay their
+money, experience or materials again; progression unlocks can be earned again.
+The short introductory Daily is paid normally after a restart when a new Daily
+allowance is free, and consumes that allowance. Resetting never clears a paid cycle.
+Personal tools may be issued at a new owner generation, invalidating your old
+issues stored elsewhere. Anonymous old transferable items cannot be traced back
+to their original player.
+
+The reset records and reads back native player and world saves at its phase
+boundaries. Login resolves an interrupted reset before normal quest actions.
+If records are unknown or inconsistent, access stays locked with the claims
+preserved. Ask the server operator to inspect records/backups; do not force a
+second reset by deleting the records. Actual migration, multiplayer and
+power-loss behavior still require manual testing.
+
 ### Core Commands
 
 - `/vq questmaster`
@@ -39,7 +74,7 @@ In Village Quest 2.5, messages about features that still need a project, rank or
   Print a read-only reset, route, caravan, stuck-group, and orphan-entity report. Operators can use `/vq diagnose <player>` for another player.
 
 - `/vq town retrofit`
-  Request a Guild Corner in the village around you. If the decorative preset cannot fit, a compact Notice Post is placed on safe nearby ground. Stand beside your cleared area and retry: the local search checks densely around you, including forest villages. Necessary natural foliage/tree blocks may be cleared; buildings, containers and deliberately player-removed boards stay protected. Failed old reservations and missing saved boards can recover. The required area must be loaded; a compact board occupies three blocks of width and two of height, with a clear approach.
+  Request a Guild Corner in the village around you. If the decorative preset cannot fit, a compact Notice Post is placed on safe nearby ground. Stand beside your cleared area and retry: the local search checks densely around you, including forest villages. Necessary natural foliage/tree blocks may be cleared; buildings and containers stay protected. Failed old reservations and missing or deliberately removed generated boards can recover through this explicit command. The required area must be loaded; a compact board occupies three blocks of width and two of height, with a clear approach.
 
 - `/vq routes guild`
   Show trade-guild rank, score, daily income, escrow, route specialization, road length, quality, and solved incidents.
@@ -111,7 +146,9 @@ The shared guild stores only membership, roles, renown, and its selected network
   Accept the currently pending daily-related offer.
 
 - `/vq daily reroll`
-  Replace today's unaccepted daily quest once. Three combined post-200 Mastery levels grant a second reroll.
+  Replace today's unaccepted daily selection once. Three combined post-200 Mastery levels grant a second reroll. In 2.6.3, the Quest Master's three choices refresh together and old choice buttons expire; ordinary reopening or cancellation keeps the same choices.
+
+Village Quest 2.6.3 offers three normal Daily choices every cycle after the easier introduction. Choose one in the Quest Master window. Its saved target profile and progress remain active through calendar changes until completion or cancellation. Normal and shard-bonus Dailies share one active slot. Explicit personal selection keeps the chosen quest type; use the separate party invitation to join a running group quest.
 
 ### Quest Party
 
@@ -145,11 +182,11 @@ The shared guild stores only membership, roles, renown, and its selected network
 - `/vq party share weekly decline`
   Decline the currently pending shared weekly join offer.
 
-- `/vq party share story accept`
-  Accept the currently pending shared story-chapter join offer for a running party story.
+- `/vq party share story accept [core|kingdom]`
+  Accept one pending story-chapter offer. Choose `core` or `kingdom` when both are open; the chapter's chat buttons select the correct slot automatically.
 
-- `/vq party share story decline`
-  Decline the currently pending shared story-chapter join offer.
+- `/vq party share story decline [core|kingdom]`
+  Decline only the selected story offer. With two open offers, the general command leaves both unchanged and asks you to select a slot.
 
 - `/vq party share pilgrim accept`
   Accept the currently pending shared pilgrim-contract join offer for a running party contract.
@@ -382,3 +419,5 @@ The gallery does not create real village staff, generate village records or gran
 story evidence. It does not overwrite terrain, structures or occupied space and
 does not load chunks. If the strip is blocked or unloaded, nothing is placed.
 Use a test world; real villagers, players and all other world ticks are frozen too.
+
+Placement uses actual Vanilla/CTOV house and jobsite footprints: the Notice Post stays within 10 horizontal blocks of a real building; distant roads and the combined village bounds do not count. Automatic placement keeps the entire footprint at least 8 horizontal blocks from every nearby player and waits for a safe loaded site if necessary. Generated posts drop no item, so repeated retrofit cannot farm them; crafted posts keep their ordinary drops, including crafted replacements at an old generated site. Recovery restores the compact board rather than replenishing decorative materials.

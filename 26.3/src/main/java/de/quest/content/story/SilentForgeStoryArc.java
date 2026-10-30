@@ -40,7 +40,7 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
     private static final int BELLOWS_IRON_TARGET = 24;
     private static final int BELLOWS_BLAST_FURNACE_TARGET = 3;
     private static final int BELLOWS_CAULDRON_TARGET = 3;
-    private static final int TOOLS_TARGET = 3;
+    private static final int TOOLS_TARGET = 1;
     private static final int MASTER_BOOK_FAMILIES_TARGET = 2;
 
     private final List<StoryChapterDefinition> chapters = List.of(
@@ -197,7 +197,7 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
                     COLD_HEARTH_DIAMOND_TARGET
             ).withStyle(ChatFormatting.GRAY);
             ServerPlayer player = world == null ? null : world.getServer().getPlayerList().getPlayer(playerId);
-            Component blocked = player == null ? null : claimBlockedMessage(world, player);
+            Component blocked = player == null ? null : claimBlockedMessage(world, player, true);
             return blocked == null
                     ? List.of(line1, line2, line3, line4, line5)
                     : List.of(line1, line2, line3, line4, line5, blocked);
@@ -238,6 +238,11 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
 
         @Override
         public Component claimBlockedMessage(ServerLevel world, ServerPlayer player) {
+            return claimBlockedMessage(world, player, false);
+        }
+
+        @Override
+        public Component claimBlockedMessage(ServerLevel world, ServerPlayer player, boolean allRequirements) {
             if (player == null || world == null) {
                 return null;
             }
@@ -254,7 +259,7 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
                     && hasItem(world, player, Items.DIAMOND, COLD_HEARTH_DIAMOND_TARGET))) {
                 return null;
             }
-            return Texts.turnInMissing(
+            return Texts.turnInMissing(allRequirements,
                     Items.COAL.getDefaultInstance().getDisplayName(),
                     StoryQuestService.countCompletionItem(world, playerId, Items.COAL),
                     COLD_HEARTH_COAL_TARGET,
@@ -337,7 +342,7 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
                     Math.min(cauldron, BELLOWS_CAULDRON_TARGET),
                     BELLOWS_CAULDRON_TARGET
             ).withStyle(ChatFormatting.GRAY);
-            Component blocked = player == null ? null : claimBlockedMessage(world, player);
+            Component blocked = player == null ? null : claimBlockedMessage(world, player, true);
             return blocked == null ? List.of(line1, line2) : List.of(line1, line2, blocked);
         }
 
@@ -368,6 +373,11 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
 
         @Override
         public Component claimBlockedMessage(ServerLevel world, ServerPlayer player) {
+            return claimBlockedMessage(world, player, false);
+        }
+
+        @Override
+        public Component claimBlockedMessage(ServerLevel world, ServerPlayer player, boolean allRequirements) {
             if (player == null || world == null) {
                 return null;
             }
@@ -378,7 +388,7 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
                     && hasItem(world, player, Items.CAULDRON, BELLOWS_CAULDRON_TARGET))) {
                 return null;
             }
-            return Texts.turnInMissing(
+            return Texts.turnInMissing(allRequirements,
                     Items.IRON_INGOT.getDefaultInstance().getDisplayName(),
                     StoryQuestService.countCompletionItem(world, playerId, Items.IRON_INGOT),
                     BELLOWS_IRON_TARGET,
@@ -469,7 +479,7 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
                     shieldReady,
                     TOOLS_TARGET
             ).withStyle(ChatFormatting.GRAY);
-            Component blocked = player == null ? null : claimBlockedMessage(world, player);
+            Component blocked = player == null ? null : claimBlockedMessage(world, player, true);
             return blocked == null ? List.of(line1, line2) : List.of(line1, line2, blocked);
         }
 
@@ -499,6 +509,11 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
 
         @Override
         public Component claimBlockedMessage(ServerLevel world, ServerPlayer player) {
+            return claimBlockedMessage(world, player, false);
+        }
+
+        @Override
+        public Component claimBlockedMessage(ServerLevel world, ServerPlayer player, boolean allRequirements) {
             if (player == null || world == null) {
                 return null;
             }
@@ -513,7 +528,7 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
                     && hasPristineItem(world, player, Items.SHIELD, TOOLS_TARGET))) {
                 return null;
             }
-            return Texts.turnInMissing(
+            return Texts.turnInMissing(allRequirements,
                     Items.IRON_PICKAXE.getDefaultInstance().getDisplayName(),
                     countPristineItems(world, playerId, Items.IRON_PICKAXE),
                     TOOLS_TARGET,
@@ -646,8 +661,9 @@ public final class SilentForgeStoryArc implements StoryArcDefinition {
 
         private Component equipmentProgressLine(ServerLevel world, UUID playerId, Item item, String suffix) {
             boolean present = countCarried(world, playerId, item) >= 1;
-            return Component.translatable("quest.village-quest.story.silent_forge.chapter_4.progress." + suffix,
-                    present ? "\u2713" : "\u2014").withStyle(present ? ChatFormatting.GREEN : ChatFormatting.GRAY);
+            return Component.translatable("screen.village-quest.ui_review.objective_row",
+                    Component.translatable("quest.village-quest.tracker.forge."+suffix),present?1:0,1)
+                    .withStyle(present ? ChatFormatting.GREEN : ChatFormatting.GRAY);
         }
 
         @Override

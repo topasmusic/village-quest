@@ -66,12 +66,19 @@ public final class ModEntities {
 
     private ModEntities() {}
 
+    public static final EntityType<de.quest.entity.AmbientAdventurerEntity> AMBIENT_ADVENTURER=Registry.register(
+            BuiltInRegistries.ENTITY_TYPE,Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID,"ambient_adventurer"),
+            EntityType.Builder.<de.quest.entity.AmbientAdventurerEntity>of(de.quest.entity.AmbientAdventurerEntity::new,MobCategory.CREATURE)
+                    .sized(.6f,1.8f).noSave().noLootTable().build(ResourceKey.create(Registries.ENTITY_TYPE,
+                            Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID,"ambient_adventurer"))));
+
     public static final EntityType<KingdomNpcEntity> KINGDOM_NPC=Registry.register(BuiltInRegistries.ENTITY_TYPE,
             Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID,"kingdom_npc"),
             EntityType.Builder.<KingdomNpcEntity>of(KingdomNpcEntity::new,MobCategory.CREATURE).sized(0.6f,1.8f)
                     .build(ResourceKey.create(Registries.ENTITY_TYPE,Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID,"kingdom_npc"))));
 
     public static void register() {
+        FabricDefaultAttributeRegistry.register(AMBIENT_ADVENTURER,de.quest.entity.AmbientAdventurerEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(PILGRIM, PilgrimEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(QUEST_MASTER, QuestMasterEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(CARAVAN_MERCHANT, CaravanMerchantEntity.createAttributes());

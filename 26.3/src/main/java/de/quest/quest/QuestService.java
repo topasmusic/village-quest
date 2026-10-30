@@ -43,7 +43,10 @@ public final class QuestService {
         de.quest.caravan.CaravanCrewLifecycle.activate();
         de.quest.reputation.ReputationDamageAdapter.activate(TradeRouteService::socialVictim);
         net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
-            if (entity.level() instanceof ServerLevel world) TradeRouteService.onCaravanDeath(world, entity);
+            if (entity.level() instanceof ServerLevel world) {
+                EncounterEntityLifecycle.onDeath(entity);
+                TradeRouteService.onCaravanDeath(world, entity);
+            }
         });
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             resetTransientRuntimeState();
@@ -99,6 +102,8 @@ public final class QuestService {
 
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
                 server.execute(() -> {
+                    if (!de.quest.network.ProgressionProtocol.require(handler.player)) return;
+                    if (!de.quest.shrine.VillageIntroRequestService.recoverBeforeActions(handler.player)) return;
                     QuestState state = QuestState.get(server);
                     if (FirstDailyChoiceService.migratePre24Progress(
                             state.getPlayerData(handler.player.getUUID()))) {
@@ -153,7 +158,7 @@ public final class QuestService {
 
         PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, blockEntity) -> {
             if (world instanceof ServerLevel sw && player instanceof net.minecraft.server.level.ServerPlayer sp) {
-                QuestState.get(sw.getServer()).markTerrainModified(pos);
+                QuestState.get(sw.getServer()).markTerrainModified(sw,pos);
                 DailyQuestService.onBlockBreak(sw, sp, pos, state);
                 StoryQuestService.onBlockBreak(sw, sp, pos, state);
                 SpecialQuestService.onBlockBreak(sw, sp, pos, state);
@@ -162,6 +167,8 @@ public final class QuestService {
             }
         });
 
+        ServerEntityEvents.ENTITY_LOAD.register(EncounterEntityLifecycle::onLoad);
+        ServerEntityEvents.ENTITY_UNLOAD.register(EncounterEntityLifecycle::onUnload);
         ServerEntityEvents.ENTITY_LOAD.register(QuestDropTracker::onEntityLoad);
         ServerEntityEvents.ENTITY_LOAD.register(PaintingNameService::onEntityLoad);
         ServerEntityEvents.ENTITY_UNLOAD.register(PaintingNameService::onEntityUnload);
@@ -246,6 +253,7 @@ public final class QuestService {
         QuestTrackerService.resetAllRuntimeState();
         QuestMasterUiService.resetAllSessions();
         MerchantSealQuestService.resetRuntimeState();
+        EncounterEntityLifecycle.reset();
         SurveyorCompassQuestService.resetRuntimeState();
         ShadowsTradeRoadEncounterService.resetRuntimeState();
         EmptyCaravanStoryService.resetRuntimeState();

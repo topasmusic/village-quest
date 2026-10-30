@@ -59,6 +59,13 @@ public final class BuildingScanner {
         for (var entry : cells.entrySet()) {
             if (!entry.getValue().loaded || !approachable(entry.getKey(), walkable)) continue;
             for (Feature feature : entry.getValue().features) {
+                // Two-block furniture is resolved only from the budgeted scan, never extra world reads.
+                if(feature==Feature.TABLE_TOP) continue;
+                if(feature==Feature.TABLE_LEG) {
+                    if(cell(entry.getKey().above()).features.contains(Feature.TABLE_TOP))
+                        stations.computeIfAbsent(Feature.TABLE,ignored -> new HashSet<>()).add(entry.getKey());
+                    continue;
+                }
                 if (feature==Feature.BED && !completeBed(entry.getKey(),entry.getValue())) continue;
                 BlockPos station = feature == Feature.CONTAINER && entry.getValue().resourceRoot != null
                         ? entry.getValue().resourceRoot : entry.getKey();
@@ -88,6 +95,13 @@ public final class BuildingScanner {
                 checks.put(Check.BED, count(stations, Feature.BED) >= 1);
             }
             case MARKET -> {
+                // Certify each surface locally: floor blocks and remote storage cannot lend a stall.
+                for(Feature feature:List.of(Feature.COUNTER,Feature.STALL)) {
+                    Set<BlockPos> usable=new HashSet<>();
+                    for(BlockPos counter:stations.getOrDefault(feature,Set.of()))
+                        if(marketServiceCounter(counter,walkable,stations.getOrDefault(Feature.CONTAINER,Set.of()))) usable.add(counter);
+                    stations.put(feature,usable);
+                }
                 checks.put(Check.CONTAINERS, count(stations, Feature.CONTAINER) >= 1);
                 checks.put(Check.COUNTER, !stations.getOrDefault(Feature.STALL, Set.of()).isEmpty()
                         || connectedCounter(stations.getOrDefault(Feature.COUNTER, Set.of())));
@@ -177,6 +191,19 @@ public final class BuildingScanner {
         return positions.stream().anyMatch(pos -> positions.stream().anyMatch(other -> !pos.equals(other)
                 && pos.getY() == other.getY() && Math.abs(pos.getX() - other.getX()) + Math.abs(pos.getZ() - other.getZ()) == 1));
     }
+
+    private static boolean marketServiceCounter(BlockPos counter,Set<BlockPos> floor,Set<BlockPos> containers) {
+        boolean serviceSides=false;
+        for(Direction direction:List.of(Direction.NORTH,Direction.EAST))
+            if(floor.contains(counter.relative(direction)) && floor.contains(counter.relative(direction.getOpposite()))) serviceSides=true;
+        if(!serviceSides) return false;
+        for(int dx=-3;dx<=3;dx++) for(int dz=-3;dz<=3;dz++) {
+            if(Math.abs(dx)+Math.abs(dz)>3) continue;
+            for(int dy=-1;dy<=1;dy++)
+                if((dx!=0 || dy!=0 || dz!=0) && containers.contains(counter.offset(dx,dy,dz))) return true;
+        }
+        return false;
+    }
     private static int count(Map<Feature, Set<BlockPos>> stations, Feature feature) {
         return stations.getOrDefault(feature, Set.of()).size();
     }
@@ -199,7 +226,7 @@ public final class BuildingScanner {
         public final int horizontal, vertical;
         Range(int horizontal, int vertical) { this.horizontal = horizontal; this.vertical = vertical; }
     }
-    public enum Feature { TABLE, SEAT, BOOKS, BARREL, CONTAINER, KITCHEN, BED, COUNTER, WORKSTATION, LIGHT, STALL }
+    public enum Feature { TABLE, SEAT, BOOKS, BARREL, CONTAINER, KITCHEN, BED, COUNTER, WORKSTATION, LIGHT, STALL, TABLE_LEG, TABLE_TOP }
     public enum Check { ENTRY, LIGHT, ROOF, TABLE, SEATS, BOOKS, BARRELS, KITCHEN, BED, COUNTER, CONTAINERS, WORKSTATION, HANDOVER }
     public record Cell(boolean loaded, boolean passable, boolean support, boolean roof,
                        Set<Feature> features, Direction seatFacing, BlockPos resourceRoot, BedGeometry bed) {

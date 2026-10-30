@@ -436,6 +436,7 @@ public final class ProsperityService {
 
     /** Reverses an admin-fixture grant without recording the rollback as spending. */
     public static long adminReverseFixtureCurrency(ServerLevel world, UUID playerId, long amount) {
+        if (de.quest.shrine.VillageIntroRequestService.blocksActions(world,playerId)) return 0;
         if (world == null || playerId == null || amount <= 0L) return 0L;
         PlayerQuestData playerData = data(world, playerId);
         long removed = Math.min(amount, CurrencyService.getBalance(world, playerId));

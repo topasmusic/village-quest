@@ -22,11 +22,34 @@ public interface StoryChapterDefinition {
 
     default List<Component> descriptionLines() { return List.of(offerParagraph1(), offerParagraph2()); }
 
+    default List<Component> descriptionLines(ServerLevel world, UUID playerId) { return descriptionLines(); }
+
     List<Component> progressLines(ServerLevel world, UUID playerId);
+
+    /** Read-only next action; reuse the journal snapshot rather than querying it twice. */
+    default Component shortObjective(ServerLevel world, UUID playerId, List<Component> progress) {
+        Component next = de.quest.quest.QuestShortObjective.current(progress);
+        if (next.getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents text
+                && text.getKey().equals("quest.village-quest.guidance.claim") && world != null && playerId != null) {
+            ServerPlayer player = world.getServer().getPlayerList().getPlayer(playerId);
+            Component blocked = player == null ? null : claimBlockedMessage(world, player, true);
+            if(blocked!=null && de.quest.quest.QuestShortObjective.rows(blocked).stream().allMatch(c->
+                    c.getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents t
+                    && t.getKey().equals("quest.village-quest.tracker.friend_material"))) return blocked;
+            if (blocked != null && blocked.getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents missing
+                    && missing.getKey().startsWith("text.village-quest.turnin_missing.")) {
+                return de.quest.quest.QuestShortObjective.group(de.quest.quest.QuestShortObjective.turnInMaterials(blocked));
+            }
+        }
+        return next;
+    }
 
     boolean isComplete(ServerLevel world, ServerPlayer player);
 
     StoryChapterCompletion buildCompletion();
+
+    /** Read-only presentation for the saved objective mode; reward identity stays unchanged. */
+    default StoryChapterCompletion buildCompletion(ServerLevel world, UUID playerId) { return buildCompletion(); }
 
     default QuestCompletionMode completionMode() { return QuestCompletionMode.QUESTMASTER_TURN_IN; }
 
@@ -37,6 +60,10 @@ public interface StoryChapterDefinition {
     default boolean consumeCompletionRequirements(ServerLevel world, ServerPlayer player) { return true; }
 
     default Component claimBlockedMessage(ServerLevel world, ServerPlayer player) { return null; }
+
+    default Component claimBlockedMessage(ServerLevel world, ServerPlayer player, boolean allRequirements) {
+        return claimBlockedMessage(world, player);
+    }
 
     default void onAccepted(ServerLevel world, ServerPlayer player) {}
 

@@ -28,6 +28,15 @@ import net.minecraft.world.level.block.state.BlockState;
 
 /** Trusted success adapters only. No rewards, terrain construction, chunk tickets or new freight settlement. */
 public final class ArtifactJourneyService {
+    public static net.minecraft.network.chat.Component shortObjective(PlayerQuestData data) {
+        String prefix="quest.village-quest.tracker.artifact.";
+        if(ArtifactJourneyProgress.target(data)==null)
+            return net.minecraft.network.chat.Component.translatable(prefix+"target");
+        int chapter=data.getStoryChapterProgress(ArtifactJourneyProgress.ARC);
+        for(var deed:ArtifactJourneyProgress.required(chapter)) if(!ArtifactJourneyProgress.has(data,deed))
+            return net.minecraft.network.chat.Component.translatable(prefix+deed.name().toLowerCase(java.util.Locale.ROOT));
+        return net.minecraft.network.chat.Component.translatable(prefix+(chapter==4 && ArtifactJourneyProgress.choice(data)==0?"choice":"claim"));
+    }
     private static final String TEXT="quest.village-quest.story.artifact_journey.";
     private record Pending(MinecraftServer server,String dimension,UUID epoch,UUID entity,BlockPos position,long tick) {}
     private static final Map<UUID,Pending> FLOCKS=new HashMap<>();

@@ -86,14 +86,18 @@ final class QuestCalendarIntegrationTest {
             assertEquals(weekly, QuestPartySessions.activeWeeklyType(party));
             when(world.getOverworldClockTime()).thenReturn(24000L);
             assertFalse(DailyQuestService.hasCompletedToday(world, offline));
-            assertNull(QuestPartySessions.activeDailyType(party));
+            assertEquals(daily, QuestPartySessions.activeDailyType(party));
             assertEquals(weekly, QuestPartySessions.activeWeeklyType(party));
             when(world.getOverworldClockTime()).thenReturn(168000L);
             assertFalse(WeeklyQuestService.hasCompletedThisWeek(world, offline));
-            assertNull(QuestPartySessions.activeWeeklyType(party));
+            assertEquals(weekly, QuestPartySessions.activeWeeklyType(party));
             assertNotEquals(weeklyReward, VanillaRewardService.weeklyIdentity(weekly.name()));
-            // Economic/reputation day remains the real-time day.
-            assertEquals(TimeUtil.currentDay(), day);
+            // Every daily consumer, including economic and notice-board limits, follows the same calendar.
+            assertEquals(QuestCalendarService.currentDay(), TimeUtil.currentDay());
+            assertTrue(TimeUtil.currentDay() > day);
+            var noticeDay = de.quest.shrine.VillageBondService.class.getDeclaredMethod("currentRequestDay");
+            noticeDay.setAccessible(true);
+            assertEquals(Math.toIntExact(QuestCalendarService.currentDay()), noticeDay.invoke(null));
             String before = VanillaRewardService.dailyIdentity(daily.name());
             configs.when(VillageQuestServerConfig::get).thenReturn(realtime);
             assertEquals(before, VanillaRewardService.dailyIdentity(daily.name()));

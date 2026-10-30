@@ -35,8 +35,9 @@ public abstract class BlockItemMixin {
         }
 
         BlockItem item = (BlockItem) (Object) this;
-        QuestState.get(world.getServer()).markTerrainModified(context.getClickedPos());
+        QuestState.get(world.getServer()).markTerrainModified(world,context.getClickedPos());
         GuildTownService.onPlaceBlock(world, player, context.getClickedPos(), item.getDefaultInstance());
         de.quest.quest.special.LutteCoastalQuest.placed(world,player,context.getClickedPos());
+        de.quest.ambient.EncounterQuestService.placed(world,player,context.getClickedPos());
     }
 }

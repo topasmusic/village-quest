@@ -94,11 +94,14 @@ public final class LutteCoastalQuest {
     private static void pos(FriendsQuestProgress p,String key,BlockPos pos) { p.number(key+".x",pos.getX());p.number(key+".y",pos.getY());p.number(key+".z",pos.getZ()); }
     public static boolean accept(ServerLevel world,ServerPlayer player,FriendsQuestProgress p) {
         if(world.dimension()!=Level.OVERWORLD || p.number("lutte.materials")==1) return false;
-        var goods=List.of(new ItemStack(Items.LANTERN,3),new ItemStack(Items.COBBLESTONE_WALL,6),new ItemStack(Items.OAK_LOG,3));
-        if(!VanillaRewardService.state(world,player.getUUID()).canEnqueue(4)) return false;
-        p.number("lutte.generation",1); pos(p,"lutte.origin",player.blockPosition());
+        var data=QuestState.get(world.getServer()).getPlayerData(player.getUUID());
+        boolean supplies=!de.quest.data.PersonalResetReceipts.has(data,"supplies.lutte");
+        var goods=supplies?List.of(new ItemStack(Items.LANTERN,3),new ItemStack(Items.COBBLESTONE_WALL,6),new ItemStack(Items.OAK_LOG,3)):List.<ItemStack>of();
+        if(!VanillaRewardService.state(world,player.getUUID()).canEnqueue(goods.size()+1)) return false;
+        p.number("lutte.generation",Math.max(1,p.number("lutte.generation"))); pos(p,"lutte.origin",player.blockPosition());
         var items=new ArrayList<>(goods);items.add(map(world,player,p));
         if(!FriendsQuestService.enqueue(world,player,items)) return false;
+        de.quest.data.PersonalResetReceipts.record(data,"supplies.lutte");
         p.number("lutte.materials",1);p.number("lutte.mapTarget",-1);return true;
     }
     public static void survey(ServerLevel world,ServerPlayer player,FriendsQuestProgress p) {

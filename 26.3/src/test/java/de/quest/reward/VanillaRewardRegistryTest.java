@@ -5,6 +5,13 @@ import de.quest.quest.repeatable.RepeatableTargetProfile;
 import org.junit.jupiter.api.Test;
 
 final class VanillaRewardRegistryTest {
+    @Test void introductionOffersEightBreadOrTwoSilverWithoutProfileScaling() {
+        for(var profile:RepeatableTargetProfile.values()) {
+            var options=VanillaRewardRegistry.options("intro",profile);
+            assertEquals(2,options.size());assertEquals("bread",options.getFirst().goods().getFirst().item());
+            assertEquals(8,options.getFirst().goods().getFirst().count());assertEquals(2,options.getLast().currency());
+        }
+    }
     @Test void wheatDailyHasExactSupplyAndFixedCurrencyAlternatives() {
         var options = VanillaRewardRegistry.options("daily:WHEAT_HARVEST", RepeatableTargetProfile.NORMAL);
         assertEquals(2, options.size()); assertEquals(12, options.getFirst().goods().getFirst().count());

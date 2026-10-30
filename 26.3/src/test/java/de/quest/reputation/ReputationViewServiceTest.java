@@ -6,6 +6,18 @@ import java.util.*;
 import org.junit.jupiter.api.Test;
 
 final class ReputationViewServiceTest {
+    @Test void snapshotKeepsFirstSeenPageOrderAndUsesTheSmallestHistoryVillageWithItsOwnDelta() {
+        var data = new SocialReputationData();
+        var first = VillageKey.overworld(256,0); var second = VillageKey.overworld(0,0);
+        data.appendHistory(new SocialReputationData.HistoryEntry(UUID.randomUUID(),"story",0,0,
+                Map.of(first,4,second,2),7));
+        var view = ReputationViewService.build(data,List.of(first,second,first),0,true);
+        assertEquals(2,view.villageTotal());
+        assertEquals(List.of(first,second),view.villages().stream().map(ReputationViewService.VillageView::key).toList());
+        assertEquals(second,view.history().getFirst().village());
+        assertEquals(2,view.history().getFirst().localDelta());
+        assertEquals(2,view.history().getFirst().affectedCount());
+    }
     @Test void pagesOnlyPersonalKnownVillagesAndKeepsCaseVisibleWithoutDiscoveringThem() {
         var data = new SocialReputationData();
         List<VillageKey> known = new ArrayList<>();

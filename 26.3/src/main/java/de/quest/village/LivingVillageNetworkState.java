@@ -37,6 +37,8 @@ public final class LivingVillageNetworkState extends SavedData {
     private int schemaVersion = CURRENT_SCHEMA_VERSION;
     // Older network migration must not turn unknown future input into a fresh market quota.
     private boolean marketDemandCompatible = true;
+    private CompoundTag unsupported;
+    public boolean readOnly() { return unsupported!=null || !marketDemandCompatible; }
 
     LivingVillageNetworkState() {}
 
@@ -55,6 +57,7 @@ public final class LivingVillageNetworkState extends SavedData {
     }
 
     public int removeOwner(UUID ownerId) {
+        if(readOnly())throw new IllegalStateException("Unknown personal village network");
         if (ownerId == null) return 0;
         int before = villages.size();
         villages.keySet().removeIf(key -> key.ownerId().equals(ownerId));
@@ -62,6 +65,9 @@ public final class LivingVillageNetworkState extends SavedData {
         boolean networkRemoved = networks.remove(ownerId) != null;
         if (removed > 0 || networkRemoved) setDirty();
         return removed;
+    }
+    public boolean hasOwner(UUID ownerId) {
+        return networks.containsKey(ownerId) || villages.keySet().stream().anyMatch(k -> k.ownerId().equals(ownerId));
     }
 
     public void resetAllProgress() {
@@ -257,7 +263,11 @@ public final class LivingVillageNetworkState extends SavedData {
         LivingVillageNetworkState state = new LivingVillageNetworkState();
         if (root == null || root.isEmpty()) return state;
 
-        int sourceVersion = Math.max(0, root.getIntOr("schemaVersion", 0));
+        int sourceVersion = root.getIntOr("schemaVersion", 0);
+        if(sourceVersion<0 || sourceVersion>CURRENT_SCHEMA_VERSION
+                || root.contains("schemaVersion") && !(root.get("schemaVersion") instanceof net.minecraft.nbt.IntTag)) {
+            state.unsupported=root.copy();state.marketDemandCompatible=false;state.schemaVersion=sourceVersion;return state;
+        }
         state.marketDemandCompatible = sourceVersion <= CURRENT_SCHEMA_VERSION
                 && (!root.contains("schemaVersion") || root.get("schemaVersion") instanceof net.minecraft.nbt.IntTag)
                 && (!root.contains("marketDemandDisabled") || root.get("marketDemandDisabled") instanceof net.minecraft.nbt.ByteTag disabled
@@ -313,6 +323,7 @@ public final class LivingVillageNetworkState extends SavedData {
     }
 
     static CompoundTag toNbt(LivingVillageNetworkState state) {
+        if(state.unsupported!=null)return state.unsupported.copy();
         CompoundTag root = new CompoundTag();
         root.putInt("schemaVersion", CURRENT_SCHEMA_VERSION);
         if (!state.marketDemandCompatible) root.putBoolean("marketDemandDisabled", true);

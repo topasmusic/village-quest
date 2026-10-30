@@ -22,6 +22,43 @@ public final class SpecialQuestService {
 
     private SpecialQuestService() {}
 
+    public static java.util.List<de.quest.quest.JournalActiveQuest> journalEntries(ServerLevel world,UUID player) {
+        var entries=new java.util.ArrayList<de.quest.quest.JournalActiveQuest>();
+        add(entries,"relic",ShardRelicQuestService.openStatus(world,player));
+        add(entries,"merchant_seal",MerchantSealQuestService.openStatus(world,player));
+        add(entries,"shepherd_flute",ShepherdFluteQuestService.openStatus(world,player));
+        add(entries,"apiarist_smoker",ApiaristSmokerQuestService.openStatus(world,player));
+        add(entries,"surveyor_compass",SurveyorCompassQuestService.openStatus(world,player));
+        var friends=FriendsQuestService.progress(world,player);
+        for(String who:java.util.List.of("simon","lutte","marius")) if(friends.active(who)) {
+            var title=net.minecraft.network.chat.Component.translatable("quest.village-quest.friends."+who+"."+(friends.stage(who)+1)+".title");
+            entries.add(new de.quest.quest.JournalActiveQuest(new de.quest.quest.TrackerEntry("special:friend:"+who,"special",title,
+                    FriendsQuestService.shortObjective(world.getServer().getPlayerList().getPlayer(player),friends,who)),FriendsQuestService.lines(world,world.getServer().getPlayerList().getPlayer(player),friends,who),-1));
+        }
+        if(friends.number("simon.herbs")==1) entries.add(new de.quest.quest.JournalActiveQuest(new de.quest.quest.TrackerEntry(
+                "special:friend:simon_herbs","special",net.minecraft.network.chat.Component.translatable("quest.village-quest.friends.simon.herbs.title"),
+                FriendsQuestService.shortObjective(world.getServer().getPlayerList().getPlayer(player),friends,"simon")),
+                java.util.List.of(net.minecraft.network.chat.Component.translatable("quest.village-quest.friends.simon.herbs.objective")),-1));
+        return java.util.List.copyOf(entries);
+    }
+    private static void add(java.util.List<de.quest.quest.JournalActiveQuest> entries,String id,SpecialQuestStatus status) {
+        if(status!=null) {
+            String prefix=switch(id) {
+                case "relic" -> "shards";case "merchant_seal" -> "merchant";case "shepherd_flute" -> "flute";
+                default -> id;
+            };
+            var details=new java.util.ArrayList<net.minecraft.network.chat.Component>(status.lines());
+            details.add(net.minecraft.network.chat.Component.translatable("quest.village-quest.special."+prefix+".offer.1"));
+            details.add(net.minecraft.network.chat.Component.translatable("quest.village-quest.special."+prefix+".offer.2",10));
+            if(id.equals("surveyor_compass")) {
+                details.add(net.minecraft.network.chat.Component.translatable("quest.village-quest.special.surveyor_compass_biomes.offer.1"));
+                details.add(net.minecraft.network.chat.Component.translatable("quest.village-quest.special.surveyor_compass_biomes.offer.2"));
+            }
+            entries.add(new de.quest.quest.JournalActiveQuest(new de.quest.quest.TrackerEntry("special:"+id,"special",status.title(),
+                    de.quest.quest.QuestShortObjective.current(status.lines())),details,-1));
+        }
+    }
+
     private static PlayerQuestData data(ServerLevel world, UUID playerId) {
         return QuestState.get(world.getServer()).getPlayerData(playerId);
     }

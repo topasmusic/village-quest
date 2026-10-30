@@ -31,7 +31,7 @@ public abstract class TradeOutputSlotMixin {
             )
     )
     private void villageQuest$trackVillagerTrade(Player player, ItemStack stack, CallbackInfo ci) {
-        if (!(merchant instanceof Villager)) {
+        if (!(merchant instanceof Villager villager)) {
             return;
         }
         if (!(player instanceof ServerPlayer serverPlayer)) {
@@ -45,5 +45,7 @@ public abstract class TradeOutputSlotMixin {
         }
 
         DailyQuestService.onVillagerTrade(serverWorld, serverPlayer, rewardStack);
+        de.quest.shrine.VillageTradeTrustService.onCommittedTrade(
+                serverWorld, serverPlayer, villager, java.util.UUID.randomUUID());
     }
 }

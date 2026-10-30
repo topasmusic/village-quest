@@ -72,12 +72,9 @@ public final class QuestBookHelper {
         Component storyProgress = storyActive
                 ? de.quest.reward.VanillaRewardService.joinLines(story.lines())
                 : Component.empty();
-        var storyData = de.quest.data.QuestState.get(world.getServer()).getPlayerData(pid);
-        if (storyActive && storyData.getActiveStoryArc()==de.quest.quest.story.StoryArcType.LIVING_KINGDOMS) {
-            Component next = de.quest.kingdom.KingdomStoryGuidance.next(storyData,
-                    de.quest.kingdom.LivingKingdomsState.get(world.getServer()),
-                    storyData.getStoryChapterProgress(de.quest.kingdom.KingdomStoryProgress.ARC));
-            if (!next.getString().isBlank()) storyProgress = next.copy().append("\n").append(storyProgress);
+        if (!storyActive && !de.quest.questmaster.QuestMasterProgressionService.isStoryCategoryUnlocked(world,pid)) {
+            storyTitle=StoryQuestService.definition(de.quest.quest.story.StoryArcType.FAILING_HARVEST).title();
+            storyProgress=QuestGuidanceService.firstStory().action();
         }
         PilgrimContractService.PilgrimContractStatus pilgrim = PilgrimContractService.openStatus(world, pid);
         boolean pilgrimActive = pilgrim != null;
@@ -159,9 +156,13 @@ public final class QuestBookHelper {
                                 new de.quest.village.VillageLifeState.VillageKey(socialDimension,village.x(),village.z()))
                                 .map(de.quest.kingdom.LivingKingdomsState.VillageView::id).orElse(de.quest.network.BuildingPayloads.NONE),
                         de.quest.kingdom.KingdomVillageService.lastKnown(world,village.x(),village.z()),
-                        de.quest.kingdom.KingdomVillageService.journalStats(world,pid,village.x(),village.z())))
+                        de.quest.kingdom.KingdomVillageService.journalStats(world,pid,village.x(),village.z()),
+                        de.quest.reputation.VillageRelationship.project(de.quest.data.QuestState.get(world.getServer()).getPlayerData(pid), village.index(),
+                                new de.quest.village.VillageLifeState.VillageKey(socialDimension,village.x(),village.z()),pid,
+                                de.quest.kingdom.LivingKingdomsState.get(world.getServer()),de.quest.reputation.SocialReputationService.enabled())))
                 .toList();
         List<Component> networkGuildLines = new java.util.ArrayList<>(VillageGuildService.statusLines(world, pid));
+        networkGuildLines.add(Component.translatable("message.village-quest.kingdom.attack_warning.rules"));
         networkGuildLines.addAll(de.quest.kingdom.KingdomVillageService.guestArrivals(world,pid));
         var artifactData=de.quest.data.QuestState.get(world.getServer()).getPlayerData(pid);
         if(artifactData.hasMilestoneFlag(de.quest.kingdom.ArtifactJourneyProgress.PREFIX+"finale")) {
@@ -172,6 +173,9 @@ public final class QuestBookHelper {
         VillageBondService.VillageBondView priorityVillage = networkVillages.stream()
                 .min(Comparator.comparingInt(village -> village.network().support())).orElse(null);
         Component introductionNextAction = VillageWelcomeService.journalNextAction(world, pid);
+        if (introductionNextAction.getString().isBlank()
+                && StoryQuestService.activeArcType(world,pid,de.quest.quest.story.StoryLane.KINGDOM)!=null)
+            introductionNextAction=QuestGuidanceService.story(world,player,de.quest.quest.story.StoryArcType.LIVING_KINGDOMS).action();
         Component guildTownNextAction = GuildTownService.journalNextAction(world, pid);
         Component networkNextAction = !introductionNextAction.getString().isBlank()
                 ? introductionNextAction
@@ -228,11 +232,12 @@ public final class QuestBookHelper {
                 networkNextAction,
                 networkSummary,
                 networkVillageData,
-                networkGuildLines
+                networkGuildLines, QuestTrackerService.journalEntries(world,player)
         );
     }
 
     public static boolean openJournal(ServerLevel world, ServerPlayer player) {
+        if (!de.quest.network.ProgressionProtocol.require(player)) return false;
         UUID pid = player.getUUID();
         JOURNAL_ENABLED.add(pid);
         sendPayload(player, buildPayload(world, player, JournalPayload.ACTION_OPEN));
@@ -346,6 +351,7 @@ public final class QuestBookHelper {
     }
 
     private static void sendPayload(ServerPlayer player, JournalPayload payload) {
+        if (!de.quest.network.ProgressionProtocol.require(player)) return;
         ServerPlayNetworking.send(player, payload);
         if (payload.action() != JournalPayload.ACTION_CLOSE) de.quest.reputation.ReputationInteractionService.sendJournal(player);
     }

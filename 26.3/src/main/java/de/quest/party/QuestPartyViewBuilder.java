@@ -22,9 +22,7 @@ final class QuestPartyViewBuilder {
         if (party != null) {
             for (UUID memberId : party.members()) {
                 ServerPlayer member = server.getPlayerList().getPlayer(memberId);
-                Component name = member == null
-                        ? Component.literal(shortId(memberId)).withStyle(ChatFormatting.GRAY)
-                        : member.getDisplayName().copy();
+                Component name = QuestPartyMessaging.nameOf(viewer.level(),party,memberId);
                 Long disconnectUntil = party.disconnectDeadlines().get(memberId);
                 if (disconnectUntil != null && disconnectUntil > System.currentTimeMillis()) {
                     name = name.copy().append(Component.translatable(
@@ -94,8 +92,4 @@ final class QuestPartyViewBuilder {
         return Long.toString(Math.max(1L, (long) Math.ceil(millis / 60000.0d)));
     }
 
-    private static String shortId(UUID playerId) {
-        String value = playerId == null ? "player" : playerId.toString().replace("-", "");
-        return value.length() <= 8 ? value : value.substring(0, 8);
-    }
 }

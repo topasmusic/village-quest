@@ -137,7 +137,9 @@ public final class DailyQuestService {
         BONUS
     }
 
-    private record TargetProfileContext(RepeatableTargetProfile profile, boolean introductory, boolean modernSmith) {}
+    private record TargetProfileContext(RepeatableTargetProfile profile, boolean introductory, boolean modernSmith, boolean preview) {
+        TargetProfileContext(RepeatableTargetProfile profile, boolean introductory, boolean modernSmith) { this(profile,introductory,modernSmith,false); }
+    }
 
     private record QuestStatusSnapshot(Component title, Component progressLine) {}
 
@@ -159,6 +161,7 @@ public final class DailyQuestService {
     }
 
     private static void ensureCurrentProgressDay(PlayerQuestData data) {
+        if (data.hasActiveDailySlot()) return;
         long day = currentDay();
         if (data.getProgressDay() != day) {
             data.clearDailyProgress();
@@ -178,12 +181,13 @@ public final class DailyQuestService {
     }
 
     public static int getQuestInt(ServerLevel world, UUID playerId, String key) {
+        if (TARGET_PROFILE_CONTEXT.get() != null && TARGET_PROFILE_CONTEXT.get().preview()) return 0;
         PlayerQuestData data = data(world, playerId);
         ensureCurrentProgressDay(data);
         DailyQuestType activeType = activeQuestSlot(world, playerId) == ActiveQuestSlot.NORMAL
                 ? activeQuestChoice(world, playerId)
                 : null;
-        if (QuestPartyService.usesSharedDailyInt(world, playerId, activeType, key)) {
+        if (!FirstDailyChoiceService.isActive(data) && QuestPartyService.usesSharedDailyInt(world, playerId, activeType, key)) {
             return QuestPartyService.getSharedDailyInt(world, playerId, activeType, key);
         }
         return data.getDailyInt(key);
@@ -195,7 +199,7 @@ public final class DailyQuestService {
         DailyQuestType activeType = activeQuestSlot(world, playerId) == ActiveQuestSlot.NORMAL
                 ? activeQuestChoice(world, playerId)
                 : null;
-        if (QuestPartyService.usesSharedDailyInt(world, playerId, activeType, key)) {
+        if (!FirstDailyChoiceService.isActive(data) && QuestPartyService.usesSharedDailyInt(world, playerId, activeType, key)) {
             if (QuestPartyService.getSharedDailyInt(world, playerId, activeType, key) == value) {
                 return;
             }
@@ -224,7 +228,7 @@ public final class DailyQuestService {
         DailyQuestType activeType = activeQuestSlot(world, playerId) == ActiveQuestSlot.NORMAL
                 ? activeQuestChoice(world, playerId)
                 : null;
-        if (QuestPartyService.usesSharedDailyInt(world, playerId, activeType, key)) {
+        if (!FirstDailyChoiceService.isActive(data) && QuestPartyService.usesSharedDailyInt(world, playerId, activeType, key)) {
             List<UUID> recipients = progressRecipients(world, playerId, activeType);
             Map<UUID, QuestStatusSnapshot> before = captureQuestSnapshots(world, recipients);
             QuestPartyService.addSharedDailyInt(world, playerId, activeType, key, amount);
@@ -239,12 +243,13 @@ public final class DailyQuestService {
     }
 
     public static boolean hasQuestFlag(ServerLevel world, UUID playerId, String key) {
+        if (TARGET_PROFILE_CONTEXT.get() != null && TARGET_PROFILE_CONTEXT.get().preview()) return false;
         PlayerQuestData data = data(world, playerId);
         ensureCurrentProgressDay(data);
         DailyQuestType activeType = activeQuestSlot(world, playerId) == ActiveQuestSlot.NORMAL
                 ? activeQuestChoice(world, playerId)
                 : null;
-        if (QuestPartyService.usesSharedDailyFlag(world, playerId, activeType, key)) {
+        if (!FirstDailyChoiceService.isActive(data) && QuestPartyService.usesSharedDailyFlag(world, playerId, activeType, key)) {
             return QuestPartyService.getSharedDailyFlag(world, playerId, activeType, key);
         }
         return data.hasDailyFlag(key);
@@ -256,7 +261,7 @@ public final class DailyQuestService {
         DailyQuestType activeType = activeQuestSlot(world, playerId) == ActiveQuestSlot.NORMAL
                 ? activeQuestChoice(world, playerId)
                 : null;
-        if (QuestPartyService.usesSharedDailyFlag(world, playerId, activeType, key)) {
+        if (!FirstDailyChoiceService.isActive(data) && QuestPartyService.usesSharedDailyFlag(world, playerId, activeType, key)) {
             if (QuestPartyService.getSharedDailyFlag(world, playerId, activeType, key) == enabled) {
                 return;
             }
@@ -293,11 +298,14 @@ public final class DailyQuestService {
     public static void markBonusCompletedToday(ServerLevel world, UUID playerId) {
         PlayerQuestData data = data(world, playerId);
         data.setBonusRewardDay(currentDay());
+        // A carried-over bonus also occupies the delivery day's regular Daily allowance.
+        data.setLastRewardDay(currentDay());
         setDirty(world);
     }
 
     public static boolean isAcceptedToday(ServerLevel world, UUID playerId) {
-        return data(world, playerId).getAcceptedDay() == currentDay();
+        PlayerQuestData data = data(world, playerId);
+        return data.hasActiveDaily() || data.getAcceptedDay() == currentDay();
     }
 
     public static void setAcceptedToday(ServerLevel world, UUID playerId) {
@@ -307,7 +315,8 @@ public final class DailyQuestService {
     }
 
     public static boolean isBonusAcceptedToday(ServerLevel world, UUID playerId) {
-        return data(world, playerId).getBonusAcceptedDay() == currentDay();
+        PlayerQuestData data = data(world, playerId);
+        return data.hasActiveBonusDaily() || data.getBonusAcceptedDay() == currentDay();
     }
 
     public static void setBonusAcceptedToday(ServerLevel world, UUID playerId) {
@@ -327,17 +336,19 @@ public final class DailyQuestService {
             refreshQuestUi(world, playerId);
             return true;
         }
-        if (!isAcceptedToday(world, playerId)) {
+        if (!data(world, playerId).hasActiveDaily()) {
             return false;
         }
         DailyQuestType cancelledType = activeQuestType(world, playerId);
         PlayerQuestData data = data(world, playerId);
+        boolean introductory = FirstDailyChoiceService.isActive(data);
         resetProgressFor(data);
         data.vanillaRewards().forget("daily");
         data.setAcceptedDay(PlayerQuestData.UNSET_DAY);
+        FirstDailyChoiceService.cancel(data);
         clearPendingOffers(data);
         setDirty(world);
-        QuestPartyService.clearDailySessionIfFinished(world, playerId, cancelledType);
+        if (!introductory) QuestPartyService.clearDailySessionIfFinished(world, playerId, cancelledType);
         refreshQuestUi(world, playerId);
         return true;
     }
@@ -393,15 +404,9 @@ public final class DailyQuestService {
         if (world == null || playerId == null) {
             return null;
         }
-        if (isBonusAcceptedToday(world, playerId) && !hasCompletedBonusToday(world, playerId)) {
-            PlayerQuestData data = data(world, playerId);
-            if (data.getBonusChoice() != null && data.getBonusChoiceDay() == currentDay()) {
-                return ActiveQuestSlot.BONUS;
-            }
-        }
-        if (isAcceptedToday(world, playerId) && !hasCompletedToday(world, playerId)) {
-            return ActiveQuestSlot.NORMAL;
-        }
+        PlayerQuestData data = data(world, playerId);
+        if (data.hasActiveBonusDaily()) return ActiveQuestSlot.BONUS;
+        if (data.hasActiveDaily()) return ActiveQuestSlot.NORMAL;
         return null;
     }
 
@@ -412,7 +417,7 @@ public final class DailyQuestService {
         }
         if (slot == ActiveQuestSlot.BONUS) {
             PlayerQuestData data = data(world, playerId);
-            return data.getBonusChoiceDay() == currentDay() ? data.getBonusChoice() : null;
+            return data.getBonusChoice();
         }
         return ensureQuestChoice(world, playerId);
     }
@@ -429,6 +434,7 @@ public final class DailyQuestService {
     }
 
     private static DailyQuestType ensureQuestChoice(ServerLevel world, UUID playerId, PlayerQuestData data) {
+        if (data.hasActiveDailySlot()) return data.getDailyChoice();
         long day = currentDay();
         long chosenDay = data.getDailyChoiceDay();
         DailyQuestType choice = data.getDailyChoice();
@@ -456,7 +462,8 @@ public final class DailyQuestService {
     }
 
     private static boolean hasBonusChoiceToday(PlayerQuestData data) {
-        return data != null && data.getBonusChoice() != null && data.getBonusChoiceDay() == currentDay();
+        return data != null && data.getBonusChoice() != null
+                && (data.hasActiveBonusDaily() || data.getBonusChoiceDay() == currentDay());
     }
 
     private static boolean playerHasMagicShard(ServerPlayer player) {
@@ -470,6 +477,7 @@ public final class DailyQuestService {
         UUID playerId = player.getUUID();
         PlayerQuestData data = data(world, playerId);
         return hasCompletedToday(world, playerId)
+                && !data.hasActiveDailySlot()
                 && !hasCompletedBonusToday(world, playerId)
                 && !isBonusAcceptedToday(world, playerId)
                 && !hasBonusChoiceToday(data)
@@ -492,6 +500,22 @@ public final class DailyQuestService {
     }
 
     public static void acceptQuest(ServerLevel world, ServerPlayer player) {
+        acceptQuest(world, player, true);
+    }
+
+    static boolean acceptOfferedQuest(ServerLevel world, ServerPlayer player, DailyChoiceService.Offer offer) {
+        PlayerQuestData data = data(world, player.getUUID());
+        if (offer.day() != currentDay() || data.hasActiveDailySlot() || hasCompletedToday(world, player.getUUID())) return false;
+        data.setDailyChoice(offer.type());
+        data.setDailyChoiceDay(offer.day());
+        data.setDailyTargetProfile(QuestPartyService.rewardDailyProfile(world, player.getUUID(), offer.type(), offer.profile()));
+        resetProgressFor(data);
+        setDirty(world);
+        acceptQuest(world, player, false);
+        return data.hasActiveDaily() && data.getDailyChoice() == offer.type();
+    }
+
+    private static void acceptQuest(ServerLevel world, ServerPlayer player, boolean resolveShared) {
         UUID playerId = player.getUUID();
         if (FirstDailyChoiceService.canChoose(world, playerId)) {
             showQuestOfferCompact(world, player);
@@ -500,12 +524,13 @@ public final class DailyQuestService {
         markDailyDiscovered(world, playerId);
         PlayerQuestData data = data(world, playerId);
         clearPendingOffers(data);
-        if (hasCompletedToday(world, playerId) || isAcceptedToday(world, playerId)) {
+        if (hasCompletedToday(world, playerId) || data.hasActiveDailySlot()) {
             return;
         }
 
         DailyQuestType choice = ensureQuestChoice(world, playerId, data);
-        DailyQuestType sharedChoice = QuestPartyService.resolveSharedDailyChoice(world, playerId, choice);
+        DailyQuestType sharedChoice = resolveShared && !FirstDailyChoiceService.isActive(data)
+                ? QuestPartyService.resolveSharedDailyChoice(world, playerId, choice) : choice;
         if (sharedChoice != null && sharedChoice != choice) {
             choice = sharedChoice;
             data.setDailyChoice(choice);
@@ -519,12 +544,12 @@ public final class DailyQuestService {
         if (!de.quest.reward.VanillaRewardService.prepare(world, player, "daily", rewardKey,
                 de.quest.reward.VanillaRewardService.dailyIdentity(rewardChoice.name()),
                 QuestPartyService.rewardDailyProfile(world, playerId, choice, data.getDailyTargetProfile()),
-                () -> acceptQuest(world, player))) return;
+                () -> acceptQuest(world, player, resolveShared))) return;
         setAcceptedToday(world, playerId);
         if (definition != null) {
             withTargetProfile(data, ActiveQuestSlot.NORMAL, () -> definition.onAccepted(world, player));
         }
-        QuestPartyService.onDailyQuestAccepted(world, player, choice, definition);
+        if (!FirstDailyChoiceService.isActive(data)) QuestPartyService.onDailyQuestAccepted(world, player, choice, definition);
 
         Component title = definition == null ? fallbackQuestTitle(choice) : definition.title();
         player.sendSystemMessage(Texts.acceptedTitle(title, ChatFormatting.GREEN), false);
@@ -542,7 +567,8 @@ public final class DailyQuestService {
         UUID playerId = player.getUUID();
         PlayerQuestData data = data(world, playerId);
         clearPendingOffers(data);
-        if (!hasBonusChoiceToday(data) || hasCompletedBonusToday(world, playerId) || isBonusAcceptedToday(world, playerId)) {
+        if (data.hasActiveDailySlot() || !hasCompletedToday(world, playerId)
+                || !hasBonusChoiceToday(data) || hasCompletedBonusToday(world, playerId)) {
             return;
         }
 
@@ -633,7 +659,7 @@ public final class DailyQuestService {
             return false;
         }
         UUID playerId = player.getUUID();
-        if (isAcceptedToday(world, playerId) || hasCompletedToday(world, playerId)) {
+        if (isDailyActive(world, playerId) || hasCompletedToday(world, playerId)) {
             player.sendSystemMessage(Component.translatable("message.village-quest.daily.reroll.active")
                     .withStyle(ChatFormatting.RED), false);
             return false;
@@ -657,6 +683,7 @@ public final class DailyQuestService {
             return false;
         }
         data.setDailyChoice(replacement.type());
+        DailyChoiceService.invalidateOffers(data);
         data.setDailyChoiceDay(currentDay());
         data.setDailyTargetProfile(rollTargetProfile(world));
         resetProgressFor(data);
@@ -834,7 +861,7 @@ public final class DailyQuestService {
         if (data != null
                 && quest != null
                 && data.getBonusChoice() == quest
-                && data.getBonusChoiceDay() == currentDay()) {
+                && (data.hasActiveBonusDaily() || data.getBonusChoiceDay() == currentDay())) {
             return ActiveQuestSlot.BONUS;
         }
         return ActiveQuestSlot.NORMAL;
@@ -885,10 +912,30 @@ public final class DailyQuestService {
             return Component.empty();
         }
         TargetProfileContext previous = TARGET_PROFILE_CONTEXT.get();
-        TARGET_PROFILE_CONTEXT.set(new TargetProfileContext(RepeatableTargetProfile.LIGHT, true, true));
+        TARGET_PROFILE_CONTEXT.set(new TargetProfileContext(RepeatableTargetProfile.LIGHT, true, true, true));
         try {
             return definition.progressLine(world, playerId);
         } finally {
+            if (previous == null) TARGET_PROFILE_CONTEXT.remove();
+            else TARGET_PROFILE_CONTEXT.set(previous);
+        }
+    }
+
+    public static Component previewOfferedProgress(ServerLevel world, UUID playerId, DailyChoiceService.Offer offer) {
+        return withOfferProfile(QuestPartyService.rewardDailyProfile(world, playerId, offer.type(), offer.profile()),
+                () -> definitionFor(offer.type()).progressLine(world, playerId));
+    }
+
+    public static DailyQuestCompletion previewOfferedCompletion(ServerLevel world, UUID playerId, DailyChoiceService.Offer offer) {
+        return withOfferProfile(QuestPartyService.rewardDailyProfile(world, playerId, offer.type(), offer.profile()),
+                () -> definitionFor(offer.type()).completionFor(world));
+    }
+
+    private static <T> T withOfferProfile(RepeatableTargetProfile profile, Supplier<T> supplier) {
+        TargetProfileContext previous = TARGET_PROFILE_CONTEXT.get();
+        TARGET_PROFILE_CONTEXT.set(new TargetProfileContext(profile, false, true, true));
+        try { return supplier.get(); }
+        finally {
             if (previous == null) TARGET_PROFILE_CONTEXT.remove();
             else TARGET_PROFILE_CONTEXT.set(previous);
         }
@@ -901,9 +948,9 @@ public final class DailyQuestService {
             return null;
         }
         TargetProfileContext previous = TARGET_PROFILE_CONTEXT.get();
-        TARGET_PROFILE_CONTEXT.set(new TargetProfileContext(RepeatableTargetProfile.LIGHT, true, true));
+        TARGET_PROFILE_CONTEXT.set(new TargetProfileContext(RepeatableTargetProfile.LIGHT, true, true, true));
         try {
-            return definition.buildCompletion(world);
+            return definition.completionFor(world);
         } finally {
             if (previous == null) TARGET_PROFILE_CONTEXT.remove();
             else TARGET_PROFILE_CONTEXT.set(previous);
@@ -924,12 +971,47 @@ public final class DailyQuestService {
         }
         PlayerQuestData data = data(world, playerId);
         return withTargetProfile(data, bonus ? ActiveQuestSlot.BONUS : ActiveQuestSlot.NORMAL,
-                () -> definition.buildCompletion(world));
+                () -> definition.completionFor(world));
+    }
+
+    /** Read-only instructions and complete hand-in bundle under the correct saved target profile. */
+    public static List<Component> descriptionLines(ServerLevel world, UUID playerId, DailyQuestType type, boolean bonus) {
+        if(definitionFor(type)==null)return List.of();
+        return withTargetProfile(data(world,playerId),bonus?ActiveQuestSlot.BONUS:ActiveQuestSlot.NORMAL,
+                () -> descriptionWithCurrentProfile(world,playerId,type));
+    }
+    public static List<Component> previewOfferedDescription(ServerLevel world,UUID playerId,DailyChoiceService.Offer offer) {
+        return withOfferProfile(QuestPartyService.rewardDailyProfile(world,playerId,offer.type(),offer.profile()),
+                () -> descriptionWithCurrentProfile(world,playerId,offer.type()));
+    }
+    public static List<Component> previewFirstChoiceDescription(ServerLevel world,UUID playerId,DailyQuestType type) {
+        TargetProfileContext previous=TARGET_PROFILE_CONTEXT.get();
+        TARGET_PROFILE_CONTEXT.set(new TargetProfileContext(RepeatableTargetProfile.LIGHT,true,true,true));
+        try { return descriptionWithCurrentProfile(world,playerId,type); }
+        finally { if(previous==null)TARGET_PROFILE_CONTEXT.remove();else TARGET_PROFILE_CONTEXT.set(previous); }
+    }
+    private static List<Component> descriptionWithCurrentProfile(ServerLevel world,UUID playerId,DailyQuestType type) {
+            var lines=new ArrayList<Component>(definitionFor(type).descriptionLines(world,playerId));
+            if(lines.isEmpty()) return List.copyOf(lines);
+            var tail=lines.getLast().copy();
+            if(type==DailyQuestType.WHEAT_HARVEST) {
+                delivery(tail,net.minecraft.world.item.Items.WHEAT,wheatTarget());
+                delivery(tail,net.minecraft.world.item.Items.BREAD,breadTarget());
+            } else if(type==DailyQuestType.SMITH_SMELTING) {
+                delivery(tail,net.minecraft.world.item.Items.RAW_IRON,smithSmeltRawDeliveryTarget());
+                delivery(tail,net.minecraft.world.item.Items.IRON_INGOT,smithSmeltIngotTarget());
+            } else if(type==DailyQuestType.RIVER_MEAL) {
+                de.quest.quest.QuestRuleText.appendDelivery(tail,Component.translatable("quest.village-quest.instructions.fish_delivery",riverCookedFishTarget()));
+            }
+            lines.set(lines.size()-1,tail); return List.copyOf(lines);
+    }
+    private static void delivery(net.minecraft.network.chat.MutableComponent text,net.minecraft.world.item.Item item,int amount) {
+        if(amount>0)de.quest.quest.QuestRuleText.appendDelivery(text,Component.translatable("quest.village-quest.instructions.delivery",amount,Component.translatable(item.getDescriptionId())));
     }
 
     public static Component previewProgressLine(ServerLevel world, UUID playerId, boolean bonus) {
         PlayerQuestData data = data(world, playerId);
-        DailyQuestType choice = bonus && data.getBonusChoiceDay() == currentDay()
+        DailyQuestType choice = bonus && hasBonusChoiceToday(data)
                 ? data.getBonusChoice()
                 : ensureQuestChoice(world, playerId, data);
         DailyQuestDefinition definition = definitionFor(choice);
@@ -946,7 +1028,7 @@ public final class DailyQuestService {
         }
         UUID playerId = player.getUUID();
         PlayerQuestData data = data(world, playerId);
-        DailyQuestType choice = bonus && data.getBonusChoiceDay() == currentDay()
+        DailyQuestType choice = bonus && hasBonusChoiceToday(data)
                 ? data.getBonusChoice()
                 : activeQuestChoice(world, playerId);
         DailyQuestDefinition definition = definitionFor(choice);
@@ -963,7 +1045,7 @@ public final class DailyQuestService {
         }
         UUID playerId = player.getUUID();
         PlayerQuestData data = data(world, playerId);
-        DailyQuestType choice = bonus && data.getBonusChoiceDay() == currentDay()
+        DailyQuestType choice = bonus && hasBonusChoiceToday(data)
                 ? data.getBonusChoice()
                 : activeQuestChoice(world, playerId);
         DailyQuestDefinition definition = definitionFor(choice);
@@ -1188,8 +1270,8 @@ public final class DailyQuestService {
 
     public static boolean canShowDailyOffer(ServerLevel world, UUID playerId) {
         return playerId != null
-                && !hasCompletedToday(world, playerId)
-                && !isAcceptedToday(world, playerId);
+                && (FirstDailyChoiceService.canChoose(data(world, playerId)) || !hasCompletedToday(world, playerId))
+                && !isDailyActive(world, playerId);
     }
 
     public static DailyQuestType adminShowDailyOffer(ServerLevel world, ServerPlayer player) {
@@ -1248,6 +1330,10 @@ public final class DailyQuestService {
         }
 
         UUID playerId = player.getUUID();
+        if (FirstDailyChoiceService.canChoose(data(world, playerId))) {
+            showFirstDailyChoicesCompact(world, player);
+            return;
+        }
         if (isBonusAcceptedToday(world, playerId) && !hasCompletedBonusToday(world, playerId)) {
             boolean done = claimFromQuestMaster(world, player);
             if (done) {
@@ -1300,11 +1386,11 @@ public final class DailyQuestService {
     public static void showQuestOfferCompact(ServerLevel world, ServerPlayer player) {
         UUID playerId = player.getUUID();
         if (FirstDailyChoiceService.canChoose(world, playerId)) {
-            showFirstDailyChoicesCompact(player);
+            showFirstDailyChoicesCompact(world, player);
             return;
         }
         markDailyDiscovered(world, playerId);
-        if (hasCompletedToday(world, playerId) || isAcceptedToday(world, playerId)) {
+        if (hasCompletedToday(world, playerId) || isDailyActive(world, playerId)) {
             return;
         }
 
@@ -1316,8 +1402,8 @@ public final class DailyQuestService {
         DailyQuestType quest = ensureQuestChoice(world, playerId, data);
         DailyQuestDefinition definition = definitionFor(quest);
         Component questTitle = definition == null ? fallbackQuestTitle(quest) : definition.title();
-        Component paragraph1 = definition == null ? Component.empty() : definition.offerParagraph1();
-        Component paragraph2 = definition == null ? Component.empty() : definition.offerParagraph2();
+        Component paragraph1 = definition == null ? Component.empty() : descriptionLines(world,playerId,definition.type(),data.isPendingBonusOffer()).get(0);
+        Component paragraph2 = definition == null ? Component.empty() : descriptionLines(world,playerId,definition.type(),data.isPendingBonusOffer()).get(1);
         Component divider = Component.literal("------------------------------").withStyle(ChatFormatting.GRAY);
         Component accept = Component.translatable("text.village-quest.daily.offer.accept").withStyle(style -> style
                 .withColor(ChatFormatting.GRAY)
@@ -1338,7 +1424,7 @@ public final class DailyQuestService {
         player.sendSystemMessage(questBody, false);
     }
 
-    private static void showFirstDailyChoicesCompact(ServerPlayer player) {
+    private static void showFirstDailyChoicesCompact(ServerLevel world, ServerPlayer player) {
         Component divider = Component.literal("------------------------------").withStyle(ChatFormatting.GRAY);
         net.minecraft.network.chat.MutableComponent body = Component.empty()
                 .append(divider.copy()).append(Component.literal("\n"))
@@ -1347,6 +1433,9 @@ public final class DailyQuestService {
                 .append(Component.literal("\n\n"))
                 .append(Component.translatable("message.village-quest.guild_intro.daily_choices.body")
                         .withStyle(ChatFormatting.GRAY));
+        if (FirstDailyChoiceService.isRestart(data(world, player.getUUID())))
+            body.append(Component.literal("\n\n")).append(Component.translatable("screen.village-quest.guild_intro.unpaid_replay")
+                    .withStyle(ChatFormatting.GRAY));
         for (DailyQuestType choice : FirstDailyChoiceService.choices()) {
             DailyQuestDefinition definition = definitionFor(choice);
             if (definition == null) continue;
@@ -1362,6 +1451,8 @@ public final class DailyQuestService {
                             .withColor(ChatFormatting.GREEN)
                             .withClickEvent(new net.minecraft.network.chat.ClickEvent.RunCommand(
                                     "/vq daily choose " + commandKey))));
+            for(var instruction:previewFirstChoiceDescription(world,player.getUUID(),choice))
+                body.append(Component.literal("\n")).append(instruction);
         }
         body.append(Component.literal("\n")).append(divider.copy());
         player.sendSystemMessage(body, false);
@@ -1410,8 +1501,8 @@ public final class DailyQuestService {
 
         DailyQuestDefinition definition = definitionFor(data.getBonusChoice());
         Component questTitle = definition == null ? fallbackQuestTitle(data.getBonusChoice()) : definition.title();
-        Component paragraph1 = definition == null ? Component.empty() : definition.offerParagraph1();
-        Component paragraph2 = definition == null ? Component.empty() : definition.offerParagraph2();
+        Component paragraph1 = definition == null ? Component.empty() : descriptionLines(world,playerId,definition.type(),data.isPendingBonusOffer()).get(0);
+        Component paragraph2 = definition == null ? Component.empty() : descriptionLines(world,playerId,definition.type(),data.isPendingBonusOffer()).get(1);
         Component divider = Component.literal("------------------------------").withStyle(ChatFormatting.GRAY);
         Component prefix = Component.translatable("text.village-quest.daily.shard.quest_prefix").withStyle(ChatFormatting.LIGHT_PURPLE);
         Component accept = Component.translatable("text.village-quest.daily.offer.accept").withStyle(style -> style
@@ -1575,6 +1666,7 @@ public final class DailyQuestService {
     }
 
     private static boolean completeIfEligible(ServerLevel world, ServerPlayer player, boolean questMasterClaim) {
+        if (de.quest.shrine.VillageIntroRequestService.blocksActions(world,player.getUUID())) return false;
         UUID playerId = player.getUUID();
         ActiveQuestSlot slot = activeQuestSlot(world, playerId);
         if (slot == null) {
@@ -1585,11 +1677,18 @@ public final class DailyQuestService {
         if (definition == null) {
             return false;
         }
-        if (!questMasterClaim && definition.completionMode() == QuestCompletionMode.QUESTMASTER_TURN_IN) {
+        if (!questMasterClaim && definition.completionMode(world) == QuestCompletionMode.QUESTMASTER_TURN_IN) {
             return false;
         }
         PlayerQuestData data = data(world, playerId);
         DailyQuestType questType = activeQuestChoice(world, playerId);
+        if (slot == ActiveQuestSlot.NORMAL && data.getLastRewardDay() == currentDay()) {
+            player.sendSystemMessage(Component.translatable("screen.village-quest.questmaster.daily.completed_today"), false);
+            return false;
+        }
+        if (FirstDailyChoiceService.isActive(data)
+                && !de.quest.reward.VanillaRewardService.prepare(world,player,"daily","intro",
+                    questType.name()+":"+data.getAcceptedDay(),data.getDailyTargetProfile(),() -> claimFromQuestMaster(world,player))) return false;
         boolean shared = slot == ActiveQuestSlot.NORMAL && isSharedNormalDaily(world, playerId, questType);
         boolean requirementsConsumed = slot == ActiveQuestSlot.NORMAL && (shared
                 ? QuestPartyService.dailyTurnInRequirementsConsumed(world, playerId, questType)
@@ -1609,11 +1708,12 @@ public final class DailyQuestService {
             QuestPartyService.markDailyTurnInRequirementsConsumed(world, playerId, questType);
         }
 
-        DailyQuestCompletion completion = withTargetProfile(data, slot, () -> definition.buildCompletion(world));
+        DailyQuestCompletion completion = withTargetProfile(data, slot, () -> definition.completionFor(world));
         boolean allowMagicShardDrop = slot == ActiveQuestSlot.NORMAL;
         if (shared) {
             List<ServerPlayer> recipients = onlinePlayers(world, QuestPartyService.activeDailyMembers(world, playerId, questType, false));
             for (ServerPlayer recipient : recipients) {
+                if (de.quest.shrine.VillageIntroRequestService.blocksActions(world,recipient.getUUID())) continue;
                 boolean storyWasUnlocked = QuestMasterProgressionService.isStoryCategoryUnlocked(world, recipient.getUUID());
                 deliverCompletion(world, recipient, questType, completion, true);
                 markCompletedToday(world, recipient.getUUID());
@@ -1647,6 +1747,7 @@ public final class DailyQuestService {
     }
 
     public static boolean adminForceCompleteDaily(ServerLevel world, ServerPlayer player) {
+        if (player != null && de.quest.shrine.VillageIntroRequestService.blocksActions(world,player.getUUID())) return false;
         if (world == null || player == null) {
             return false;
         }
@@ -1664,10 +1765,11 @@ public final class DailyQuestService {
 
         DailyQuestType questType = activeQuestChoice(world, playerId);
         boolean allowMagicShardDrop = slot == ActiveQuestSlot.NORMAL;
-        DailyQuestCompletion completion = withTargetProfile(data(world, playerId), slot, () -> definition.buildCompletion(world));
+        DailyQuestCompletion completion = withTargetProfile(data(world, playerId), slot, () -> definition.completionFor(world));
         if (slot == ActiveQuestSlot.NORMAL && isSharedNormalDaily(world, playerId, questType)) {
             List<ServerPlayer> recipients = onlinePlayers(world, QuestPartyService.activeDailyMembers(world, playerId, questType, false));
             for (ServerPlayer recipient : recipients) {
+                if (de.quest.shrine.VillageIntroRequestService.blocksActions(world,recipient.getUUID())) continue;
                 boolean storyWasUnlocked = QuestMasterProgressionService.isStoryCategoryUnlocked(world, recipient.getUUID());
                 deliverCompletion(world, recipient, questType, completion, allowMagicShardDrop);
                 markCompletedToday(world, recipient.getUUID());
@@ -1730,7 +1832,9 @@ public final class DailyQuestService {
                                           boolean allowMagicShardDrop) {
         int shardCountBefore = ModItems.MAGIC_SHARD == null ? 0 : countInventoryItem(player, ModItems.MAGIC_SHARD);
         String extraSlot = activeQuestSlot(world, player.getUUID()) == ActiveQuestSlot.BONUS ? "bonus" : "daily";
-        de.quest.reward.VanillaRewardService.complete(world, player, extraSlot, de.quest.reward.VanillaRewardService.dailyIdentity(questType.name()));
+        PlayerQuestData accepted = data(world, player.getUUID());
+        long acceptedDay = extraSlot.equals("bonus") ? accepted.getBonusAcceptedDay() : accepted.getAcceptedDay();
+        de.quest.reward.VanillaRewardService.complete(world, player, extraSlot, questType.name() + ":" + acceptedDay);
         ItemStack bonusReward = allowMagicShardDrop ? maybeRollMagicShardReward(world, player.getUUID()) : ItemStack.EMPTY;
         ReputationService.ReputationTrack track = completion.reputationTrack();
         long actualCurrencyReward = ProsperityService.applyFestivalBonus(world, player.getUUID(),
@@ -1824,10 +1928,11 @@ public final class DailyQuestService {
     }
 
     private static DailyAdminState resolveAdminState(PlayerQuestData data, long day) {
+        if (data.hasActiveDaily()) return DailyAdminState.ACTIVE;
         if (data.getLastRewardDay() == day) {
             return DailyAdminState.COMPLETED;
         }
-        if (data.getAcceptedDay() == day) {
+        if (data.hasActiveDaily()) {
             return DailyAdminState.ACTIVE;
         }
 
@@ -2063,10 +2168,11 @@ public final class DailyQuestService {
 
     private static boolean modernSmithContract(PlayerQuestData data, ActiveQuestSlot slot) {
         if (data == null) return true;
-        boolean accepted = (slot == ActiveQuestSlot.BONUS ? data.getBonusAcceptedDay() : data.getAcceptedDay()) == currentDay();
+        long acceptedDay = slot == ActiveQuestSlot.BONUS ? data.getBonusAcceptedDay() : data.getAcceptedDay();
+        boolean accepted = slot == ActiveQuestSlot.BONUS ? data.hasActiveBonusDaily() : data.hasActiveDaily();
         if (!accepted) return true;
         return data.vanillaRewards().snapshot(slot == ActiveQuestSlot.BONUS ? "bonus" : "daily",
-                de.quest.reward.VanillaRewardService.dailyIdentity("SMITH_SMELTING")).getIntOr("version", 0) >= 1;
+                "SMITH_SMELTING:" + acceptedDay).getIntOr("version", 0) >= 1;
     }
     public static int smithSmeltRawDeliveryTarget() {
         var context = TARGET_PROFILE_CONTEXT.get();
@@ -2105,6 +2211,7 @@ public final class DailyQuestService {
 
     private static boolean isSharedNormalDaily(ServerLevel world, UUID playerId, DailyQuestType type) {
         return activeQuestSlot(world, playerId) == ActiveQuestSlot.NORMAL
+                && !FirstDailyChoiceService.isActive(data(world, playerId))
                 && type != null
                 && QuestPartyService.isSharedDailyMember(world, playerId, type);
     }

@@ -12,7 +12,7 @@ public final class VanillaRewardRegistry {
         List<Option> options = switch (key) {
             case "friends:lutte" -> List.of(new Option("precision",0,List.of(new Goods("netherite_pickaxe",1,"",Map.of("efficiency",4,"unbreaking",3))),false),
                     new Option("masterblade",0,List.of(new Goods("netherite_sword",1,"",Map.of("sharpness",4,"unbreaking",3))),false));
-            case "intro" -> alternatives(2, goods("carrot", 6));
+            case "intro" -> alternatives(2, goods("bread", 8));
             case "daily:HONEY", "daily:POTATO_HARVEST", "daily:AUTUMN_HARVEST", "daily:STALL_NEW_LIFE" -> alternatives(3, goods("golden_carrot", 8));
             case "daily:WHEAT_HARVEST" -> alternatives(5, goods("golden_carrot", 12));
             case "daily:WOODCUTTING" -> alternatives(8, goods("iron_ingot", 16), goods("coal", 16));
@@ -23,7 +23,9 @@ public final class VanillaRewardRegistry {
             case "weekly:SMITH_WEEK" -> withDiamonds(alternatives(32, goods("golden_carrot", 64), goods("golden_apple", 2)), 6);
             case "weekly:STALL_AND_PASTURE" -> List.of(pack("supplies", goods("golden_carrot", 48)), pack("work", goods("leather", 48)), coins(20));
             case "pilgrim:quench_for_the_hall", "pilgrim:wool_before_rain", "pilgrim:tracks_in_the_dark", "pilgrim:fangs_by_the_hedgerow" -> alternatives(11, goods("golden_apple", 1), potion("strong_healing", 2));
-            case "pilgrim:ash_on_the_pass", "pilgrim:smoke_over_blackstone" -> alternatives(16, potion("long_fire_resistance", 2), goods("golden_carrot", 16));
+            case "pilgrim:ash_on_the_pass" -> List.of(pack("supplies", potion("long_fire_resistance", 2), goods("golden_carrot", 16)),
+                    pack("materials", goods("blaze_rod", 4)), coins(16));
+            case "pilgrim:smoke_over_blackstone" -> alternatives(16, potion("long_fire_resistance", 2), goods("golden_carrot", 16));
             case "pilgrim:stillness_beyond_the_gate" -> alternatives(20, goods("shulker_shell", 2));
             case "story:failing_harvest", "story:restless_pens" -> key.endsWith("restless_pens")
                     ? List.of(pack("supplies", goods("golden_carrot", 48)), pack("work", goods("bookshelf", 16)), coins(20)) : alternatives(20, goods("golden_carrot", 48));

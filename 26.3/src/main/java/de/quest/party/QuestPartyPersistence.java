@@ -5,16 +5,51 @@ import java.util.LinkedHashSet;
 import java.util.UUID;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import de.quest.quest.story.StoryArcType;
 
 /** NBT codec for party membership, shared sessions, pending offers, and reconnect grace. */
-final class QuestPartyPersistence {
+public final class QuestPartyPersistence {
     private QuestPartyPersistence() {}
+
+    /** Future/damaged lane data must never be rebuilt by this reader. */
+    public static boolean storyLanesWritable(CompoundTag root) {
+        if (root == null || root.isEmpty()) return true;
+        if (root.contains("parties") && !(root.get("parties") instanceof ListTag)) return false;
+        for (var raw : root.getListOrEmpty("parties")) {
+            if (!(raw instanceof CompoundTag party)) return false;
+            if (!party.contains("storyLaneFormat")) {
+                if (party.contains("kingdomStory") || party.contains("kingdomStoryOffers")) return false;
+                continue;
+            }
+            if (!(party.get("storyLaneFormat") instanceof net.minecraft.nbt.IntTag)
+                    || party.getIntOr("storyLaneFormat", -1) != 1
+                    || !validLane(party,"story",false) || !validLane(party,"kingdomStory",true)
+                    || !(party.get("storyOffers") instanceof ListTag)
+                    || !(party.get("kingdomStoryOffers") instanceof ListTag)) return false;
+        }
+        return true;
+    }
+
+    private static boolean validLane(CompoundTag party, String key, boolean kingdom) {
+        if (!(party.get(key) instanceof CompoundTag session)) return false;
+        if (session.isEmpty()) return true;
+        String id=session.getStringOr("questId", "");
+        var arc=QuestPartySessions.parseStoryType(id);
+        int chapter=QuestPartySessions.parseStoryChapter(id);
+        return arc!=null && (arc==StoryArcType.LIVING_KINGDOMS)==kingdom
+                && chapter>=0 && chapter<arc.chapterCount()
+                && id.equals(QuestPartySessions.storySessionId(arc,chapter))
+                && session.get("revision") instanceof net.minecraft.nbt.LongTag
+                && session.getLongOr("revision",Long.MIN_VALUE)==chapter
+                && session.get("ints") instanceof ListTag && session.get("flags") instanceof ListTag
+                && session.get("synced") instanceof ListTag;
+    }
 
     static void read(CompoundTag root,
                      Map<UUID, PartyRuntime> partiesById,
                      Map<UUID, UUID> partyByMember,
                      Map<UUID, PartyInvite> invitesByTarget) {
-        if (root == null || root.isEmpty()) return;
+        if (root == null || root.isEmpty() || !storyLanesWritable(root)) return;
         ListTag parties = root.getListOrEmpty("parties");
         for (int i = 0; i < parties.size(); i++) {
             CompoundTag partyNbt = parties.getCompoundOrEmpty(i);
@@ -32,6 +67,10 @@ final class QuestPartyPersistence {
             }
             if (acceptedMembers.isEmpty()) continue;
             party.members().addAll(acceptedMembers);
+            for(int index=0;index<members.size();index++) {
+                var member=members.getCompoundOrEmpty(index);
+                party.rememberName(parseUuid(member.getStringOr("id","")),member.getStringOr("name",""));
+            }
             if (!party.members().contains(leaderId)) party.setLeaderId(party.members().iterator().next());
 
             readSharedSession(partyNbt.getCompoundOrEmpty("daily"), party.daily());
@@ -41,6 +80,21 @@ final class QuestPartyPersistence {
             readOfferMap(partyNbt.getListOrEmpty("dailyOffers"), party.dailyOffers());
             readOfferMap(partyNbt.getListOrEmpty("weeklyOffers"), party.weeklyOffers());
             readOfferMap(partyNbt.getListOrEmpty("storyOffers"), party.storyOffers());
+            if (!partyNbt.contains("storyLaneFormat")) {
+                if (QuestPartySessions.parseStoryType(party.story().questId()) == StoryArcType.LIVING_KINGDOMS) {
+                    readSharedSession(partyNbt.getCompoundOrEmpty("story"), party.kingdomStory());
+                    party.story().clear();
+                }
+                for (var entry : party.storyOffers().entrySet()) {
+                    if (QuestPartySessions.parseStoryType(entry.getValue().questId()) == StoryArcType.LIVING_KINGDOMS)
+                        party.kingdomStoryOffers().put(entry.getKey(), entry.getValue());
+                }
+                party.storyOffers().entrySet().removeIf(entry ->
+                        QuestPartySessions.parseStoryType(entry.getValue().questId()) == StoryArcType.LIVING_KINGDOMS);
+            } else {
+                readSharedSession(partyNbt.getCompoundOrEmpty("kingdomStory"), party.kingdomStory());
+                readOfferMap(partyNbt.getListOrEmpty("kingdomStoryOffers"), party.kingdomStoryOffers());
+            }
             readOfferMap(partyNbt.getListOrEmpty("pilgrimOffers"), party.pilgrimOffers());
             readDisconnectMap(partyNbt.getListOrEmpty("disconnects"), party.disconnectDeadlines());
             sanitizePartyRuntime(party);
@@ -67,12 +121,15 @@ final class QuestPartyPersistence {
         party.daily().syncedMembers().retainAll(party.members());
         party.weekly().syncedMembers().retainAll(party.members());
         party.story().syncedMembers().retainAll(party.members());
+        party.kingdomStory().syncedMembers().retainAll(party.members());
         party.pilgrim().syncedMembers().retainAll(party.members());
         party.dailyOffers().keySet().retainAll(party.members());
         party.weeklyOffers().keySet().retainAll(party.members());
         party.storyOffers().keySet().retainAll(party.members());
+        party.kingdomStoryOffers().keySet().retainAll(party.members());
         party.pilgrimOffers().keySet().retainAll(party.members());
         party.disconnectDeadlines().keySet().retainAll(party.members());
+        party.memberNames().keySet().retainAll(party.members());
     }
 
     static CompoundTag write(Map<UUID, PartyRuntime> partiesById,
@@ -87,16 +144,21 @@ final class QuestPartyPersistence {
             for (UUID memberId : party.members()) {
                 CompoundTag memberNbt = new CompoundTag();
                 memberNbt.putString("id", memberId.toString());
+                String name=party.memberNames().get(memberId);
+                if(name!=null) memberNbt.putString("name",name);
                 members.add(memberNbt);
             }
             partyNbt.put("members", members);
             partyNbt.put("daily", writeSharedSession(party.daily()));
             partyNbt.put("weekly", writeSharedSession(party.weekly()));
             partyNbt.put("story", writeSharedSession(party.story()));
+            partyNbt.putInt("storyLaneFormat", 1);
+            partyNbt.put("kingdomStory", writeSharedSession(party.kingdomStory()));
             partyNbt.put("pilgrim", writeSharedSession(party.pilgrim()));
             partyNbt.put("dailyOffers", writeOfferMap(party.dailyOffers()));
             partyNbt.put("weeklyOffers", writeOfferMap(party.weeklyOffers()));
             partyNbt.put("storyOffers", writeOfferMap(party.storyOffers()));
+            partyNbt.put("kingdomStoryOffers", writeOfferMap(party.kingdomStoryOffers()));
             partyNbt.put("pilgrimOffers", writeOfferMap(party.pilgrimOffers()));
             partyNbt.put("disconnects", writeDisconnectMap(party.disconnectDeadlines()));
             parties.add(partyNbt);

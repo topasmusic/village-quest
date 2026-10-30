@@ -21,6 +21,7 @@ public final class KingdomMarketTransferService {
         ServerPlayConnectionEvents.JOIN.register((handler,sender,server) -> reconcilePlayer(handler.player));
     }
     public static MarketTradeCoordinator.Result execute(ServerPlayer actor,KingdomMarketLedger.Quote quote,MarketInventoryPlan plan) {
+        if(actor != null && de.quest.shrine.VillageIntroRequestService.blocksActions(actor.level(),actor.getUUID())) return MarketTradeCoordinator.Result.HELD;
         if(actor==null || quote==null || !actor.level().getServer().isSameThread() || !actor.getUUID().equals(quote.actor()) || !actor.isAlive() || actor.isSpectator()
                 || actor.isRemoved()) return MarketTradeCoordinator.Result.REJECTED;
         var world=actor.level(); var state=LivingKingdomsState.get(world.getServer()); var ledger=state.markets();
@@ -40,6 +41,8 @@ public final class KingdomMarketTransferService {
     }
     public static void reconcilePlayer(ServerPlayer actor) {
         if(actor==null || actor.isRemoved() || !actor.level().getServer().isSameThread()) return;
+        if(actor.connection != null && !actor.connection.isAcceptingMessages()
+                || de.quest.shrine.VillageIntroRequestService.blocksActions(actor.level(),actor.getUUID())) return;
         var state=LivingKingdomsState.get(actor.level().getServer()); var coordinator=coordinator(actor,state);
         var pending=state.markets().pending(actor.getUUID());
         for(var receipt:pending) finish(actor,receipt.id(),coordinator.reconcile(receipt.id()));

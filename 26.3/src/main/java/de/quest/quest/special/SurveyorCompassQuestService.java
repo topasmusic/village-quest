@@ -107,7 +107,7 @@ public final class SurveyorCompassQuestService {
     }
 
     private record CompassTarget(BlockPos pos, Component label) {}
-    private record HomeTarget(ServerLevel world, BlockPos pos, float yaw) {}
+    private record HomeTarget(ServerLevel world, net.minecraft.world.phys.Vec3 pos, float yaw) {}
     private record HintCandidate(String key, Component message) {}
     private record HintStamp(String key, long worldTime) {}
 
@@ -271,6 +271,9 @@ public final class SurveyorCompassQuestService {
     }
 
     private SurveyorCompassQuestService() {}
+
+    /** The preview and the first-completion payout share the same amount. */
+    public static int bonusIngotCount() { return BONUS_INGOT_COUNT; }
 
     private static PlayerQuestData data(ServerLevel world, UUID playerId) {
         PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(playerId);
@@ -652,6 +655,21 @@ public final class SurveyorCompassQuestService {
             return returnHome(world, player, stack);
         }
 
+        if (mode.group() == CompassModeGroup.STORY && world != world.getServer().overworld()) {
+            player.sendSystemMessage(Component.translatable("message.village-quest.special.surveyor_compass.overworld_required"), true);
+            return InteractionResult.SUCCESS;
+        }
+        if (mode.group() == CompassModeGroup.BIOME || mode.group() == CompassModeGroup.STRUCTURE) {
+            PlayerQuestData searchData = data(world, player.getUUID());
+            long now = world.getServer().overworld().getGameTime();
+            if (!beginSearch(searchData, now)) {
+                player.sendSystemMessage(Component.translatable("message.village-quest.special.surveyor_compass.search_cooldown",
+                        formatCooldown(searchData.getSurveyorCompassSearchCooldownUntil() - now)), true);
+                return InteractionResult.SUCCESS;
+            }
+            markDirty(world);
+        }
+
         CompassTarget target = locateTarget(world, player.getUUID(), player.blockPosition(), mode);
         if (target == null) {
             player.sendSystemMessage(Component.translatable("message.village-quest.special.surveyor_compass.not_found", mode.label()).withStyle(ChatFormatting.RED), true);
@@ -832,31 +850,20 @@ public final class SurveyorCompassQuestService {
     }
 
     private static void maybeSendImprintHint(ServerLevel world, ServerPlayer player) {
-        if (world == null || player == null || !hasCompassInInventory(player)) {
-            if (player != null) {
-                LAST_HINTS.remove(player.getUUID());
-            }
+        if (world == null || player == null || player.level() != world || !hasCompassInInventory(player)) {
+            if (player != null) LAST_HINTS.remove(player.getUUID());
             return;
         }
-
-        HintCandidate candidate = currentHintCandidate(world, player);
-        if (candidate == null) {
-            LAST_HINTS.remove(player.getUUID());
-            return;
-        }
-
         long now = world.getGameTime();
         HintStamp last = LAST_HINTS.get(player.getUUID());
-        if (last != null && last.key().equals(candidate.key()) && (now - last.worldTime()) < HINT_COOLDOWN_TICKS) {
-            return;
-        }
-
-        LAST_HINTS.put(player.getUUID(), new HintStamp(candidate.key(), now));
-        player.sendSystemMessage(candidate.message().copy().withStyle(ChatFormatting.AQUA), true);
+        if (last != null && now >= last.worldTime() && now - last.worldTime() < HINT_COOLDOWN_TICKS) return;
+        HintCandidate candidate = currentHintCandidate(world, player);
+        LAST_HINTS.put(player.getUUID(), new HintStamp(candidate == null ? "" : candidate.key(), now));
+        if (candidate != null) player.sendSystemMessage(candidate.message().copy().withStyle(ChatFormatting.AQUA), true);
     }
 
     private static HintCandidate currentHintCandidate(ServerLevel world, ServerPlayer player) {
-        if (world == null || player == null) {
+        if (world == null || player == null || player.level() != world) {
             return null;
         }
         UUID playerId = player.getUUID();
@@ -884,6 +891,12 @@ public final class SurveyorCompassQuestService {
         }
 
         return null;
+    }
+
+    static boolean beginSearch(PlayerQuestData data, long now) {
+        if (data.getSurveyorCompassSearchCooldownUntil() > now) return false;
+        data.setSurveyorCompassSearchCooldownUntil(now + 600L);
+        return true;
     }
 
     private static CalibrationBiome currentBiomeCandidate(ServerLevel world, BlockPos pos, PlayerQuestData data) {
@@ -1006,13 +1019,6 @@ public final class SurveyorCompassQuestService {
             return InteractionResult.SUCCESS;
         }
 
-        HomeTarget home = resolveHomeTarget(world.getServer(), player);
-        if (home == null) {
-            clearHomeConfirmation(world, data);
-            player.sendSystemMessage(Component.translatable("message.village-quest.special.surveyor_compass.home_missing").withStyle(ChatFormatting.RED), false);
-            return InteractionResult.SUCCESS;
-        }
-
         if (data.getSurveyorCompassHomeConfirmUntil() <= now) {
             data.setSurveyorCompassHomeConfirmUntil(now + HOME_CONFIRM_WINDOW_TICKS);
             markDirty(world);
@@ -1024,18 +1030,29 @@ public final class SurveyorCompassQuestService {
             return InteractionResult.SUCCESS;
         }
 
+        HomeTarget home = resolveHomeTarget(world.getServer(), player);
+        if (home == null) {
+            clearHomeConfirmation(world, data);
+            player.sendSystemMessage(Component.translatable("message.village-quest.special.surveyor_compass.home_missing").withStyle(ChatFormatting.RED), false);
+            return InteractionResult.SUCCESS;
+        }
+
         stack.remove(DataComponents.LODESTONE_TRACKER);
-        home.world().getChunk(home.pos().getX() >> 4, home.pos().getZ() >> 4);
-        player.teleportTo(
+        boolean teleported = player.teleportTo(
                 home.world(),
-                home.pos().getX() + 0.5,
-                home.pos().getY() + 0.1,
-                home.pos().getZ() + 0.5,
+                home.pos().x(),
+                home.pos().y(),
+                home.pos().z(),
                 Set.of(),
                 home.yaw(),
                 player.getXRot(),
                 true
         );
+        if (!teleported) {
+            clearHomeConfirmation(world, data);
+            return InteractionResult.SUCCESS;
+        }
+        player.resetFallDistance();
         clearHomeConfirmation(world, data);
         data.setSurveyorCompassHomeCooldownUntil(now + HOME_COOLDOWN_TICKS);
         markDirty(world);
@@ -1063,7 +1080,23 @@ public final class SurveyorCompassQuestService {
             LevelData.RespawnData spawnPoint = respawn.respawnData();
             ServerLevel spawnWorld = server.getLevel(spawnPoint.dimension());
             if (spawnWorld != null) {
-                return new HomeTarget(spawnWorld, spawnPoint.pos(), spawnPoint.yaw());
+                BlockPos at = spawnPoint.pos();
+                loadArrivalArea(spawnWorld, at);
+                BlockState state = spawnWorld.getBlockState(at);
+                Optional<net.minecraft.world.phys.Vec3> exit = Optional.empty();
+                if (state.getBlock() instanceof net.minecraft.world.level.block.RespawnAnchorBlock
+                        && state.getValue(net.minecraft.world.level.block.RespawnAnchorBlock.CHARGE) > 0
+                        && net.minecraft.world.level.block.RespawnAnchorBlock.canSetSpawn(spawnWorld, at)) {
+                    exit = net.minecraft.world.level.block.RespawnAnchorBlock.findStandUpPosition(
+                            net.minecraft.world.entity.EntityTypes.PLAYER, spawnWorld, at);
+                } else if (state.getBlock() instanceof net.minecraft.world.level.block.AbstractBedBlock bed
+                        && bed.getBedRule(spawnWorld, at).canSetSpawn(spawnWorld)) {
+                    exit = net.minecraft.world.level.block.AbstractBedBlock.findStandUpPosition(
+                            net.minecraft.world.entity.EntityTypes.PLAYER, spawnWorld, at,
+                            state.getValue(net.minecraft.world.level.block.AbstractBedBlock.FACING), spawnPoint.yaw());
+                }
+                if (exit.isPresent() && safeArrival(spawnWorld, exit.get()))
+                    return new HomeTarget(spawnWorld, exit.get(), spawnPoint.yaw());
             }
         }
 
@@ -1072,7 +1105,44 @@ public final class SurveyorCompassQuestService {
         if (spawnWorld == null || spawnPoint == null) {
             return null;
         }
-        return new HomeTarget(spawnWorld, spawnPoint.pos(), spawnPoint.yaw());
+        BlockPos origin = spawnPoint.pos();
+        loadArrivalArea(spawnWorld, origin);
+        // Bounded local fallback; no construction or arbitrary coordinate teleport.
+        for (int radius = 0; radius <= 8; radius++) {
+            for (int dx = -radius; dx <= radius; dx++) for (int dz = -radius; dz <= radius; dz++) {
+                if (radius > 0 && Math.abs(dx) != radius && Math.abs(dz) != radius) continue;
+                int x = origin.getX() + dx, z = origin.getZ() + dz;
+                int top = spawnWorld.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+                for (int y : new int[]{origin.getY(), top, origin.getY() + 1, origin.getY() - 1}) {
+                    var candidate = net.minecraft.world.entity.vehicle.DismountHelper.findSafeDismountLocation(
+                            net.minecraft.world.entity.EntityTypes.PLAYER, spawnWorld, new BlockPos(x, y, z), true);
+                    if (candidate != null && safeArrival(spawnWorld, candidate))
+                        return new HomeTarget(spawnWorld, candidate, spawnPoint.yaw());
+                }
+            }
+        }
+        return null;
+    }
+
+    private static void loadArrivalArea(ServerLevel world, BlockPos pos) {
+        for (int x = (pos.getX() - 9) >> 4; x <= (pos.getX() + 9) >> 4; x++)
+            for (int z = (pos.getZ() - 9) >> 4; z <= (pos.getZ() + 9) >> 4; z++) world.getChunk(x, z);
+    }
+
+    static boolean safeArrival(ServerLevel world, net.minecraft.world.phys.Vec3 position) {
+        BlockPos feet = BlockPos.containing(position);
+        if (!world.getWorldBorder().isWithinBounds(feet) || !world.isInValidBounds(feet)
+                || !world.isInValidBounds(feet.above())) return false;
+        for (BlockPos at : List.of(feet.below(), feet, feet.above())) {
+            BlockState block = world.getBlockState(at);
+            if (!block.getFluidState().isEmpty() || block.is(Blocks.FIRE) || block.is(Blocks.SOUL_FIRE)
+                    || block.is(Blocks.MAGMA_BLOCK) || block.is(Blocks.CACTUS)
+                    || block.is(Blocks.CAMPFIRE) || block.is(Blocks.SOUL_CAMPFIRE)
+                    || block.is(Blocks.POWDER_SNOW) || block.is(Blocks.SWEET_BERRY_BUSH)
+                    || block.is(Blocks.WITHER_ROSE)) return false;
+        }
+        var box = net.minecraft.world.entity.EntityTypes.PLAYER.getDimensions().makeBoundingBox(position);
+        return world.noCollision(null, box) && !world.getBlockState(feet.below()).getCollisionShape(world, feet.below()).isEmpty();
     }
 
     private static Component formatCooldown(long remainingTicks) {
@@ -1117,6 +1187,8 @@ public final class SurveyorCompassQuestService {
     }
 
     private static void showProgress(ServerPlayer player, PlayerQuestData data) {
+        player.sendSystemMessage(Component.translatable("quest.village-quest.special.surveyor_compass.offer.1"),false);
+        player.sendSystemMessage(Component.translatable("quest.village-quest.special.surveyor_compass.offer.2"),false);
         player.sendSystemMessage(Texts.dailyTitle(title(), ChatFormatting.GOLD), false);
         for (Component line : progressLines(data)) {
             player.sendSystemMessage(line, false);
@@ -1124,6 +1196,8 @@ public final class SurveyorCompassQuestService {
     }
 
     private static void showBiomeCalibrationProgress(ServerPlayer player, PlayerQuestData data) {
+        player.sendSystemMessage(Component.translatable("quest.village-quest.special.surveyor_compass_biomes.offer.1"),false);
+        player.sendSystemMessage(Component.translatable("quest.village-quest.special.surveyor_compass_biomes.offer.2"),false);
         player.sendSystemMessage(Texts.dailyTitle(biomeCalibrationTitle(), ChatFormatting.GOLD), false);
         for (Component line : biomeCalibrationProgressLines(data)) {
             player.sendSystemMessage(line, false);
@@ -1291,7 +1365,10 @@ public final class SurveyorCompassQuestService {
     private static void completeQuest(ServerLevel world, ServerPlayer player, PlayerQuestData data) {
         giveOrDrop(player, GuildArchiveService.issueInitial(world, player, ArchiveItem.SURVEYORS_COMPASS,
                 new ItemStack(ModItems.SURVEYORS_COMPASS)));
-        giveOrDrop(player, new ItemStack(Items.NETHERITE_INGOT, BONUS_INGOT_COUNT));
+        if (!de.quest.data.PersonalResetReceipts.has(data, "relic.surveyor")) {
+            de.quest.data.PersonalResetReceipts.record(data, "relic.surveyor");
+            giveOrDrop(player, new ItemStack(Items.NETHERITE_INGOT, BONUS_INGOT_COUNT));
+        }
         data.setPendingSpecialOfferKind(null);
         data.setSurveyorCompassQuestStage(RelicQuestStage.COMPLETED);
         data.setSurveyorCompassRedstoneProgress(REDSTONE_TARGET);

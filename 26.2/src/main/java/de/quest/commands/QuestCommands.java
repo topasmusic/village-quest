@@ -438,8 +438,12 @@ public final class QuestCommands {
                                     .then(literal("accept").executes(ctx -> acceptPartyWeeklyShare(ctx.getSource())))
                                     .then(literal("decline").executes(ctx -> declinePartyWeeklyShare(ctx.getSource()))))
                             .then(literal("story")
-                                    .then(literal("accept").executes(ctx -> acceptPartyStoryShare(ctx.getSource())))
-                                    .then(literal("decline").executes(ctx -> declinePartyStoryShare(ctx.getSource()))))
+                                    .then(literal("accept").executes(ctx -> acceptPartyStoryShare(ctx.getSource()))
+                                            .then(literal("core").executes(ctx -> partyStoryShare(ctx.getSource(), de.quest.quest.story.StoryLane.CORE, true)))
+                                            .then(literal("kingdom").executes(ctx -> partyStoryShare(ctx.getSource(), de.quest.quest.story.StoryLane.KINGDOM, true))))
+                                    .then(literal("decline").executes(ctx -> declinePartyStoryShare(ctx.getSource()))
+                                            .then(literal("core").executes(ctx -> partyStoryShare(ctx.getSource(), de.quest.quest.story.StoryLane.CORE, false)))
+                                            .then(literal("kingdom").executes(ctx -> partyStoryShare(ctx.getSource(), de.quest.quest.story.StoryLane.KINGDOM, false)))))
                             .then(literal("pilgrim")
                                     .then(literal("accept").executes(ctx -> acceptPartyPilgrimShare(ctx.getSource())))
                                     .then(literal("decline").executes(ctx -> declinePartyPilgrimShare(ctx.getSource())))))
@@ -508,6 +512,7 @@ public final class QuestCommands {
                             .then(literal("cancel").executes(ctx -> cancelRouteSurvey(ctx.getSource()))));
 
             CommandNode<CommandSourceStack> villageQuestCommand = dispatcher.register(literal("villagequest")
+                    .then(PersonalResetCommand.command())
                     .then(NpcSkinPreviewService.command())
                     .then(literal("friends").then(argument("body",StringArgumentType.word()).then(argument("action",StringArgumentType.word()).executes(ctx -> de.quest.quest.special.FriendsQuestService.command(ctx.getSource().getPlayer(),StringArgumentType.getString(ctx,"body"),StringArgumentType.getString(ctx,"action"))))))
                     .then(literal("settings").executes(ctx -> {
@@ -1427,6 +1432,9 @@ public final class QuestCommands {
         }
 
         var world = source.getServer().overworld();
+        if (de.quest.shrine.VillageIntroRequestService.blocksActions(world,target.getUUID())) {
+            source.sendFailure(Component.translatable("command.village-quest.personal_reset.blocked")); return 0;
+        }
         long delta = CurrencyService.toBase(amount, unit);
         long newBalance;
         if (mode == WalletAdjustmentMode.ADD) {
@@ -1476,6 +1484,9 @@ public final class QuestCommands {
         }
 
         var world = source.getServer().overworld();
+        if (de.quest.shrine.VillageIntroRequestService.blocksActions(world,target.getUUID())) {
+            source.sendFailure(Component.translatable("command.village-quest.personal_reset.blocked")); return 0;
+        }
         long newBalance = CurrencyService.setBalance(world, target.getUUID(), CurrencyService.toBase(amount, unit));
         source.sendSuccess(() -> Component.translatable(
                 "command.village-quest.questadmin.wallet.set",
@@ -1726,6 +1737,14 @@ public final class QuestCommands {
             return 0;
         }
         return QuestPartyService.acceptStoryOffer(source.getServer().overworld(), player) ? 1 : 0;
+    }
+
+    private static int partyStoryShare(CommandSourceStack source, de.quest.quest.story.StoryLane lane, boolean accept) {
+        ServerPlayer player=source.getPlayer();
+        if (player==null) return 0;
+        var world=source.getServer().overworld();
+        return (accept ? QuestPartyService.acceptStoryOffer(world,player,lane)
+                : QuestPartyService.declineStoryOffer(world,player,lane)) ? 1 : 0;
     }
 
     private static int declinePartyStoryShare(CommandSourceStack source) {

@@ -16,12 +16,15 @@ final class PartyRuntime {
     private final SharedQuestRuntime daily = new SharedQuestRuntime();
     private final SharedQuestRuntime weekly = new SharedQuestRuntime();
     private final SharedQuestRuntime story = new SharedQuestRuntime();
+    private final SharedQuestRuntime kingdomStory = new SharedQuestRuntime();
     private final SharedQuestRuntime pilgrim = new SharedQuestRuntime();
     private final Map<UUID, QuestJoinOffer> dailyOffers = new HashMap<>();
     private final Map<UUID, QuestJoinOffer> weeklyOffers = new HashMap<>();
     private final Map<UUID, QuestJoinOffer> storyOffers = new HashMap<>();
+    private final Map<UUID, QuestJoinOffer> kingdomStoryOffers = new HashMap<>();
     private final Map<UUID, QuestJoinOffer> pilgrimOffers = new HashMap<>();
     private final Map<UUID, Long> disconnectDeadlines = new HashMap<>();
+    private final Map<UUID,String> memberNames=new HashMap<>();
 
     PartyRuntime(UUID id, UUID leaderId) {
         this.id = id;
@@ -35,12 +38,19 @@ final class PartyRuntime {
     SharedQuestRuntime daily() { return daily; }
     SharedQuestRuntime weekly() { return weekly; }
     SharedQuestRuntime story() { return story; }
+    SharedQuestRuntime kingdomStory() { return kingdomStory; }
     SharedQuestRuntime pilgrim() { return pilgrim; }
     Map<UUID, QuestJoinOffer> dailyOffers() { return dailyOffers; }
     Map<UUID, QuestJoinOffer> weeklyOffers() { return weeklyOffers; }
     Map<UUID, QuestJoinOffer> storyOffers() { return storyOffers; }
+    Map<UUID, QuestJoinOffer> kingdomStoryOffers() { return kingdomStoryOffers; }
     Map<UUID, QuestJoinOffer> pilgrimOffers() { return pilgrimOffers; }
     Map<UUID, Long> disconnectDeadlines() { return disconnectDeadlines; }
+    Map<UUID,String> memberNames() { return memberNames; }
+    boolean rememberName(UUID member,String name) {
+        if(!members.contains(member) || name==null || name.isBlank() || name.length()>64 || name.codePoints().anyMatch(Character::isISOControl)) return false;
+        return !Objects.equals(memberNames.put(member,name),name);
+    }
 }
 
 final class SharedQuestRuntime {
@@ -117,7 +127,7 @@ final class SharedQuestRuntime {
     }
 
     boolean canJoinAfterTurnIn(String consumedFlag, UUID memberId) {
-        return !hasFlag(consumedFlag) || hasSynced(memberId);
+        return !hasFlag("personal_reset.excluded." + memberId) && (!hasFlag(consumedFlag) || hasSynced(memberId));
     }
 
     int removeUnsyncedOffersAfterTurnIn(String consumedFlag, Map<UUID, QuestJoinOffer> offers) {

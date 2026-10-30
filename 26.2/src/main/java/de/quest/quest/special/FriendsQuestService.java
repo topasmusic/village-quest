@@ -27,7 +27,7 @@ public final class FriendsQuestService {
     public static FriendsQuestProgress progress(ServerLevel world,UUID player) {
         return new FriendsQuestProgress(QuestState.get(world.getServer()).getPlayerData(player));
     }
-    public static MutableComponent tr(String suffix,Object... args) { return Component.translatable("quest.village-quest.friends."+suffix,args); }
+    public static MutableComponent tr(String suffix,Object... args) { return de.quest.quest.QuestRuleText.translate("quest.village-quest.friends."+suffix,args); }
     private static int stat(ServerPlayer player,net.minecraft.resources.Identifier id) { return DailyQuestService.getCustomStat(player,id); }
     public static void changed(ServerLevel world,ServerPlayer player) {
         QuestState.get(world.getServer()).setDirty(); QuestBookHelper.refreshQuestBook(world,player); QuestTrackerService.refresh(world,player);
@@ -42,22 +42,26 @@ public final class FriendsQuestService {
         FriendsQuestUiService.open(world,player,npc,visit);
         if(net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(player,de.quest.network.FriendsQuestPayloads.View.ID)) return;
         int stage=p.stage(who); String quest=who+"."+Math.min(3,stage+1);
-        Component line=stage>=3?tr(who+".again"):tr(quest+".dialogue");
+        Component line=dialogue(world,p,who);
         NpcSpeechService.privateLine(player,npc,line);
         if(who.equals("lutte") && p.active(who) && stage==1 && !LutteCoastalQuest.hasMap(player,p)) {
             player.sendSystemMessage(tr(p.text("lutte.replacementDue").isBlank()?p.number("lutte.replacements")>=2?"lutte.replace.expensive":"lutte.replace":"lutte.replace.pending"),false);
             choice(player,npc,"replace","lutte.replace.button");
         }
         if(who.equals("lutte") && p.active(who) && stage==1 && p.number("lutte.cursor")>=8192 && p.number("lutte.targets")<3) choice(player,npc,"survey","lutte.survey.button");
-        if(who.equals("marius") && p.active(who) && stage==2) {
+        if(who.equals("marius") && p.active(who) && stage==2 && !MariusQuestService.peaceful(world)) {
             if(p.number("marius.raidPhase")!=2 && p.number("marius.victory")==0) {choice(player,npc,"ready","marius.ready");choice(player,npc,"prepare","marius.prepare");}
             for(var status:MariusQuestService.lines(p))player.sendSystemMessage(status,false);
         }
         if(stage<3) {
-            player.sendSystemMessage(tr(quest+".objective"),false); player.sendSystemMessage(tr(quest+".reward"),false);
+            player.sendSystemMessage(objective(world,p,who),false); player.sendSystemMessage(
+                    PersonalResetReceipts.friendPaid(QuestState.get(world.getServer()).getPlayerData(player.getUUID()),who,stage)
+                            ?Component.translatable("message.village-quest.personal_reset.replay"):tr(quest+".reward"),false);
+            if(who.equals("simon") && stage==2)player.sendSystemMessage(Component.translatable("item.village-quest.weather_tonic.lore"),false);
+            if(who.equals("marius") && stage==2)player.sendSystemMessage(Component.translatable("item.village-quest.village_watch_seal.lore"),false);
             choice(player,npc,p.active(who)?"claim":"accept",p.active(who)?"turn_in":"accept");
         } else if(who.equals("simon") && p.number("simon.herbs")==1) {
-            player.sendSystemMessage(tr("simon.herbs.objective"),false); choice(player,npc,"herbs","turn_in");
+            player.sendSystemMessage(tr("simon.herbs.objective"),false); player.sendSystemMessage(Component.translatable("item.village-quest.weather_tonic.lore"),false); choice(player,npc,"herbs","turn_in");
         }
     }
     private static void choice(ServerPlayer player,KingdomNpcEntity npc,String action,String label) {
@@ -74,6 +78,7 @@ public final class FriendsQuestService {
         String who=v.guest()==1?"simon":v.guest()==2?"marius":"lutte"; var p=progress(world,player.getUUID());
         p.text("simon.currentVisit",v.village()+":"+state.tavernGuests().visitToken(v.village()));
         if(who.equals("marius") && p.active(who) && p.stage(who)==2 && (action.equals("ready") || action.equals("prepare"))) {
+            if(MariusQuestService.peaceful(world)) {player.sendSystemMessage(objective(world,p,who),false);return 0;}
             if(action.equals("prepare")) {if(p.number("marius.raidPhase")!=2) {p.number("marius.raidPhase",0);p.text("marius.raidDue","");changed(world,player);}player.sendSystemMessage(tr("marius.take_time"),false);return 1;}
             var town=state.village(v.village());if(town.isEmpty())return 0;
             return MariusQuestService.schedule(world,player,p,town.get().id(),new BlockPos(town.get().legacyKey().anchorX(),npc.blockPosition().getY(),town.get().legacyKey().anchorZ()))?1:0;
@@ -88,14 +93,14 @@ public final class FriendsQuestService {
             if(who.equals("lutte")) {
                 if(p.stage(who)==1 && !LutteCoastalQuest.accept(world,player,p)) return 0;
                 if(p.stage(who)==2 && (!de.quest.quest.story.StoryQuestService.isCompleted(world,player.getUUID(),de.quest.quest.story.StoryArcType.SILENT_FORGE)
-                        || !VanillaRewardService.prepare(world,player,"friends_lutte","friends:lutte","lutte_masterpiece",null,() -> {}))) {
+                        || !PersonalResetReceipts.friendPaid(QuestState.get(world.getServer()).getPlayerData(player.getUUID()),"lutte",2) && !VanillaRewardService.prepare(world,player,"friends_lutte","friends:lutte","lutte_masterpiece",null,() -> {}))) {
                     player.sendSystemMessage(tr("lutte.forge_locked"),false);return 0;
                 }
             }
             if(p.accept(who,stat(player,Stats.WALK_ONE_CM),stat(player,Stats.SPRINT_ONE_CM),stat(player,Stats.CROUCH_ONE_CM))) {
                 if(who.equals("lutte") && p.stage(who)==1) VanillaRewardService.deliverItems(world,player);
                 QuestTrackerService.enableForAcceptedQuest(world,player); changed(world,player); player.sendSystemMessage(tr("accepted",tr(who+"."+(p.stage(who)+1)+".title")),false);
-                if(who.equals("marius") && p.stage(who)==2) {choice(player,npc,"ready","marius.ready");choice(player,npc,"prepare","marius.prepare");}
+                if(who.equals("marius") && p.stage(who)==2 && !MariusQuestService.peaceful(world)) {choice(player,npc,"ready","marius.ready");choice(player,npc,"prepare","marius.prepare");}
                 return 1;
             }
         } else if(action.equals("claim") && p.active(who)) {
@@ -124,28 +129,35 @@ public final class FriendsQuestService {
         var p=progress(world,player.getUUID()); int stage=p.stage(who);
         if(who.equals("marius")) return MariusQuestService.turnIn(world,player,p);
         if(who.equals("lutte")) return turnInLutte(world,player,p);
-        var goods=FriendsQuestRewards.create(world.registryAccess(),"simon",stage+1,false,player.getUUID()).items();
+        var data=QuestState.get(world.getServer()).getPlayerData(player.getUUID());
+        boolean payout=!PersonalResetReceipts.friendPaid(data,"simon",stage);
+        var goods=payout?FriendsQuestRewards.create(world.registryAccess(),"simon",stage+1,false,player.getUUID()).items():List.<ItemStack>of();
         if(!enqueue(world,player,goods)) return false;
         if(stage==0) consume(player,plants());
         if(!p.complete(who)) throw new IllegalStateException("Guest quest state changed during server turn-in");
         if(stage==2) p.text("simon.finishVisit",p.text("simon.currentVisit"));
-        CurrencyService.addBalance(world,player.getUUID(),new int[]{10,30,25}[stage]);
-        experience(player,stage==0?1.5:4); VanillaRewardService.deliverItems(world,player); return true;
+        PersonalResetReceipts.friendPaidThrough(data,"simon",stage+1);
+        if(payout) { CurrencyService.addBalance(world,player.getUUID(),new int[]{10,30,25}[stage]); experience(player,stage==0?1.5:4); }
+        VanillaRewardService.deliverItems(world,player); return true;
     }
     static Map<Item,Integer> forgeCosts() {return Map.of(Items.ANCIENT_DEBRIS,2,Items.REDSTONE,16,Items.AMETHYST_SHARD,8);}
     private static boolean turnInLutte(ServerLevel world,ServerPlayer player,FriendsQuestProgress p) {
         int stage=p.stage("lutte");
+        var data=QuestState.get(world.getServer()).getPlayerData(player.getUUID());
+        boolean payout=!PersonalResetReceipts.friendPaid(data,"lutte",stage);
         if(stage==2) {
             var rewards=VanillaRewardService.state(world,player.getUUID());var snapshot=rewards.snapshot("friends_lutte","lutte_masterpiece");
-            if(!rewards.writable() || snapshot.isEmpty() || snapshot.getBooleanOr("redeemed",true) || rewards.earned().size()>=32) return false;
+            if(!rewards.writable() || payout && (snapshot.isEmpty() || snapshot.getBooleanOr("redeemed",true) || rewards.earned().size()>=32)) return false;
             consume(player,forgeCosts());p.complete("lutte");QuestState.get(world.getServer()).setDirty();
-            VanillaRewardService.complete(world,player,"friends_lutte","lutte_masterpiece");return true;
+            if(payout) VanillaRewardService.complete(world,player,"friends_lutte","lutte_masterpiece");
+            PersonalResetReceipts.friendPaidThrough(data,"lutte",3); return true;
         }
-        List<ItemStack> goods=FriendsQuestRewards.create(world.registryAccess(),"lutte",stage+1,false,player.getUUID()).items();
+        List<ItemStack> goods=payout?FriendsQuestRewards.create(world.registryAccess(),"lutte",stage+1,false,player.getUUID()).items():List.of();
         if(!enqueue(world,player,goods)) return false;
         if(!p.complete("lutte")) return false;
         if(stage==1)LutteCoastalQuest.finished(world,player.getUUID());
-        CurrencyService.addBalance(world,player.getUUID(),stage==0?12:20);experience(player,stage==0?2:3);
+        PersonalResetReceipts.friendPaidThrough(data,"lutte",stage+1);
+        if(payout) { CurrencyService.addBalance(world,player.getUUID(),stage==0?12:20);experience(player,stage==0?2:3); }
         VanillaRewardService.deliverItems(world,player);return true;
     }
     public static void experience(ServerPlayer player,double bars) {
@@ -153,7 +165,7 @@ public final class FriendsQuestService {
     }
     public static boolean ready(ServerLevel world,ServerPlayer player,String who) {
         var p=progress(world,player.getUUID()); if(!p.active(who)) return false;
-        if(who.equals("marius")) return new MariusQuestProgress(p).ready();
+        if(who.equals("marius")) return MariusQuestService.ready(world,player,p);
         if(who.equals("simon")) return switch(p.stage(who)) { case 0 -> has(player,plants()); case 1 -> p.number("simon.walk")>=20000; case 2 -> p.friendsReady(); default -> false; };
         return switch(p.stage(who)) {
             case 0 -> p.values("lutte.biomes").size()>=3;
@@ -212,6 +224,70 @@ public final class FriendsQuestService {
         String biome=world.getBiome(pos).unwrapKey().map(k -> k.identifier().toString()).orElse("");
         if(p.village(village,biome)) changed(world,player);
     }
+    public static Component shortObjective(ServerPlayer player, FriendsQuestProgress p, String who) {
+        int stage=p.stage(who);
+        if (who.equals("simon") && (stage==0 || stage>=3)) return shortDelivery(player,plants(),who);
+        if (who.equals("lutte") && stage==2) return shortDelivery(player,forgeCosts(),who);
+        if (who.equals("simon") && stage==1) return p.number("simon.walk")<20000 ? counter("walk",p.number("simon.walk"),20000) : meet(who);
+        if (who.equals("simon") && stage==2) {
+            int villages=p.values("simon.villages").size(), biomes=p.values("simon.biomes").size();
+            return villages<3 ? counter("villages",villages,3) : biomes<2 ? counter("village_biomes",biomes,2) : meet(who);
+        }
+        if (who.equals("lutte") && stage==0) return p.values("lutte.biomes").size()<3
+                ? counter("land_biomes",p.values("lutte.biomes").size(),3) : meet(who);
+        if (who.equals("lutte") && stage==1) {
+            int next=p.number("lutte.signals");
+            if (next>=3) return meet(who);
+            if (p.number("lutte.targets")<=next) return Component.translatable("quest.village-quest.tracker.coast_search"
+                    +(p.number("lutte.cursor")>=8192?"_exhausted":""));
+            var target=LutteCoastalQuest.pos(p,"lutte.target."+next);
+            return Component.translatable("quest.village-quest.tracker.coast_build",next+1,3,target.getX(),target.getZ());
+        }
+        if (who.equals("marius")) {
+            if(stage<3 && player!=null && player.level() instanceof ServerLevel level && MariusQuestService.peaceful(level))return MariusQuestService.shortObjective(player,p);
+            if (stage==0) return p.values("marius.nightKills").size()<15 ? counter("night_kills",p.values("marius.nightKills").size(),15) : meet(who);
+            if (stage==1) return p.number("marius.healed")<5000 ? counter("heal_golems",p.number("marius.healed")/100,50) : meet(who);
+            if (p.number("marius.victory")==1) return meet(who);
+            if (p.number("marius.raidPhase")==0) return Component.translatable("quest.village-quest.tracker.marius_ready");
+            if (p.number("marius.raidPhase")==2) return Component.translatable("quest.village-quest.tracker.raid_win",Math.min(3,p.values("marius.raiders").size()),3);
+            return Component.translatable("quest.village-quest.tracker.raid_wait");
+        }
+        return meet(who);
+    }
+    private static Component counter(String activity,int current,int target) {
+        return Component.translatable("screen.village-quest.ui_review.objective_row",
+                Component.translatable("quest.village-quest.tracker."+activity),current,target);
+    }
+    private static Component meet(String who) {
+        return Component.translatable("quest.village-quest.tracker.meet_friend",Component.literal(switch(who) {
+            case "simon" -> "Simon"; case "marius" -> "Marius"; default -> "Lutte";
+        }));
+    }
+    private static Component shortDelivery(ServerPlayer player,Map<Item,Integer> costs,String who) {
+        var rows=new java.util.ArrayList<Component>();
+        boolean missing=false;
+        for (var item:List.of(Items.DANDELION,Items.POPPY,Items.FERN,Items.ANCIENT_DEBRIS,Items.REDSTONE,Items.AMETHYST_SHARD)) {
+            if (!costs.containsKey(item)) continue;
+            int current=player==null ? 0 : DailyQuestService.countInventoryItem(player,item), target=costs.get(item);
+            missing|=current<target;
+            rows.add(de.quest.quest.QuestShortObjective.material(Component.translatable(item.getDescriptionId()),current,target));
+        }
+        return missing?de.quest.quest.QuestShortObjective.group(rows):meet(who);
+    }
+    public static Component dialogue(ServerLevel world,FriendsQuestProgress p,String who) {
+        int stage=p.stage(who);return stage>=3?tr(who+".again"):tr(who.equals("marius") && MariusQuestService.peaceful(world)?"marius.peaceful.dialogue."+stage:who+"."+(stage+1)+".dialogue");
+    }
+    public static Component objective(ServerLevel world,FriendsQuestProgress p,String who) {
+        return tr(who.equals("marius") && p.stage(who)<3 && MariusQuestService.peaceful(world)?"marius.peaceful.objective."+p.stage(who):who+"."+(p.stage(who)+1)+".objective");
+    }
+    public static List<Component> lines(ServerLevel world,ServerPlayer player,FriendsQuestProgress p,String who) {
+        var result=new ArrayList<Component>(who.equals("marius") && p.stage(who)<3?MariusQuestService.lines(world,player,p):lines(p,who));
+        if(p.stage(who)<3) {
+            var instruction=objective(world,p,who);
+            if(!result.contains(instruction))result.add(instruction);
+        }
+        return List.copyOf(result);
+    }
     public static List<Component> lines(FriendsQuestProgress p,String who) {
         int stage=p.stage(who); if(stage>=3) return List.of(tr(who.equals("simon") && p.number("simon.herbs")==1?"simon.herbs.objective":who+".again"));
         if(who.equals("marius")) return MariusQuestService.lines(p);
@@ -225,7 +301,7 @@ public final class FriendsQuestService {
     }
     public static SpecialQuestStatus openStatus(ServerLevel world,UUID player) {
         var p=progress(world,player); var lines=new ArrayList<Component>();
-        for(String who:List.of("simon","lutte","marius")) if(p.active(who)) { lines.add(tr(who+"."+(p.stage(who)+1)+".title")); lines.addAll(lines(p,who)); }
+        for(String who:List.of("simon","lutte","marius")) if(p.active(who)) { lines.add(tr(who+"."+(p.stage(who)+1)+".title")); lines.addAll(lines(world,world.getServer().getPlayerList().getPlayer(player),p,who)); }
         if(p.number("simon.herbs")==1) lines.add(tr("simon.herbs.objective"));
         return lines.isEmpty()?null:new SpecialQuestStatus(tr("title"),List.copyOf(lines));
     }

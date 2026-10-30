@@ -65,13 +65,29 @@ final class QuestPartyMessaging {
     }
 
     static Component nameOf(ServerLevel world, UUID playerId) {
+        return nameOf(world,QuestPartyService.partyFor(playerId),playerId);
+    }
+    static void rememberName(PartyRuntime party,ServerPlayer player) {
+        if(party==null || player==null) return;
+        String name=player.getGameProfile()!=null?player.getGameProfile().name():player.getDisplayName()!=null?player.getDisplayName().getString():null;
+        party.rememberName(player.getUUID(),name);
+    }
+    static Component nameOf(ServerLevel world,PartyRuntime party,UUID playerId) {
         if (world == null || playerId == null) {
             return Component.translatable("message.village-quest.party.unknown");
         }
         ServerPlayer player = world.getServer().getPlayerList().getPlayer(playerId);
-        return player == null
-                ? Component.literal(shortId(playerId)).withStyle(ChatFormatting.GRAY)
-                : player.getDisplayName().copy();
+        if(player!=null) { rememberName(party,player); if(player.getDisplayName()!=null) return player.getDisplayName().copy(); }
+        String saved=party==null?null:party.memberNames().get(playerId);
+        if(saved==null) {
+            var services=world.getServer().services();
+            if(services!=null && services.nameToIdCache()!=null) {
+                saved=services.nameToIdCache().get(playerId).map(profile->profile.name()).orElse(null);
+                if(party!=null) party.rememberName(playerId,saved);
+            }
+        }
+        return saved==null?Component.translatable("message.village-quest.party.unknown")
+                :Component.literal(saved).withStyle(ChatFormatting.GRAY);
     }
 
     static void broadcast(ServerLevel world, PartyRuntime party, Component message) {
@@ -102,8 +118,4 @@ final class QuestPartyMessaging {
         if (player != null) QuestMasterUiService.refreshIfOpen((ServerLevel) player.level(), player);
     }
 
-    private static String shortId(UUID playerId) {
-        String value = playerId == null ? "player" : playerId.toString().replace("-", "");
-        return value.length() <= 8 ? value : value.substring(0, 8);
-    }
 }

@@ -34,6 +34,29 @@ public final class TradeGuildService {
 
     private TradeGuildService() {}
 
+    /** Presentation only: expiry, settlement synchronization and payment stay in their event paths. */
+    public static List<de.quest.quest.JournalActiveQuest> journalEntries(ServerLevel world, ServerPlayer player) {
+        PlayerQuestData data=data(world,player.getUUID());
+        TradeContractType type=activeContract(world,player.getUUID());
+        if(type==null) return List.of();
+        int route=data.getTradeRouteInt(CONTRACT_ROUTE);
+        String instance=data.getTradeRouteString("guild_contract_instance");
+        try { instance=UUID.fromString(instance).toString(); }
+        catch(IllegalArgumentException absent) { instance="legacy:"+type.ordinal()+":"+Math.max(0,route); }
+        Component objective;
+        if(TradeContractHold.isHeld(data)) objective=Component.translatable(
+                "message.village-quest.trade_guild.contract_settlement_hold",type.title(),route);
+        else if(expired(data)) objective=Component.translatable("message.village-quest.trade_guild.contract_expired");
+        else if(data.hasTradeRouteFlag(CONTRACT_SUPPLIED)) objective=Component.translatable(
+                "quest.village-quest.tracker.freight.arrival",route);
+        else objective=Component.translatable("quest.village-quest.tracker.freight.supply",
+                Math.min(type.amount(),countCargo(player,type)),type.amount(),new ItemStack(type.item()).getHoverName(),route);
+        var details=List.of(currentContractLine(world,player.getUUID()),
+                Component.translatable("message.village-quest.trade_guild.contract_help"));
+        return List.of(new de.quest.quest.JournalActiveQuest(new de.quest.quest.TrackerEntry(
+                "special:freight:"+instance,"special",type.title(),objective),details,-1));
+    }
+
     private static PlayerQuestData data(ServerLevel world, UUID playerId) {
         return QuestState.get(world.getServer()).getPlayerData(playerId);
     }
@@ -500,16 +523,7 @@ public final class TradeGuildService {
 
     private static boolean consume(ServerPlayer player, TradeContractType type) {
         Inventory inventory = player.getInventory();
-        int total = 0;
-        for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
-            ItemStack stack = inventory.getItem(slot);
-            if (stack.is(type.item())) total += stack.getCount();
-            if (stack.is(ModItems.GUILD_COURIERS_SATCHEL)) {
-                ItemStack cargo = stack.getOrDefault(DataComponents.CONTAINER, ItemContainerContents.EMPTY).copyOne();
-                if (cargo.is(type.item())) total += cargo.getCount();
-            }
-        }
-        if (total < type.amount()) return false;
+        if (countCargo(player,type) < type.amount()) return false;
         int remaining = type.amount();
         for (int slot = 0; slot < inventory.getContainerSize() && remaining > 0; slot++) {
             ItemStack satchel = inventory.getItem(slot);
@@ -531,6 +545,20 @@ public final class TradeGuildService {
         }
         player.inventoryMenu.broadcastChanges();
         return true;
+    }
+
+    private static int countCargo(ServerPlayer player, TradeContractType type) {
+        Inventory inventory = player.getInventory();
+        int total = 0;
+        for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
+            ItemStack stack = inventory.getItem(slot);
+            if (stack.is(type.item())) total += stack.getCount();
+            if (stack.is(ModItems.GUILD_COURIERS_SATCHEL)) {
+                ItemStack cargo = stack.getOrDefault(DataComponents.CONTAINER, ItemContainerContents.EMPTY).copyOne();
+                if (cargo.is(type.item())) total += cargo.getCount();
+            }
+        }
+        return total;
     }
 
     private static int countLooseCargo(ServerPlayer player, net.minecraft.world.item.Item item) {

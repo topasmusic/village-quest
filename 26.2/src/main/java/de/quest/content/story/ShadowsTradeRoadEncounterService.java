@@ -1,5 +1,7 @@
 package de.quest.content.story;
 
+import de.quest.quest.EncounterEntityLifecycle;
+
 import de.quest.archive.GuildArchiveService;
 import de.quest.archive.GuildArchiveService.ArchiveItem;
 import de.quest.data.PlayerQuestData;
@@ -120,22 +122,31 @@ public final class ShadowsTradeRoadEncounterService {
     private static final int WAVE_PULSE_SIZE = 2;
     private static final int COURIER_DESPAWN_TICKS = 20 * 60 * 5;
     private static final int SURVIVOR_DESPAWN_TICKS = 20 * 45;
-    private static final int PEACEFUL_SUPPLY_BREAD = 8;
-    private static final int PEACEFUL_ESCORT_CHECKPOINTS = 3;
-    private static final int PEACEFUL_FINAL_CHECKPOINTS = 4;
+    static final int PEACEFUL_SUPPLY_BREAD = 8;
+    static final int PEACEFUL_ESCORT_CHECKPOINTS = 3;
+    static final int PEACEFUL_FINAL_CHECKPOINTS = 4;
     private static final String TAG_CARAVAN = "vq_trade_road_caravan";
     private static final String TAG_TRAITOR = "vq_trade_road_traitor";
     private static final String TAG_HOSTILE = "vq_trade_road_hostile";
 
     private static final ConcurrentMap<UUID, ActiveEncounter> ACTIVE = new ConcurrentHashMap<>();
     private static final ConcurrentMap<UUID, UUID> LETTER_COURIERS = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<UUID, Long> COURIER_MISSING_SINCE = new ConcurrentHashMap<>();
 
     private ShadowsTradeRoadEncounterService() {}
 
     public record VillageMarker(String key, int centerX, int centerZ,
                                 int minX, int maxX, int minZ, int maxZ,
-                                List<de.quest.village.GuildCornerCandidateSearch.StructureFootprint> pieces) {
-        public VillageMarker { pieces = pieces == null ? List.of() : List.copyOf(pieces); }
+                                List<de.quest.village.GuildCornerCandidateSearch.StructureFootprint> pieces,
+                                List<de.quest.village.GuildCornerCandidateSearch.StructureFootprint> buildings) {
+        public VillageMarker {
+            pieces = pieces == null ? List.of() : List.copyOf(pieces);
+            buildings = buildings == null ? List.of() : List.copyOf(buildings);
+        }
+        public VillageMarker(String key, int centerX, int centerZ, int minX, int maxX, int minZ, int maxZ,
+                             List<de.quest.village.GuildCornerCandidateSearch.StructureFootprint> pieces) {
+            this(key, centerX, centerZ, minX, maxX, minZ, maxZ, pieces, pieces);
+        }
         public VillageMarker(String key, int centerX, int centerZ, int minX, int maxX, int minZ, int maxZ) {
             this(key, centerX, centerZ, minX, maxX, minZ, maxZ, List.of());
         }
@@ -176,6 +187,11 @@ public final class ShadowsTradeRoadEncounterService {
             this.bossBar = new ServerBossEvent(UUID.randomUUID(), spec.bossBarTitle(), BossEvent.BossBarColor.RED, BossEvent.BossBarOverlay.PROGRESS);
             this.bossBar.setProgress(1.0f);
         }
+    }
+
+    /** Read-only active combat anchors; never creates a village, encounter or chunk. */
+    public static boolean ambientConflict(BlockPos position) {
+        return ACTIVE.values().stream().anyMatch(e -> !e.spec.waves().isEmpty() && e.anchorPos.distSqr(position)<=64*64);
     }
 
     private static final EncounterSpec FIRST_SIGNAL_SPEC = new EncounterSpec(
@@ -224,7 +240,9 @@ public final class ShadowsTradeRoadEncounterService {
     public static void resetRuntimeState() {
         ACTIVE.values().forEach(encounter -> encounter.bossBar.removeAllPlayers());
         ACTIVE.clear();
+        LETTER_COURIERS.values().forEach(EncounterEntityLifecycle::forget);
         LETTER_COURIERS.clear();
+        COURIER_MISSING_SINCE.clear();
     }
 
     public static int despawnAll(ServerLevel world) {
@@ -338,7 +356,24 @@ public final class ShadowsTradeRoadEncounterService {
                     BoundingBox footprint = piece.getBoundingBox();
                     return new de.quest.village.GuildCornerCandidateSearch.StructureFootprint(
                             footprint.minX(), footprint.maxX(), footprint.minZ(), footprint.maxZ());
-                }).toList());
+                }).toList(), start.getPieces().stream()
+                        .filter(piece -> piece instanceof net.minecraft.world.level.levelgen.structure.PoolElementStructurePiece pool
+                                && isVillageBuilding(pool.getElement()))
+                        .map(piece -> {
+                            BoundingBox footprint = piece.getBoundingBox();
+                            return new de.quest.village.GuildCornerCandidateSearch.StructureFootprint(
+                                    footprint.minX(), footprint.maxX(), footprint.minZ(), footprint.maxZ());
+                        }).toList());
+    }
+
+    static boolean isVillageBuilding(net.minecraft.world.level.levelgen.structure.pools.StructurePoolElement element) {
+        if (element instanceof net.minecraft.world.level.levelgen.structure.pools.ListPoolElement list)
+            return list.getElements().stream().anyMatch(ShadowsTradeRoadEncounterService::isVillageBuilding);
+        if (!(element instanceof net.minecraft.world.level.levelgen.structure.pools.SinglePoolElement single)) return false;
+        Identifier location = single.getTemplateLocation();
+        if (location == null) return false;
+        String path = location.getPath();
+        return path.contains("/houses/") || path.contains("/house/") || path.contains("/jobsite/");
     }
 
     private static int distanceToRange(int value, int min, int max) {
@@ -401,7 +436,7 @@ public final class ShadowsTradeRoadEncounterService {
         if (kind == 0) {
             return null;
         }
-        int y = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+        int y = world.hasChunk(x >> 4, z >> 4) ? world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) : world.getSeaLevel();
         return new DistressTarget(new BlockPos(x, y, z), distressLabel(kind));
     }
 
@@ -425,6 +460,7 @@ public final class ShadowsTradeRoadEncounterService {
             StoryArcType activeArc = StoryQuestService.activeArcType(world, player.getUUID());
             if (activeArc != StoryArcType.SHADOWS_ON_THE_TRADE_ROAD) {
                 cleanupPlayerRuntime(world, player.getUUID(), false);
+                clearCourier(world, player.getUUID());
                 continue;
             }
 
@@ -476,16 +512,26 @@ public final class ShadowsTradeRoadEncounterService {
                 targetWins
         ).withStyle(ChatFormatting.GRAY));
 
+        if (StoryQuestService.getQuestInt(world,playerId,winsKey)>=targetWins) return List.copyOf(lines);
         ActiveEncounter encounter = ACTIVE.get(playerId);
         if (encounter != null) {
             if (encounter.spec.waves().isEmpty()) {
+                var player=world.getServer().getPlayerList().getPlayer(playerId);
+                int bread=encounter.peacefulSuppliesDelivered?PEACEFUL_SUPPLY_BREAD:
+                        player==null?0:DailyQuestService.countInventoryItem(player,Items.BREAD);
+                lines.add(Component.translatable("screen.village-quest.ui_review.objective_row",
+                        Component.translatable(Items.BREAD.getDescriptionId()),Math.min(bread,PEACEFUL_SUPPLY_BREAD),PEACEFUL_SUPPLY_BREAD));
                 lines.add(Component.translatable(
-                        "quest.village-quest.story.shadows_on_the_trade_road.rescue.progress.peaceful",
+                        "quest.village-quest.story.shadows_on_the_trade_road.peaceful.progress.checkpoints",
                         encounter.peacefulCheckpointIndex,
-                        encounter.peacefulCheckpoints.size(),
-                        encounter.peacefulSuppliesDelivered ? 1 : 0,
-                        1
+                        encounter.peacefulCheckpoints.size()
                 ).withStyle(ChatFormatting.GRAY));
+                if (!encounter.peacefulCheckpoints.isEmpty()) {
+                    BlockPos next=encounter.peacefulCheckpoints.get(Math.min(encounter.peacefulCheckpointIndex,encounter.peacefulCheckpoints.size()-1));
+                    lines.add(Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.peaceful.next_checkpoint",
+                            next.getX(),next.getY(),next.getZ()));
+                }
+                return List.copyOf(lines);
             }
             List<Mob> hostiles = livingHostiles(world, encounter);
             int remainingHostiles = hostiles.size() + encounter.pendingSpawns.size();
@@ -693,6 +739,7 @@ public final class ShadowsTradeRoadEncounterService {
                                           int targetWins,
                                           int kind,
                                           int nightsUntilFirstRun) {
+        if (player.level() != world) return;
         UUID playerId = player.getUUID();
         DifficultyObjectiveState.Transition modeTransition = DifficultyObjectiveState.transition(
                 StoryQuestService.getQuestInt(world, playerId, StoryQuestKeys.SHADOWS_OBJECTIVE_MODE),
@@ -783,7 +830,7 @@ public final class ShadowsTradeRoadEncounterService {
             merchant.refreshEncounterControl(guard);
             merchant.addTag(TAG_CARAVAN);
             merchant.addTag(playerTag(player.getUUID()));
-            if (!world.noCollision(merchant) || !world.addFreshEntity(merchant)) {
+            if (!EncounterEntityLifecycle.spawn(world, merchant)) {
                 continue;
             }
             encounter.merchantIds.add(merchant.getUUID());
@@ -977,6 +1024,19 @@ public final class ShadowsTradeRoadEncounterService {
                                             ActiveEncounter encounter,
                                             String winsKey,
                                             int targetWins) {
+        if (player.level() != world) return;
+        encounter.hostileIds.removeIf(id -> {
+            boolean dead = EncounterEntityLifecycle.defeated(id, findEntity(world, id));
+            if (dead) EncounterEntityLifecycle.forget(id);
+            return dead;
+        });
+        if (encounter.hostileIds.stream().anyMatch(EncounterEntityLifecycle::terminated)) {
+            failEncounter(world, player, encounter, winsKey, targetWins);
+            return;
+        }
+        if (encounter.hostileIds.stream().anyMatch(id -> findEntity(world, id) == null)
+                || encounter.merchantIds.stream().anyMatch(id -> findEntity(world, id) == null
+                    && !EncounterEntityLifecycle.terminated(id) && !EncounterEntityLifecycle.defeated(id, null))) return;
         List<CaravanMerchantEntity> merchants = livingMerchants(world, encounter);
         if (merchants.isEmpty()) {
             failEncounter(world, player, encounter, winsKey, targetWins);
@@ -1328,7 +1388,7 @@ public final class ShadowsTradeRoadEncounterService {
             hostile.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.DIAMOND_SWORD));
         }
         hostile.addEffect(new MobEffectInstance(MobEffects.GLOWING, HOSTILE_SPAWN_GLOW_TICKS, 0));
-        if (!world.noCollision(hostile) || !world.addFreshEntity(hostile)) {
+        if (!EncounterEntityLifecycle.spawn(world, hostile)) {
             return;
         }
         encounter.hostileIds.add(hostile.getUUID());
@@ -1387,6 +1447,7 @@ public final class ShadowsTradeRoadEncounterService {
             return;
         }
         for (UUID hostileId : encounter.hostileIds) {
+            EncounterEntityLifecycle.forget(hostileId);
             Entity entity = findEntity(world, hostileId);
             if (entity != null) {
                 entity.discard();
@@ -1394,6 +1455,7 @@ public final class ShadowsTradeRoadEncounterService {
         }
         if (discardMerchants) {
             for (UUID merchantId : encounter.merchantIds) {
+                EncounterEntityLifecycle.forget(merchantId);
                 Entity entity = findEntity(world, merchantId);
                 if (entity != null) {
                     entity.discard();
@@ -1404,6 +1466,7 @@ public final class ShadowsTradeRoadEncounterService {
         for (UUID merchantId : encounter.merchantIds) {
             Entity entity = findEntity(world, merchantId);
             if (entity instanceof CaravanMerchantEntity merchant) {
+                EncounterEntityLifecycle.release(merchant);
                 merchant.clearEncounterControl();
                 merchant.setDespawnTicks(SURVIVOR_DESPAWN_TICKS);
             }
@@ -1465,7 +1528,7 @@ public final class ShadowsTradeRoadEncounterService {
     }
 
     private static boolean scheduleEncounter(ServerLevel world, ServerPlayer player, int kind, int nightsUntilStart) {
-        if (world == null || player == null) {
+        if (world == null || player == null || player.level() != world || world != world.getServer().overworld()) {
             return false;
         }
         EncounterSpec spec = encounterSpec(kind);
@@ -1535,16 +1598,27 @@ public final class ShadowsTradeRoadEncounterService {
     }
 
     private static void ensureCourier(ServerLevel world, ServerPlayer player) {
-        if (world == null || player == null) {
+        if (world == null || player == null || player.level() != world || world != world.getServer().overworld()
+                || StoryQuestService.getQuestInt(world, player.getUUID(), StoryQuestKeys.SHADOWS_LETTER_RECEIVED) > 0) {
             return;
         }
         UUID existing = LETTER_COURIERS.get(player.getUUID());
         if (existing != null) {
             Entity entity = findEntity(world, existing);
             if (entity instanceof CaravanMerchantEntity merchant && merchant.isAlive() && !merchant.isRemoved()) {
+                COURIER_MISSING_SINCE.remove(player.getUUID());
                 return;
             }
+            if (entity == null && !EncounterEntityLifecycle.terminated(existing)) {
+                long now = world.getGameTime();
+                long missingSince = COURIER_MISSING_SINCE.computeIfAbsent(player.getUUID(), id -> now);
+                if (now - missingSince < COURIER_DESPAWN_TICKS) return;
+            }
+            // Retire before replacement: a late chunk load must discard the old body.
+            EncounterEntityLifecycle.forget(existing);
+            LETTER_COURIERS.remove(player.getUUID());
         }
+        COURIER_MISSING_SINCE.remove(player.getUUID());
 
         BlockPos spawnPos = safeSurface(world, Mth.floor(player.getX() + 2.0), Mth.floor(player.getZ() + 2.0));
         if (spawnPos == null) {
@@ -1558,7 +1632,7 @@ public final class ShadowsTradeRoadEncounterService {
         courier.addTag(TAG_CARAVAN);
         courier.addTag(playerTag(player.getUUID()));
         courier.setCustomName(Component.translatable("entity.village-quest.caravan_courier"));
-        if (world.addFreshEntity(courier)) {
+        if (EncounterEntityLifecycle.spawn(world, courier)) {
             LETTER_COURIERS.put(player.getUUID(), courier.getUUID());
         }
     }
@@ -1567,10 +1641,12 @@ public final class ShadowsTradeRoadEncounterService {
         if (playerId == null) {
             return;
         }
+        COURIER_MISSING_SINCE.remove(playerId);
         UUID courierId = LETTER_COURIERS.remove(playerId);
         if (world == null || courierId == null) {
             return;
         }
+        EncounterEntityLifecycle.forget(courierId);
         Entity entity = findEntity(world, courierId);
         if (entity != null) {
             entity.discard();

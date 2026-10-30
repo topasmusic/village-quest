@@ -38,7 +38,7 @@ public final class SmithSmeltingDailyQuest implements DailyQuestDefinition {
 
     @Override
     public Component offerParagraph2() {
-        return Component.translatable("quest.village-quest.daily.smelt.offer.2").withStyle(ChatFormatting.GRAY);
+        return de.quest.quest.QuestRuleText.translate("quest.village-quest.daily.smelt.offer.2").withStyle(ChatFormatting.GRAY);
     }
 
     @Override
@@ -110,6 +110,11 @@ public final class SmithSmeltingDailyQuest implements DailyQuestDefinition {
 
     @Override
     public Component claimBlockedMessage(ServerLevel world, ServerPlayer player) {
+        return claimBlockedMessage(world, player, false);
+    }
+
+    @Override
+    public Component claimBlockedMessage(ServerLevel world, ServerPlayer player, boolean allRequirements) {
         if (player == null || world == null) {
             return null;
         }
@@ -122,9 +127,9 @@ public final class SmithSmeltingDailyQuest implements DailyQuestDefinition {
                 || hasTurnInItems(player)) {
             return null;
         }
-        if (rawDeliveryTarget == 0) return Texts.turnInMissing(Items.IRON_INGOT.getDefaultInstance().getDisplayName(),
+        if (rawDeliveryTarget == 0) return Texts.turnInMissing(allRequirements,Items.IRON_INGOT.getDefaultInstance().getDisplayName(),
                 DailyQuestService.countCompletionItem(world, player, Items.IRON_INGOT), ingotTarget);
-        return Texts.turnInMissing(
+        return Texts.turnInMissing(allRequirements,
                 Items.RAW_IRON.getDefaultInstance().getDisplayName(),
                 DailyQuestService.countCompletionItem(world, player, Items.RAW_IRON),
                 rawDeliveryTarget,

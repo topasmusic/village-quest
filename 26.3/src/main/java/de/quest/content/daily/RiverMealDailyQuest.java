@@ -38,7 +38,7 @@ public final class RiverMealDailyQuest implements DailyQuestDefinition {
 
     @Override
     public Component offerParagraph2() {
-        return Component.translatable("quest.village-quest.daily.river.offer.2").withStyle(ChatFormatting.GRAY);
+        return de.quest.quest.QuestRuleText.translate("quest.village-quest.daily.river.offer.2").withStyle(ChatFormatting.GRAY);
     }
 
     @Override
@@ -100,6 +100,11 @@ public final class RiverMealDailyQuest implements DailyQuestDefinition {
 
     @Override
     public Component claimBlockedMessage(ServerLevel world, ServerPlayer player) {
+        return claimBlockedMessage(world, player, false);
+    }
+
+    @Override
+    public Component claimBlockedMessage(ServerLevel world, ServerPlayer player, boolean allRequirements) {
         if (player == null || world == null) {
             return null;
         }
@@ -110,7 +115,7 @@ public final class RiverMealDailyQuest implements DailyQuestDefinition {
                 || DailyQuestService.countCompletionItems(world, player, Items.COOKED_COD, Items.COOKED_SALMON) >= fishTarget) {
             return null;
         }
-        return Texts.turnInMissing(
+        return Texts.turnInMissing(allRequirements,
                 Component.translatable("text.village-quest.turnin.label.cooked_fish"),
                 DailyQuestService.countCompletionItems(world, player, Items.COOKED_COD, Items.COOKED_SALMON),
                 fishTarget

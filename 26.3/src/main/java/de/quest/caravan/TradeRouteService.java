@@ -1,5 +1,7 @@
 package de.quest.caravan;
 
+import de.quest.quest.EncounterEntityLifecycle;
+
 import net.minecraft.util.Prediction;
 import static de.quest.caravan.TradeRouteData.*;
 import static de.quest.caravan.TradeRouteSurveyData.*;
@@ -352,6 +354,7 @@ public final class TradeRouteService {
                                         PlayerQuestData data,
                                         int currentSecond,
                                         boolean ownerOnline) {
+        if (de.quest.shrine.VillageIntroRequestService.blocksActions(world,ownerId)) return;
         int lastSecond = data.getTradeRouteInt(LAST_SIMULATION_SECOND);
         int catchUp = TradeRouteSchedulingPolicy.catchUpSeconds(
                 lastSecond, currentSecond, MAX_OFFLINE_CATCH_UP_SECONDS);
@@ -594,7 +597,10 @@ public final class TradeRouteService {
     }
 
     public static boolean registerCurrentVillage(ServerLevel world, ServerPlayer player) {
-        if (!canMutateRoute(world, player) || !hasRouteAccess(world, player.getUUID())) {
+        if (!canMutateRoute(world, player)) return false;
+        if (!hasRouteAccess(world, player.getUUID())) {
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.locked")
+                    .withStyle(ChatFormatting.GRAY), false);
             return false;
         }
         ShadowsTradeRoadEncounterService.VillageMarker village =
@@ -1167,14 +1173,14 @@ public final class TradeRouteService {
     }
 
     public static InteractionResult onEntityUse(ServerLevel world, ServerPlayer helper, Entity entity) {
-        if (entity == null || !canMutateRoute(world, helper)) {
+        if (!(entity instanceof CaravanMerchantEntity merchant)) {
             return InteractionResult.PASS;
         }
         RouteKey key = ENTITY_ROUTES.get(entity.getUUID());
         if (key == null) {
             return InteractionResult.PASS;
         }
-        if (!(entity instanceof CaravanMerchantEntity merchant)
+        if (!canMutateRoute(world, helper)
                 || helper.distanceToSqr(entity) > 64.0) return InteractionResult.PASS;
         PlayerQuestData ownerData = data(world, key.ownerId());
         if (key.routeIndex() < 0 || key.routeIndex() >= ownerData.getTradeRouteInt(ROUTE_COUNT)) {
@@ -1478,6 +1484,7 @@ public final class TradeRouteService {
         CaravanRuntime runtime = ACTIVE_CARAVANS.get(key);
         if (runtime != null) {
             runtime.attackerIds.remove(killedEntity.getUUID());
+            EncounterEntityLifecycle.forget(killedEntity.getUUID());
         }
         boolean attackersRemain = ATTACKER_ROUTES.containsValue(key);
         if (!attackersRemain) {
@@ -2141,10 +2148,17 @@ public final class TradeRouteService {
         }
         for (UUID attackerId : List.copyOf(runtime.attackerIds)) {
             Entity attacker = findEntity(world, attackerId);
-            if (attacker == null || attacker.isRemoved() || !attacker.isAlive()) {
+            if (EncounterEntityLifecycle.defeated(attackerId, attacker)) {
+                EncounterEntityLifecycle.forget(attackerId);
                 runtime.attackerIds.remove(attackerId);
                 ATTACKER_ROUTES.remove(attackerId);
             }
+        }
+        if (runtime.attackerIds.stream().anyMatch(EncounterEntityLifecycle::terminated)) {
+            discardAttackers(world, runtime);
+            setRouteInt(data, key.routeIndex(), "event_progress", 0);
+            QuestState.get(world.getServer()).setDirty();
+            return;
         }
         if (runtime.attackerIds.isEmpty()) {
             setRouteInt(data, key.routeIndex(), "event_progress", 2);
@@ -2157,6 +2171,7 @@ public final class TradeRouteService {
                                      RouteKey key,
                                      PlayerQuestData ownerData,
                                      TradeRouteEventType event) {
+        if (de.quest.shrine.VillageIntroRequestService.blocksActions(world,key.ownerId())) return;
         if (event(ownerData, key.routeIndex()) != event) {
             return;
         }
@@ -2282,7 +2297,7 @@ public final class TradeRouteService {
             traitor.addTag(TAG_ROUTE_ATTACKER);
             traitor.addTag(ownerTag(key.ownerId()));
             traitor.addTag(routeTag(key.routeIndex()));
-            if (world.noCollision(traitor) && world.addFreshEntity(traitor)) {
+            if (EncounterEntityLifecycle.spawn(world, traitor)) {
                 traitor.setTarget(helper);
                 runtime.attackerIds.add(traitor.getUUID());
                 ATTACKER_ROUTES.put(traitor.getUUID(), key);
@@ -3277,6 +3292,13 @@ public final class TradeRouteService {
         return false;
     }
 
+    /** Existing loaded ambushes only; no quest-state reads, scans or route mutation. */
+    public static boolean ambientConflict(ServerLevel world,BlockPos position) {
+        return ACTIVE_CARAVANS.values().stream().filter(r -> !r.attackerIds.isEmpty())
+                .anyMatch(r -> (r.lastActual==null?r.lastExpected:r.lastActual).distSqr(position)<=64*64
+                        || r.attackerIds.stream().map(world::getEntity).anyMatch(e -> e!=null && e.blockPosition().distSqr(position)<=64*64));
+    }
+
     public static int distanceToNearestRoute(ServerLevel world, UUID playerId, BlockPos pos) {
         if (world == null || playerId == null || pos == null) return -1;
         PlayerQuestData data = data(world, playerId);
@@ -3687,6 +3709,7 @@ public final class TradeRouteService {
                     if (runtime != null && runtime.attackerIds.contains(entity.getUUID())) {
                         continue;
                     }
+                    EncounterEntityLifecycle.forget(entity.getUUID());
                     ATTACKER_ROUTES.remove(entity.getUUID());
                     entity.discard();
                 }
@@ -3696,7 +3719,7 @@ public final class TradeRouteService {
                 && !ACTIVE_CARAVANS.containsKey(entry.getKey()));
     }
 
-    private static void removeOwnerRuntimes(ServerLevel world, UUID ownerId) {
+    public static void removeOwnerRuntimes(ServerLevel world, UUID ownerId) {
         MATERIALIZATION_RETRY_AT.keySet().removeIf(key -> key.ownerId().equals(ownerId));
         for (RouteKey key : List.copyOf(ACTIVE_CARAVANS.keySet())) {
             if (key.ownerId().equals(ownerId)) {
@@ -3762,6 +3785,7 @@ public final class TradeRouteService {
 
     private static void discardAttackers(ServerLevel world, CaravanRuntime runtime) {
         for (UUID attackerId : List.copyOf(runtime.attackerIds)) {
+            EncounterEntityLifecycle.forget(attackerId);
             ATTACKER_ROUTES.remove(attackerId);
             Entity entity = findEntity(world, attackerId);
             if (entity != null) {

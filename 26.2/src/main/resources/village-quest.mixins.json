@@ -3,6 +3,7 @@
   "package": "de.quest.mixin",
   "compatibilityLevel": "JAVA_25",
   "mixins": [
+    "AmbientAdventurerLootMixin",
     "AbstractFurnaceScreenHandlerMixin",
     "AnvilScreenHandlerMixin",
     "AnimalEntityMixin",

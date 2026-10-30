@@ -308,6 +308,8 @@ public final class MerchantSealQuestService {
     }
 
     private static void showProgress(ServerPlayer player, PlayerQuestData data) {
+        player.sendSystemMessage(Component.translatable("quest.village-quest.special.merchant.offer.1"),false);
+        player.sendSystemMessage(Component.translatable("quest.village-quest.special.merchant.offer.2"),false);
         player.sendSystemMessage(Texts.dailyTitle(title(), ChatFormatting.GOLD), false);
         for (Component line : progressLines(data)) {
             player.sendSystemMessage(line, false);

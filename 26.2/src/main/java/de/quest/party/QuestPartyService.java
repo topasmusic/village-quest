@@ -16,6 +16,7 @@ import de.quest.quest.daily.DailyQuestKeys;
 import de.quest.quest.daily.DailyQuestService;
 import de.quest.quest.daily.FirstDailyChoiceService;
 import de.quest.quest.story.StoryArcType;
+import de.quest.quest.story.StoryLane;
 import de.quest.quest.story.StoryChapterDefinition;
 import de.quest.quest.story.StoryQuestKeys;
 import de.quest.quest.story.StoryQuestService;
@@ -74,6 +75,7 @@ public final class QuestPartyService {
         }
 
         CompoundTag root = QuestState.get(server).getQuestPartyState();
+        if (!QuestPartyPersistence.storyLanesWritable(root)) { loaded=true; return; }
         if (root == null || root.isEmpty()) {
             loaded = true;
             return;
@@ -129,6 +131,7 @@ public final class QuestPartyService {
         }
 
         Long deadline = party.disconnectDeadlines().remove(player.getUUID());
+        QuestPartyMessaging.rememberName(party,player);
         if (deadline != null) {
             broadcast((ServerLevel) player.level(), party,
                     Component.translatable("message.village-quest.party.member_returned", player.getDisplayName()).withStyle(ChatFormatting.GRAY));
@@ -136,6 +139,7 @@ public final class QuestPartyService {
         boolean hadPendingOffer = party.dailyOffers().containsKey(player.getUUID())
                 || party.weeklyOffers().containsKey(player.getUUID())
                 || party.storyOffers().containsKey(player.getUUID())
+                || party.kingdomStoryOffers().containsKey(player.getUUID())
                 || party.pilgrimOffers().containsKey(player.getUUID());
         queueActiveQuestOffersForJoiner((ServerLevel) player.level(), party, player);
         if (hadPendingOffer) {
@@ -160,6 +164,7 @@ public final class QuestPartyService {
         if (party == null) {
             return;
         }
+        QuestPartyMessaging.rememberName(party,player);
         if (party.disconnectDeadlines().containsKey(player.getUUID())) {
             return;
         }
@@ -248,6 +253,7 @@ public final class QuestPartyService {
         }
 
         party.members().add(player.getUUID());
+        QuestPartyMessaging.rememberName(party,player);
         MEMBER_TO_PARTY.put(player.getUUID(), party.id());
         party.disconnectDeadlines().remove(player.getUUID());
         broadcast(world, party, Component.translatable("message.village-quest.party.member_joined", player.getDisplayName()).withStyle(ChatFormatting.GREEN));
@@ -359,7 +365,10 @@ public final class QuestPartyService {
             return fallback;
         }
         DailyQuestService.DailyQuestType sessionType = activeDailyType(party);
-        return sessionType == null ? fallback : sessionType;
+        if (sessionType != null) clearDailySessionIfFinished(world, playerId, sessionType);
+        sessionType = activeDailyType(party);
+        return sessionType == null || !party.daily().canJoinAfterTurnIn(DailyQuestKeys.SHARED_TURN_IN_CONSUMED, playerId)
+                ? fallback : sessionType;
     }
 
     public static WeeklyQuestService.WeeklyQuestType resolveSharedWeeklyChoice(ServerLevel world,
@@ -371,7 +380,10 @@ public final class QuestPartyService {
             return fallback;
         }
         WeeklyQuestService.WeeklyQuestType sessionType = activeWeeklyType(party);
-        return sessionType == null ? fallback : sessionType;
+        if (sessionType != null) clearWeeklySessionIfFinished(world, playerId, sessionType);
+        sessionType = activeWeeklyType(party);
+        return sessionType == null || !party.weekly().canJoinAfterTurnIn(WeeklyQuestKeys.SHARED_TURN_IN_CONSUMED, playerId)
+                ? fallback : sessionType;
     }
 
     public static void onDailyQuestAccepted(ServerLevel world,
@@ -390,6 +402,7 @@ public final class QuestPartyService {
         }
 
         SharedQuestRuntime session = ensureDailySession(party, type);
+        if (session == null || !session.canJoinAfterTurnIn(DailyQuestKeys.SHARED_TURN_IN_CONSUMED, player.getUUID())) return;
         mergeDailyProgressIntoSession(world, player.getUUID(), type, session);
         syncPartyMembersIntoDaily(world, party, type, definition, player.getUUID());
         clearDailyOffer(party, player.getUUID());
@@ -411,6 +424,7 @@ public final class QuestPartyService {
         }
 
         SharedQuestRuntime session = ensureWeeklySession(party, type);
+        if (session == null || !session.canJoinAfterTurnIn(WeeklyQuestKeys.SHARED_TURN_IN_CONSUMED, player.getUUID())) return;
         mergeWeeklyProgressIntoSession(world, player.getUUID(), type, session);
         syncPartyMembersIntoWeekly(world, party, type, definition, player.getUUID());
         clearWeeklyOffer(party, player.getUUID());
@@ -573,10 +587,7 @@ public final class QuestPartyService {
         for (UUID memberId : party.members()) {
             if (!session.hasSynced(memberId)) continue;
             PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
-            if (data.getAcceptedDay() == day
-                    && data.getLastRewardDay() != day
-                    && data.getDailyChoice() == type
-                    && data.getDailyChoiceDay() == day) {
+            if (data.hasActiveDaily() && data.getDailyChoice() == type) {
                 data.setDailyFlag(DailyQuestKeys.SHARED_TURN_IN_CONSUMED, true);
             }
         }
@@ -605,10 +616,7 @@ public final class QuestPartyService {
         for (UUID memberId : party.members()) {
             if (!session.hasSynced(memberId)) continue;
             PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
-            if (data.getWeeklyAcceptedCycle() == cycle
-                    && data.getWeeklyRewardCycle() != cycle
-                    && data.getWeeklyChoice() == type
-                    && data.getWeeklyChoiceCycle() == cycle) {
+            if (data.hasActiveWeekly() && data.getWeeklyChoice() == type) {
                 data.setWeeklyFlag(WeeklyQuestKeys.SHARED_TURN_IN_CONSUMED, true);
             }
         }
@@ -630,10 +638,10 @@ public final class QuestPartyService {
             return;
         }
 
-        SharedQuestRuntime session = ensureStorySession(party, arcType, chapterIndex);
+        SharedQuestRuntime session = ensurePartyStorySession(world, party, arcType, chapterIndex);
         mergeStoryProgressIntoSession(world, player.getUUID(), arcType, chapterIndex, session);
         syncPartyMembersIntoStory(world, party, arcType, chapterIndex, chapter, player.getUUID());
-        clearStoryOffer(party, player.getUUID());
+        clearStoryOffer(party, player.getUUID(), StoryLane.forArc(arcType));
         storePersistentState(world.getServer());
         refreshPartyUi(world, party);
     }
@@ -668,7 +676,7 @@ public final class QuestPartyService {
         if (world==null || actor==null || village==null || village.equals(de.quest.kingdom.BuildingSessionPolicy.NONE)) return false;
         ensureLoaded(world.getServer());
         var data=QuestState.get(world.getServer()).getPlayerData(actor.getUUID());
-        if (data.getActiveStoryArc()!=StoryArcType.LIVING_KINGDOMS)
+        if (!data.isKingdomStoryActive())
             return de.quest.kingdom.KingdomStoryProgress.bind(data,village,explicit);
         int chapter=data.getStoryChapterProgress(StoryArcType.LIVING_KINGDOMS.id());
         var session=sharedStorySession(world,actor.getUUID(),StoryArcType.LIVING_KINGDOMS,chapter);
@@ -748,12 +756,13 @@ public final class QuestPartyService {
 
         session.setFlag(StoryQuestKeys.SHARED_TURN_IN_CONSUMED, true);
         session.removeUnsyncedOffersAfterTurnIn(
-                StoryQuestKeys.SHARED_TURN_IN_CONSUMED, party.storyOffers());
+                StoryQuestKeys.SHARED_TURN_IN_CONSUMED, offersFor(party,arcType));
         for (UUID memberId : party.members()) {
             if (!session.hasSynced(memberId)) continue;
             PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
-            if (data.getActiveStoryArc() == arcType
-                    && data.getStoryChapterProgress(arcType.id()) == chapterIndex) {
+            if (data.getActiveStoryArc(StoryLane.forArc(arcType)) == arcType
+                    && data.getStoryChapterProgress(arcType.id()) == chapterIndex
+                    && (arcType!=StoryArcType.LIVING_KINGDOMS || matchesKingdomVillageBinding(data,session))) {
                 data.setStoryFlag(StoryQuestKeys.sharedTurnInConsumed(arcType, chapterIndex), true);
             }
         }
@@ -765,9 +774,20 @@ public final class QuestPartyService {
                                                 UUID playerId,
                                                 StoryArcType arcType,
                                                 int chapterIndex) {
+        return storyMembers(world,playerId,arcType,chapterIndex,false);
+    }
+
+    /** Progress evidence includes admitted offline partners; inventory/reward delivery stays online. */
+    public static List<UUID> storyProgressMembers(ServerLevel world, UUID playerId, StoryArcType arcType, int chapterIndex) {
+        return storyMembers(world,playerId,arcType,chapterIndex,true);
+    }
+
+    private static List<UUID> storyMembers(ServerLevel world, UUID playerId, StoryArcType arcType,
+                                          int chapterIndex, boolean includeOffline) {
         PartyRuntime party = partyFor(playerId);
         SharedQuestRuntime session = sharedStorySessionForType(world, playerId, arcType, chapterIndex);
-        if (world == null || party == null || arcType == null || session == null) {
+        if (world == null || party == null || arcType == null || session == null
+                || sharedStorySession(world,playerId,arcType,chapterIndex)==null) {
             return List.of(playerId);
         }
 
@@ -777,14 +797,14 @@ public final class QuestPartyService {
                 continue;
             }
             PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
-            if (data.getActiveStoryArc() != arcType) {
+            if (data.getActiveStoryArc(StoryLane.forArc(arcType)) != arcType) {
                 continue;
             }
             if (data.getStoryChapterProgress(arcType.id()) != chapterIndex) {
                 continue;
             }
             if (arcType==StoryArcType.LIVING_KINGDOMS && !matchesKingdomVillageBinding(data,session)) continue;
-            if (world.getServer().getPlayerList().getPlayer(memberId) != null) {
+            if (includeOffline || world.getServer().getPlayerList().getPlayer(memberId) != null) {
                 members.add(memberId);
             }
         }
@@ -806,7 +826,8 @@ public final class QuestPartyService {
                 continue;
             }
             PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
-            if (data.getActiveStoryArc() == arcType && data.getStoryChapterProgress(arcType.id()) == chapterIndex) {
+            if (data.getActiveStoryArc(StoryLane.forArc(arcType)) == arcType && data.getStoryChapterProgress(arcType.id()) == chapterIndex
+                    && (arcType!=StoryArcType.LIVING_KINGDOMS || matchesKingdomVillageBinding(data,session))) {
                 count++;
             }
         }
@@ -860,8 +881,8 @@ public final class QuestPartyService {
             return;
         }
         if (storySharedMemberCount(world, playerId, arcType, chapterIndex) <= 0) {
-            party.story().clear();
-            party.storyOffers().clear();
+            sessionFor(party,arcType).clear();
+            offersFor(party,arcType).clear();
             storePersistentState(world.getServer());
         }
     }
@@ -1015,13 +1036,13 @@ public final class QuestPartyService {
                 continue;
             }
             PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
-            if (data.getAcceptedDay() != day) {
+            if (data.getAcceptedDay() == PlayerQuestData.UNSET_DAY) {
                 continue;
             }
-            if (data.getDailyChoice() != type || data.getDailyChoiceDay() != day) {
+            if (data.getDailyChoice() != type) {
                 continue;
             }
-            if (!includeCompleted && data.getLastRewardDay() == day) {
+            if (!includeCompleted && !data.hasActiveDaily()) {
                 continue;
             }
             if (world.getServer().getPlayerList().getPlayer(memberId) != null) {
@@ -1048,13 +1069,13 @@ public final class QuestPartyService {
                 continue;
             }
             PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
-            if (data.getWeeklyAcceptedCycle() != cycle) {
+            if (data.getWeeklyAcceptedCycle() == PlayerQuestData.UNSET_DAY) {
                 continue;
             }
-            if (data.getWeeklyChoice() != type || data.getWeeklyChoiceCycle() != cycle) {
+            if (data.getWeeklyChoice() != type) {
                 continue;
             }
-            if (!includeCompleted && data.getWeeklyRewardCycle() == cycle) {
+            if (!includeCompleted && !data.hasActiveWeekly()) {
                 continue;
             }
             if (world.getServer().getPlayerList().getPlayer(memberId) != null) {
@@ -1080,7 +1101,7 @@ public final class QuestPartyService {
                 continue;
             }
             PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
-            if (data.getAcceptedDay() == day && data.getLastRewardDay() != day && data.getDailyChoice() == type && data.getDailyChoiceDay() == day) {
+            if (data.hasActiveDaily() && data.getDailyChoice() == type) {
                 count++;
             }
         }
@@ -1103,7 +1124,7 @@ public final class QuestPartyService {
                 continue;
             }
             PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
-            if (data.getWeeklyAcceptedCycle() == cycle && data.getWeeklyRewardCycle() != cycle && data.getWeeklyChoice() == type && data.getWeeklyChoiceCycle() == cycle) {
+            if (data.hasActiveWeekly() && data.getWeeklyChoice() == type) {
                 count++;
             }
         }
@@ -1129,13 +1150,14 @@ public final class QuestPartyService {
     }
     private static boolean modernShared(ServerLevel world, SharedQuestRuntime session, String slot) {
         for (UUID owner : session.syncedMembers()) {
-            var state = QuestState.get(world.getServer()).getPlayerData(owner).vanillaRewards();
+            var ownerData = QuestState.get(world.getServer()).getPlayerData(owner);
+            var state = ownerData.vanillaRewards();
             var snapshot = state.snapshot(slot, state.currentIdentity(slot));
             String expectedKey = slot + ":" + session.questId();
-            if (slot.equals("story") && session.questId() != null) expectedKey = "story:" + session.questId().split("#")[0];
+            if ((slot.equals("story") || slot.equals("kingdom_story")) && session.questId() != null) expectedKey = "story:" + session.questId().split("#")[0];
             if (snapshot.getStringOr("key", "").equals(expectedKey) && snapshot.getIntOr("version", 0) >= 1) {
-                if (slot.equals("daily") && !state.currentIdentity(slot).equals(de.quest.reward.VanillaRewardService.dailyIdentity(session.questId()))) continue;
-                if (slot.equals("weekly") && !state.currentIdentity(slot).equals(de.quest.reward.VanillaRewardService.weeklyIdentity(session.questId()))) continue;
+                if (slot.equals("daily") && !state.currentIdentity(slot).equals(session.questId() + ":" + ownerData.getAcceptedDay())) continue;
+                if (slot.equals("weekly") && !state.currentIdentity(slot).equals(session.questId() + ":" + ownerData.getWeeklyAcceptedCycle())) continue;
                 return true;
             }
         }
@@ -1151,7 +1173,8 @@ public final class QuestPartyService {
     }
     public static String rewardStoryKey(ServerLevel world, UUID player, StoryArcType type, int chapter) {
         PartyRuntime party = partyFor(player);
-        return party != null && activeStoryType(party) == type && activeStoryChapterIndex(party) == chapter && !modernShared(world, party.story(), "story") ? "" : "story:" + type.id();
+        return party != null && matchesStorySession(party,type,chapter)
+                && !modernShared(world, sessionFor(party,type), StoryLane.forArc(type)==StoryLane.KINGDOM ? "kingdom_story" : "story") ? "" : "story:" + type.id();
     }
     public static String rewardPilgrimKey(ServerLevel world, UUID player, PilgrimContractType type) {
         PartyRuntime party = partyFor(player);
@@ -1187,8 +1210,12 @@ public final class QuestPartyService {
             return false;
         }
 
+        PlayerQuestData joining = QuestState.get(world.getServer()).getPlayerData(player.getUUID());
+        String rewardIdentity = joining.hasActiveDaily() && joining.getDailyChoice() == type
+                ? type.name() + ":" + joining.getAcceptedDay()
+                : de.quest.reward.VanillaRewardService.dailyIdentity(type.name());
         if (!de.quest.reward.VanillaRewardService.prepare(world, player, "daily", rewardDailyKey(world, player.getUUID(), type),
-                de.quest.reward.VanillaRewardService.dailyIdentity(type.name()), sharedDailyTargetProfile(world, party, type),
+                rewardIdentity, sharedDailyTargetProfile(world, party, type),
                 () -> acceptDailyOffer(world, player))) return false;
         syncDailyMember(world, party, player, type, DailyQuestGenerator.definition(type), offer.sourceId());
         storePersistentState(world.getServer());
@@ -1240,8 +1267,12 @@ public final class QuestPartyService {
             return false;
         }
 
+        PlayerQuestData joining = QuestState.get(world.getServer()).getPlayerData(player.getUUID());
+        String rewardIdentity = joining.hasActiveWeekly() && joining.getWeeklyChoice() == type
+                ? type.name() + ":" + joining.getWeeklyAcceptedCycle()
+                : de.quest.reward.VanillaRewardService.weeklyIdentity(type.name());
         if (!de.quest.reward.VanillaRewardService.prepare(world, player, "weekly", rewardWeeklyKey(world, player.getUUID(), type),
-                de.quest.reward.VanillaRewardService.weeklyIdentity(type.name()), sharedWeeklyTargetProfile(world, party, type),
+                rewardIdentity, sharedWeeklyTargetProfile(world, party, type),
                 () -> acceptWeeklyOffer(world, player))) return false;
         syncWeeklyMember(world, party, player, type, WeeklyQuestGenerator.definition(type), offer.sourceId());
         storePersistentState(world.getServer());
@@ -1265,9 +1296,14 @@ public final class QuestPartyService {
     }
 
     public static boolean acceptStoryOffer(ServerLevel world, ServerPlayer player) {
+        return acceptStoryOffer(world, player, null);
+    }
+
+    public static boolean acceptStoryOffer(ServerLevel world, ServerPlayer player, StoryLane selectedLane) {
         if (world == null || player == null) {
             return false;
         }
+        if (de.quest.shrine.VillageIntroRequestService.blocksActions(world,player.getUUID())) return false;
         ensureLoaded(world.getServer());
         PartyRuntime party = partyFor(player.getUUID());
         if (party == null) {
@@ -1275,17 +1311,19 @@ public final class QuestPartyService {
             return false;
         }
 
-        QuestJoinOffer offer = party.storyOffers().get(player.getUUID());
+        StoryLane lane = selectStoryOffer(world, player, party, selectedLane);
+        if (lane == null) return false;
+        QuestJoinOffer offer = offersFor(party,lane).get(player.getUUID());
         StoryArcType arcType = offer == null ? null : parseStoryType(offer.questId());
         int chapterIndex = offer == null ? -1 : parseStoryChapter(offer.questId());
         if (offer == null || arcType == null || chapterIndex < 0 || !isOfferStillValid(world, party, player.getUUID(), offer, arcType, chapterIndex)) {
-            clearStoryOffer(party, player.getUUID());
+            clearStoryOffer(party, player.getUUID(), lane);
             player.sendSystemMessage(Component.translatable("message.village-quest.party.offer.story.expired").withStyle(ChatFormatting.RED), false);
             storePersistentState(world.getServer());
             return false;
         }
         if (!canJoinStoryShare(world, player.getUUID(), arcType, chapterIndex, true)) {
-            clearStoryOffer(party, player.getUUID());
+            clearStoryOffer(party, player.getUUID(), lane);
             storePersistentState(world.getServer());
             return false;
         }
@@ -1294,9 +1332,10 @@ public final class QuestPartyService {
         if (chapter == null) {
             chapter = StoryQuestService.definition(arcType) == null ? null : StoryQuestService.definition(arcType).chapter(chapterIndex);
         }
-        if (chapterIndex == arcType.chapterCount() - 1 && !de.quest.reward.VanillaRewardService.prepare(world, player, "story",
+        if (chapterIndex == arcType.chapterCount() - 1 && !de.quest.data.PersonalResetReceipts.storyPaid(QuestState.get(world.getServer()).getPlayerData(player.getUUID()),arcType,chapterIndex)
+                && !de.quest.reward.VanillaRewardService.prepare(world, player, lane==StoryLane.KINGDOM ? "kingdom_story" : "story",
                 rewardStoryKey(world, player.getUUID(), arcType, chapterIndex), arcType.id() + ":" + chapterIndex,
-                de.quest.quest.repeatable.RepeatableTargetProfile.NORMAL, () -> acceptStoryOffer(world, player))) return false;
+                de.quest.quest.repeatable.RepeatableTargetProfile.NORMAL, () -> acceptStoryOffer(world, player, lane))) return false;
         syncStoryMember(world, party, player, arcType, chapterIndex, chapter, offer.sourceId());
         storePersistentState(world.getServer());
         refreshPartyUi(world, party);
@@ -1304,12 +1343,18 @@ public final class QuestPartyService {
     }
 
     public static boolean declineStoryOffer(ServerLevel world, ServerPlayer player) {
+        return declineStoryOffer(world, player, null);
+    }
+
+    public static boolean declineStoryOffer(ServerLevel world, ServerPlayer player, StoryLane selectedLane) {
         if (world == null || player == null) {
             return false;
         }
         ensureLoaded(world.getServer());
         PartyRuntime party = partyFor(player.getUUID());
-        if (party == null || clearStoryOffer(party, player.getUUID()) == null) {
+        StoryLane lane = selectStoryOffer(world, player, party, selectedLane);
+        if (lane == null) return false;
+        if (party == null || clearStoryOffer(party, player.getUUID(), lane) == null) {
             player.sendSystemMessage(Component.translatable("message.village-quest.party.offer.story.none").withStyle(ChatFormatting.RED), false);
             return false;
         }
@@ -1431,7 +1476,8 @@ public final class QuestPartyService {
         List<ExpiryTarget> expired = new ArrayList<>();
         for (PartyRuntime party : PARTIES.values()) {
             for (var entry : party.disconnectDeadlines().entrySet()) {
-                if (entry.getValue() <= now && world.getServer().getPlayerList().getPlayer(entry.getKey()) == null) {
+                if (entry.getValue() <= now && world.getServer().getPlayerList().getPlayer(entry.getKey()) == null
+                        && !de.quest.data.PersonalResetService.blocksActions(world,entry.getKey())) {
                     expired.add(new ExpiryTarget(party.id(), entry.getKey()));
                 }
             }
@@ -1510,24 +1556,29 @@ public final class QuestPartyService {
     }
 
     private static boolean cleanupStoryOffers(ServerLevel world, PartyRuntime party) {
-        StoryArcType activeType = activeStoryType(party);
-        int chapterIndex = activeStoryChapterIndex(party);
+        boolean core = cleanupStoryOffers(world,party,StoryLane.CORE);
+        return cleanupStoryOffers(world,party,StoryLane.KINGDOM) || core;
+    }
+
+    private static boolean cleanupStoryOffers(ServerLevel world, PartyRuntime party, StoryLane lane) {
+        StoryArcType activeType = activeStoryType(party,lane);
+        int chapterIndex = activeStoryChapterIndex(party,lane);
         if (activeType == null || chapterIndex < 0) {
-            if (!party.storyOffers().isEmpty()) {
-                party.storyOffers().clear();
+            if (!offersFor(party,lane).isEmpty()) {
+                offersFor(party,lane).clear();
                 return true;
             }
             return false;
         }
         boolean changed = false;
         List<UUID> remove = new ArrayList<>();
-        for (var entry : party.storyOffers().entrySet()) {
+        for (var entry : offersFor(party,lane).entrySet()) {
             if (!isOfferStillValid(world, party, entry.getKey(), entry.getValue(), activeType, chapterIndex)) {
                 remove.add(entry.getKey());
             }
         }
         for (UUID memberId : remove) {
-            party.storyOffers().remove(memberId);
+            offersFor(party,lane).remove(memberId);
             changed = true;
         }
         return changed;
@@ -1613,11 +1664,16 @@ public final class QuestPartyService {
         if (party == null || activeDailyType(party) != type) {
             return;
         }
+        // Completed members must not rejoin yesterday's consumed session for a second payout.
+        party.daily().syncedMembers().removeIf(id -> {
+            PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(id);
+            return !data.hasActiveDaily() || data.getDailyChoice() != type;
+        });
         if (dailySharedMemberCount(world, playerId, type) <= 0) {
             party.daily().clear();
             party.dailyOffers().clear();
-            storePersistentState(world.getServer());
         }
+        storePersistentState(world.getServer());
     }
 
     public static void clearWeeklySessionIfFinished(ServerLevel world, UUID playerId, WeeklyQuestService.WeeklyQuestType type) {
@@ -1625,11 +1681,48 @@ public final class QuestPartyService {
         if (party == null || activeWeeklyType(party) != type) {
             return;
         }
+        party.weekly().syncedMembers().removeIf(id -> {
+            PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(id);
+            return !data.hasActiveWeekly() || data.getWeeklyChoice() != type;
+        });
         if (weeklySharedMemberCount(world, playerId, type) <= 0) {
             party.weekly().clear();
             party.weeklyOffers().clear();
-            storePersistentState(world.getServer());
         }
+        storePersistentState(world.getServer());
+    }
+
+    /** Preserve every other member and session, including a remaining single member. */
+    public static void detachForPersonalRestart(ServerLevel world, UUID owner) {
+        loadForPersonalRestart(world.getServer());
+        removePendingInviteFor(owner);
+        PartyRuntime party = partyFor(owner);
+        if (party == null) return;
+        for (var session : List.of(party.daily(), party.weekly(), party.story(), party.kingdomStory(), party.pilgrim())) {
+            session.unmarkSynced(owner);
+            session.setFlag("personal_reset.excluded." + owner, true);
+        }
+        party.members().remove(owner); party.memberNames().remove(owner); party.disconnectDeadlines().remove(owner);
+        clearDailyOffer(party, owner); clearWeeklyOffer(party, owner); clearStoryOffer(party, owner); clearPilgrimOffer(party, owner);
+        MEMBER_TO_PARTY.remove(owner);
+        if (party.members().isEmpty()) { PARTIES.remove(party.id()); removeInvitesForParty(party.id()); }
+        else if (owner.equals(party.leaderId())) party.setLeaderId(party.members().iterator().next());
+        storePersistentState(world.getServer());
+    }
+
+    /** Private integrated worlds also retain party documents. Do not silently overwrite them. */
+    private static void loadForPersonalRestart(MinecraftServer server) {
+        var state=QuestState.get(server);
+        if(!state.storyLanesWritable())throw new IllegalStateException("Unknown party state");
+        if(!loaded) {
+            QuestPartyPersistence.read(state.getQuestPartyState(),PARTIES,MEMBER_TO_PARTY,INVITES);
+            loaded=true;
+        }
+    }
+    public static boolean personalRestartDetached(ServerLevel world,UUID owner) {
+        loadForPersonalRestart(world.getServer());
+        return !MEMBER_TO_PARTY.containsKey(owner) && !INVITES.containsKey(owner)
+                && PARTIES.values().stream().noneMatch(p -> p.members().contains(owner));
     }
 
     private static boolean leaveInternal(ServerLevel world, UUID playerId, boolean notifyPlayer, boolean disconnecting) {
@@ -1637,10 +1730,13 @@ public final class QuestPartyService {
         if (world == null || party == null) {
             return false;
         }
+        if (de.quest.data.PersonalResetService.blocksActions(world,playerId)) return false;
 
         ServerPlayer player = world.getServer().getPlayerList().getPlayer(playerId);
+        Component departingName=QuestPartyMessaging.nameOf(world,party,playerId);
         copySharedProgressToPlayer(world, party, playerId);
         party.members().remove(playerId);
+        party.memberNames().remove(playerId);
         party.disconnectDeadlines().remove(playerId);
         clearDailyOffer(party, playerId);
         clearWeeklyOffer(party, playerId);
@@ -1649,6 +1745,7 @@ public final class QuestPartyService {
         party.daily().unmarkSynced(playerId);
         party.weekly().unmarkSynced(playerId);
         party.story().unmarkSynced(playerId);
+        party.kingdomStory().unmarkSynced(playerId);
         party.pilgrim().unmarkSynced(playerId);
         MEMBER_TO_PARTY.remove(playerId);
         removePendingInviteFor(playerId);
@@ -1671,6 +1768,9 @@ public final class QuestPartyService {
 
         if (party.members().size() == 1) {
             UUID remainingId = party.members().iterator().next();
+            if (de.quest.data.PersonalResetService.blocksActions(world,remainingId)) {
+                storePersistentState(world.getServer());return true;
+            }
             copySharedProgressToPlayer(world, party, remainingId);
             MEMBER_TO_PARTY.remove(remainingId);
             ServerPlayer remaining = world.getServer().getPlayerList().getPlayer(remainingId);
@@ -1685,7 +1785,7 @@ public final class QuestPartyService {
         }
 
         if (!disconnecting) {
-            broadcast(world, party, Component.translatable("message.village-quest.party.member_left", nameOf(world, playerId)).withStyle(ChatFormatting.GRAY));
+            broadcast(world, party, Component.translatable("message.village-quest.party.member_left", departingName).withStyle(ChatFormatting.GRAY));
         }
         storePersistentState(world.getServer());
         refreshPartyUi(world, party);
@@ -1699,6 +1799,7 @@ public final class QuestPartyService {
         }
         PartyRuntime created = new PartyRuntime(UUID.randomUUID(), leader.getUUID());
         created.members().add(leader.getUUID());
+        QuestPartyMessaging.rememberName(created,leader);
         PARTIES.put(created.id(), created);
         MEMBER_TO_PARTY.put(leader.getUUID(), created.id());
         seedSessionsFromMember(world, created, leader.getUUID());
@@ -1713,31 +1814,52 @@ public final class QuestPartyService {
         return partyId == null ? null : PARTIES.get(partyId);
     }
 
+    /** Retire a shared chapter into each still-admitted personal claim before reusing its lane. */
+    private static SharedQuestRuntime ensurePartyStorySession(ServerLevel world, PartyRuntime party,
+                                                               StoryArcType arc, int chapter) {
+        var previous=sessionFor(party,arc);
+        if (previous!=null && previous.questId()!=null
+                && !previous.matches(storySessionId(arc,chapter),chapter)) {
+            var oldArc=parseStoryType(previous.questId());
+            int oldChapter=parseStoryChapter(previous.questId());
+            if (oldArc!=null && oldChapter>=0 && oldChapter<oldArc.chapterCount()) {
+                for (UUID owner:previous.syncedMembers()) {
+                    if (!party.members().contains(owner)) continue;
+                    var data=QuestState.get(world.getServer()).getPlayerData(owner);
+                    if (data.getActiveStoryArc(StoryLane.forArc(oldArc))!=oldArc
+                            || data.getStoryChapterProgress(oldArc.id())!=oldChapter
+                            || (oldArc==StoryArcType.LIVING_KINGDOMS && !matchesKingdomVillageBinding(data,previous))) continue;
+                    applySharedStoryProgress(data,previous,oldArc,oldChapter);
+                }
+                QuestState.get(world.getServer()).setDirty();
+            }
+        }
+        return QuestPartySessions.ensureStorySession(party,arc,chapter);
+    }
+
     private static void seedSessionsFromMember(ServerLevel world, PartyRuntime party, UUID memberId) {
         if (world == null || party == null || memberId == null) {
             return;
         }
         PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
         long day = QuestCalendarService.currentDay();
-        if (data.getAcceptedDay() == day && data.getLastRewardDay() != day
-                && data.getDailyChoice() != null
-                && data.getDailyChoiceDay() == day
+        if (data.hasActiveDaily()
                 && QuestShareProfiles.isDailyShareable(data.getDailyChoice())) {
             mergeDailyProgressIntoSession(world, memberId, data.getDailyChoice(), ensureDailySession(party, data.getDailyChoice()));
         }
 
         long cycle = QuestCalendarService.currentWeekCycle();
-        if (data.getWeeklyAcceptedCycle() == cycle && data.getWeeklyRewardCycle() != cycle
-                && data.getWeeklyChoice() != null
-                && data.getWeeklyChoiceCycle() == cycle
+        if (data.hasActiveWeekly()
                 && QuestShareProfiles.isWeeklyShareable(data.getWeeklyChoice())) {
             mergeWeeklyProgressIntoSession(world, memberId, data.getWeeklyChoice(), ensureWeeklySession(party, data.getWeeklyChoice()));
         }
 
-        StoryArcType activeStoryArc = data.getActiveStoryArc();
-        if (activeStoryArc != null && QuestShareProfiles.isStoryShareable(activeStoryArc)) {
-            int chapterIndex = data.getStoryChapterProgress(activeStoryArc.id());
-            mergeStoryProgressIntoSession(world, memberId, activeStoryArc, chapterIndex, ensureStorySession(party, activeStoryArc, chapterIndex));
+        for (StoryLane lane : StoryLane.values()) {
+            StoryArcType activeStoryArc = data.getActiveStoryArc(lane);
+            if (activeStoryArc != null && QuestShareProfiles.isStoryShareable(activeStoryArc)) {
+                int chapterIndex = data.getStoryChapterProgress(activeStoryArc.id());
+                mergeStoryProgressIntoSession(world, memberId, activeStoryArc, chapterIndex, ensurePartyStorySession(world, party, activeStoryArc, chapterIndex));
+            }
         }
 
         PilgrimContractType activePilgrimType = PilgrimContractType.fromId(data.getActivePilgrimContractId());
@@ -1758,10 +1880,12 @@ public final class QuestPartyService {
         if (weeklyType != null) {
             queueWeeklyQuestOffer(world, party, player.getUUID(), weeklyType, weeklyOfferSourceId(world, party, player.getUUID()), true);
         }
-        StoryArcType storyType = activeStoryType(party);
-        int storyChapterIndex = activeStoryChapterIndex(party);
-        if (storyType != null && storyChapterIndex >= 0) {
-            queueStoryQuestOffer(world, party, player.getUUID(), storyType, storyChapterIndex, storyOfferSourceId(world, party, player.getUUID()), true);
+        for (StoryLane lane : StoryLane.values()) {
+            StoryArcType storyType = activeStoryType(party,lane);
+            int storyChapterIndex = activeStoryChapterIndex(party,lane);
+            if (storyType != null && storyChapterIndex >= 0) {
+                queueStoryQuestOffer(world, party, player.getUUID(), storyType, storyChapterIndex, storyOfferSourceId(world, party, player.getUUID(),lane), true);
+            }
         }
         PilgrimContractType pilgrimType = activePilgrimType(party);
         if (pilgrimType != null) {
@@ -1822,18 +1946,14 @@ public final class QuestPartyService {
             return;
         }
 
-        boolean sameQuestActive = data.getAcceptedDay() == day
-                && data.getLastRewardDay() != day
-                && data.getDailyChoice() == type
-                && data.getDailyChoiceDay() == day;
+        boolean sameQuestActive = data.hasActiveDaily() && data.getDailyChoice() == type;
         if (sameQuestActive) {
             if (sourceId != null) {
                 var source = QuestState.get(world.getServer()).getPlayerData(sourceId);
                 if (data.getDailyTargetProfile() != source.getDailyTargetProfile()) return;
                 if (type == DailyQuestService.DailyQuestType.SMITH_SMELTING) {
-                    String identity = de.quest.reward.VanillaRewardService.dailyIdentity(type.name());
-                    boolean ownModern = data.vanillaRewards().snapshot("daily",identity).getIntOr("version",0) >= 1;
-                    boolean sourceModern = source.vanillaRewards().snapshot("daily",identity).getIntOr("version",0) >= 1;
+                    boolean ownModern = data.vanillaRewards().snapshot("daily",type.name() + ":" + data.getAcceptedDay()).getIntOr("version",0) >= 1;
+                    boolean sourceModern = source.vanillaRewards().snapshot("daily",type.name() + ":" + source.getAcceptedDay()).getIntOr("version",0) >= 1;
                     if (ownModern != sourceModern) return;
                 }
             }
@@ -1848,7 +1968,7 @@ public final class QuestPartyService {
             return;
         }
 
-        if (data.getLastRewardDay() == day || data.getAcceptedDay() == day) {
+        if (data.getLastRewardDay() == day || data.hasActiveDailySlot()) {
             if (sourceId != null && !sourceId.equals(member.getUUID())) {
                 member.sendSystemMessage(Component.translatable("message.village-quest.party.sync_skipped_daily").withStyle(ChatFormatting.GRAY), false);
             }
@@ -1891,10 +2011,7 @@ public final class QuestPartyService {
             return;
         }
 
-        boolean sameQuestActive = data.getWeeklyAcceptedCycle() == cycle
-                && data.getWeeklyRewardCycle() != cycle
-                && data.getWeeklyChoice() == type
-                && data.getWeeklyChoiceCycle() == cycle;
+        boolean sameQuestActive = data.hasActiveWeekly() && data.getWeeklyChoice() == type;
         if (sameQuestActive) {
             mergeWeeklyProgressIntoSession(world, member.getUUID(), type, session);
             if (!session.hasSynced(member.getUUID())) return;
@@ -1907,7 +2024,7 @@ public final class QuestPartyService {
             return;
         }
 
-        if (data.getWeeklyRewardCycle() == cycle || data.getWeeklyAcceptedCycle() == cycle) {
+        if (data.getWeeklyRewardCycle() == cycle || data.hasActiveWeekly()) {
             if (sourceId != null && !sourceId.equals(member.getUUID())) {
                 member.sendSystemMessage(Component.translatable("message.village-quest.party.sync_skipped_weekly").withStyle(ChatFormatting.GRAY), false);
             }
@@ -1944,7 +2061,8 @@ public final class QuestPartyService {
             if (memberId.equals(sourceId)) {
                 continue;
             }
-            if (member != null && memberHasActiveStory(world, memberId, arcType, chapterIndex)) {
+            if (member != null && sessionFor(party,arcType).hasSynced(memberId)
+                    && memberHasActiveStory(world, memberId, arcType, chapterIndex)) {
                 syncStoryMember(world, party, member, arcType, chapterIndex, chapter, sourceId);
                 continue;
             }
@@ -1977,15 +2095,16 @@ public final class QuestPartyService {
                                         StoryChapterDefinition chapter,
                                         UUID sourceId) {
         PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(member.getUUID());
-        SharedQuestRuntime session = ensureStorySession(party, arcType, chapterIndex);
+        SharedQuestRuntime session = ensurePartyStorySession(world, party, arcType, chapterIndex);
         if (session == null) {
             return;
         }
 
-        boolean sameChapterActive = data.getActiveStoryArc() == arcType && data.getStoryChapterProgress(arcType.id()) == chapterIndex;
+        boolean sameChapterActive = data.getActiveStoryArc(StoryLane.forArc(arcType)) == arcType && data.getStoryChapterProgress(arcType.id()) == chapterIndex;
         if (sameChapterActive) {
             mergeStoryProgressIntoSession(world, member.getUUID(), arcType, chapterIndex, session);
-            clearStoryOffer(party, member.getUUID());
+            if (!session.hasSynced(member.getUUID())) return;
+            clearStoryOffer(party, member.getUUID(), StoryLane.forArc(arcType));
             if (sourceId != null && !sourceId.equals(member.getUUID())) {
                 member.sendSystemMessage(Component.translatable("message.village-quest.party.shared_story", nameOf(world, sourceId)).withStyle(ChatFormatting.GRAY), false);
             }
@@ -1993,16 +2112,16 @@ public final class QuestPartyService {
             return;
         }
 
-        if (data.getActiveStoryArc() != null && data.getActiveStoryArc() != arcType) {
+        if (data.getActiveStoryArc(StoryLane.forArc(arcType)) != null && data.getActiveStoryArc(StoryLane.forArc(arcType)) != arcType) {
             if (sourceId != null && !sourceId.equals(member.getUUID())) {
                 member.sendSystemMessage(Component.translatable("message.village-quest.party.sync_skipped_story").withStyle(ChatFormatting.GRAY), false);
             }
             return;
         }
 
-        clearStoryOffer(party, member.getUUID());
-        data.clearStoryProgress();
-        data.setActiveStoryArc(arcType);
+        clearStoryOffer(party, member.getUUID(), StoryLane.forArc(arcType));
+        if (StoryLane.forArc(arcType)==StoryLane.CORE) data.clearStoryProgress();
+        data.setActiveStoryArc(StoryLane.forArc(arcType),arcType);
         data.setStoryDiscovered(arcType.id(), true);
         data.setStoryChapterProgress(arcType.id(), chapterIndex);
         if (arcType==StoryArcType.LIVING_KINGDOMS) {
@@ -2081,10 +2200,14 @@ public final class QuestPartyService {
         }
         if (arcType==StoryArcType.LIVING_KINGDOMS && !mergeKingdomVillageBinding(data,session)) return;
         if (arcType == StoryArcType.NIGHT_BELLS) {
+            if(!de.quest.content.story.NightBellsMarkerProgress.supported(data::getStoryInt,chapterIndex)
+                    || !de.quest.content.story.NightBellsMarkerProgress.supported(session::getInt,chapterIndex))return;
             mergeNightBellsVillageBinding(data, session);
+            mergeNightBellsMarkers(data,session,chapterIndex);
         }
         for (String key : profile.intKeys()) {
-            if (arcType == StoryArcType.NIGHT_BELLS && isNightBellsVillageKey(key)) {
+            if (arcType == StoryArcType.NIGHT_BELLS && (isNightBellsVillageKey(key)
+                    || de.quest.content.story.NightBellsMarkerProgress.isMarkerKey(key,chapterIndex))) {
                 continue;
             }
             int value = data.getStoryInt(key);
@@ -2128,15 +2251,18 @@ public final class QuestPartyService {
         if (members==null || members.size()>64 || session==null || actor==null || village==null
                 || village.equals(de.quest.kingdom.BuildingSessionPolicy.NONE) || chapter<0 || chapter>=StoryArcType.LIVING_KINGDOMS.chapterCount()) return false;
         var source=members.get(actor);
-        if (source==null || !session.hasSynced(actor) || source.getActiveStoryArc()!=StoryArcType.LIVING_KINGDOMS
+        if (source==null || !session.hasSynced(actor) || !source.isKingdomStoryActive()
                 || source.getStoryChapterProgress(StoryArcType.LIVING_KINGDOMS.id())!=chapter || !matchesKingdomVillageBinding(source,session)) return false;
         UUID old=kingdomVillageBinding(session), personal=de.quest.kingdom.KingdomStoryProgress.target(source);
+        if (!village.equals(old) && session.hasFlag(StoryQuestKeys.SHARED_TURN_IN_CONSUMED)) return false;
         if (old!=null && !old.equals(village) && (!explicit || !actor.equals(leader))
                 || personal!=null && !personal.equals(village) && !explicit) return false;
         var admitted=members.entrySet().stream().filter(entry -> session.hasSynced(entry.getKey()) && entry.getValue()!=null
-                && entry.getValue().getActiveStoryArc()==StoryArcType.LIVING_KINGDOMS
+                && entry.getValue().isKingdomStoryActive()
                 && entry.getValue().getStoryChapterProgress(StoryArcType.LIVING_KINGDOMS.id())==chapter
                 && matchesKingdomVillageBinding(entry.getValue(),session)).map(Map.Entry::getValue).toList();
+        if (admitted.stream().anyMatch(data -> !village.equals(de.quest.kingdom.KingdomStoryProgress.target(data))
+                && data.hasStoryFlag(StoryQuestKeys.sharedTurnInConsumed(StoryArcType.LIVING_KINGDOMS,chapter)))) return false;
         if (old==null || !old.equals(village)) {
             session.flags().removeIf(flag -> flag.startsWith("kingdoms.bound.")); session.setFlag("kingdoms.bound."+village,true);
         }
@@ -2174,6 +2300,14 @@ public final class QuestPartyService {
         session.setInt(StoryQuestKeys.NIGHT_BELLS_VILLAGE_Z,
                 data.getStoryInt(StoryQuestKeys.NIGHT_BELLS_VILLAGE_Z));
         session.setInt(StoryQuestKeys.NIGHT_BELLS_VILLAGE_BOUND, 1);
+    }
+
+    static void mergeNightBellsMarkers(PlayerQuestData data,SharedQuestRuntime session,int chapter) {
+        if(data.getStoryInt(StoryQuestKeys.NIGHT_BELLS_VILLAGE_BOUND)==0
+                || session.getInt(StoryQuestKeys.NIGHT_BELLS_VILLAGE_BOUND)==0
+                || data.getStoryInt(StoryQuestKeys.NIGHT_BELLS_VILLAGE_X)!=session.getInt(StoryQuestKeys.NIGHT_BELLS_VILLAGE_X)
+                || data.getStoryInt(StoryQuestKeys.NIGHT_BELLS_VILLAGE_Z)!=session.getInt(StoryQuestKeys.NIGHT_BELLS_VILLAGE_Z))return;
+        de.quest.content.story.NightBellsMarkerProgress.merge(data::getStoryInt,session::getInt,session::setInt,chapter,chapter==3?4:3);
     }
 
     private static boolean isNightBellsVillageKey(String key) {
@@ -2291,13 +2425,11 @@ public final class QuestPartyService {
         if (world == null || party == null || memberId == null) {
             return;
         }
+        if (de.quest.data.PersonalResetService.blocksActions(world,memberId)) return;
         PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
         DailyQuestService.DailyQuestType dailyType = activeDailyType(party);
         if (dailyType != null && party.daily().hasSynced(memberId)
-                && data.getAcceptedDay() == QuestCalendarService.currentDay()
-                && data.getLastRewardDay() != QuestCalendarService.currentDay()
-                && data.getDailyChoice() == dailyType
-                && data.getDailyChoiceDay() == QuestCalendarService.currentDay()) {
+                && data.hasActiveDaily() && data.getDailyChoice() == dailyType) {
             applySharedDailyProgress(data, party.daily(), dailyType);
             data.setProgressDay(QuestCalendarService.currentDay());
             QuestState.get(world.getServer()).setDirty();
@@ -2305,23 +2437,23 @@ public final class QuestPartyService {
 
         WeeklyQuestService.WeeklyQuestType weeklyType = activeWeeklyType(party);
         if (weeklyType != null && party.weekly().hasSynced(memberId)
-                && data.getWeeklyAcceptedCycle() == QuestCalendarService.currentWeekCycle()
-                && data.getWeeklyRewardCycle() != QuestCalendarService.currentWeekCycle()
-                && data.getWeeklyChoice() == weeklyType
-                && data.getWeeklyChoiceCycle() == QuestCalendarService.currentWeekCycle()) {
+                && data.hasActiveWeekly() && data.getWeeklyChoice() == weeklyType) {
             applySharedWeeklyProgress(data, party.weekly(), weeklyType);
             data.setWeeklyProgressCycle(QuestCalendarService.currentWeekCycle());
             QuestState.get(world.getServer()).setDirty();
         }
 
-        StoryArcType storyType = activeStoryType(party);
-        int storyChapterIndex = activeStoryChapterIndex(party);
-        if (storyType != null
-                && storyChapterIndex >= 0
-                && data.getActiveStoryArc() == storyType
-                && data.getStoryChapterProgress(storyType.id()) == storyChapterIndex) {
-            applySharedStoryProgress(data, party.story(), storyType, storyChapterIndex);
-            QuestState.get(world.getServer()).setDirty();
+        for (StoryLane lane : StoryLane.values()) {
+            StoryArcType storyType = activeStoryType(party,lane);
+            int storyChapterIndex = activeStoryChapterIndex(party,lane);
+            var session=sessionFor(party,lane);
+            if (storyType != null && storyChapterIndex >= 0 && session.hasSynced(memberId)
+                    && data.getActiveStoryArc(lane) == storyType
+                    && data.getStoryChapterProgress(storyType.id()) == storyChapterIndex
+                    && (lane!=StoryLane.KINGDOM || matchesKingdomVillageBinding(data,session))) {
+                applySharedStoryProgress(data, session, storyType, storyChapterIndex);
+                QuestState.get(world.getServer()).setDirty();
+            }
         }
 
         PilgrimContractType pilgrimType = activePilgrimType(party);
@@ -2390,6 +2522,10 @@ public final class QuestPartyService {
         if (data == null || session == null || profile == null) {
             return;
         }
+        if(arcType==StoryArcType.NIGHT_BELLS && (!de.quest.content.story.NightBellsMarkerProgress.supported(data::getStoryInt,chapterIndex)
+                || !de.quest.content.story.NightBellsMarkerProgress.supported(session::getInt,chapterIndex)))return;
+        if (session.hasFlag(StoryQuestKeys.SHARED_TURN_IN_CONSUMED))
+            data.setStoryFlag(StoryQuestKeys.sharedTurnInConsumed(arcType,chapterIndex),true);
         for (String key : profile.intKeys()) {
             data.setStoryInt(key, session.getInt(key));
         }
@@ -2511,26 +2647,18 @@ public final class QuestPartyService {
         if (world == null || party == null || memberId == null || arcType == null || chapterIndex < 0) {
             return;
         }
-        SharedQuestRuntime session = ensureStorySession(party, arcType, chapterIndex);
+        SharedQuestRuntime session = ensurePartyStorySession(world, party, arcType, chapterIndex);
         if (session == null || session.hasSynced(memberId)) {
-            clearStoryOffer(party, memberId);
+            clearStoryOffer(party, memberId, StoryLane.forArc(arcType));
             return;
         }
         if (!canJoinStoryShare(world, memberId, arcType, chapterIndex, false)) {
-            clearStoryOffer(party, memberId);
-            return;
-        }
-        if (!fromPartyJoin && memberHasActiveStory(world, memberId, arcType, chapterIndex)) {
-            ServerPlayer online = world.getServer().getPlayerList().getPlayer(memberId);
-            StoryChapterDefinition chapter = StoryQuestService.definition(arcType) == null ? null : StoryQuestService.definition(arcType).chapter(chapterIndex);
-            if (online != null) {
-                syncStoryMember(world, party, online, arcType, chapterIndex, chapter, sourceId);
-            }
+            clearStoryOffer(party, memberId, StoryLane.forArc(arcType));
             return;
         }
 
         QuestJoinOffer offer = new QuestJoinOffer(storySessionId(arcType, chapterIndex), session.revision(), sourceId);
-        QuestJoinOffer previous = party.storyOffers().put(memberId, offer);
+        QuestJoinOffer previous = offersFor(party,arcType).put(memberId, offer);
         if (!offer.equals(previous)) {
             ServerPlayer online = world.getServer().getPlayerList().getPlayer(memberId);
             if (online != null) {
@@ -2591,12 +2719,15 @@ public final class QuestPartyService {
             sendWeeklyJoinOffer(world, player, weeklyType, weeklyOffer.sourceId());
         }
 
-        QuestJoinOffer storyOffer = party.storyOffers().get(player.getUUID());
+        for (StoryLane lane : StoryLane.values()) {
+        QuestJoinOffer storyOffer = offersFor(party,lane).get(player.getUUID());
         StoryArcType storyType = storyOffer == null ? null : parseStoryType(storyOffer.questId());
         int storyChapterIndex = storyOffer == null ? -1 : parseStoryChapter(storyOffer.questId());
         if (storyOffer != null && storyType != null && storyChapterIndex >= 0
                 && isOfferStillValid(world, party, player.getUUID(), storyOffer, storyType, storyChapterIndex)) {
             sendStoryJoinOffer(world, player, storyType, storyChapterIndex, storyOffer.sourceId());
+        }
+
         }
 
         QuestJoinOffer pilgrimOffer = party.pilgrimOffers().get(player.getUUID());
@@ -2672,7 +2803,8 @@ public final class QuestPartyService {
         if (!progress.getString().isBlank()) {
             player.sendSystemMessage(progress, false);
         }
-        player.sendSystemMessage(joinOfferButtons("/vq party share story accept", "/vq party share story decline"), false);
+        String lane=StoryLane.forArc(arcType)==StoryLane.KINGDOM ? "kingdom" : "core";
+        player.sendSystemMessage(joinOfferButtons("/vq party share story accept "+lane, "/vq party share story decline "+lane), false);
     }
 
     private static void sendPilgrimJoinOffer(ServerLevel world,
@@ -2705,7 +2837,7 @@ public final class QuestPartyService {
         }
         PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
         long day = QuestCalendarService.currentDay();
-        return data.getAcceptedDay() == day && data.getLastRewardDay() != day && data.getDailyChoice() == type && data.getDailyChoiceDay() == day;
+        return data.hasActiveDaily() && data.getDailyChoice() == type;
     }
 
     private static boolean memberHasActiveWeekly(ServerLevel world, UUID memberId, WeeklyQuestService.WeeklyQuestType type) {
@@ -2714,7 +2846,7 @@ public final class QuestPartyService {
         }
         PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
         long cycle = QuestCalendarService.currentWeekCycle();
-        return data.getWeeklyAcceptedCycle() == cycle && data.getWeeklyRewardCycle() != cycle && data.getWeeklyChoice() == type && data.getWeeklyChoiceCycle() == cycle;
+        return data.hasActiveWeekly() && data.getWeeklyChoice() == type;
     }
 
     private static boolean memberHasActiveStory(ServerLevel world, UUID memberId, StoryArcType arcType, int chapterIndex) {
@@ -2722,7 +2854,7 @@ public final class QuestPartyService {
             return false;
         }
         PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
-        return data.getActiveStoryArc() == arcType && data.getStoryChapterProgress(arcType.id()) == chapterIndex;
+        return data.getActiveStoryArc(StoryLane.forArc(arcType)) == arcType && data.getStoryChapterProgress(arcType.id()) == chapterIndex;
     }
 
     private static boolean memberHasActivePilgrim(ServerLevel world, UUID memberId, PilgrimContractType type) {
@@ -2757,7 +2889,7 @@ public final class QuestPartyService {
             }
             return false;
         }
-        if (data.getAcceptedDay() == day && (data.getDailyChoice() != type || data.getDailyChoiceDay() != day)) {
+        if (data.hasActiveBonusDaily() || (data.hasActiveDaily() && data.getDailyChoice() != type)) {
             if (notify && player != null) {
                 player.sendSystemMessage(Component.translatable("message.village-quest.party.offer.daily.blocked.active").withStyle(ChatFormatting.RED), false);
             }
@@ -2787,7 +2919,7 @@ public final class QuestPartyService {
             }
             return false;
         }
-        if (data.getWeeklyAcceptedCycle() == cycle && (data.getWeeklyChoice() != type || data.getWeeklyChoiceCycle() != cycle)) {
+        if (data.hasActiveWeekly() && data.getWeeklyChoice() != type) {
             if (notify && player != null) {
                 player.sendSystemMessage(Component.translatable("message.village-quest.party.offer.weekly.blocked.active").withStyle(ChatFormatting.RED), false);
             }
@@ -2807,6 +2939,11 @@ public final class QuestPartyService {
         PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
         ServerPlayer player = world.getServer().getPlayerList().getPlayer(memberId);
         SharedQuestRuntime session = sharedStorySessionForType(world, memberId, arcType, chapterIndex);
+        if (arcType==StoryArcType.LIVING_KINGDOMS && session!=null) {
+            UUID shared=kingdomVillageBinding(session), own=de.quest.kingdom.KingdomStoryProgress.target(data);
+            if ((shared==null && session.flags().stream().anyMatch(flag->flag.startsWith("kingdoms.bound.")))
+                    || (shared!=null && own!=null && !shared.equals(own))) return false;
+        }
         if (session != null && !session.canJoinAfterTurnIn(
                 StoryQuestKeys.SHARED_TURN_IN_CONSUMED, memberId)) {
             if (notify && player != null) {
@@ -2821,20 +2958,22 @@ public final class QuestPartyService {
             }
             return false;
         }
-        StoryArcType activeArc = data.getActiveStoryArc();
+        StoryArcType activeArc = data.getActiveStoryArc(StoryLane.forArc(arcType));
         if (activeArc != null && (activeArc != arcType || data.getStoryChapterProgress(arcType.id()) != chapterIndex)) {
             if (notify && player != null) {
                 player.sendSystemMessage(Component.translatable("message.village-quest.party.offer.story.blocked.active").withStyle(ChatFormatting.RED), false);
             }
             return false;
         }
-        if (activeArc == null && StoryQuestService.isStoryCooldownActive(world, memberId)) {
+        if (activeArc == null && StoryLane.forArc(arcType)==StoryLane.CORE && StoryQuestService.isStoryCooldownActive(world, memberId)) {
             if (notify && player != null) {
                 player.sendSystemMessage(Component.translatable("message.village-quest.party.offer.story.blocked.cooldown").withStyle(ChatFormatting.RED), false);
             }
             return false;
         }
-        StoryArcType available = StoryQuestService.availableArcTypeIgnoringCooldown(world, memberId);
+        StoryArcType available = StoryLane.forArc(arcType)==StoryLane.KINGDOM
+                ? (StoryQuestService.definition(arcType).isUnlocked(world,memberId) ? arcType : null)
+                : StoryQuestService.availableArcTypeIgnoringCooldown(world, memberId);
         if (activeArc == null && available != arcType) {
             if (notify && player != null) {
                 player.sendSystemMessage(Component.translatable("message.village-quest.party.offer.story.blocked.sequence").withStyle(ChatFormatting.RED), false);
@@ -2859,6 +2998,8 @@ public final class QuestPartyService {
         }
         PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(memberId);
         ServerPlayer player = world.getServer().getPlayerList().getPlayer(memberId);
+        var resetParty = partyFor(memberId);
+        if (resetParty != null && resetParty.pilgrim().hasFlag("personal_reset.excluded." + memberId)) return false;
         PilgrimContractType activeType = PilgrimContractType.fromId(data.getActivePilgrimContractId());
         if (activeType != null && activeType != type) {
             if (notify && player != null) {
@@ -2944,13 +3085,13 @@ public final class QuestPartyService {
         return de.quest.quest.repeatable.RepeatableTargetProfile.NORMAL;
     }
 
-    private static UUID storyOfferSourceId(ServerLevel world, PartyRuntime party, UUID fallbackMemberId) {
+    private static UUID storyOfferSourceId(ServerLevel world, PartyRuntime party, UUID fallbackMemberId, StoryLane lane) {
         if (party == null) {
             return fallbackMemberId;
         }
-        StoryArcType activeType = activeStoryType(party);
-        int chapterIndex = activeStoryChapterIndex(party);
-        for (UUID memberId : party.story().syncedMembers()) {
+        StoryArcType activeType = activeStoryType(party,lane);
+        int chapterIndex = activeStoryChapterIndex(party,lane);
+        for (UUID memberId : sessionFor(party,lane).syncedMembers()) {
             if (!memberId.equals(fallbackMemberId) && memberHasActiveStory(world, memberId, activeType, chapterIndex)) {
                 return memberId;
             }
@@ -2979,8 +3120,23 @@ public final class QuestPartyService {
         return party == null || memberId == null ? null : party.weeklyOffers().remove(memberId);
     }
 
-    private static QuestJoinOffer clearStoryOffer(PartyRuntime party, UUID memberId) {
-        return party == null || memberId == null ? null : party.storyOffers().remove(memberId);
+    private static QuestJoinOffer clearStoryOffer(PartyRuntime party, UUID memberId, StoryLane lane) {
+        return party == null || memberId == null ? null : offersFor(party,lane).remove(memberId);
+    }
+
+    private static void clearStoryOffer(PartyRuntime party, UUID memberId) {
+        if (party!=null && memberId!=null) for (StoryLane lane:StoryLane.values()) clearStoryOffer(party,memberId,lane);
+    }
+
+    private static StoryLane selectStoryOffer(ServerLevel world, ServerPlayer player, PartyRuntime party, StoryLane selected) {
+        if (selected!=null) return selected;
+        boolean core=party!=null && party.storyOffers().containsKey(player.getUUID());
+        boolean kingdom=party!=null && party.kingdomStoryOffers().containsKey(player.getUUID());
+        if (core && kingdom) {
+            player.sendSystemMessage(Component.translatable("message.village-quest.party.offer.story.select").withStyle(ChatFormatting.GOLD),false);
+            return null;
+        }
+        return kingdom ? StoryLane.KINGDOM : StoryLane.CORE;
     }
 
     private static QuestJoinOffer clearPilgrimOffer(PartyRuntime party, UUID memberId) {
@@ -3021,7 +3177,7 @@ public final class QuestPartyService {
                                              QuestJoinOffer offer,
                                              StoryArcType arcType,
                                              int chapterIndex) {
-        SharedQuestRuntime session = party == null ? null : party.story();
+        SharedQuestRuntime session = sessionFor(party,arcType);
         return offer != null
                 && session != null
                 && session.matches(storySessionId(arcType, chapterIndex), offer.revision())
@@ -3048,18 +3204,18 @@ public final class QuestPartyService {
         if (world == null || party == null || memberId == null) {
             return;
         }
-        party.disconnectDeadlines().remove(memberId);
-        leaveInternal(world, memberId, false, false);
+        Component departedName=QuestPartyMessaging.nameOf(world,party,memberId);
+        if(!leaveInternal(world, memberId, false, true)) return;
         PartyRuntime updated = PARTIES.get(party.id());
         if (updated != null) {
-            broadcast(world, updated, Component.translatable("message.village-quest.party.member_removed_timeout", nameOf(world, memberId)).withStyle(ChatFormatting.GRAY));
+            broadcast(world, updated, Component.translatable("message.village-quest.party.member_removed_timeout", departedName).withStyle(ChatFormatting.GRAY));
         }
     }
 
     private static void storePersistentState(MinecraftServer server) {
         // Save a loaded session even if LAN publication has already ended at shutdown.
         // An unopened private world must not overwrite its inactive saved party data.
-        if (server == null || !loaded) {
+        if (server == null || !loaded || !QuestState.get(server).storyLanesWritable()) {
             return;
         }
         QuestState.get(server).setQuestPartyState(QuestPartyPersistence.write(PARTIES, INVITES));

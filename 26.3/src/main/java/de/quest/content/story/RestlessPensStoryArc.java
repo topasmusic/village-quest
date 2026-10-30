@@ -38,6 +38,12 @@ import java.util.List;
 import java.util.UUID;
 
 public final class RestlessPensStoryArc implements StoryArcDefinition {
+    private static final class HorseArmorItems {
+        static final List<Item> ITEMS=net.minecraft.core.registries.BuiltInRegistries.ITEM.stream().filter(item -> {
+            var id=net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item);
+            return id.getNamespace().equals("minecraft") && id.getPath().endsWith("_horse_armor");
+        }).toList();
+    }
     private static final int EMPTY_TROUGHS_BREED_TARGET = 12;
     private static final int EMPTY_TROUGHS_HAY_TARGET = 48;
     private static final int WOOL_BEFORE_WEATHER_SHEAR_TARGET = 24;
@@ -101,8 +107,8 @@ public final class RestlessPensStoryArc implements StoryArcDefinition {
         }
 
         protected boolean hasQualityHorseArmor(ServerLevel world, ServerPlayer player) {
-            return hasItem(world, player, Items.DIAMOND_HORSE_ARMOR, 1)
-                    || hasItem(world, player, Items.GOLDEN_HORSE_ARMOR, 1);
+            for(Item item:HorseArmorItems.ITEMS) if(hasItem(world,player,item,1)) return true;
+            return false;
         }
 
         protected boolean consumeItem(ServerLevel world, ServerPlayer player, Item item, int amount) {
@@ -231,7 +237,7 @@ public final class RestlessPensStoryArc implements StoryArcDefinition {
                     woolReady,
                     WOOL_BEFORE_WEATHER_WOOL_TARGET
             ).withStyle(ChatFormatting.GRAY);
-            Component blocked = player == null ? null : claimBlockedMessage(world, player);
+            Component blocked = player == null ? null : claimBlockedMessage(world, player, true);
             return blocked == null ? List.of(line1, line2) : List.of(line1, line2, blocked);
         }
 
@@ -248,12 +254,17 @@ public final class RestlessPensStoryArc implements StoryArcDefinition {
 
         @Override
         public Component claimBlockedMessage(ServerLevel world, ServerPlayer player) {
+            return claimBlockedMessage(world, player, false);
+        }
+
+        @Override
+        public Component claimBlockedMessage(ServerLevel world, ServerPlayer player, boolean allRequirements) {
             if (player == null || world == null
                     || progress(world, player.getUUID(), StoryQuestKeys.RESTLESS_PENS_SHEARS) < WOOL_BEFORE_WEATHER_SHEAR_TARGET
                     || hasTotalWool(world, player, WOOL_BEFORE_WEATHER_WOOL_TARGET)) {
                 return null;
             }
-            return Texts.turnInMissing(
+            return Texts.turnInMissing(allRequirements,
                     Component.translatable("text.village-quest.turnin.label.wool"),
                     countTotalWool(world, player.getUUID()),
                     WOOL_BEFORE_WEATHER_WOOL_TARGET
@@ -370,7 +381,7 @@ public final class RestlessPensStoryArc implements StoryArcDefinition {
 
         @Override
         public Component offerParagraph2() {
-            return Component.translatable("quest.village-quest.story.restless_pens.chapter_4.offer.2").withStyle(ChatFormatting.GRAY);
+            return de.quest.quest.QuestRuleText.translate("quest.village-quest.story.restless_pens.chapter_4.offer.2").withStyle(ChatFormatting.GRAY);
         }
 
         @Override

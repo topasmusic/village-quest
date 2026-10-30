@@ -780,7 +780,8 @@ public final class TradeRouteMapScreen extends CompatScreen {
                 List<Component> tooltip = new ArrayList<>();
                 tooltip.add(bond.type());
                 tooltip.add(bond.identityOrigin());
-                tooltip.add(bond.level());
+                tooltip.add(ReputationPanel.relationshipText("bond",bond.level()));
+                tooltip.add(ReputationPanel.relationshipText("map_details"));
                 if (!bond.connected()) {
                     tooltip.add(Component.translatable(
                             "screen.village-quest.trade_route.bond_historical_detail"));

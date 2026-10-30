@@ -30,6 +30,9 @@ and speech bubbles. Settings grant no quest progress or rewards.
 | `adventure_profile` | `STANDARD` | `RELAXED`, `STANDARD`, or `HARDENED`; changes quantities, combat pressure, incident protection, and repairable route-failure strain, never content or exclusive rewards. |
 | `allow_player_caravan_yards` | `true` | Allows a confirmed player base to serve as the route network's home node. |
 | `physical_caravans` | `FULL` | `FULL`, `REDUCED`, or `MAP_ONLY`; simulation and economy remain active in every mode. |
+| `ambient_adventurers.enabled` | `true` | Enable temporary Wanderers and Nightrunners; independent of caravan presentation and saved world setup. Restart after editing. |
+| `ambient_adventurers.max_total` | `8` | Ambient traveler cap across the Overworld, 0–8. Local cap stays at two within 96 blocks of any player. |
+| `ambient_adventurers.max_nightrunners` | `2` | Global Nightrunner cap, 0–2, also bounded by the total cap. |
 
 `AUTO` does not read a player's locale or force Central European time. In singleplayer it follows the integrated server process; on a dedicated server it follows that server's configured Java/OS timezone. Java's timezone rules handle daylight-saving transitions.
 
@@ -41,9 +44,9 @@ Choose Minecraft days in journal Settings as the world owner/operator, or (for a
 
 Daily and bonus quests renew after 24,000 advancing Overworld clock ticks; Weeklys renew after 168,000. The first interval starts when this mode is enabled. Sleeping and forward time commands count the skipped time; stopped daylight progression, a paused server and offline time do not advance this calendar. A backwards time command rebases the clock while retaining completed cycles and partial elapsed days. Reset displays show remaining Minecraft days, rather than an estimated wall-clock duration.
 
-Changing modes preserves the current quest choices, progress, completed markers, party sessions and reward identities, including offline members. It does not immediately grant a new set of quests. Switching to Minecraft time starts fresh 1/7-day waits; switching to real time waits for the next configured real-time reset. Repeated switching cannot reopen a completed cycle. Once a normal reset arrives, old quests expire as before. World restarts retain the elapsed portion of each Minecraft interval.
+Changing modes preserves the current quest choices, progress, completed markers, party sessions and reward identities, including offline members. It does not immediately grant a new set of quests. Switching to Minecraft time starts fresh 1/7-day waits; switching to real time waits for the next configured real-time reset. Repeated switching cannot reopen a completed cycle. Accepted Daily/Weekly quests remain active until completion or explicit cancellation; completion uses the current cycle limit. World restarts retain the elapsed portion of each Minecraft interval.
 
-This option affects Daily/bonus/Weekly quests and their shared party sessions only. Pilgrim contracts, merchant/smoker use limits, story cooldowns, trade/delivery limits and real-time reputation caps keep their existing clocks.
+All day/week-based gameplay systems use this same calendar, including notice-board delivery locks, village support, reputation caps, Pilgrim offers, merchant/smoker daily limits, trade income and freight deadlines. Durations explicitly measured in seconds/minutes and tick-based movement retain their stated units.
 
 ## Social reputation (2.5)
 

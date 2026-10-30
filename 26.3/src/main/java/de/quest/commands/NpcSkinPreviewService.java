@@ -43,6 +43,8 @@ final class NpcSkinPreviewService {
             String file=NpcSkinCatalog.FILES.get(i);
             Component name=i>=14 && i<18?de.quest.caravan.NpcNames.guest(de.quest.caravan.NpcNames.GUESTS.get(i-14))
                     :Component.literal(file.substring(file.lastIndexOf('/')+1));
+            name=de.quest.caravan.NpcNames.ambientProfiles().stream().filter(p -> p.texture().equals(file))
+                    .findFirst().map(de.quest.caravan.NpcNames.AmbientProfile::displayName).orElse(name);
             npc.preview(i,name); npc.previewOwner(actor.getUUID());
             npc.snapTo(origin.getX()+i*2+1.5,origin.getY()+1,origin.getZ()+0.5,180,0);
             bodies.add(npc);

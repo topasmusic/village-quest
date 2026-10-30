@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import net.minecraft.core.BlockPos;
@@ -76,6 +77,33 @@ final class BuildingScannerTest {
         assertEquals(BuildingScanner.Status.INVALID, scanner.report().orElseThrow().status());
         assertFalse(scanner.report().orElseThrow().checks().get(BuildingScanner.Check.SEATS));
     }
+    @Test void coveredWoodFenceCountsAsOneTableAtChairHeightInCouncilAndInn() {
+        for(var role:List.of(BuildingScanner.Role.COUNCIL,BuildingScanner.Role.INN)) {
+            var fixture=room(); var table=new BlockPos(2,1,0);
+            fixture.put(table,feature(BuildingScanner.Feature.TABLE_LEG,null));
+            fixture.put(table.above(),feature(BuildingScanner.Feature.TABLE_TOP,null));
+            fixture.put(new BlockPos(2,1,-1),feature(BuildingScanner.Feature.SEAT,Direction.SOUTH));
+            var scanner=new BuildingScanner(ANCHOR,Direction.NORTH,role,BuildingScanner.Range.BASIC,fixture::get); finish(scanner);
+            var report=scanner.report().orElseThrow();
+            assertTrue(report.checks().get(BuildingScanner.Check.TABLE),role.name());
+            assertEquals(Set.of(table),report.stations().get(BuildingScanner.Feature.TABLE));
+            assertEquals(3,report.stations().get(BuildingScanner.Feature.SEAT).size(),role.name());
+            assertFalse(report.stations().containsKey(BuildingScanner.Feature.TABLE_LEG));
+            assertFalse(report.stations().containsKey(BuildingScanner.Feature.TABLE_TOP));
+        }
+    }
+    @Test void bareFenceFloatingCoverAndUnknownTopDoNotInventATable() {
+        var table=new BlockPos(2,1,0);
+        for(int mode=0;mode<3;mode++) {
+            var fixture=room();
+            fixture.put(table,mode==1?air():feature(BuildingScanner.Feature.TABLE_LEG,null));
+            fixture.put(table.above(),mode==0?air():mode==1?feature(BuildingScanner.Feature.TABLE_TOP,null):BuildingScanner.Cell.unknown());
+            var scanner=scanner(fixture,fixture::get); finish(scanner); var report=scanner.report().orElseThrow();
+            assertFalse(report.checks().get(BuildingScanner.Check.TABLE));
+            assertFalse(report.checks().get(BuildingScanner.Check.SEATS));
+            if(mode==2) assertEquals(BuildingScanner.Status.UNKNOWN,report.status());
+        }
+    }
 
     @Test void unloadedNeighborIsUnknownAndNeverAnInvalidRoofOrEarnedCompletion() {
         var fixture = room();
@@ -119,7 +147,7 @@ final class BuildingScannerTest {
         }
         fixture.put(new BlockPos(2, 1, 0), feature(BuildingScanner.Feature.COUNTER, null));
         fixture.put(new BlockPos(3, 1, 0), feature(BuildingScanner.Feature.COUNTER, null));
-        fixture.put(new BlockPos(-4, 1, -3), feature(BuildingScanner.Feature.CONTAINER, null));
+        fixture.put(new BlockPos(2, 1, -2), feature(BuildingScanner.Feature.CONTAINER, null));
         var scanner = new BuildingScanner(ANCHOR, Direction.NORTH, BuildingScanner.Role.MARKET,
                 BuildingScanner.Range.BASIC, fixture::get); finish(scanner);
         assertEquals(BuildingScanner.Status.VALID, scanner.report().orElseThrow().status());

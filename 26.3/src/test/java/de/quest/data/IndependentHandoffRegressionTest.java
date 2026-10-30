@@ -23,7 +23,7 @@ final class IndependentHandoffRegressionTest {
     @Test void disabledDailyBonusAndWeeklyCompletionsConsumeReceiptsAcrossReloadAndReenable() {
         var server = mock(MinecraftServer.class);
         var state = QuestState.fromNbt(new CompoundTag()); UUID player = UUID.randomUUID();
-        try (var states = mockStatic(QuestState.class);
+        try (var states = mockStatic(QuestState.class, CALLS_REAL_METHODS);
              var service = mockStatic(SocialReputationService.class, CALLS_REAL_METHODS);
              var time = mockStatic(TimeUtil.class)) {
             states.when(() -> QuestState.get(server)).thenReturn(state);
@@ -38,6 +38,7 @@ final class IndependentHandoffRegressionTest {
                 assertTrue(result.applied()); assertEquals(0, result.guildDelta());
                 assertTrue(state.isDirty());
                 state = QuestState.fromNbt(QuestState.toNbt(state));
+                assertTrue(state.storyLanesWritable(), "Native serialization must retain a supported lane format");
                 states.when(() -> QuestState.get(server)).thenReturn(state);
                 assertTrue(state.getPlayerData(player).socialReputation().hasReceipt(kind,
                         SocialReputationService.instanceId(kind, player, "7:" + name)));

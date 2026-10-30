@@ -103,26 +103,28 @@ public final class GuildCornerPlacementService {
 
         // Previously exhausted or incompatible reservations still get a compact recovery attempt.
         if (existing != null && !state.canAttemptAutomaticPlacement(key, gameTime)) {
-            placeCompact(world, state, key, marker, visitor); return;
+            placeCompact(world, state, key, marker, visitor, true); return;
         }
 
         TemplateHandle template = loadTemplate(world, existing == null
                 ? classifyStyle(world, marker.centerX(), marker.centerZ()) : existing.style());
-        if (template == null) { placeCompact(world, state, key, marker, visitor); return; }
+        if (template == null) { placeCompact(world, state, key, marker, visitor, true); return; }
 
         if (existing != null) {
-            retryReservedPlacement(world, state, existing, template, gameTime);
+            if (GuildCornerCandidateSearch.nearBuilding(existing.cornerPos().getX(), existing.cornerPos().getZ(), marker.buildings())
+                    && playersClear(world, existing.footprint()))
+                retryReservedPlacement(world, state, existing, template, gameTime);
             if (state.snapshot(key).filter(s -> s.status() == GuildCornerLandmarkState.LandmarkStatus.PENDING).isPresent())
-                placeCompact(world, state, key, marker, visitor);
+                placeCompact(world, state, key, marker, visitor, true);
             return;
         }
         boolean edited = isExistingOrEditedVillage(world, marker);
-        Site site = edited ? null : findSite(world, marker, template);
+        Site site = edited ? null : findSite(world, marker, template, true);
         GuildCornerPlacementPolicy.VisitContext context = new GuildCornerPlacementPolicy.VisitContext(
                 true, site != null, edited, false, site != null, false, true);
         if (GuildCornerPlacementPolicy.decide(null, context)
                 != GuildCornerPlacementPolicy.Decision.RESERVE_AND_PLACE_AUTOMATICALLY) {
-            placeCompact(world, state, key, marker, visitor);
+            placeCompact(world, state, key, marker, visitor, true);
             return;
         }
 
@@ -134,7 +136,7 @@ public final class GuildCornerPlacementService {
 
     /**
      * Explicit local retrofit/recovery path. Prefer the authored preset, then a compact board.
-     * Recover failed/missing placements, while deliberate player removal remains terminal.
+     * Recover failed/missing placements, including a deliberately removed generated board.
      */
     public static ManualPlacementResult requestManualPlacement(ServerLevel world, ServerPlayer player,
                                                                ShadowsTradeRoadEncounterService.VillageMarker marker) {
@@ -144,7 +146,13 @@ public final class GuildCornerPlacementService {
                 GuildCornerLandmarkState.dimensionKey(world), marker.centerX(), marker.centerZ());
         GuildCornerLandmarkState.LandmarkSnapshot existing = observedLandmark(world, state, key);
         if (existing != null && existing.status() == GuildCornerLandmarkState.LandmarkStatus.REMOVED_BY_PLAYER) {
-            return ManualPlacementResult.REMOVED_BY_PLAYER;
+            if (!world.hasChunkAt(existing.cornerPos())) return ManualPlacementResult.AREA_NOT_LOADED;
+            if (world.getBlockState(existing.cornerPos()).is(ModBlocks.GUILD_NOTICE_POST))
+                return ManualPlacementResult.ALREADY_GENERATED;
+            state.reopenForManualPlacement(key);
+            // Restore only the board; repeatedly rebuilding the decorative preset would farm its materials.
+            return placeCompact(world, state, key, marker, player.blockPosition())
+                    ? ManualPlacementResult.PLACED : ManualPlacementResult.SITE_UNSAFE;
         }
         if (existing != null && existing.status() == GuildCornerLandmarkState.LandmarkStatus.GENERATED) {
             return ManualPlacementResult.ALREADY_GENERATED;
@@ -162,6 +170,11 @@ public final class GuildCornerPlacementService {
                 return placeCompact(world, state, key, marker, player.blockPosition())
                         ? ManualPlacementResult.PLACED : ManualPlacementResult.AREA_NOT_LOADED;
             }
+            // A previously generated board always recovers compactly; never replenish decorative blocks.
+            if (existing.retryAttempts() >= GuildCornerLandmarkState.MAX_RETRY_ATTEMPTS
+                    || !GuildCornerCandidateSearch.nearBuilding(existing.cornerPos().getX(), existing.cornerPos().getZ(), marker.buildings()))
+                return placeCompact(world, state, key, marker, player.blockPosition())
+                        ? ManualPlacementResult.PLACED : ManualPlacementResult.SITE_UNSAFE;
             retryReservedPlacement(world, state, existing, template, gameTime);
             GuildCornerLandmarkState.LandmarkSnapshot updated = state.snapshot(key).orElse(existing);
             return updated.status() == GuildCornerLandmarkState.LandmarkStatus.GENERATED
@@ -205,6 +218,12 @@ public final class GuildCornerPlacementService {
     private static boolean placeCompact(ServerLevel world, GuildCornerLandmarkState state,
             GuildCornerLandmarkState.VillageKey key, ShadowsTradeRoadEncounterService.VillageMarker marker,
             BlockPos visitor) {
+        return placeCompact(world, state, key, marker, visitor, false);
+    }
+
+    private static boolean placeCompact(ServerLevel world, GuildCornerLandmarkState state,
+            GuildCornerLandmarkState.VillageKey key, ShadowsTradeRoadEncounterService.VillageMarker marker,
+            BlockPos visitor, boolean automatic) {
         var old = observedLandmark(world, state, key);
         if (old != null) {
             if (old.status() != GuildCornerLandmarkState.LandmarkStatus.PENDING || !world.hasChunkAt(old.cornerPos())) return false;
@@ -213,14 +232,8 @@ public final class GuildCornerPlacementService {
             }
         }
         // Dense local search also finds a clearing made beside the village for /vq town retrofit.
-        int checked = 0;
-        for (int radius = 0; radius <= 16; radius++) for (int dx = -radius; dx <= radius; dx++)
-            for (int dz = -radius; dz <= radius; dz++) {
-                if (Math.max(Math.abs(dx), Math.abs(dz)) != radius) continue;
-                int x = visitor.getX() + dx, z = visitor.getZ() + dz;
-                if (x < marker.minX() - 16 || x > marker.maxX() + 16
-                        || z < marker.minZ() - 16 || z > marker.maxZ() + 16) continue;
-                if (++checked > 1089) return false;
+        for (var candidate : GuildCornerCandidateSearch.compactSites(visitor.getX(), visitor.getZ(), marker.buildings())) {
+                int x = candidate.centerX(), z = candidate.centerZ();
                 if (!horizontalChunksLoaded(world, x - 3, z - 3, x + 3, z + 3)) continue;
                 int y = compactSurfaceY(world, x, z, marker) + 1;
                 if (y <= world.getMinY() || y + 2 >= world.getMaxY()) continue;
@@ -236,6 +249,7 @@ public final class GuildCornerPlacementService {
                     if (!GuildNoticePostSite.isSafe(root, direction, read)) continue;
                     // Never fill a standing player's or mob's space, including the board's overhang.
                     var footprint = GuildNoticePostSite.footprint(root, direction);
+                    if (automatic && !playersClear(world, footprint)) continue;
                     var box = new net.minecraft.world.phys.AABB(footprint.minX(), footprint.minY(), footprint.minZ(),
                             footprint.maxX() + 1, footprint.maxY() + 1, footprint.maxZ() + 1);
                     if (!world.getEntities((net.minecraft.world.entity.Entity) null, box, entity -> entity.isAlive()).isEmpty()) continue;
@@ -365,30 +379,45 @@ public final class GuildCornerPlacementService {
     private static Site findSite(ServerLevel world,
                                  ShadowsTradeRoadEncounterService.VillageMarker marker,
                                  TemplateHandle template) {
+        return findSite(world, marker, template, false);
+    }
+
+    private static Site findSite(ServerLevel world,
+                                 ShadowsTradeRoadEncounterService.VillageMarker marker,
+                                 TemplateHandle template, boolean automatic) {
         int width = template.template().getSize().getX();
         int depth = template.template().getSize().getZ();
-        if (!marker.pieces().isEmpty()) return findBestSite(world, template,
+        if (marker.buildings().isEmpty()) return null;
+        return findBestSite(world, template,
                 GuildCornerCandidateSearch.nearStructures(marker.minX(), marker.maxX(),
-                        marker.minZ(), marker.maxZ(), width, depth, marker.pieces()));
-        Site inside = findBestSite(world, template, GuildCornerCandidateSearch.inside(
-                marker.minX(), marker.maxX(), marker.minZ(), marker.maxZ(), width, depth));
-        if (inside != null) return inside;
-        return findBestSite(world, template, GuildCornerCandidateSearch.around(
-                marker.minX(), marker.maxX(), marker.minZ(), marker.maxZ(), width, depth));
+                        marker.minZ(), marker.maxZ(), width, depth, marker.buildings()), marker, automatic);
     }
 
     private static Site findBestSite(ServerLevel world, TemplateHandle template,
-                                     List<GuildCornerCandidateSearch.Candidate> candidates) {
+                                     List<GuildCornerCandidateSearch.Candidate> candidates,
+                                     ShadowsTradeRoadEncounterService.VillageMarker marker, boolean automatic) {
         Site best = null;
         for (GuildCornerCandidateSearch.Candidate candidate : candidates) {
             Site site = createSite(world, template, candidate.centerX(), candidate.centerZ(), candidate.facing());
-            if (site == null || !validateSite(world, site)) continue;
+            if (site == null || !GuildCornerCandidateSearch.nearBuilding(site.postPos().getX(), site.postPos().getZ(), marker.buildings())
+                    || (automatic && !playersClear(world, site.footprint())) || !validateSite(world, site)) continue;
             if (best == null || isBetterSurfaceFit(site.surfaceDelta(), best.surfaceDelta())) {
                 best = site;
                 if (site.surfaceDelta() == 0) return site;
             }
         }
         return best;
+    }
+
+    /** Horizontal distance to the entire footprint, including the board overhang, in this dimension. */
+    private static boolean playersClear(ServerLevel world, GuildCornerLandmarkState.Footprint footprint) {
+        for (var player : world.getServer().getPlayerList().getPlayers()) {
+            if (player.level() != world) continue;
+            double dx = Math.max(0, Math.max(footprint.minX() - player.getX(), player.getX() - (footprint.maxX() + 1)));
+            double dz = Math.max(0, Math.max(footprint.minZ() - player.getZ(), player.getZ() - (footprint.maxZ() + 1)));
+            if (dx * dx + dz * dz < 64) return false;
+        }
+        return true;
     }
 
     private static Site siteFromReservation(TemplateHandle template,
@@ -453,6 +482,9 @@ public final class GuildCornerPlacementService {
         GuildCornerLandmarkState.Footprint footprint = site.footprint();
         if (!horizontalChunksLoaded(world, footprint.minX(), footprint.minZ(),
                 footprint.maxX(), footprint.maxZ())) return false;
+        var bounds = new net.minecraft.world.phys.AABB(footprint.minX(), footprint.minY(), footprint.minZ(),
+                footprint.maxX() + 1, footprint.maxY() + 1, footprint.maxZ() + 1);
+        if (!world.getEntities((net.minecraft.world.entity.Entity) null, bounds, entity -> entity.isAlive()).isEmpty()) return false;
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         int minSurface = Integer.MAX_VALUE;
         int maxSurface = Integer.MIN_VALUE;
@@ -517,7 +549,7 @@ public final class GuildCornerPlacementService {
         int width = template.template().getSize().getX();
         int depth = template.template().getSize().getZ();
         for (GuildCornerCandidateSearch.Candidate candidate : GuildCornerCandidateSearch.nearStructures(
-                marker.minX(), marker.maxX(), marker.minZ(), marker.maxZ(), width, depth, marker.pieces())) {
+                marker.minX(), marker.maxX(), marker.minZ(), marker.maxZ(), width, depth, marker.buildings())) {
             StructurePlaceSettings settings = settings(candidate.facing());
             BoundingBox zeroBox = template.template().getBoundingBox(settings, BlockPos.ZERO);
             int minX = candidate.centerX() - zeroBox.getXSpan() / 2;

@@ -42,6 +42,12 @@ public final class VillageRequestGenerator {
         // The last request is only a soft anti-repeat rule; never let it reduce the board below three choices.
         if (ordered.size() < OFFER_COUNT) addIfEligible(ordered, lastCompleted, safeType, null);
 
+        // Keep two specialist choices and one ordinary mining task. Anti-repeat is soft:
+        // completing upkeep yesterday must not require bees/animals/rare crops today.
+        var upkeep = VillageRequestType.upkeep(safeType);
+        ordered.remove(upkeep);
+        ordered.add(Math.min(OFFER_COUNT - 1, ordered.size()), upkeep);
+
         List<VillageRequestOffer> result = new ArrayList<>(OFFER_COUNT);
         for (VillageRequestType request : ordered) {
             if (result.size() >= OFFER_COUNT) break;

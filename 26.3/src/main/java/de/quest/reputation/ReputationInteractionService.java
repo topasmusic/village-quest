@@ -37,7 +37,7 @@ public final class ReputationInteractionService {
         return village != null && ReputationViewService.knownVillages(player).contains(village);
     }
     public static void open(ServerPlayer player, OpenPayload request) {
-        if (!allowRequest(player)) return;
+        if (!de.quest.network.ProgressionProtocol.require(player) || !allowRequest(player)) return;
         if (!SocialReputationService.enabled()) {
             ServerPlayNetworking.send(player, new OpenFeedbackPayload("reputation.village-quest.open.disabled"));
             return;
@@ -56,6 +56,7 @@ public final class ReputationInteractionService {
         LAST.remove(player.getUUID()); send(player, session, "");
     }
     public static void sendJournal(ServerPlayer player) {
+        if (!de.quest.network.ProgressionProtocol.require(player)) return;
         ServerPlayNetworking.send(player, new ViewPayload(ReputationViewService.view(player, JOURNAL_PAGES.getOrDefault(player.getUUID(), 0))));
     }
     public static void page(ServerPlayer player, PagePayload request) {
@@ -68,8 +69,24 @@ public final class ReputationInteractionService {
         var session = SESSIONS.current(player.getUUID(), request.session(), state.socialServerTick());
         if (session == null) return;
         if (request.action() == ActionPayload.CLOSE) { SESSIONS.close(player.getUUID(), session.id()); LAST.remove(player.getUUID()); return; }
-        if (!allowRequest(player)) return;
+        if (!de.quest.network.ProgressionProtocol.require(player) || !allowRequest(player)) return;
         if (!validReadAnchor(player, session.anchor())) { close(player, session); return; }
+        if(request.action()==ActionPayload.OPEN_DISPATCH || request.action()==ActionPayload.CONVOY_START || request.action()==ActionPayload.CONVOY_JOIN) {
+            if(state.getPlayerData(player.getUUID()).socialReputation().revision()!=request.revision()) { send(player,session,"reputation.village-quest.reparation.stale"); return; }
+            if(request.action()==ActionPayload.OPEN_DISPATCH) {
+                var board=session.anchor().kind()==AnchorKind.BOARD?session.anchor().position():null;
+                if(de.quest.caravan.RegionalDispatchService.access(player.level(),player,board).action()==ServiceView.DISPATCH) {
+                    SESSIONS.close(player.getUUID(),session.id()); LAST.remove(player.getUUID());
+                    de.quest.caravan.RegionalDispatchService.open(player.level(),player,board);
+                    return;
+                }
+            } else {
+                int action=de.quest.caravan.GuildConvoyService.access(player.level(),player).action();
+                if(request.action()==ActionPayload.CONVOY_START && action==ServiceView.START_CONVOY) de.quest.caravan.GuildConvoyService.start(player.level(),player);
+                else if(request.action()==ActionPayload.CONVOY_JOIN && action==ServiceView.JOIN_CONVOY) de.quest.caravan.GuildConvoyService.join(player.level(),player);
+            }
+            send(player,session,""); return;
+        }
         if (request.action() == ActionPayload.PAGE) {
             int page = ReputationViewService.view(player, request.villagePage()).villagePage();
             SESSIONS.page(player.getUUID(), session.id(), page); send(player, SESSIONS.current(player.getUUID(), session.id(), state.socialServerTick()), ""); return;
@@ -106,7 +123,9 @@ public final class ReputationInteractionService {
                 if (offer != null) support.add(new SupportView(offer.id(), offer.village(), offer.accepted(), offer.supplied(), offer.barred()));
             }
         }
-        return new InteractionPayload(session.id(), false, ReparationService.validAnchor(player, session.anchor()), view, support, feedback);
+        var board=session.anchor().kind()==AnchorKind.BOARD?session.anchor().position():null;
+        return new InteractionPayload(session.id(), false, ReparationService.validAnchor(player, session.anchor()), view, support, feedback,
+                de.quest.caravan.RegionalDispatchService.access(player.level(),player,board),de.quest.caravan.GuildConvoyService.access(player.level(),player));
     }
     private static void send(ServerPlayer player, ReputationSessionRegistry.Session session, String feedback) {
         if (session == null) return;

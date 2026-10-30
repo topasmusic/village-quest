@@ -74,6 +74,7 @@ public final class CurrencyService {
     }
 
     public static boolean canAfford(ServerLevel world, UUID playerId, long amount) {
+        if (de.quest.shrine.VillageIntroRequestService.blocksActions(world,playerId)) return false;
         if (amount <= 0L) {
             return true;
         }

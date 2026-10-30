@@ -7,6 +7,32 @@ import de.quest.village.VillageLifeState;
 import org.junit.jupiter.api.Test;
 
 final class KingdomVillageSummaryTest {
+    @org.junit.jupiter.api.BeforeAll static void bootstrap() {
+        net.minecraft.SharedConstants.tryDetectVersion(); net.minecraft.server.Bootstrap.bootStrap();
+    }
+    @Test void journalSummaryWithInnSurvivesPayloadConstructionAndRoundTripAfterReload() {
+        var state=new LivingKingdomsState(); var owner=UUID.randomUUID(); var id=UUID.randomUUID();
+        var key=VillageLifeState.VillageKey.overworld(10,20);
+        state.registerCustom(id,owner,key,new BlockPos(10,64,20),"Home").orElseThrow();
+        var report=new BuildingScanner.Report(BuildingScanner.Role.INN,BuildingScanner.Status.VALID,java.util.Map.of(),
+                java.util.Map.of(),java.util.Set.of());
+        assertEquals(KingdomAnchorRegistry.Result.APPLIED,state.anchors().bind(owner,id,0,UUID.randomUUID(),-1,
+                new BlockPos(10,64,20),net.minecraft.core.Direction.NORTH,BuildingScanner.Range.BASIC,report,0,0));
+        state=LivingKingdomsState.fromNbt(LivingKingdomsState.toNbt(state));
+        var before=LivingKingdomsState.toNbt(state);
+        var lines=KingdomVillageService.lastKnown(state,VillageLifeState.Status.ACTIVE,key,100);
+        assertEquals(9,lines.size(),"Inn adds its opening evidence to the seven base summary lines");
+        var empty=net.minecraft.network.chat.Component.empty();
+        var value=new de.quest.network.Payloads.NetworkVillageData(0,empty,empty,empty,"stable",empty,0,0,0,false,id,lines);
+        var registries=net.minecraft.core.RegistryAccess.fromRegistryOfRegistries(net.minecraft.core.registries.BuiltInRegistries.REGISTRY);
+        var buf=new net.minecraft.network.RegistryFriendlyByteBuf(io.netty.buffer.Unpooled.buffer(),registries);
+        try {
+            de.quest.network.Payloads.NetworkVillageData.CODEC.encode(buf,value); buf.writeInt(0x715533);
+            assertEquals(value,de.quest.network.Payloads.NetworkVillageData.CODEC.decode(buf));
+            assertEquals(0x715533,buf.readInt()); assertEquals(0,buf.readableBytes());
+        } finally { buf.release(); }
+        assertEquals(before,LivingKingdomsState.toNbt(state),"Showing inn evidence must not mutate the village");
+    }
     @Test void mapReportsDoNotDiscoverOtherVillagesOrRefreshSavedEvidence() {
         var state=new LivingKingdomsState(); var owner=UUID.randomUUID(); var actor=UUID.randomUUID();
         var key=VillageLifeState.VillageKey.overworld(10,20); var home=UUID.randomUUID();

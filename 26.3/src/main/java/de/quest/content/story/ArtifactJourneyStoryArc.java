@@ -29,7 +29,7 @@ public final class ArtifactJourneyStoryArc implements StoryArcDefinition {
     @Override public boolean shouldShowLockedEntry(ServerLevel world,UUID id) { return data(world,id).hasStoryCompleted("living_kingdoms"); }
     @Override public Component lockedEntryBody(ServerLevel world,UUID id) { return Component.translatable(TEXT+"locked"); }
     @Override public StoryChapterDefinition chapter(int index) { return index>=0&&index<5?new Chapter(index):null; }
-    private static Component part(int index,String suffix) { return Component.translatable(TEXT+"chapter_"+(index+1)+"."+suffix); }
+    private static Component part(int index,String suffix) { return de.quest.quest.QuestRuleText.translate(TEXT+"chapter_"+(index+1)+"."+suffix); }
     private static Component command(String key,String command) {
         return Component.translatable(TEXT+key).withStyle(s -> s.withColor(net.minecraft.ChatFormatting.AQUA).withClickEvent(new ClickEvent.RunCommand(command)));
     }

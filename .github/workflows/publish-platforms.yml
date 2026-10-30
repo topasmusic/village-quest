@@ -1,27 +1,30 @@
 name: Publish Village Quest to Modrinth and CurseForge
 
 on:
-  release:
-    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Stable release tag
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
   publish:
-    if: ${{ !github.event.release.draft && !github.event.release.prerelease }}
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout the released source
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.release.tag_name }}
+          ref: ${{ inputs.tag }}
 
       - name: Resolve stable release identity
         id: release
         shell: bash
         env:
-          TAG: ${{ github.event.release.tag_name }}
+          TAG: ${{ inputs.tag }}
         run: |
           if [[ ! "$TAG" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)-mc([0-9]+(\.[0-9]+)*)$ ]]; then
             echo "Expected a stable release tag such as v2.4.1-mc26.2" >&2
@@ -37,7 +40,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.event.release.tag_name }}
+          TAG: ${{ inputs.tag }}
           JAR: ${{ steps.release.outputs.jar }}
         run: |
           mkdir -p dist
@@ -61,13 +64,13 @@ jobs:
         env:
           VERSION: ${{ steps.release.outputs.version }}
           MINECRAFT: ${{ steps.release.outputs.minecraft }}
-          RELEASE_BODY: ${{ github.event.release.body }}
         run: |
           announcement="$MINECRAFT/releases/$VERSION-platforms.md"
           if [[ -s "$announcement" ]]; then
             cp "$announcement" dist/platform-announcement.md
           else
-            printf '%s\n' "$RELEASE_BODY" > dist/platform-announcement.md
+            echo "Missing platform announcement: $announcement" >&2
+            exit 1
           fi
 
       - name: Publish to Modrinth and CurseForge

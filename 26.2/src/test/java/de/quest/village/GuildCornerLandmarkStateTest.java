@@ -19,6 +19,41 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 final class GuildCornerLandmarkStateTest {
+    @Test void generatedPostLootIsSuppressedThroughRemovalAndReloadButCraftedReplacementKeepsItsDrop() throws Exception {
+        var state = new GuildCornerLandmarkState();
+        state.reserve(VILLAGE, POST, GuildCornerLandmarkState.CornerFacing.NORTH,
+                GuildCornerLandmarkState.CornerStyle.PLAINS, FOOTPRINT);
+        state.markGenerated(VILLAGE); state.markRemovedByPlayer(VILLAGE);
+        state = GuildCornerLandmarkState.fromNbt(GuildCornerLandmarkState.toNbt(state));
+        assertTrue(state.isGeneratedPost("minecraft:overworld", POST));
+        assertFalse(state.isGeneratedPost("minecraft:overworld", POST.east()));
+        var world = org.mockito.Mockito.mock(net.minecraft.server.level.ServerLevel.class);
+        var server = org.mockito.Mockito.mock(net.minecraft.server.MinecraftServer.class);
+        org.mockito.Mockito.when(world.getServer()).thenReturn(server);
+        org.mockito.Mockito.when(world.dimension()).thenReturn(net.minecraft.world.level.Level.OVERWORLD);
+        // Registries are frozen after bootstrap; bypass construction, keeping the real loot override.
+        var block = org.mockito.Mockito.mock(de.quest.content.block.GuildNoticePostBlock.class, org.mockito.Mockito.CALLS_REAL_METHODS);
+        var drops = block.getClass().getDeclaredMethod("getDrops", net.minecraft.world.level.block.state.BlockState.class,
+                net.minecraft.world.level.storage.loot.LootParams.Builder.class);
+        drops.setAccessible(true);
+        var params = new net.minecraft.world.level.storage.loot.LootParams.Builder(world)
+                .withParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN,
+                        net.minecraft.world.phys.Vec3.atCenterOf(POST));
+        try (var lookup = org.mockito.Mockito.mockStatic(GuildCornerLandmarkState.class, org.mockito.Mockito.CALLS_REAL_METHODS)) {
+            lookup.when(() -> GuildCornerLandmarkState.get(server)).thenReturn(state);
+            assertEquals(java.util.List.of(), drops.invoke(block, net.minecraft.world.level.block.Blocks.LADDER.defaultBlockState(), params));
+        }
+        state.recordPlayerPlacedPost("minecraft:overworld", POST);
+        state = GuildCornerLandmarkState.fromNbt(GuildCornerLandmarkState.toNbt(state));
+        assertFalse(state.isGeneratedPost("minecraft:overworld", POST));
+        state.markRemovedByPlayer(VILLAGE);
+        assertTrue(state.reopenForManualPlacement(VILLAGE));
+        assertTrue(state.relocatePending(VILLAGE, POST.east(), GuildCornerLandmarkState.CornerFacing.EAST,
+                GuildCornerLandmarkState.Footprint.singleBlock(POST.east())));
+        state.markGenerated(VILLAGE);
+        assertTrue(state.isGeneratedPost("minecraft:overworld", POST.east()));
+        assertEquals(1, state.size());
+    }
     private static final GuildCornerLandmarkState.VillageKey VILLAGE =
             GuildCornerLandmarkState.VillageKey.overworld(320, -144);
     private static final BlockPos POST = new BlockPos(326, 71, -139);

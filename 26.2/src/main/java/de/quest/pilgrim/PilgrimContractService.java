@@ -199,11 +199,7 @@ public final class PilgrimContractService {
                                     ? "screen.village-quest.pilgrim.contract.status.ready"
                                     : "screen.village-quest.pilgrim.contract.status.active"
                     ).withStyle(ready ? ChatFormatting.GOLD : ChatFormatting.GREEN),
-                    List.of(Component.translatable(
-                            ready
-                                    ? "screen.village-quest.pilgrim.contract.ready"
-                                    : "screen.village-quest.pilgrim.contract.active"
-                    ).withStyle(ChatFormatting.GRAY)),
+                    descriptionLines(world, player, activeType),
                     definition.progressLines(world, player),
                     rewardLines(world, player.getUUID(), previewCompletion(world, player.getUUID(), activeType)),
                     Component.translatable(
@@ -231,7 +227,7 @@ public final class PilgrimContractService {
                     offeredType.id(),
                     definition.title(),
                     Component.translatable("screen.village-quest.pilgrim.contract.status.available").withStyle(ChatFormatting.YELLOW),
-                    List.of(definition.offerParagraph1(), definition.offerParagraph2()),
+                    descriptionLines(world, player, offeredType),
                     definition.progressLines(world, player),
                     rewardLines(world, player.getUUID(), previewCompletion(world, player.getUUID(), offeredType)),
                     Component.translatable("screen.village-quest.pilgrim.contract.action.accept"),
@@ -240,6 +236,40 @@ public final class PilgrimContractService {
             ));
         }
         return List.copyOf(views);
+    }
+
+    private static List<Component> descriptionLines(ServerLevel world, ServerPlayer player, PilgrimContractType type) {
+        PlayerQuestData data = data(world, player.getUUID());
+        boolean active = activeType(data) == type;
+        DifficultyObjectiveMode mode = active ? objectiveMode(world, player.getUUID())
+                : DifficultyObjectiveMode.forDifficulty(world.getDifficulty());
+        if (!isCombatContract(type) || mode != DifficultyObjectiveMode.PEACEFUL) {
+            var definition = definition(type);
+            return List.of(definition.offerParagraph1(), definition.offerParagraph2());
+        }
+        var lines = new ArrayList<Component>();
+        lines.add(Component.translatable("quest.village-quest.pilgrim.contract.expedition.offer",
+                expeditionDimensionName(type), PilgrimExpeditionProgress.REQUIRED_DISTANCE).withStyle(ChatFormatting.GRAY));
+        lines.add(Component.translatable("quest.village-quest.pilgrim.contract.expedition.material",
+                expeditionResourceAmount(type), Component.translatable(expeditionResource(type).getDescriptionId())).withStyle(ChatFormatting.GRAY));
+        lines.add(Component.translatable("quest.village-quest.pilgrim.contract.expedition.return"
+                + (isOverworldContract(type) ? "_origin" : "")).withStyle(ChatFormatting.GRAY));
+        var state = active ? readExpeditionState(world, player.getUUID()) : PilgrimExpeditionProgress.State.empty();
+        if (state.originSet()) lines.add(Component.translatable("quest.village-quest.pilgrim.contract.expedition.origin",
+                state.originX(),state.originZ()).withStyle(ChatFormatting.GRAY));
+        if (type == PilgrimContractType.STILLNESS_BEYOND_THE_GATE && (!active || requiresNewEndCity(data, type)))
+            lines.add(Component.translatable("quest.village-quest.pilgrim.contract.expedition.end_city").withStyle(ChatFormatting.GRAY));
+        return List.copyOf(lines);
+    }
+
+    private static Component expeditionDimensionName(PilgrimContractType type) {
+        return Component.translatable("quest.village-quest.tracker.dimension." + (expeditionDimension(type) == Level.NETHER
+                ? "nether" : expeditionDimension(type) == Level.END ? "end" : "overworld"));
+    }
+
+    public static List<Component> activeDescriptionLines(ServerLevel world,ServerPlayer player) {
+        var type=activeType(data(world,player.getUUID()));
+        return type==null?List.of():descriptionLines(world,player,type);
     }
 
     public static PilgrimContractStatus openStatus(ServerLevel world, UUID playerId) {
@@ -260,6 +290,31 @@ public final class PilgrimContractService {
             return null;
         }
         return new PilgrimContractStatus(definition.title(), definition.progressLines(world, player));
+    }
+
+    public static Component shortObjective(ServerLevel world, ServerPlayer player, List<Component> progress) {
+        var type=activeType(data(world,player.getUUID()));
+        if(type==null || type==PilgrimContractType.ROADMARKS_FOR_THE_COMPASS
+                || objectiveMode(world,player.getUUID())!=DifficultyObjectiveMode.PEACEFUL)
+            return de.quest.quest.QuestShortObjective.first(progress);
+        var state=readExpeditionState(world,player.getUUID());
+        return expeditionObjective(type,state,DailyQuestService.countInventoryItem(player,expeditionResource(type)),
+                requiresNewEndCity(data(world,player.getUUID()),type) && !data(world,player.getUUID()).hasPilgrimFlag("reward.end_city_visited"));
+    }
+
+    static Component expeditionObjective(PilgrimContractType type,PilgrimExpeditionProgress.State state,int carried,boolean needsEndCity) {
+        Component dimension=Component.translatable("quest.village-quest.tracker.dimension."+(expeditionDimension(type)==Level.NETHER
+                ? "nether" : expeditionDimension(type)==Level.END ? "end" : "overworld"));
+        if(!state.entered()) return Component.translatable("quest.village-quest.tracker.expedition_enter",dimension);
+        if(state.maxDistance()<PilgrimExpeditionProgress.REQUIRED_DISTANCE)
+            return Component.translatable("quest.village-quest.tracker.expedition_travel",state.maxDistance(),PilgrimExpeditionProgress.REQUIRED_DISTANCE);
+        int required=expeditionResourceAmount(type);
+        if(carried<required) return Component.translatable("quest.village-quest.tracker.friend_material",
+                Component.translatable(expeditionResource(type).getDescriptionId()),carried,required);
+        if(!state.returned()) return Component.translatable("quest.village-quest.tracker.expedition_return"+(expeditionDimension(type)==Level.OVERWORLD?"_origin":""));
+        if(needsEndCity)
+            return Component.translatable("quest.village-quest.tracker.end_city");
+        return Component.translatable("quest.village-quest.tracker.meet_pilgrim");
     }
 
     public static Component title(PilgrimContractType type) {
@@ -642,19 +697,15 @@ public final class PilgrimContractService {
                     PilgrimExpeditionProgress.State state = readExpeditionState(world, player.getUUID());
                     int resources = Math.min(expeditionResourceAmount(type),
                             DailyQuestService.countInventoryItem(player, expeditionResource(type)));
-                    var lines = new ArrayList<Component>(); lines.add(Component.translatable(
-                            "quest.village-quest.pilgrim.contract.expedition.progress",
-                            state.entered() ? 1 : 0,
-                            1,
-                            state.maxDistance(),
-                            PilgrimExpeditionProgress.REQUIRED_DISTANCE,
-                            state.checkpoints(),
-                            3,
-                            resources,
-                            expeditionResourceAmount(type),
-                            state.returned() ? 1 : 0,
-                            1
-                    ).withStyle(ChatFormatting.GRAY));
+                    var lines = new ArrayList<Component>();
+                    lines.add(Component.translatable("quest.village-quest.pilgrim.contract.expedition.entered",
+                            expeditionDimensionName(type), state.entered() ? 1 : 0, 1));
+                    lines.add(Component.translatable("quest.village-quest.pilgrim.contract.expedition.distance",
+                            state.maxDistance(), PilgrimExpeditionProgress.REQUIRED_DISTANCE));
+                    lines.add(Component.translatable("quest.village-quest.pilgrim.contract.expedition.checkpoints",state.checkpoints(),3));
+                    lines.add(Component.translatable("screen.village-quest.ui_review.objective_row",
+                            Component.translatable(expeditionResource(type).getDescriptionId()),resources,expeditionResourceAmount(type)));
+                    lines.add(Component.translatable("quest.village-quest.pilgrim.contract.expedition.returned",state.returned()?1:0,1));
                     if (requiresNewEndCity(data(world,player.getUUID()),type)) lines.add(Component.translatable("reward.village-quest.end_city", data(world,player.getUUID()).hasPilgrimFlag("reward.end_city_visited") ? 1 : 0));
                     return List.copyOf(lines);
                 }
@@ -837,7 +888,7 @@ public final class PilgrimContractService {
         return withTargetProfile(data(world, playerId), type, definition::buildCompletion);
     }
 
-    private static PilgrimContractType activeType(PlayerQuestData data) {
+    public static PilgrimContractType activeType(PlayerQuestData data) {
         return data == null ? null : PilgrimContractType.fromId(data.getActivePilgrimContractId());
     }
 
@@ -1003,6 +1054,7 @@ public final class PilgrimContractService {
                                                      ServerPlayer player,
                                                      PilgrimContractType type,
                                                      PilgrimContractCompletion completion) {
+        if (de.quest.shrine.VillageIntroRequestService.blocksActions(world,player.getUUID())) return;
         var rewardState = de.quest.reward.VanillaRewardService.state(world,player.getUUID());
         if (rewardState.snapshot("pilgrim",rewardState.currentIdentity("pilgrim")).getStringOr("key", "").equals("pilgrim:" + type.id()))
             de.quest.reward.VanillaRewardService.completeCurrent(world, player, "pilgrim");
@@ -1026,6 +1078,14 @@ public final class PilgrimContractService {
                 && SurveyorCompassQuestService.unlockStructureModes(world, player);
 
         PlayerQuestData data = data(world, player.getUUID());
+        // Capture each recipient's saved mode before clearPilgrimProgress removes it.
+        boolean peaceful = isCombatContract(type) && objectiveMode(world, player.getUUID()) == DifficultyObjectiveMode.PEACEFUL;
+        List<Component> completionLines = peaceful ? List.of(
+                Component.translatable("quest.village-quest.pilgrim.contract.expedition.complete.1"),
+                Component.translatable("quest.village-quest.pilgrim.contract.expedition.complete.2",
+                        expeditionResourceAmount(type),Component.translatable(expeditionResource(type).getDescriptionId())),
+                Component.translatable("quest.village-quest.pilgrim.contract.expedition.complete.3"))
+                : List.of(completion.completionLine1(),completion.completionLine2(),completion.completionLine3());
         if (isCombatContract(type)) {
             data.setMilestoneFlag(completedFlag(type), true);
         }
@@ -1046,9 +1106,9 @@ public final class PilgrimContractService {
         MutableComponent rewardBody = Component.empty()
                 .append(divider.copy()).append(Component.literal("\n"))
                 .append(Texts.completedTitle(completion.title(), ChatFormatting.GOLD)).append(Component.literal("\n\n"))
-                .append(completion.completionLine1()).append(Component.literal("\n"))
-                .append(completion.completionLine2()).append(Component.literal("\n\n"))
-                .append(completion.completionLine3()).append(Component.literal("\n\n"))
+                .append(completionLines.get(0)).append(Component.literal("\n"))
+                .append(completionLines.get(1)).append(Component.literal("\n\n"))
+                .append(completionLines.get(2)).append(Component.literal("\n\n"))
                 .append(rewardsTitle).append(Component.literal(":\n\n"));
 
         appendCurrencyRewardLine(rewardBody, actualCurrencyReward);

@@ -20,7 +20,7 @@ Meet memorable characters, uncover stories, help villages grow, and shape a worl
 
 Current stable releases:
 
-- `2.6.2 — Living Kingdoms` for Minecraft `26.3` and `26.2`;
+- `2.6.3 — Living Kingdoms` for Minecraft `26.3` and `26.2`;
 - `2.1.1 — Homesteads & Wayfinding` for Minecraft `26.1.2` and `1.21.11`.
 
 
@@ -34,7 +34,7 @@ worlds before updating. Open `/vq questmaster` to begin, then use `/vq journal`.
 
 - [Getting started](26.3/docs/wiki/getting-started.md) · [Wiki](26.3/docs/wiki/README.md) · [FAQ](26.3/docs/wiki/faq.md)
 - [Version support](VERSION_SUPPORT.md) · [Report an issue](https://github.com/topasmusic/village-quest/issues)
-- [Latest release](https://github.com/topasmusic/village-quest/releases/tag/v2.6.2-mc26.3)
+- [Latest release](https://github.com/topasmusic/village-quest/releases/tag/v2.6.3-mc26.3)
 
 ## Licensing
 

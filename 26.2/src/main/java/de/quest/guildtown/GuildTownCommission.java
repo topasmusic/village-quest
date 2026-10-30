@@ -79,6 +79,14 @@ public enum GuildTownCommission {
     public int deliveryAmount() { return deliveryAmount; }
     public Component title() { return Component.translatable("quest.village-quest.guild_town.commission." + key + ".title"); }
 
+    public Component rules() {
+        var rules=Component.translatable("quest.village-quest.guild_town.commission."+key+".rules");
+        for(var mechanic:Mechanic.values()) if((mechanic==firstMechanic || mechanic==secondMechanic)
+                && (mechanic==Mechanic.HARVEST || mechanic==Mechanic.PLANT))
+            rules.append(Component.literal("\n\n")).append(Component.translatable("quest.village-quest.guild_town.mechanic."+mechanic.key+".rules"));
+        return rules;
+    }
+
     public static GuildTownCommission byKey(String raw) {
         String normalized = raw == null ? "" : raw.trim().toLowerCase(Locale.ROOT);
         for (GuildTownCommission commission : values()) if (commission.key.equals(normalized)) return commission;

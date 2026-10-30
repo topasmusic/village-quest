@@ -10,7 +10,7 @@ This inventory records the provenance of creative resources in the Minecraft
 and `friends_golem_repair.png` in the same directory were made with the built-in
 Imagegen tool for the authorized screenshot corrections. Actual fields_harvest
 and caravan_road art provided palette/pixel-style references. Both opaque
-2048x768PNGs are unchanged generated outputs. Prompt/provenance:
+768x288 PNGs are resized from the original generated 2048x768 outputs, preserving the full composition. Prompt/provenance:
 26.3/design/friends-npc-ui/refinement-unreleased.4/PROMPTS.md. No external asset
 was downloaded; existing herb/harp art is retained.
 
@@ -19,7 +19,7 @@ was downloaded; existing herb/harp art is retained.
 `src/main/resources/assets/village-quest/textures/gui/artwork/raphael_harp.png`
 was created with the built-in Imagegen tool on explicit user request, matching
 the existing fields_harvest and caravan_road pixel-art references. Opaque
-2048x768PNG of a medieval wooden harp, manuscript and quill in an inn; no quest
+768x288 PNG (resized from the original 2048x768 output) of a medieval wooden harp, manuscript and quill in an inn; no quest
 or reward is attached. Prompt/provenance:26.3/design/friends-npc-ui/PROMPT.md.
 
 ## Project-generated Friends herb vignette — 2026-10-25
@@ -27,7 +27,7 @@ or reward is attached. Prompt/provenance:26.3/design/friends-npc-ui/PROMPT.md.
 `src/main/resources/assets/village-quest/textures/gui/artwork/friends_herbs.png`
 was created with the built-in Imagegen tool for this project, using the existing
 fields_harvest and caravan_road illustrations as style references. Opaque
-2048x768 PNG, displayed through the existing artwork renderer. No third-party
+768x288 PNG (resized from the original 2048x768 output), displayed through the existing artwork renderer. No third-party
 asset download or Vanilla texture replacement. Prompt/provenance: the shared
 26.3/design/friends-npc-ui/PROMPT.md implementation note.
 
@@ -41,6 +41,23 @@ full prompt and preparation evidence are recorded in
 `design/living-kingdoms-2.6/implementation/friends-quests/ASSETS.md`.
 
 ## Project-owned entity skins
+
+### Ambient Adventurers (2.6.3, Minecraft 26.3 and 26.2)
+
+Six original project-directed skins under `textures/entity/ambient/` provide
+three Wanderers and three Nightrunners (two men and one woman per role).
+Existing Questmaster, Pilgrim and Kingdom NPCs are style/quality references;
+their original PNGs are unchanged. Built-in Imagegen supplied two outfit/head
+studies and four individual head studies. All six raw outputs and exact prompts
+are retained in `design/ambient-adventurers-2.6.3/generated/` and `PROMPTS.json`.
+`pack-skins.ps1` mechanically samples the selected panels into native Java wide
+64x64 UVs, aligns native face details, opens raised hair using the existing
+Pilgrim strand topology and copies each role's master clothing unchanged.
+`SKIN_MANIFEST.json` separates source and final SHA256 hashes. All six base faces
+of each body part are opaque; unused UVs are transparent and alpha is binary.
+`skin-review.png` is an inspected offline UV projection, not an engine screenshot.
+Native Ingame/animation/modmix acceptance is NOT RUN. No external asset library
+or new dependency was added. Existing project asset licensing applies.
 
 The maintainer confirmed on 2026-09-24 that the head artwork for the caravan,
 Pilgrim, Questmaster, and Traitor characters was created by TopasMusic. The

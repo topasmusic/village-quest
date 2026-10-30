@@ -85,8 +85,8 @@ public final class VillageBondService {
     private static final int KNOWN_TRAVEL_COOLDOWN_TICKS = 20 * 60 * 10;
     private static final int TRUSTED_TRAVEL_COOLDOWN_TICKS = 20 * 60 * 5;
     private static final int ALLIED_TRAVEL_COOLDOWN_TICKS = 20 * 60 * 4;
-    private static final int TRUSTED_REQUESTS = 2;
-    private static final int ALLIED_REQUESTS = 8;
+    private static final int TRUSTED_REQUESTS = VillageBondProgression.TRUSTED_REQUESTS;
+    private static final int ALLIED_REQUESTS = VillageBondProgression.ALLIED_REQUESTS;
 
     private VillageBondService() {}
 
@@ -808,7 +808,7 @@ public final class VillageBondService {
         if (data == null || villageId == null) return VillageBondLevel.KNOWN;
         for (int i = 0; i < historicalVillageCount(data); i++) {
             if (villageId.toString().equals(data.getTradeRouteString(villageKey(i, "canonical_id"))))
-                return levelForCompletions(Math.max(0, data.getTradeRouteInt(villageKey(i, "completions"))));
+                return VillageBondProgression.snapshot(data,i).level();
         }
         return VillageBondLevel.KNOWN;
     }
@@ -833,7 +833,7 @@ public final class VillageBondService {
                         data.getTradeRouteString(villageKey(index, "identity_origin")));
                 history.add(new Payloads.TradeRouteBondData(index, x, z,
                         de.quest.kingdom.KingdomVillageService.identityLabel(world, x, z, contact.type().label()),
-                        levelForCompletions(completions).label(), Component.empty(), completions,
+                        VillageBondProgression.snapshot(data,index).level().label(), Component.empty(), completions,
                         Component.empty(), Component.empty(), 0, 0, lifeStatus, false, identityOrigin,
                         de.quest.kingdom.KingdomVillageService.mapDetails(world,playerId,x,z)));
                 continue;
@@ -1204,18 +1204,24 @@ public final class VillageBondService {
     public record AdminReverseResult(boolean reversed, long currencyRemoved) {}
 
     private static VillageBondView view(ServerLevel world, UUID playerId, int index) {
+        return noticeView(world, playerId, index, true);
+    }
+
+    /** Local boards read an existing supply snapshot without provisioning a network profile. */
+    static VillageBondView noticeView(ServerLevel world, UUID playerId, int index, boolean connected) {
         if (index < 0 || index >= villageCount(world, playerId)) return null;
         PlayerQuestData data = data(world, playerId);
         if (!matchesStoredDimension(data, villageKey(index, "dimension"), dimensionKey(world))) return null;
         VillageBondType type = VillageBondType.byId(Math.max(0, data.getTradeRouteInt(villageKey(index, "type")) - 1));
         int completions = Math.max(0, data.getTradeRouteInt(villageKey(index, "completions")));
-        VillageBondLevel level = levelForCompletions(completions);
+        VillageBondLevel level = VillageBondProgression.snapshot(data,index).level();
         int requestId = Math.max(0, data.getTradeRouteInt(villageKey(index, "request")) - 1);
         VillageRequestType request = VillageRequestType.byId(requestId, type, index);
-        LivingVillageNetworkState.VillageSnapshot network = LivingVillageNetworkService.ensureVillage(
+        LivingVillageNetworkState.VillageSnapshot network = connected ? LivingVillageNetworkService.ensureVillage(
                 world, playerId, index,
                 data.getTradeRouteInt(villageKey(index, "x")),
-                data.getTradeRouteInt(villageKey(index, "z")), type);
+                data.getTradeRouteInt(villageKey(index, "z")), type)
+                : LivingVillageNetworkState.get(world.getServer()).snapshot(playerId, index).orElse(null);
         return new VillageBondView(index, data.getTradeRouteInt(villageKey(index, "x")),
                 data.getTradeRouteInt(villageKey(index, "z")), type, level, request,
                 completions, network);
@@ -1332,9 +1338,7 @@ public final class VillageBondService {
     }
 
     static VillageBondLevel levelForCompletions(int completions) {
-        if (completions >= ALLIED_REQUESTS) return VillageBondLevel.ALLIED;
-        if (completions >= TRUSTED_REQUESTS) return VillageBondLevel.TRUSTED;
-        return VillageBondLevel.KNOWN;
+        return VillageBondProgression.level(completions,0);
     }
 
     static boolean requestAvailable(int lastCompletionDay, int currentDay) {

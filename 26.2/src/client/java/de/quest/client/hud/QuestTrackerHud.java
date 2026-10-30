@@ -19,15 +19,12 @@ import net.minecraft.resources.Identifier;
 import org.lwjgl.glfw.GLFW;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public final class QuestTrackerHud {
     private static final Identifier HUD_LAYER_ID = Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "quest_tracker");
     private static final int MAX_CONTENT_WIDTH = 220;
     private static final int LINE_HEIGHT = 10;
     private static final int COMPLETED_OBJECTIVE_COLOR = 0xFF306C42;
-    private static final Pattern PROGRESS_FRACTION_PATTERN = Pattern.compile("(\\d+)\\s*/\\s*(\\d+)");
     private static TrackerState state = TrackerState.disabled();
     private static KeyMapping toggleKey;
 
@@ -58,11 +55,7 @@ public final class QuestTrackerHud {
 
     private static java.util.Map<String, Component> activeTitles(TrackerState s) {
         var titles = new java.util.LinkedHashMap<String, Component>();
-        if (s.storyActive()) titles.put("story", s.storyTitle());
-        if (s.specialActive()) titles.put("special", s.specialTitle());
-        if (s.weeklyActive()) titles.put("weekly", s.weeklyTitle());
-        if (s.dailyActive()) titles.put("daily", s.dailyTitle());
-        if (s.pilgrimActive()) titles.put("pilgrim", s.pilgrimTitle());
+        for(var entry:s.entries()) titles.put(entry.id(),entry.title());
         return titles;
     }
 
@@ -70,6 +63,7 @@ public final class QuestTrackerHud {
     static <T> Page<T> page(List<T> pinned, List<T> others, int capacity, long milliseconds) {
         capacity = Math.max(2, capacity);
         // Keep the whole chosen quest fixed when it fits; retain its heading on very small HUDs.
+        if(pinned.size()==capacity && others.isEmpty()) return new Page<>(List.copyOf(pinned),1,1,pinned.size());
         int fixed = pinned.size() >= capacity ? 1 : pinned.size();
         var rotating = new ArrayList<T>(pinned.subList(fixed, pinned.size()));
         rotating.addAll(others);
@@ -82,7 +76,7 @@ public final class QuestTrackerHud {
 
     private static void render(GuiGraphics drawContext, net.minecraft.client.DeltaTracker tickCounter) {
         TrackerState tracker = state;
-        if (!tracker.enabled() || (!tracker.dailyActive() && !tracker.weeklyActive() && !tracker.storyActive() && !tracker.pilgrimActive() && !tracker.specialActive())) {
+        if (!tracker.enabled() || tracker.entries().isEmpty()) {
             return;
         }
 
@@ -103,15 +97,10 @@ public final class QuestTrackerHud {
         var focus = QuestTrackerFocus.current();
         var titles = activeTitles(tracker);
         boolean pinned = titles.containsKey(focus.quest()) && focus.matches(focus.quest(), titles.get(focus.quest()));
-        for (var entry : titles.entrySet()) {
-            boolean chosen = pinned && entry.getKey().equals(focus.quest());
-            if (pinned && focus.onlyPinned() && !chosen) continue;
-            List<Component> lines = switch (entry.getKey()) {
-                case "story" -> tracker.storyLines(); case "special" -> tracker.specialLines();
-                case "weekly" -> tracker.weeklyLines(); case "daily" -> tracker.dailyLines();
-                default -> tracker.pilgrimLines();
-            };
-            addSection(chosen ? pinnedLines : renderLines, renderer, entry.getValue(), lines, wrapWidth);
+        for (var entry : tracker.entries()) {
+            boolean chosen=pinned && entry.id().equals(focus.quest());
+            if(pinned && focus.onlyPinned() && !chosen) continue;
+            addSection(chosen?pinnedLines:renderLines,renderer,entry.title(),List.of(entry.shortObjective()),wrapWidth);
         }
 
         var pinnedFlat = new ArrayList<RenderEntry>();
@@ -178,30 +167,23 @@ public final class QuestTrackerHud {
     }
 
     private static void addSection(List<RenderEntry> output,Font font,Component title,List<Component> lines,int width) {
-        output.add(new RenderEntry(wrapText(font,title.getString(),width),VillageUiTheme.TEAL));
-        for(Component line:lines) output.add(new RenderEntry(wrapText(font,line.getString(),width),
-                isCompletedObjective(line)?COMPLETED_OBJECTIVE_COLOR:VillageUiTheme.BODY));
+        output.add(new RenderEntry(List.of(VillageUiTheme.ellipsize(font,title.getString(),width)),VillageUiTheme.TEAL));
+        for(Component objective:lines) {
+            var rows=de.quest.quest.QuestShortObjective.rows(objective);
+            for(Component line:rows) output.add(new RenderEntry(rows.size()>1?wrapText(font,line.getString(),width):objectiveLines(font,line,width),
+                    isCompletedObjective(line)?COMPLETED_OBJECTIVE_COLOR:VillageUiTheme.BODY));
+        }
     }
 
-    private static boolean isCompletedObjective(Component component) {
-        if (component == null) {
-            return false;
-        }
-        Matcher matcher = PROGRESS_FRACTION_PATTERN.matcher(component.getString());
-        boolean foundProgress = false;
-        while (matcher.find()) {
-            foundProgress = true;
-            try {
-                long current = Long.parseLong(matcher.group(1));
-                long target = Long.parseLong(matcher.group(2));
-                if (target <= 0L || current < target) {
-                    return false;
-                }
-            } catch (NumberFormatException ignored) {
-                return false;
-            }
-        }
-        return foundProgress;
+    static List<String> objectiveLines(Font font,Component objective,int width) {
+        var lines=wrapText(font,objective.getString(),width);
+        if(objective.getString().contains("\n")) return lines;
+        if(lines.size()<=2) return lines;
+        return List.of(lines.getFirst(),VillageUiTheme.ellipsize(font,lines.get(1)+" …",width));
+    }
+
+    static boolean isCompletedObjective(Component component) {
+        return de.quest.quest.QuestObjectiveProgress.complete(component);
     }
 
     private static List<String> wrapText(Font font, String text, int width) {
@@ -250,26 +232,9 @@ public final class QuestTrackerHud {
 
     private record RenderEntry(List<String> lines, int color) {}
 
-    public record TrackerState(
-            boolean enabled,
-            boolean dailyActive,
-            Component dailyTitle,
-            List<Component> dailyLines,
-            boolean weeklyActive,
-            Component weeklyTitle,
-            List<Component> weeklyLines,
-            boolean storyActive,
-            Component storyTitle,
-            List<Component> storyLines,
-            boolean pilgrimActive,
-            Component pilgrimTitle,
-            List<Component> pilgrimLines,
-            boolean specialActive,
-            Component specialTitle,
-            List<Component> specialLines
-    ) {
-        public static TrackerState disabled() {
-            return new TrackerState(false, false, Component.empty(), List.of(), false, Component.empty(), List.of(), false, Component.empty(), List.of(), false, Component.empty(), List.of(), false, Component.empty(), List.of());
-        }
+    public record TrackerState(boolean enabled,List<de.quest.quest.TrackerEntry> entries) {
+        public TrackerState { entries=de.quest.quest.TrackerEntry.checked(entries); }
+        public static TrackerState disabled() { return new TrackerState(false,List.of()); }
     }
+
 }

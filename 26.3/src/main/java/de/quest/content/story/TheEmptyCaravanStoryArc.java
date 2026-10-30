@@ -106,7 +106,7 @@ public final class TheEmptyCaravanStoryArc implements StoryArcDefinition {
 
         protected Component offer(int chapter, int paragraph) {
             String key = "quest.village-quest.story.the_empty_caravan.chapter_" + chapter + ".offer." + paragraph;
-            return Component.translatable(key).withStyle(ChatFormatting.GRAY);
+            return de.quest.quest.QuestRuleText.translate(key).withStyle(ChatFormatting.GRAY);
         }
     }
 
@@ -280,6 +280,55 @@ public final class TheEmptyCaravanStoryArc implements StoryArcDefinition {
         @Override public Component offerParagraph1() { return offer(5, 1); }
         @Override public Component offerParagraph2() { return offer(5, 2); }
 
+        private boolean peaceful(ServerLevel world, UUID id) {
+            int saved = progress(world,id,StoryQuestKeys.EMPTY_CARAVAN_OBJECTIVE_MODE);
+            return (saved == 0 ? DifficultyObjectiveMode.forDifficulty(world.getDifficulty())
+                    : DifficultyObjectiveMode.fromSerializedId(saved)) == DifficultyObjectiveMode.PEACEFUL;
+        }
+
+        @Override
+        public List<Component> descriptionLines(ServerLevel world, UUID id) {
+            if (!peaceful(world,id)) return descriptionLines();
+            return List.of(offerParagraph1(),Component.translatable("quest.village-quest.story.the_empty_caravan.peaceful.description.5",
+                    EmptyCaravanStoryService.PEACEFUL_SUPPLY_BREAD,EmptyCaravanStoryService.PEACEFUL_SUPPLY_PLANKS,
+                    EmptyCaravanStoryService.PEACEFUL_CHECKPOINT_TARGET));
+        }
+
+        @Override
+        public StoryChapterCompletion buildCompletion(ServerLevel world, UUID id) {
+            var base = buildCompletion();
+            if (!peaceful(world,id)) return base;
+            String key = "quest.village-quest.story.the_empty_caravan.peaceful.complete.5.";
+            return new StoryChapterCompletion(base.title(),Component.translatable(key+"1"),Component.translatable(key+"2"),
+                    Component.translatable(key+"3"),base.currencyReward(),base.levels(),base.reputationTrack(),
+                    base.reputationAmount(),base.unlockedProject());
+        }
+
+        @Override
+        public Component shortObjective(ServerLevel world, UUID id, List<Component> lines) {
+            boolean choice=StoryQuestService.hasStoryFlag(world,id,StoryQuestKeys.EMPTY_CARAVAN_CHOICE_AMNESTY)
+                    || StoryQuestService.hasStoryFlag(world,id,StoryQuestKeys.EMPTY_CARAVAN_CHOICE_JUSTICE);
+            if (!choice) return Component.translatable("quest.village-quest.tracker.bait_choice");
+            int state=progress(world,id,StoryQuestKeys.EMPTY_CARAVAN_BAIT_STATE);
+            if (state>=EmptyCaravanStoryService.BAIT_WON) return Component.translatable("quest.village-quest.guidance.claim");
+            if (peaceful(world,id)) {
+                if (!StoryQuestService.hasStoryFlag(world,id,StoryQuestKeys.EMPTY_CARAVAN_PEACEFUL_SUPPLIES)) {
+                    var player=world.getServer().getPlayerList().getPlayer(id);
+                    var materials=new java.util.ArrayList<Component>();boolean missing=false;
+                    for (var item:List.of(Items.BREAD,Items.OAK_PLANKS)) {
+                        int count=player==null?0:de.quest.quest.daily.DailyQuestService.countInventoryItem(player,item);
+                        int required=item==Items.BREAD?EmptyCaravanStoryService.PEACEFUL_SUPPLY_BREAD:EmptyCaravanStoryService.PEACEFUL_SUPPLY_PLANKS;
+                        missing|=count<required;
+                        materials.add(de.quest.quest.QuestShortObjective.material(Component.translatable(item.getDescriptionId()),count,required));
+                    }
+                    if(missing)return de.quest.quest.QuestShortObjective.group(materials);
+                }
+                return Component.translatable("quest.village-quest.tracker.bait_checkpoints",
+                        progress(world,id,StoryQuestKeys.EMPTY_CARAVAN_PEACEFUL_CHECKPOINTS),EmptyCaravanStoryService.PEACEFUL_CHECKPOINT_TARGET);
+            }
+            return Component.translatable("quest.village-quest.tracker."+(state==EmptyCaravanStoryService.BAIT_ACTIVE?"bait_defend":"bait_follow"));
+        }
+
         @Override
         public List<Component> progressLines(ServerLevel world, UUID playerId) {
             boolean choiceMade = StoryQuestService.hasStoryFlag(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_CHOICE_AMNESTY)
@@ -291,8 +340,7 @@ public final class TheEmptyCaravanStoryArc implements StoryArcDefinition {
                     Component.translatable("quest.village-quest.story.the_empty_caravan.chapter_5.progress.bait",
                             bait >= EmptyCaravanStoryService.BAIT_WON ? 1 : 0, 1).withStyle(ChatFormatting.GRAY)
             ));
-            if (DifficultyObjectiveMode.fromSerializedId(progress(
-                    world, playerId, StoryQuestKeys.EMPTY_CARAVAN_OBJECTIVE_MODE)) == DifficultyObjectiveMode.PEACEFUL) {
+            if (peaceful(world,playerId)) {
                 lines.add(Component.translatable(
                         "quest.village-quest.story.the_empty_caravan.chapter_5.progress.peaceful",
                         progress(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_PEACEFUL_CHECKPOINTS),
@@ -300,6 +348,14 @@ public final class TheEmptyCaravanStoryArc implements StoryArcDefinition {
                         StoryQuestService.hasStoryFlag(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_PEACEFUL_SUPPLIES) ? 1 : 0,
                         1
                 ).withStyle(ChatFormatting.GRAY));
+                boolean supplied=StoryQuestService.hasStoryFlag(world,playerId,StoryQuestKeys.EMPTY_CARAVAN_PEACEFUL_SUPPLIES);
+                var player=world.getServer().getPlayerList().getPlayer(playerId);
+                for (var item:List.of(Items.BREAD,Items.OAK_PLANKS)) {
+                    int required=item==Items.BREAD?EmptyCaravanStoryService.PEACEFUL_SUPPLY_BREAD:EmptyCaravanStoryService.PEACEFUL_SUPPLY_PLANKS;
+                    int count=supplied?required:player==null?0:de.quest.quest.daily.DailyQuestService.countInventoryItem(player,item);
+                    lines.add(Component.translatable("screen.village-quest.ui_review.objective_row",
+                            Component.translatable(item.getDescriptionId()),Math.min(count,required),required));
+                }
             }
             return lines;
         }
@@ -331,7 +387,10 @@ public final class TheEmptyCaravanStoryArc implements StoryArcDefinition {
             if (amnesty) {
                 ReputationService.add(world, player.getUUID(), ReputationService.ReputationTrack.TRADE, 10);
             } else {
-                CurrencyService.addBalance(world, player.getUUID(), CurrencyService.CROWN);
+                if (!de.quest.data.PersonalResetReceipts.storyPaid(
+                        de.quest.data.QuestState.get(world.getServer()).getPlayerData(player.getUUID()),
+                        StoryArcType.THE_EMPTY_CARAVAN, 4))
+                    CurrencyService.addBalance(world, player.getUUID(), CurrencyService.CROWN);
                 ReputationService.add(world, player.getUUID(), ReputationService.ReputationTrack.MONSTER_HUNTING, 8);
             }
             player.sendSystemMessage(Component.translatable(amnesty

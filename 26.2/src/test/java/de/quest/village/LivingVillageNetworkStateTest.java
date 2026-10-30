@@ -13,6 +13,19 @@ import org.junit.jupiter.api.Test;
 
 final class LivingVillageNetworkStateTest {
     private static final UUID OWNER = UUID.fromString("b95a13ea-97f1-40a0-8aa5-8f2154677d13");
+    @Test void unsupportedNetworkKeepsRawOwnerRecordsAndRefusesPersonalRemoval() {
+        for(int variant=0;variant<4;variant++) {
+            var original=new LivingVillageNetworkState();original.ensureVillage(OWNER,0,120,30,VillageBondType.FORGE);
+            var raw=LivingVillageNetworkState.toNbt(original);
+            if(variant==0)raw.putInt("schemaVersion",99);
+            if(variant==1)raw.putInt("schemaVersion",-1);
+            if(variant==2)raw.putString("schemaVersion","future");
+            if(variant==3)raw.putBoolean("marketDemandDisabled",true);
+            var loaded=LivingVillageNetworkState.fromNbt(raw);assertTrue(loaded.readOnly());
+            org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,()->loaded.removeOwner(OWNER));
+            assertEquals(raw,LivingVillageNetworkState.toNbt(loaded));
+        }
+    }
 
     @Test
     void legacyVillageMigrationIsStableAndIdempotent() {

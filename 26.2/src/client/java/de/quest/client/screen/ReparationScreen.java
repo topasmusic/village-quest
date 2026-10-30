@@ -25,7 +25,7 @@ public final class ReparationScreen extends CompatScreen {
     private record Hit(String id, int x, int y, int width, int height, Runnable action, boolean enabled) {}
     private InteractionPayload data;
     private final Screen parent;
-    private int tab, villagePage, supportPage;
+    private int tab, villagePage, supportPage, logisticsScroll;
     private String focus = "", feedback = "";
     private boolean closeNotified;
     private final VillageTooltip tooltip = new VillageTooltip();
@@ -83,14 +83,16 @@ public final class ReparationScreen extends CompatScreen {
                     tab = selected; villagePage = supportPage = 0; focus = "tab_" + selected;
                 }, true));
             }
-            String heading = text(TAB_KEYS[tab]).getString();
-            VillageUiTheme.drawTitle(graphics, font, heading, TAB_ICONS[tab], left + 158, top + 5, 244);
+            Component title=tab<3?text(TAB_KEYS[tab]):text(tab==3?"desk.convoy":"desk.dispatch");
+            String heading = title.getString();
+            VillageUiTheme.drawTitle(graphics, font, heading, tab<3?TAB_ICONS[tab]:"trust_handshake", left + 158, top + 5, 244);
             if (within(mx, my, left + 158, top + 5, 244, 26))
-                tooltip.set(text(TAB_KEYS[tab]));
+                tooltip.set(title);
             VillageUiTheme.drawPaper(graphics,left+140,top + 253,392,22);
             if (tab == 0) trust(graphics, left, top, mx, my);
             else if (tab == 1) amends(graphics, left, top, mx, my);
-            else support(graphics, left, top, mx, my);
+            else if(tab==2) support(graphics, left, top, mx, my);
+            else logistics(graphics,left,top,mx,my);
             boolean paging = hits.stream().anyMatch(hit -> hit.id().equals("previous"));
             int hintX = left + (paging ? 278 : 150), hintWidth = paging ? 130 : 255;
             float hintScale = paging ? .58f : .68f;
@@ -163,10 +165,16 @@ public final class ReparationScreen extends CompatScreen {
         return super.handleMouseClicked(event, doubled);
     }
     @Override public boolean mouseScrolled(double x, double y, double horizontal, double vertical) {
+        if(tab>=3) logisticsScroll=Math.clamp(logisticsScroll-(int)Math.signum(vertical)*3,0,logisticsMaxScroll());
         return true;
     }
     @Override public boolean keyPressed(KeyEvent event) {
         if (minecraft != null && minecraft.options.keyInventory.matches(event)) { onClose(); return true; }
+        if(tab>=3 && (event.key()==InputConstants.KEY_PAGEDOWN || event.key()==InputConstants.KEY_PAGEUP
+                || event.key()==InputConstants.KEY_HOME || event.key()==InputConstants.KEY_END)) {
+            logisticsScroll=event.key()==InputConstants.KEY_HOME?0:event.key()==InputConstants.KEY_END?logisticsMaxScroll()
+                    :Math.clamp(logisticsScroll+(event.key()==InputConstants.KEY_PAGEDOWN?12:-12),0,logisticsMaxScroll()); return true;
+        }
         if (event.key() == InputConstants.KEY_PAGEDOWN || event.key() == InputConstants.KEY_PAGEUP) {
             String id = event.key() == InputConstants.KEY_PAGEDOWN ? "next" : "previous";
             hits.stream().filter(hit -> hit.enabled() && hit.id().equals(id)).findFirst().ifPresent(hit -> hit.action().run()); return true;
@@ -186,21 +194,19 @@ public final class ReparationScreen extends CompatScreen {
     }
     private void trust(GuiGraphics g, int l, int t, int mx, int my) {
         var v = data.view();
-        List<Component> details = List.of(text("desk.guild_hint"), text("next_rank", ReputationPanel.progressTarget(v.guildTrust())));
+        List<Component> details = List.of(text("desk.guild_hint"),ReputationPanel.nextRank(v.guildTrust()),ReputationPanel.progressHint(v.guildTrust()));
         card(g, l + 140, t + 45, 392, 62);
         VillageUiTheme.drawIcon(g, VillageUiTheme.icon("trust_handshake"), l + 153, t + 57, 32);
         line(g, text("guild"), l + 200, t + 55, 310, INK, 1.05f, mx, my, details);
-        line(g, text("standing", ReputationPanel.rank(v.guildTrust()), v.guildTrust()), l + 200, t + 72,
+        line(g, !v.enabled() ? text("disabled") : !v.writable() ? text("readonly") : ReputationPanel.standing(v.guildTrust()), l + 200, t + 72,
                 310, INK, 1.05f, mx, my, details);
         g.fill(l + 153, t + 92, l + 365, t + 96, 0xFFB79A6A);
         g.fill(l + 153, t + 92, l + 153 + ReputationPanel.progressPixels(v.guildTrust(), 212), t + 96, TEAL);
-        line(g, text("desk.next_rank", ReputationPanel.rank(ReputationPanel.progressTarget(v.guildTrust())), ReputationPanel.progressTarget(v.guildTrust())), l + 375, t + 91, 148, INK, .68f, mx, my,
-                List.of(text("next_rank", ReputationPanel.progressTarget(v.guildTrust()))));
+        line(g, ReputationPanel.nextRank(v.guildTrust()), l + 375, t + 91, 148, INK, .68f, mx, my,
+                List.of(ReputationPanel.nextRank(v.guildTrust()),ReputationPanel.progressHint(v.guildTrust())));
         service(g, l + 140, t + 117, text("desk.trade"), text("desk.limit", v.buyLimit()), text("trade_limit", v.buyLimit()), mx, my);
-        service(g, l + 274, t + 117, text("desk.dispatch"), ReputationPanel.yes(v.dispatchAllowed()),
-                text("dispatch", ReputationPanel.yes(v.dispatchAllowed())), mx, my);
-        service(g, l + 408, t + 117, text("desk.convoy"), ReputationPanel.yes(v.convoyAllowed()),
-                text("convoy", ReputationPanel.yes(v.convoyAllowed())), mx, my);
+        logisticsService(g,l+274,t+117,false,data.dispatch(),mx,my);
+        logisticsService(g,l+408,t+117,true,data.convoy(),mx,my);
         card(g, l + 140, t + 191, 392, 21);
         Component status = !v.enabled() ? text("disabled") : !v.writable() ? text("readonly")
                 : v.reparation() != null ? text("desk.amends_due") : v.probation() > 0 ? text("desk.probation", v.probation()) : text("desk.earn");
@@ -218,9 +224,9 @@ public final class ReparationScreen extends CompatScreen {
             var village = v.villages().get(i); int x = l + 140 + (i % 2) * 202;
             int localWidth=count==1?392:190;
             card(g, x, t + 221, localWidth, 28);
-            List<Component> info = List.of(ReputationPanel.village(village.key()), text("local_separate"), text(village.affected() ? "local_case" : "local_open"));
+            List<Component> info = ReputationPanel.relationshipDetails(village.bond(),village.trust(),village.affected(),village.hints());
             line(g, ReputationPanel.village(village.key()), x + 8, t + 227, localWidth-16, INK, .78f, mx, my, info);
-            line(g, text("desk.local_standing", ReputationPanel.rank(village.trust()), village.trust()), x + 8, t + 238, localWidth-16, INK, .82f, mx, my, info);
+            line(g, ReputationPanel.relationshipSummary(village.bond(),village.trust(),village.hints(),village.affected()), x + 8, t + 238, localWidth-16, INK, .82f, mx, my, info);
         }
         pages(g, l, t, mx, my, villagePage, count, 2, false);
     }
@@ -231,6 +237,45 @@ public final class ReparationScreen extends CompatScreen {
         line(g, heading, x + 8, y + 39, 108, INK, .85f, mx, my, List.of(detail));
         line(g, value, x + 8, y + 51, 108, INK, .78f, mx, my, List.of(detail));
         if(heading.equals(text("desk.trade"))) line(g,text("desk.trade_reset"),x+8,y+62,108,VillageUiTheme.MUTED,.62f,mx,my,List.of(detail));
+    }
+    void openLogistics(boolean convoy) {
+        logisticsScroll=0;
+        if(!convoy && data.dispatch().action()==ServiceView.DISPATCH && !data.preview()) send(ActionPayload.OPEN_DISPATCH,ReputationPayloads.NONE,0,0);
+        else { tab=convoy?3:4; focus="logistics_back"; }
+    }
+    private void logisticsService(GuiGraphics g,int x,int y,boolean convoy,ServiceView access,int mx,int my) {
+        String id=convoy?"convoy":"dispatch"; Component heading=text("desk."+id);
+        boolean hover=within(mx,my,x,y,124,72) || focus.equals(id);
+        card(g,x,y,124,72,hover);
+        if(convoy) de.quest.client.ui.JournalV3Visuals.illustration(g,QuestArtwork.Motif.CARAVAN.largeTexture(),x+14,y+4,96,31);
+        else de.quest.client.ui.JournalV3Visuals.logistics(g,x+14,y+4,96,31);
+        line(g,heading,x+8,y+39,108,INK,.85f,mx,my,List.of());
+        line(g,access.status(),x+8,y+51,108,access.available()?TEAL:VillageUiTheme.MUTED,.73f,mx,my,access.hints());
+        line(g,text(access.available()?"desk.logistics.open":"desk.logistics.requirements"),x+8,y+62,108,GOLD,.62f,mx,my,access.hints());
+        if(hover) { var info=new ArrayList<Component>(); info.add(access.status()); info.addAll(access.hints()); info.add(text("desk.logistics.inspect")); tooltip.set(info); }
+        // Locked cards open their full instructions, never the service action.
+        hits.add(new Hit(id,x,y,124,72,()->openLogistics(convoy),true));
+    }
+    private List<String> logisticsLines() {
+        var access=tab==3?data.convoy():data.dispatch(); var lines=new ArrayList<String>();
+        for(var hint:access.hints()) { lines.addAll(VillageUiTheme.wrapScaled(font,hint.getString(),366,.8f)); lines.add(""); }
+        if(lines.isEmpty()) lines.addAll(VillageUiTheme.wrapScaled(font,access.status().getString(),366,.8f));
+        return lines;
+    }
+    private int logisticsMaxScroll() { return Math.max(0,logisticsLines().size()-14); }
+    private void logistics(GuiGraphics g,int l,int t,int mx,int my) {
+        var access=tab==3?data.convoy():data.dispatch(); card(g,l+140,t+45,392,204);
+        line(g,access.status(),l+153,t+57,366,access.available()?TEAL:INK,1f,mx,my,access.hints());
+        var lines=logisticsLines(); logisticsScroll=Math.clamp(logisticsScroll,0,Math.max(0,lines.size()-14));
+        for(int row=0;row<14 && logisticsScroll+row<lines.size();row++)
+            VillageUiTheme.drawStringScaled(g,font,lines.get(logisticsScroll+row),l+153,t+79+row*9,INK,.8f);
+        if(lines.size()>14) line(g,text("desk.logistics.scroll"),l+153,t+211,366,GOLD,.65f,mx,my,List.of());
+        button(g,"logistics_back",l+153,t+230,140,15,text("back"),true,false,mx,my,()->{focus=tab==3?"convoy":"dispatch";tab=0;});
+        if(tab==3 && (access.action()==ServiceView.START_CONVOY || access.action()==ServiceView.JOIN_CONVOY)) {
+            boolean start=access.action()==ServiceView.START_CONVOY;
+            button(g,"logistics_confirm",l+312,t+230,207,15,text(start?"desk.logistics.start":"desk.logistics.join"),!data.preview(),false,mx,my,
+                    ()->send(start?ActionPayload.CONVOY_START:ActionPayload.CONVOY_JOIN,ReputationPayloads.NONE,0,0));
+        }
     }
     private void support(GuiGraphics g, int l, int t, int mx, int my) {
         card(g, l + 140, t + 45, 392, 62);

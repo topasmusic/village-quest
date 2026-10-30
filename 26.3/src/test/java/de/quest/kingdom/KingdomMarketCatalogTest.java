@@ -31,7 +31,9 @@ final class KingdomMarketCatalogTest {
             for(int personality=0;personality<4;personality++) {
                 var goods=KingdomMarketCatalog.offers(type,personality);
                 assertEquals(5,goods.size()); assertEquals(5,goods.stream().map(KingdomMarketLedger.Goods::sku).distinct().count());
-                for(var request:VillageRequestType.values()) if(request.bondType()==type)
+                // Upkeep is ordinary mined stone, separate from these identity-specific market needs.
+                for(var request:VillageRequestType.values()) if(request.bondType()==type
+                        && java.util.Arrays.stream(de.quest.village.VillageNeed.values()).anyMatch(need -> need.matches(request)))
                     assertTrue(goods.stream().anyMatch(g -> g.item().equals(BuiltInRegistries.ITEM.getKey(request.item()))));
                 specialties.add(goods.getLast().item());
                 for(var offer:goods) {

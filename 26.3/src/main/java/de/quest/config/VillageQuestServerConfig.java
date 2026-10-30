@@ -81,6 +81,11 @@ public final class VillageQuestServerConfig {
     public record SocialReputationConfig(boolean enabled, boolean trackCreative, boolean caravanMortality) {}
     private final SocialReputationConfig socialReputation;
     public SocialReputationConfig socialReputation() { return socialReputation; }
+    public record AmbientConfig(boolean enabled,int total,int nightrunners) {
+        public AmbientConfig { total=Math.clamp(total,0,8); nightrunners=Math.clamp(nightrunners,0,Math.min(2,total)); }
+    }
+    private AmbientConfig ambient=new AmbientConfig(true,8,2);
+    public AmbientConfig ambient() { return ambient; }
 
     private VillageQuestServerConfig(String configuredResetTimezone,
                                      ZoneId resetZone,
@@ -181,6 +186,9 @@ public final class VillageQuestServerConfig {
                         booleanValue(properties, "socialReputation.caravanMortality", true)),
                 booleanValue(properties,"story_cooldown_enabled",true));
         loaded.minecraftQuestCalendar = booleanValue(properties, "quest_calendar_minecraft_days", false);
+        loaded.ambient=new AmbientConfig(booleanValue(properties,"ambient_adventurers.enabled",true),
+                boundedInt(properties,"ambient_adventurers.max_total",8,0,8),
+                boundedInt(properties,"ambient_adventurers.max_nightrunners",2,0,2));
         return loaded;
     }
 
@@ -274,6 +282,11 @@ public final class VillageQuestServerConfig {
 
                 # FULL = three nearby merchants, REDUCED = one nearby merchant, MAP_ONLY = simulation and maps only.
                 physical_caravans=FULL
+
+                # Temporary Wanderers/Nightrunners; independent of physical_caravans. Caps may only be reduced.
+                ambient_adventurers.enabled=true
+                ambient_adventurers.max_total=8
+                ambient_adventurers.max_nightrunners=2
 
                 # Personal NPC-guild and local trust. Disabling preserves saved standings and cases.
                 socialReputation.enabled=true

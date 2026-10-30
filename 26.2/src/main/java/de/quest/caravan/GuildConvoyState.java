@@ -106,6 +106,10 @@ public final class GuildConvoyState extends SavedData {
     }
 
     public Convoy active(UUID guildId) { return active.get(guildId); }
+    public boolean canStart(UUID guildId,long tick) {
+        long previous=lastStarted.getOrDefault(guildId,-COOLDOWN_TICKS);
+        return guildId!=null && !active.containsKey(guildId) && active.size()<MAX_GUILDS && tick>=0 && tick>=previous && tick-previous>=COOLDOWN_TICKS;
+    }
 
     public Convoy forOwner(UUID ownerId) {
         if (ownerId == null) return null;
@@ -117,9 +121,7 @@ public final class GuildConvoyState extends SavedData {
         if (guildId == null || ownerId == null || connections == null || connections.size() != 3
                 || connections.stream().anyMatch(Objects::isNull)
                 || new HashSet<>(connections).size() != 3
-                || active.containsKey(guildId) || active.size() >= MAX_GUILDS || tick < 0) return false;
-        long previous = lastStarted.getOrDefault(guildId, -COOLDOWN_TICKS);
-        if (tick < previous || tick - previous < COOLDOWN_TICKS) return false;
+                || !canStart(guildId,tick)) return false;
         // Completed guilds no longer need expired cooldowns; live cooldowns must survive reload.
         lastStarted.entrySet().removeIf(entry -> tick >= entry.getValue()
                 && tick - entry.getValue() >= COOLDOWN_TICKS);

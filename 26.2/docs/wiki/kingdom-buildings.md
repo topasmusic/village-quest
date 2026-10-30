@@ -48,6 +48,19 @@ in height. An inn bed needs matching foot and head halves. Market storage needs
 one container; a storehouse needs four. Double chests count once. Loose profession
 blocks do not assign Vanilla jobs to villagers.
 
+Inns and councils also accept a table made from any wooden fence with a pressure
+plate, a closed horizontal trapdoor or a wool carpet directly above. Every wool
+carpet colour and any pressure plate/trapdoor material works. The fence base is
+the table's reference position for the existing chair distance/height rules.
+An uncovered fence, a floating cover or an open trapdoor is not a table. These
+decorative tables do not automatically qualify as market service counters.
+
+The basic building scan reaches 4 blocks above and below the anchor; the extended
+scan reaches 8. For example, an Inn Barrel at Y63 needs the extended area to see
+a bed at Y68. Both bed halves and a reachable path from the entrance must be
+inside the scan. Select the extended area, recheck and confirm/apply it in the
+building interface when offered.
+
 ## Settlement versus inhabited recognition
 
 A furnished valid council can register and name an **empty settlement**. You do

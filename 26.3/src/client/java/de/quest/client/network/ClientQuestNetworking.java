@@ -43,6 +43,13 @@ public final class ClientQuestNetworking {
 
     public static void register() {
         Payloads.register();
+        ClientPlayNetworking.registerGlobalReceiver(de.quest.network.EncounterQuestPayloads.View.ID,(payload,context)->context.client().execute(()->{
+            if(currentScreen(context.client()) instanceof de.quest.client.screen.EncounterQuestScreen screen && screen.session().equals(payload.session())){
+                if(payload.valid())screen.update(payload);else setScreen(context.client(),null);
+            }else if(payload.valid())setScreen(context.client(),new de.quest.client.screen.EncounterQuestScreen(payload));
+        }));
+        ClientPlayNetworking.registerGlobalReceiver(de.quest.network.ExactVersionPayload.ID,(payload,context) -> {});
+        ClientPlayConnectionEvents.DISCONNECT.register((handler,client) -> QuestTrackerHud.update(QuestTrackerHud.TrackerState.disabled()));
         ClientPlayNetworking.registerGlobalReceiver(de.quest.network.FriendsQuestPayloads.View.ID,(payload,context) -> context.client().execute(() -> {
             if(currentScreen(context.client()) instanceof de.quest.client.screen.FriendsQuestScreen screen && screen.session().equals(payload.session())) {
                 screen.update(payload);if(!payload.valid())setScreen(context.client(),null);
@@ -102,6 +109,10 @@ public final class ClientQuestNetworking {
         }));
 
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> client.execute(() -> {
+            if(ClientPlayNetworking.canSend(Payloads.ClientPreferencesPayload.ID) && !ClientPlayNetworking.canSend(de.quest.network.ExactVersionPayload.ID)) {
+                handler.getConnection().disconnect(de.quest.network.ExactVersionPayload.mismatch());
+                return;
+            }
             VillageQuestClientConfig config = VillageQuestClientConfig.get();
             if (ClientPlayNetworking.canSend(Payloads.ClientPreferencesPayload.ID)) {
                 ClientPlayNetworking.send(new Payloads.ClientPreferencesPayload(
@@ -191,7 +202,7 @@ public final class ClientQuestNetworking {
                         payload.networkNextAction(),
                         payload.networkSummary(),
                         payload.networkVillages(),
-                        payload.networkGuildLines()
+                        payload.networkGuildLines(), payload.activeQuests()
                 );
 
                 if (payload.action() == Payloads.JournalPayload.ACTION_OPEN) {
@@ -212,24 +223,7 @@ public final class ClientQuestNetworking {
 
         ClientPlayNetworking.registerGlobalReceiver(Payloads.QuestTrackerPayload.ID, (payload, context) -> {
             var client = context.client();
-            client.execute(() -> QuestTrackerHud.update(new QuestTrackerHud.TrackerState(
-                    payload.enabled(),
-                    payload.dailyActive(),
-                    payload.dailyTitle(),
-                    payload.dailyLines(),
-                    payload.weeklyActive(),
-                    payload.weeklyTitle(),
-                    payload.weeklyLines(),
-                    payload.storyActive(),
-                    payload.storyTitle(),
-                    payload.storyLines(),
-                    payload.pilgrimActive(),
-                    payload.pilgrimTitle(),
-                    payload.pilgrimLines(),
-                    payload.specialActive(),
-                    payload.specialTitle(),
-                    payload.specialLines()
-            )));
+            client.execute(() -> QuestTrackerHud.update(new QuestTrackerHud.TrackerState(payload.enabled(),payload.entries())));
         });
 
         ClientPlayNetworking.registerGlobalReceiver(Payloads.PilgrimTradePayload.ID, (payload, context) -> {

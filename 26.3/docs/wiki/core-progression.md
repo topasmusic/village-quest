@@ -1,5 +1,9 @@
 # Core Progression
 
+Questmaster, local-story, introductory board and crisis detail text can be scrolled with the mouse wheel, arrow keys, Page Up/Down and Home/End. Scrollbars show when more text is available; action buttons remain in place. Special quest instructions remain available after acceptance. Town commission chat offers show full rules before the acceptance link; accepted rules and Pilgrim instructions remain in the journal.
+
+Multistage Daily and Weekly details show the complete bundle that will be consumed at hand-in. Wheat used to bake the required bread is part of the harvest target, not an extra wheat delivery. Older accepted smelting Dailys may still include Raw Iron; follow the actual delivery rows for that quest. Pausing or returning to the journal keeps the full rule text available.
+
 ## Design Structure
 
 `Village Quest` is split into a village-core lane and a later outer-road lane.

@@ -19,6 +19,7 @@ public final class VanillaRewardService {
     private record Pending(ServerLevel world, String identity, boolean admin, ServerLevel location, Vec3 position, long expires) { }
     private static final Map<UUID, Pending> PENDING = new HashMap<>();
     private static final RewardChoiceSessions SESSIONS = new RewardChoiceSessions();
+    public static void clearPersonalSession(UUID player) { PENDING.remove(player); SESSIONS.clear(player); }
     public static PlayerRewardState state(ServerLevel world, UUID player) { return QuestState.get(world.getServer()).getPlayerData(player).vanillaRewards(); }
     public static String dailyIdentity(String type) { return type + ":" + de.quest.util.QuestCalendarService.currentDay(); }
     public static String weeklyIdentity(String type) { return type + ":" + de.quest.util.QuestCalendarService.currentWeekCycle(); }
@@ -76,6 +77,7 @@ public final class VanillaRewardService {
         ServerPlayNetworking.send(player, new RewardPayloads.View(ticket.token(), offer.getStringOr("key", ""), List.copyOf(choices), preferred));
     }
     public static void handle(ServerPlayer player, RewardPayloads.Action action) {
+        if (de.quest.shrine.VillageIntroRequestService.blocksActions(player.level(),player.getUUID())) return;
         var pending = PENDING.get(player.getUUID());
         if (pending == null || !player.isAlive() || player.isSpectator() || player.level() != pending.location()
                 || player.position().distanceToSqr(pending.position()) > 144 || pending.world().getServer() != player.level().getServer()
@@ -98,6 +100,7 @@ public final class VanillaRewardService {
         });
     }
     public static void complete(ServerLevel world, ServerPlayer player, String slot, String identity) {
+        if (de.quest.shrine.VillageIntroRequestService.blocksActions(world,player.getUUID())) return;
         var state = state(world, player.getUUID()); var snapshot = state.snapshot(slot, identity);
         if (!state.writable() || snapshot.isEmpty() || snapshot.getBooleanOr("redeemed", true)) return;
         if (snapshot.contains("choices")) {
@@ -131,22 +134,30 @@ public final class VanillaRewardService {
     }
     public static int deliverItems(ServerLevel world,ServerPlayer player) {return deliverPending(world,player);}
     private static int deliverPending(ServerLevel world, ServerPlayer player) {
+        if (de.quest.shrine.VillageIntroRequestService.blocksActions(world,player.getUUID())) return 0;
         if (!player.isAlive() || player.isSpectator()) return 0;
         var state = state(world, player.getUUID()); if (!state.writable()) return 0;
-        var pending = state.pending(); var remaining = new ListTag(); int delivered = 0;
+        var pending = state.pending(); var remaining = new ListTag(); int delivered = 0, rodsDelivered = 0;
         for (var raw : pending) {
             try {
                 var stack = RewardItems.decode(world, raw); int before = stack.getCount();
-                player.getInventory().add(stack); delivered += before - stack.getCount();
+                boolean blazeRods = stack.is(net.minecraft.world.item.Items.BLAZE_ROD);
+                player.getInventory().add(stack); int received = before - stack.getCount(); delivered += received;
+                if (blazeRods) rodsDelivered += received;
                 if (!stack.isEmpty()) remaining.add(RewardItems.encode(world, List.of(stack)).getFirst());
             } catch (RuntimeException unavailableComponent) { remaining.add(raw.copy()); }
         }
         state.pending(remaining); QuestState.get(world.getServer()).setDirty();
+        // This is an actual owned acquisition, not a mined/mob-drop event. Commit
+        // the remaining entitlement before feedback, so a callback cannot requeue delivered goods.
+        if (rodsDelivered > 0) de.quest.quest.special.ShardRelicQuestService.onTrackedItemPickup(world, player,
+                new ItemStack(net.minecraft.world.item.Items.BLAZE_ROD), rodsDelivered);
         if (!remaining.isEmpty()) player.sendSystemMessage(Component.translatable("reward.village-quest.pending", remaining.size())
                 .withStyle(style -> style.withColor(ChatFormatting.YELLOW).withClickEvent(new ClickEvent.RunCommand("/vq rewards claim"))), false);
         return delivered;
     }
     public static void firstBonus(ServerLevel world, ServerPlayer player, String key) {
+        if (de.quest.shrine.VillageIntroRequestService.blocksActions(world,player.getUUID())) return;
         var state = state(world, player.getUUID());
         if (state.first(key)) { CurrencyService.addBalance(world, player.getUUID(), 8); QuestState.get(world.getServer()).setDirty();
             player.sendSystemMessage(Component.translatable("reward.village-quest.first_bonus", CurrencyService.formatBalance(8)), false); }
@@ -157,6 +168,7 @@ public final class VanillaRewardService {
         if(world==null || player==null || price<0 || !world.getServer().isSameThread()) return false;
         if(items==null || items.isEmpty()) return false;
         for(var item:items) if(item==null || item.isEmpty()) return false;
+        if(de.quest.shrine.VillageIntroRequestService.blocksActions(world,player.getUUID())) return false;
         var state=state(world,player.getUUID());
         if(!state.writable() || !state.canEnqueue(items.size())) return false;
         net.minecraft.nbt.ListTag pending;

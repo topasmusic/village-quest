@@ -18,6 +18,33 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.effect.*;
 public final class MariusQuestService {
  private MariusQuestService() {}
+ public static boolean peaceful(ServerLevel world) {return world!=null && world.getDifficulty()==net.minecraft.world.Difficulty.PEACEFUL;}
+ public static Map<Item,Integer> peacefulCosts(int stage) {
+  var costs=new LinkedHashMap<Item,Integer>();
+  switch(stage) {case 0 -> costs.put(Items.TORCH,16);case 1 -> costs.put(Items.IRON_INGOT,8);case 2 -> {costs.put(Items.BREAD,16);costs.put(Items.SHIELD,1);}default -> {}}
+  return Collections.unmodifiableMap(costs);
+ }
+ public static boolean ready(ServerLevel world,ServerPlayer player,FriendsQuestProgress p) {
+  return p.active("marius") && p.stage("marius")<3 && (peaceful(world)
+    ? FriendsQuestService.has(player,peacefulCosts(p.stage("marius"))) : new MariusQuestProgress(p).ready());
+ }
+ public static net.minecraft.network.chat.Component shortObjective(ServerPlayer player,FriendsQuestProgress p) {
+  var rows=new ArrayList<net.minecraft.network.chat.Component>();boolean missing=false;
+  for(var cost:peacefulCosts(p.stage("marius")).entrySet()) {
+   int count=de.quest.quest.daily.DailyQuestService.countInventoryItem(player,cost.getKey());
+   missing|=count<cost.getValue();
+   rows.add(de.quest.quest.QuestShortObjective.material(net.minecraft.network.chat.Component.translatable(cost.getKey().getDescriptionId()),count,cost.getValue()));
+  }
+  if(missing)return de.quest.quest.QuestShortObjective.group(rows);
+  return net.minecraft.network.chat.Component.translatable("quest.village-quest.tracker.meet_friend",net.minecraft.network.chat.Component.literal("Marius"));
+ }
+ public static List<net.minecraft.network.chat.Component> lines(ServerLevel world,ServerPlayer player,FriendsQuestProgress p) {
+  if(!peaceful(world) || p.stage("marius")>=3)return lines(p);
+  var result=new ArrayList<net.minecraft.network.chat.Component>();
+  result.add(FriendsQuestService.tr("marius.peaceful.objective."+p.stage("marius")));
+  for(var cost:peacefulCosts(p.stage("marius")).entrySet())result.add(net.minecraft.network.chat.Component.translatable("screen.village-quest.ui_review.objective_row",net.minecraft.network.chat.Component.translatable(cost.getKey().getDescriptionId()),player==null?0:de.quest.quest.daily.DailyQuestService.countInventoryItem(player,cost.getKey()),cost.getValue()));
+  return List.copyOf(result);
+ }
  public static void killed(ServerLevel world,ServerPlayer player,Entity entity) {
   var p=FriendsQuestService.progress(world,player.getUUID());
   if(!player.isAlive() || player.isSpectator() || !(entity instanceof Monster) || !p.active("marius") || p.stage("marius")!=0 || world.dimension()!=Level.OVERWORLD)return;
@@ -44,15 +71,20 @@ public final class MariusQuestService {
   }
  }
  public static boolean turnIn(ServerLevel world,ServerPlayer player,FriendsQuestProgress p) {
-  if(!new MariusQuestProgress(p).ready())return false;int stage=p.stage("marius");var goods=FriendsQuestRewards.create(world.registryAccess(),"marius",stage+1,false,player.getUUID()).items();
-  if(!FriendsQuestService.enqueue(world,player,goods))return false;
+  if(!ready(world,player,p))return false;int stage=p.stage("marius");var goods=FriendsQuestRewards.create(world.registryAccess(),"marius",stage+1,false,player.getUUID()).items();
+  var data=QuestState.get(world.getServer()).getPlayerData(player.getUUID());
+  boolean payout=!de.quest.data.PersonalResetReceipts.friendPaid(data,"marius",stage);
+  if(stage==2) for(var item:goods) CustomData.update(DataComponents.CUSTOM_DATA,item,t -> t.putInt("watchGeneration",Math.max(1,p.number("marius.generation"))));
+  if((payout || stage==2) && !FriendsQuestService.enqueue(world,player,goods))return false;
+  if(peaceful(world))FriendsQuestService.consume(player,peacefulCosts(stage));
   if(!p.complete("marius"))throw new IllegalStateException("Watch quest changed in server turn-in");
-  if(stage<2) {CurrencyService.addBalance(world,player.getUUID(),stage==0?12:20);FriendsQuestService.experience(player,stage==0?2:3);}
+  de.quest.data.PersonalResetReceipts.friendPaidThrough(data,"marius",stage+1);
+  if(payout && stage<2) {CurrencyService.addBalance(world,player.getUUID(),stage==0?12:20);FriendsQuestService.experience(player,stage==0?2:3);}
   VanillaRewardService.deliverItems(world,player);return true;
  }
  public static boolean useSeal(ServerLevel world,ServerPlayer player,ItemStack stack) {
   var p=FriendsQuestService.progress(world,player.getUUID());var state=new MariusQuestProgress(p);long now=world.getServer().overworld().getGameTime();
-  if(!player.isAlive() || player.isSpectator() || !stack.getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY).copyTag().getStringOr("watchOwner","").equals(player.getUUID().toString()) || p.stage("marius")!=3) {
+  if(!player.isAlive() || player.isSpectator() || !stack.getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY).copyTag().getStringOr("watchOwner","").equals(player.getUUID().toString()) || stack.getOrDefault(DataComponents.CUSTOM_DATA,CustomData.EMPTY).copyTag().getIntOr("watchGeneration",1)!=Math.max(1,p.number("marius.generation")) || p.stage("marius")!=3) {
    player.sendSystemMessage(FriendsQuestService.tr("marius.seal.unavailable"),false);return false;
   }
   long remaining=state.sealRemaining(now);
@@ -76,7 +108,7 @@ public final class MariusQuestService {
   return List.copyOf(lines);
  }
  public static boolean schedule(ServerLevel world,ServerPlayer player,FriendsQuestProgress p,UUID village,BlockPos center) {
-  if(world.dimension()!=Level.OVERWORLD)return false;
+  if(peaceful(world) || world.dimension()!=Level.OVERWORLD)return false;
   if(!new MariusQuestProgress(p).schedule(world.getOverworldClockTime()))return false;
   p.number("marius.wait",(int)Math.min(24000,Long.parseLong(p.text("marius.raidDue"))-world.getOverworldClockTime()));
   p.text("marius.village",village.toString());p.text("marius.dimension",world.dimension().identifier().toString());
@@ -84,6 +116,7 @@ public final class MariusQuestService {
   FriendsQuestService.changed(world,player);player.sendSystemMessage(FriendsQuestService.tr("marius.scheduled"),false);return true;
  }
  public static boolean tick(ServerLevel world,ServerPlayer player,FriendsQuestProgress p) {
+  if(peaceful(world))return false;
   if(p.number("marius.victory")==1 || !world.dimension().identifier().toString().equals(p.text("marius.dimension")))return false;
   if(p.number("marius.raidPhase")==2) {
    String raw=p.text("marius.raid");int split=raw.lastIndexOf(':');if(split<0)return false;

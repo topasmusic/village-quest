@@ -3,6 +3,8 @@ package de.quest.party;
 import de.quest.pilgrim.PilgrimContractType;
 import de.quest.quest.daily.DailyQuestService;
 import de.quest.quest.story.StoryArcType;
+import de.quest.quest.story.StoryLane;
+import java.util.Map;
 import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.util.TimeUtil;
 import de.quest.util.QuestCalendarService;
@@ -12,6 +14,23 @@ import net.minecraft.server.level.ServerLevel;
 /** Lifecycle, identity, and lookup rules for the four shareable quest session types. */
 final class QuestPartySessions {
     private QuestPartySessions() {}
+
+    static SharedQuestRuntime sessionFor(PartyRuntime party, StoryArcType arc) {
+        return party == null || arc == null ? null
+                : StoryLane.forArc(arc) == StoryLane.KINGDOM ? party.kingdomStory() : party.story();
+    }
+
+    static Map<UUID, QuestJoinOffer> offersFor(PartyRuntime party, StoryArcType arc) {
+        return StoryLane.forArc(arc) == StoryLane.KINGDOM ? party.kingdomStoryOffers() : party.storyOffers();
+    }
+
+    static SharedQuestRuntime sessionFor(PartyRuntime party, StoryLane lane) {
+        return lane == StoryLane.KINGDOM ? party.kingdomStory() : party.story();
+    }
+
+    static Map<UUID, QuestJoinOffer> offersFor(PartyRuntime party, StoryLane lane) {
+        return lane == StoryLane.KINGDOM ? party.kingdomStoryOffers() : party.storyOffers();
+    }
 
     static SharedQuestRuntime sharedDailySession(ServerLevel world, UUID playerId,
                                                   DailyQuestService.DailyQuestType type) {
@@ -48,8 +67,8 @@ final class QuestPartySessions {
             return null;
         }
         if (arcType==StoryArcType.LIVING_KINGDOMS && !QuestPartyService.matchesKingdomVillageBinding(
-                de.quest.data.QuestState.get(world.getServer()).getPlayerData(playerId),party.story())) return null;
-        return party.story().hasSynced(playerId) ? party.story() : null;
+                de.quest.data.QuestState.get(world.getServer()).getPlayerData(playerId),sessionFor(party,arcType))) return null;
+        return sessionFor(party,arcType).hasSynced(playerId) ? sessionFor(party,arcType) : null;
     }
 
     static SharedQuestRuntime sharedStorySessionForType(ServerLevel world, UUID playerId,
@@ -58,7 +77,7 @@ final class QuestPartySessions {
         if (world == null || party == null || arcType == null || !matchesStorySession(party, arcType, chapterIndex)) {
             return null;
         }
-        return party.story();
+        return sessionFor(party,arcType);
     }
 
     static SharedQuestRuntime sharedPilgrimSession(ServerLevel world, UUID playerId, PilgrimContractType type) {
@@ -78,7 +97,8 @@ final class QuestPartySessions {
         if (party == null || type == null) return null;
         long day = QuestCalendarService.currentDay();
         SharedQuestRuntime session = party.daily();
-        if (!session.matches(type.name(), day)) {
+        if (session.questId() != null && !type.name().equals(session.questId())) return null;
+        if (session.questId() == null) {
             session.bind(type.name(), day);
             party.dailyOffers().clear();
         }
@@ -89,7 +109,8 @@ final class QuestPartySessions {
         if (party == null || type == null) return null;
         long cycle = QuestCalendarService.currentWeekCycle();
         SharedQuestRuntime session = party.weekly();
-        if (!session.matches(type.name(), cycle)) {
+        if (session.questId() != null && !type.name().equals(session.questId())) return null;
+        if (session.questId() == null) {
             session.bind(type.name(), cycle);
             party.weeklyOffers().clear();
         }
@@ -97,12 +118,12 @@ final class QuestPartySessions {
     }
 
     static SharedQuestRuntime ensureStorySession(PartyRuntime party, StoryArcType arcType, int chapterIndex) {
-        if (party == null || arcType == null || chapterIndex < 0) return null;
+        if (party == null || arcType == null || chapterIndex < 0 || chapterIndex >= arcType.chapterCount()) return null;
         String questId = storySessionId(arcType, chapterIndex);
-        SharedQuestRuntime session = party.story();
+        SharedQuestRuntime session = sessionFor(party,arcType);
         if (!session.matches(questId, chapterIndex)) {
             session.bind(questId, chapterIndex);
-            party.storyOffers().clear();
+            offersFor(party,arcType).clear();
         }
         return session;
     }
@@ -121,20 +142,12 @@ final class QuestPartySessions {
     static DailyQuestService.DailyQuestType activeDailyType(PartyRuntime party) {
         if (party == null) return null;
         SharedQuestRuntime session = party.daily();
-        if (!session.isCurrent(QuestCalendarService.currentDay())) {
-            session.clear();
-            return null;
-        }
         return parseDailyType(session.questId());
     }
 
     static WeeklyQuestService.WeeklyQuestType activeWeeklyType(PartyRuntime party) {
         if (party == null) return null;
         SharedQuestRuntime session = party.weekly();
-        if (!session.isCurrent(QuestCalendarService.currentWeekCycle())) {
-            session.clear();
-            return null;
-        }
         return parseWeeklyType(session.questId());
     }
 
@@ -144,6 +157,14 @@ final class QuestPartySessions {
 
     static int activeStoryChapterIndex(PartyRuntime party) {
         return party == null || party.story().questId() == null ? -1 : parseStoryChapter(party.story().questId());
+    }
+
+    static StoryArcType activeStoryType(PartyRuntime party, StoryLane lane) {
+        return party == null ? null : parseStoryType(sessionFor(party,lane).questId());
+    }
+
+    static int activeStoryChapterIndex(PartyRuntime party, StoryLane lane) {
+        return party == null ? -1 : parseStoryChapter(sessionFor(party,lane).questId());
     }
 
     static PilgrimContractType activePilgrimType(PartyRuntime party) {
@@ -180,7 +201,8 @@ final class QuestPartySessions {
 
     static boolean matchesStorySession(PartyRuntime party, StoryArcType arcType, int chapterIndex) {
         return party != null && arcType != null && chapterIndex >= 0
-                && party.story().matches(storySessionId(arcType, chapterIndex), chapterIndex);
+                && chapterIndex < arcType.chapterCount()
+                && sessionFor(party,arcType).matches(storySessionId(arcType, chapterIndex), chapterIndex);
     }
 
     static StoryArcType parseStoryType(String questId) {

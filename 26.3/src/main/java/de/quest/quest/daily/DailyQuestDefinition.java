@@ -21,17 +21,45 @@ public interface DailyQuestDefinition {
 
     Component offerParagraph2();
 
+    default java.util.List<Component> descriptionLines(ServerLevel world, UUID playerId) {
+        return de.quest.quest.PeacefulRepeatableSupplies.daily(world,type())
+                ? de.quest.quest.PeacefulRepeatableSupplies.dailyDescription(type())
+                : java.util.List.of(offerParagraph1(),offerParagraph2());
+    }
+
     Component progressLine(ServerLevel world, UUID playerId);
 
     boolean isComplete(ServerLevel world, ServerPlayer player);
 
     DailyQuestCompletion buildCompletion(ServerLevel world);
 
+    default DailyQuestCompletion completionFor(ServerLevel world) {
+        var completion = buildCompletion(world);
+        return de.quest.quest.PeacefulRepeatableSupplies.daily(world,type())
+                ? de.quest.quest.PeacefulRepeatableSupplies.completion(completion) : completion;
+    }
+
     default QuestCompletionMode completionMode() { return QuestCompletionMode.AUTOMATIC; }
 
-    default boolean consumeCompletionRequirements(ServerLevel world, ServerPlayer player) { return true; }
+    default QuestCompletionMode completionMode(ServerLevel world) {
+        return de.quest.quest.PeacefulRepeatableSupplies.daily(world,type())
+                ? QuestCompletionMode.QUESTMASTER_TURN_IN : completionMode();
+    }
 
-    default Component claimBlockedMessage(ServerLevel world, ServerPlayer player) { return null; }
+    default boolean consumeCompletionRequirements(ServerLevel world, ServerPlayer player) {
+        return !de.quest.quest.PeacefulRepeatableSupplies.daily(world,type())
+                || de.quest.quest.PeacefulRepeatableSupplies.consumeDaily(world,player,type());
+    }
+
+    default Component claimBlockedMessage(ServerLevel world, ServerPlayer player) {
+        return de.quest.quest.PeacefulRepeatableSupplies.daily(world,type())
+                && !de.quest.quest.PeacefulRepeatableSupplies.dailyComplete(world,player,type())
+                ? de.quest.quest.PeacefulRepeatableSupplies.blocked() : null;
+    }
+
+    default Component claimBlockedMessage(ServerLevel world, ServerPlayer player, boolean allRequirements) {
+        return claimBlockedMessage(world, player);
+    }
 
     default void onAccepted(ServerLevel world, ServerPlayer player) {}
 

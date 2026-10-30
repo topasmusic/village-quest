@@ -134,6 +134,11 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
 
         @Override
         public Component claimBlockedMessage(ServerLevel world, ServerPlayer player) {
+            return claimBlockedMessage(world, player, false);
+        }
+
+        @Override
+        public Component claimBlockedMessage(ServerLevel world, ServerPlayer player, boolean allRequirements) {
             if (player == null || world == null) {
                 return null;
             }
@@ -144,7 +149,7 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
                     && hasItem(world, player, Items.POTATO, THIN_FIELDS_POTATO_TARGET))) {
                 return null;
             }
-            return Texts.turnInMissing(
+            return Texts.turnInMissing(allRequirements,
                     Items.WHEAT.getDefaultInstance().getDisplayName(),
                     StoryQuestService.countCompletionItem(world, playerId, Items.WHEAT),
                     THIN_FIELDS_WHEAT_TARGET,
@@ -232,6 +237,11 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
 
         @Override
         public Component claimBlockedMessage(ServerLevel world, ServerPlayer player) {
+            return claimBlockedMessage(world, player, false);
+        }
+
+        @Override
+        public Component claimBlockedMessage(ServerLevel world, ServerPlayer player, boolean allRequirements) {
             if (player == null || world == null) {
                 return null;
             }
@@ -240,7 +250,7 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
                     && hasItem(world, player, Items.HONEYCOMB, QUIET_HIVES_COMB_TARGET)) {
                 return null;
             }
-            return Texts.turnInMissing(
+            return Texts.turnInMissing(allRequirements,
                     Items.HONEY_BOTTLE.getDefaultInstance().getDisplayName(),
                     StoryQuestService.countCompletionItem(world, playerId, Items.HONEY_BOTTLE),
                     QUIET_HIVES_HONEY_TARGET,
@@ -307,7 +317,7 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
                     BREAD_POTATO_TARGET
             ).withStyle(ChatFormatting.GRAY);
             ServerPlayer player = world == null ? null : world.getServer().getPlayerList().getPlayer(playerId);
-            Component blocked = player == null ? null : claimBlockedMessage(world, player);
+            Component blocked = player == null ? null : claimBlockedMessage(world, player, true);
             return blocked == null ? List.of(line) : List.of(line, blocked);
         }
 
@@ -337,6 +347,11 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
 
         @Override
         public Component claimBlockedMessage(ServerLevel world, ServerPlayer player) {
+            return claimBlockedMessage(world, player, false);
+        }
+
+        @Override
+        public Component claimBlockedMessage(ServerLevel world, ServerPlayer player, boolean allRequirements) {
             if (player == null || world == null) {
                 return null;
             }
@@ -347,7 +362,7 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
                     && hasItem(world, player, Items.BAKED_POTATO, BREAD_POTATO_TARGET))) {
                 return null;
             }
-            return Texts.turnInMissing(
+            return Texts.turnInMissing(allRequirements,
                     Items.BREAD.getDefaultInstance().getDisplayName(),
                     StoryQuestService.countCompletionItem(world, playerId, Items.BREAD),
                     BREAD_BREAD_TARGET,

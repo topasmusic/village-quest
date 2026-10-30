@@ -84,6 +84,10 @@ final class QuestDialogInteractionTest {
                 var p=pointer(screen,165,151,560,315);
                 int max=(int)field(screen,"descriptionScrollMax");assertTrue(max>0);
                 for(int i=0;i<max;i++) assertTrue(screen.mouseScrolled(p.x(),p.y(),0,-1));
+                assertTrue(screen.keyPressed(new net.minecraft.client.input.KeyEvent(InputConstants.KEY_HOME,0,0)));
+                assertEquals(0,field(screen,"descriptionScroll"));
+                assertTrue(screen.keyPressed(new net.minecraft.client.input.KeyEvent(InputConstants.KEY_END,0,0)));
+                assertEquals(max,field(screen,"descriptionScroll"));
                 theme.clearInvocations();screen.render(graphics,0,0,0);
                 theme.verify(() -> VillageUiTheme.drawStringScaled(eq(graphics),eq(font),contains("LASTLINE"),anyFloat(),anyFloat(),anyInt(),anyFloat()));
                 var action=NoticeJourneyLayout.buttons(data.stage(),false).stream().filter(b -> b.action()==VillageNetworkPayloads.NoticeJourneyActionPayload.REFRESH).findFirst().orElseThrow();

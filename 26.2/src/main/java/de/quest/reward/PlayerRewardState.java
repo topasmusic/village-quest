@@ -111,6 +111,14 @@ public final class PlayerRewardState {
         root.put("pending", items.copy());
     }
     public CompoundTag toNbt() { return root.copy(); }
+    /** Unfinished quest offers may be abandoned; earned choices and pending item deliveries must be collected first. */
+    public CompoundTag personalRestart() {
+        if (!writable) throw new IllegalStateException("Unknown reward data cannot be reset");
+        if (!pending().isEmpty() || !earned().isEmpty()) throw new IllegalStateException("Collect earned rewards before restarting");
+        var tag = fresh();
+        tag.put("first", root.getCompoundOrEmpty("first").copy());
+        return tag;
+    }
     public static PlayerRewardState fromNbt(CompoundTag tag) {
         var state = new PlayerRewardState();
         if (tag == null || tag.isEmpty()) return state;

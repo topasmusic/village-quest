@@ -21,6 +21,8 @@ public final class Payloads {
         if (registered) {
             return;
         }
+        PayloadTypeRegistry.clientboundPlay().register(ExactVersionPayload.ID,ExactVersionPayload.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(ExactVersionPayload.ID,ExactVersionPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(QuestSetupPayloads.View.ID, QuestSetupPayloads.View.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(QuestSetupPayloads.Open.ID, QuestSetupPayloads.Open.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(QuestSetupPayloads.Save.ID, QuestSetupPayloads.Save.CODEC);
@@ -31,6 +33,8 @@ public final class Payloads {
         PayloadTypeRegistry.clientboundPlay().register(MarketPayloads.View.ID, MarketPayloads.View.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(NpcSpeechPayload.ID,NpcSpeechPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(FriendsQuestPayloads.View.ID,FriendsQuestPayloads.View.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(EncounterQuestPayloads.View.ID,EncounterQuestPayloads.View.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(EncounterQuestPayloads.Action.ID,EncounterQuestPayloads.Action.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(FriendsQuestPayloads.Action.ID,FriendsQuestPayloads.Action.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(MarketPayloads.Action.ID, MarketPayloads.Action.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(BuildingPayloads.Action.ID, BuildingPayloads.Action.CODEC);
@@ -198,13 +202,63 @@ public final class Payloads {
             Component networkNextAction,
             NetworkSummaryData networkSummary,
             List<NetworkVillageData> networkVillages,
-            List<Component> networkGuildLines
+            List<Component> networkGuildLines,
+            List<de.quest.quest.JournalActiveQuest> activeQuests
     ) implements CustomPacketPayload {
+
+        public JournalPayload(int action,
+            int total,
+            int discovered,
+            int completed,
+            int active,
+            long currencyBalance,
+            int farmingReputation,
+            int craftingReputation,
+            int animalReputation,
+            int tradeReputation,
+            int monsterReputation,
+            boolean hasStarreachRing,
+            boolean hasMerchantSeal,
+            boolean hasShepherdFlute,
+            boolean hasApiaristSmoker,
+            boolean hasSurveyorCompass,
+            boolean hasCaravanLedger,
+            boolean dailyActive,
+            Component dailyTitle,
+            Component dailyProgress,
+            boolean weeklyActive,
+            Component weeklyTitle,
+            Component weeklyProgress,
+            boolean storyActive,
+            Component storyTitle,
+            Component storyProgress,
+            boolean pilgrimActive,
+            Component pilgrimTitle,
+            Component pilgrimProgress,
+            boolean specialActive,
+            Component specialTitle,
+            Component specialProgress,
+            boolean hasVillageLedgerProject,
+            boolean hasApiaryCharterProject,
+            boolean hasForgeCharterProject,
+            boolean hasMarketCharterProject,
+            boolean hasPastureCharterProject,
+            boolean hasWatchBellProject,
+            boolean hasCaravanYardProject,
+            boolean hasWayshrineNetworkProject,
+            List<GuildPathNodeData> guildPathNodes,
+            Component networkNextAction,
+            NetworkSummaryData networkSummary,
+            List<NetworkVillageData> networkVillages,
+            List<Component> networkGuildLines) {
+            this(action, total, discovered, completed, active, currencyBalance, farmingReputation, craftingReputation, animalReputation, tradeReputation, monsterReputation, hasStarreachRing, hasMerchantSeal, hasShepherdFlute, hasApiaristSmoker, hasSurveyorCompass, hasCaravanLedger, dailyActive, dailyTitle, dailyProgress, weeklyActive, weeklyTitle, weeklyProgress, storyActive, storyTitle, storyProgress, pilgrimActive, pilgrimTitle, pilgrimProgress, specialActive, specialTitle, specialProgress, hasVillageLedgerProject, hasApiaryCharterProject, hasForgeCharterProject, hasMarketCharterProject, hasPastureCharterProject, hasWatchBellProject, hasCaravanYardProject, hasWayshrineNetworkProject, guildPathNodes, networkNextAction, networkSummary, networkVillages, networkGuildLines, List.of());
+        }
+        public JournalPayload { activeQuests=de.quest.quest.JournalActiveQuest.checked(activeQuests); }
         public static final int ACTION_OPEN = 0;
         public static final int ACTION_UPDATE = 1;
         public static final int ACTION_CLOSE = 2;
 
-        public static final CustomPacketPayload.Type<JournalPayload> ID = new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "journal"));
+        public static final CustomPacketPayload.Type<JournalPayload> ID = new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "journal_overhaul_v2"));
         public static final StreamCodec<RegistryFriendlyByteBuf, JournalPayload> CODEC = StreamCodec.of(JournalPayload::write, JournalPayload::read);
 
         private static JournalPayload read(RegistryFriendlyByteBuf buf) {
@@ -310,7 +364,8 @@ public final class Payloads {
                     networkNextAction,
                     networkSummary,
                     List.copyOf(networkVillages),
-                    List.copyOf(networkGuildLines)
+                    List.copyOf(networkGuildLines),
+                    de.quest.quest.JournalActiveQuest.readList(buf)
             );
         }
 
@@ -379,6 +434,7 @@ public final class Payloads {
             for (int i = 0; i < networkGuildLineCount; i++) {
                 ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, networkGuildLines.get(i));
             }
+            de.quest.quest.JournalActiveQuest.writeList(buf,payload.activeQuests());
         }
 
         @Override
@@ -423,7 +479,12 @@ public final class Payloads {
     public record NetworkVillageData(int index, Component villageType, Component bondLevel,
                                      Component condition, String conditionKey, Component need,
                                      int support, int energyProgress, int socialTrust, boolean socialCase,
-                                     java.util.UUID canonicalId,List<Component> lastKnown,JournalVillageStats stats) {
+                                     java.util.UUID canonicalId,List<Component> lastKnown,JournalVillageStats stats, de.quest.reputation.VillageRelationship.Hints relationship) {
+        public NetworkVillageData(int index,Component villageType,Component bondLevel,Component condition,String conditionKey,Component need,int support,int energyProgress,int socialTrust,boolean socialCase,java.util.UUID canonicalId,List<Component> lastKnown,JournalVillageStats stats) {
+            this(index,villageType,bondLevel,condition,conditionKey,need,support,energyProgress,socialTrust,socialCase,canonicalId,lastKnown,stats,de.quest.reputation.VillageRelationship.UNKNOWN);
+        }
+        // Life, population, four buildings, two optional inn lines and the route/rebuild hint.
+        public static final int MAX_SUMMARY_LINES = 9;
         public NetworkVillageData(int index,Component villageType,Component bondLevel,Component condition,String conditionKey,
                                   Component need,int support,int energyProgress,int socialTrust,boolean socialCase) {
             this(index,villageType,bondLevel,condition,conditionKey,need,support,energyProgress,socialTrust,socialCase,BuildingPayloads.NONE,List.of());
@@ -434,7 +495,7 @@ public final class Payloads {
             this(index,villageType,bondLevel,condition,conditionKey,need,support,energyProgress,socialTrust,socialCase,canonicalId,lastKnown,JournalVillageStats.UNKNOWN);
         }
         public NetworkVillageData {
-            if(canonicalId==null || stats==null || lastKnown==null || lastKnown.size()>7) throw new IllegalArgumentException("Invalid village summary");
+            if(canonicalId==null || stats==null || lastKnown==null || lastKnown.size()>MAX_SUMMARY_LINES) throw new IllegalArgumentException("Invalid village summary");
             lastKnown=List.copyOf(lastKnown);
         }
         public static final StreamCodec<RegistryFriendlyByteBuf, NetworkVillageData> CODEC =
@@ -449,12 +510,12 @@ public final class Payloads {
                     ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf),
                     buf.readVarInt(),
                     buf.readVarInt(), buf.readVarInt(), buf.readBoolean(),buf.readUUID(),readSummary(buf),
-                    new JournalVillageStats(buf.readVarInt(),buf.readVarInt(),buf.readVarInt(),buf.readVarInt()));
+                    new JournalVillageStats(buf.readVarInt(),buf.readVarInt(),buf.readVarInt(),buf.readVarInt()),de.quest.reputation.VillageRelationship.read(buf));
         }
 
         private static List<Component> readSummary(RegistryFriendlyByteBuf buf) {
             int count=buf.readVarInt();
-            if(count<0 || count>7) throw new IllegalArgumentException("Oversized village summary");
+            if(count<0 || count>MAX_SUMMARY_LINES) throw new IllegalArgumentException("Oversized village summary");
             List<Component> lines=new ArrayList<>();
             for(int i=0;i<count;i++) lines.add(ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf));
             return lines;
@@ -476,7 +537,7 @@ public final class Payloads {
             buf.writeVarInt(safe.socialTrust()); buf.writeBoolean(safe.socialCase());
             buf.writeUUID(safe.canonicalId()); buf.writeVarInt(safe.lastKnown().size());
             for(var line:safe.lastKnown()) ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf,line);
-            buf.writeVarInt(safe.stats().buildings());buf.writeVarInt(safe.stats().recognition());buf.writeVarInt(safe.stats().routes());buf.writeVarInt(safe.stats().contacts());
+            buf.writeVarInt(safe.stats().buildings());buf.writeVarInt(safe.stats().recognition());buf.writeVarInt(safe.stats().routes());buf.writeVarInt(safe.stats().contacts()); de.quest.reputation.VillageRelationship.write(buf,safe.relationship());
         }
     }
 
@@ -485,7 +546,7 @@ public final class Payloads {
         public static final int ACTION_CANCEL_WEEKLY = 1;
 
         public static final CustomPacketPayload.Type<JournalActionPayload> ID =
-                new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "journal_action"));
+                new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "journal_action_overhaul_v1"));
         public static final StreamCodec<RegistryFriendlyByteBuf, JournalActionPayload> CODEC =
                 StreamCodec.of(JournalActionPayload::write, JournalActionPayload::read);
 
@@ -532,68 +593,16 @@ public final class Payloads {
         }
     }
 
-    public record QuestTrackerPayload(
-            boolean enabled,
-            boolean dailyActive,
-            Component dailyTitle,
-            List<Component> dailyLines,
-            boolean weeklyActive,
-            Component weeklyTitle,
-            List<Component> weeklyLines,
-            boolean storyActive,
-            Component storyTitle,
-            List<Component> storyLines,
-            boolean pilgrimActive,
-            Component pilgrimTitle,
-            List<Component> pilgrimLines,
-            boolean specialActive,
-            Component specialTitle,
-            List<Component> specialLines
-    ) implements CustomPacketPayload {
-        public static final CustomPacketPayload.Type<QuestTrackerPayload> ID =
-                new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "quest_tracker"));
-        public static final StreamCodec<RegistryFriendlyByteBuf, QuestTrackerPayload> CODEC =
-                StreamCodec.of(QuestTrackerPayload::write, QuestTrackerPayload::read);
-
+    public record QuestTrackerPayload(boolean enabled,List<de.quest.quest.TrackerEntry> entries) implements CustomPacketPayload {
+        public QuestTrackerPayload { entries=de.quest.quest.TrackerEntry.checked(entries); }
+        public static final CustomPacketPayload.Type<QuestTrackerPayload> ID = new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID,"quest_tracker_overhaul_v1"));
+        public static final StreamCodec<RegistryFriendlyByteBuf,QuestTrackerPayload> CODEC=StreamCodec.of(QuestTrackerPayload::write,QuestTrackerPayload::read);
         private static QuestTrackerPayload read(RegistryFriendlyByteBuf buf) {
-            boolean enabled = buf.readBoolean();
-            boolean dailyActive = buf.readBoolean();
-            Component dailyTitle = ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf);
-            List<Component> dailyLines = readTextList(buf);
-            boolean weeklyActive = buf.readBoolean();
-            Component weeklyTitle = ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf);
-            List<Component> weeklyLines = readTextList(buf);
-            boolean storyActive = buf.readBoolean();
-            Component storyTitle = ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf);
-            List<Component> storyLines = readTextList(buf);
-            boolean pilgrimActive = buf.readBoolean();
-            Component pilgrimTitle = ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf);
-            List<Component> pilgrimLines = readTextList(buf);
-            boolean specialActive = buf.readBoolean();
-            Component specialTitle = ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf);
-            List<Component> specialLines = readTextList(buf);
-            return new QuestTrackerPayload(enabled, dailyActive, dailyTitle, dailyLines, weeklyActive, weeklyTitle, weeklyLines, storyActive, storyTitle, storyLines, pilgrimActive, pilgrimTitle, pilgrimLines, specialActive, specialTitle, specialLines);
+            return new QuestTrackerPayload(buf.readBoolean(),de.quest.quest.TrackerEntry.readList(buf));
         }
-
-        private static void write(RegistryFriendlyByteBuf buf, QuestTrackerPayload payload) {
-            buf.writeBoolean(payload.enabled());
-            buf.writeBoolean(payload.dailyActive());
-            ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, payload.dailyTitle());
-            writeTextList(buf, payload.dailyLines());
-            buf.writeBoolean(payload.weeklyActive());
-            ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, payload.weeklyTitle());
-            writeTextList(buf, payload.weeklyLines());
-            buf.writeBoolean(payload.storyActive());
-            ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, payload.storyTitle());
-            writeTextList(buf, payload.storyLines());
-            buf.writeBoolean(payload.pilgrimActive());
-            ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, payload.pilgrimTitle());
-            writeTextList(buf, payload.pilgrimLines());
-            buf.writeBoolean(payload.specialActive());
-            ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, payload.specialTitle());
-            writeTextList(buf, payload.specialLines());
+        private static void write(RegistryFriendlyByteBuf buf,QuestTrackerPayload value) {
+            buf.writeBoolean(value.enabled()); de.quest.quest.TrackerEntry.writeList(buf,value.entries());
         }
-
         private static List<Component> readTextList(RegistryFriendlyByteBuf buf) {
             int count = buf.readVarInt();
             List<Component> lines = new ArrayList<>(count);
@@ -610,10 +619,7 @@ public final class Payloads {
             }
         }
 
-        @Override
-        public Type<? extends CustomPacketPayload> type() {
-            return ID;
-        }
+        @Override public Type<? extends CustomPacketPayload> type() { return ID; }
     }
 
     public record PilgrimTradeOfferData(

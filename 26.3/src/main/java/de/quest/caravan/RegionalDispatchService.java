@@ -33,6 +33,36 @@ import net.minecraft.world.item.Items;
 public final class RegionalDispatchService {
     private RegionalDispatchService() {}
 
+    public static de.quest.network.ReputationPayloads.ServiceView access(ServerLevel world,ServerPlayer player,BlockPos board) {
+        var data=QuestState.get(world.getServer()).getPlayerData(player.getUUID());
+        var hints=new ArrayList<Component>(); String reason="";
+        boolean existing=RegionalDispatchLedger.read(data)!=null && RegionalDispatchLedger.read(data).stage()!=Stage.DELIVERED;
+        if(!existing) {
+            var social=de.quest.reputation.SocialReputationRules.decision(de.quest.reputation.SocialReputationRules.ServiceKind.DISPATCH_START,data.socialReputation(),null);
+            if(!social.allowed()) { reason="trust"; hints.add(Component.translatable(social.reasonKey())); }
+            if(!data.socialReputation().writable()) { reason="unknown"; hints.add(Component.translatable("screen.village-quest.reputation.readonly")); }
+            int routes=0;
+            for(int i=0;i<Math.min(TradeRouteService.MAX_ROUTES,Math.max(0,data.getTradeRouteInt("route_count")));i++) if(dispatchCandidate(world,data,i)) routes++;
+            if(!TradeRouteService.hasRouteAccess(world,player.getUUID()) || routes<2) {
+                if(reason.isEmpty()) reason="routes"; hints.add(Component.translatable("screen.village-quest.reputation.desk.logistics.dispatch_routes"));
+            }
+        }
+        if(world!=world.getServer().overworld()) { if(reason.isEmpty()) reason="overworld"; hints.add(Component.translatable("screen.village-quest.reputation.desk.logistics.overworld_hint")); }
+        if(!validBoard(world,player,board)) {
+            if(reason.isEmpty()) reason="board"; hints.add(Component.translatable("screen.village-quest.reputation.desk.logistics.dispatch_board"));
+        } else if(!existing) {
+            var marker=ShadowsTradeRoadEncounterService.currentVillage(world,board);
+            int source=marker==null?-1:routeAt(data,marker.centerX(),marker.centerZ());
+            if(source<0 || !dispatchCandidate(world,data,source)) {
+                if(reason.isEmpty()) reason="board"; hints.add(Component.translatable("screen.village-quest.reputation.desk.logistics.dispatch_board"));
+            }
+        }
+        if(!reason.isEmpty()) return new de.quest.network.ReputationPayloads.ServiceView(0,"screen.village-quest.reputation.desk.logistics."+reason,hints);
+        boolean daily=de.quest.economy.DeliveryEconomy.canAccept(data,(int)de.quest.util.TimeUtil.currentDay());
+        return new de.quest.network.ReputationPayloads.ServiceView(1,"screen.village-quest.reputation.desk.logistics."+(existing?"active":daily?"ready":"daily"),
+                List.of(Component.translatable("screen.village-quest.reputation.desk.logistics.open_dispatch"),Component.translatable("screen.village-quest.reputation.desk.logistics.dispatch_cargo")));
+    }
+
     /** Route slots are only presentation choices; saved freight uses their connection UUIDs. */
     static List<Integer> destinationIndices(PlayerQuestData data, int sourceIndex, IntPredicate available) {
         if (data == null || available == null) return List.of();

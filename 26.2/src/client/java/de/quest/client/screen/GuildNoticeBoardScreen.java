@@ -65,6 +65,8 @@ public final class GuildNoticeBoardScreen extends CompatScreen {
     private VillageNetworkPayloads.NoticeBoardPayload data;
     private final VillageNetworkPayloads.NoticeJourneyPayload journey;
     private int selectedOfferId;
+    private int refreshTicks;
+    private final de.quest.client.ui.InstructionScroll instructionScroll = new de.quest.client.ui.InstructionScroll();
 
     public GuildNoticeBoardScreen(VillageNetworkPayloads.NoticeBoardPayload data) {
         this(data, null);
@@ -75,14 +77,25 @@ public final class GuildNoticeBoardScreen extends CompatScreen {
         super(Component.translatable("screen.village-quest.notice_board.title"));
         this.data = data;
         this.journey = journey;
-        this.selectedOfferId = firstOffer().id();
+        this.selectedOfferId = data.intro()!=null && data.intro().activeId()>=0 ? data.intro().activeId() : firstOffer().id();
     }
 
     public void updateData(VillageNetworkPayloads.NoticeBoardPayload data) {
         this.data = data;
+        if (data.intro()!=null && data.intro().activeId()>=0) selectedOfferId=data.intro().activeId();
         if (data.offers() == null || data.offers().stream().noneMatch(offer -> offer.id() == selectedOfferId)) {
             selectedOfferId = firstOffer().id();
         }
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        if (++refreshTicks < 20 || journey != null && journey.preview()) return;
+        refreshTicks = 0;
+        UiTestTour.send(new VillageNetworkPayloads.NoticeBoardActionPayload(
+                data.worldX(), data.worldY(), data.worldZ(),
+                VillageNetworkPayloads.NoticeBoardActionPayload.ACTION_REFRESH, -1));
     }
 
     @Override
@@ -118,7 +131,7 @@ public final class GuildNoticeBoardScreen extends CompatScreen {
         VillageUiTheme.drawTitle(graphics, font, title.getString(), "story", left + 150, top + 5, 260);
         VillageUiTheme.drawWalletStrip(graphics,font,left,top,WIDTH,data.balance(),40,10);
 
-        String village = data.villageType().getString() + " · " + data.bondLevel().getString();
+        String village = data.villageType().getString() + " · " + ReputationPanel.relationshipText("bond",data.bondLevel()).getString();
         String condition = data.villageCondition().getString() + " · " + data.adventureProfile().getString();
         float villageScale = .72f;
         VillageUiTheme.drawStringScaled(graphics,font,VillageUiTheme.ellipsize(font,village,(int)(204/villageScale)),
@@ -139,15 +152,20 @@ public final class GuildNoticeBoardScreen extends CompatScreen {
             VillageUiTheme.drawCard(graphics, x, offerY, offerWidth, OFFER_HEIGHT, hover, selected);
             drawScaledItem(graphics, offer.stack(), x + 10, offerY + 11, 1.0f);
             VillageUiTheme.drawWrappedScaled(graphics,font,offer.title().getString(),x+38,offerY+8,offerWidth-46,INK,.85f,2);
-            drawCenteredScaled(graphics, Component.translatable("screen.village-quest.ui_review.inventory_need",offer.inventoryAmount(),offer.requiredAmount()).getString(),
+            drawCenteredScaled(graphics, Component.translatable(data.intro()!=null && offer.id()==2
+                            ? "screen.village-quest.intro.harvest_progress" : "screen.village-quest.ui_review.inventory_need",offer.inventoryAmount(),offer.requiredAmount()).getString(),
                     x + offerWidth/2, offerY + 36, INK, 0.8f, offerWidth - 16);
             if (within(mouseX, mouseY, x, offerY, offerWidth, OFFER_HEIGHT)) {
                 int remaining = Math.max(0, offer.requiredAmount() - offer.inventoryAmount());
                 graphics.setTooltipForNextFrame(font, List.of(
                         offer.title(),
-                        Component.translatable("screen.village-quest.notice_board.selection",
-                                offer.title(), remaining, offer.support()),
-                        CurrencyService.formatBalance(offer.reward())), mouseX, mouseY);
+                        data.intro()!=null ? Component.translatable(introDetailKey(offer.id())) : data.networkConnected()
+                                ? Component.translatable("screen.village-quest.notice_board.selection",
+                                    offer.title(), remaining, offer.support())
+                                : Component.translatable("screen.village-quest.notice_board.local_selection", remaining),
+                        data.intro()!=null ? Component.translatable(offer.reward()==0 ? "screen.village-quest.intro.unpaid"
+                                : offer.id()==2 ? "screen.village-quest.intro.harvest_reward" : "screen.village-quest.intro.material_reward")
+                                : CurrencyService.formatBalance(offer.reward())), mouseX, mouseY);
             }
         }
 
@@ -161,17 +179,29 @@ public final class GuildNoticeBoardScreen extends CompatScreen {
         VillageUiTheme.drawWrappedScaled(graphics,font,selected.title().getString(),left+393,top + 71,130,INK,1f,3);
 
         String context = data.requestAvailable()
-                ? Component.translatable("screen.village-quest.notice_board.network_need",
+                ? data.networkConnected() ? Component.translatable("screen.village-quest.notice_board.network_need",
                         data.villageNeed(), Math.max(0, Math.min(100, data.villageSupport())), 100).getString()
-                : Component.translatable("screen.village-quest.notice_board.available_after_reset").getString();
-        if(data.requestAvailable()) {
+                        : Component.translatable("screen.village-quest.notice_board.local_context").getString()
+                : data.nextRequest().getString().isBlank()
+                ? Component.translatable("screen.village-quest.notice_board.available_after_reset").getString()
+                : data.nextRequest().getString();
+        if (data.intro()!=null) {
+            instructionScroll.draw(graphics,font,introDetail().getString(),left+254,top+120,266,4,.65f,META);
+        } else if(data.requestAvailable() && data.networkConnected()) {
             VillageUiTheme.drawStringScaled(graphics,font,Component.translatable("screen.village-quest.ui_review.village_need",data.villageNeed()).getString(),left+254,top + 124,META,.78f);
             VillageUiTheme.drawStringScaled(graphics,font,Component.translatable("screen.village-quest.ui_review.village_supply",Math.max(0,Math.min(100,data.villageSupport())),100).getString(),left+254,top + 136,META,.78f);
-        } else drawCenteredScaled(graphics, context, left + 387, top + 130, META, 0.85f, 266);
+        } else drawCenteredScaled(graphics, data.requestAvailable()
+                ? Component.translatable("screen.village-quest.notice_board.local_context").getString() : context,
+                left + 387, top + 130, META, 0.85f, 266);
+        if (data.intro()!=null && data.intro().replacement()) return;
         VillageUiTheme.drawStringScaled(graphics,font,Component.translatable("screen.village-quest.questmaster.rewards").getString(),left+254,top + 153,INK,.8f);
         int rewardLabelWidth=Math.round(font.width(Component.translatable("screen.village-quest.questmaster.rewards").getString())*.8f);
-        KingdomUiAssets.moneyCentered(graphics,font,selected.reward(),left+254+rewardLabelWidth+6,top+150,62,false);
-        drawCenteredScaled(graphics, Component.translatable("screen.village-quest.notice_board.support_label", selected.support()).getString(),
+        if (data.intro()!=null && selected.reward()<0)
+            VillageUiTheme.drawStringScaled(graphics,font,Component.translatable("screen.village-quest.intro.reward_pending").getString(),
+                    left+254+rewardLabelWidth+6,top+153,INK,.62f);
+        else KingdomUiAssets.moneyCentered(graphics,font,selected.reward(),left+254+rewardLabelWidth+6,top+150,62,false);
+        if (data.intro()==null && data.networkConnected()) drawCenteredScaled(graphics,
+                Component.translatable("screen.village-quest.notice_board.support_label", selected.support()).getString(),
                 left + 464, top + 154, TEAL, 0.8f, 116);
 
         int progressX = left + 254;
@@ -181,19 +211,20 @@ public final class GuildNoticeBoardScreen extends CompatScreen {
         int innerWidth = progressWidth - 4;
         int filled = required <= 0 ? innerWidth : Math.round(innerWidth * (shown / (float) required));
         graphics.fill(progressX + 2, progressY + 2, progressX + 2 + filled, progressY + 5, TEAL);
-        VillageUiTheme.drawStringScaled(graphics, font, Component.translatable("screen.village-quest.ui_review.delivery_inventory",selected.inventoryAmount(),required).getString(),
+        VillageUiTheme.drawStringScaled(graphics, font, Component.translatable(data.intro()!=null && selected.id()==2
+                        ? "screen.village-quest.intro.harvest_progress" : "screen.village-quest.ui_review.delivery_inventory",selected.inventoryAmount(),required).getString(),
                 left + 254, top + 184, INK, 0.72f);
         if (within(mouseX, mouseY, left + 242, top + 59, 290, 138))
             graphics.setTooltipForNextFrame(font, List.of(selected.title(), Component.literal(context),
-                    CurrencyService.formatBalance(selected.reward())), mouseX, mouseY);
+                    data.intro()!=null ? introRewardDetail() : CurrencyService.formatBalance(selected.reward())), mouseX, mouseY);
     }
 
     private void drawBondPath(GuiGraphics graphics, int left, int top, int mouseX, int mouseY) {
-        String bondSummary=data.nextThreshold()>0 ? data.nextLevel().getString() : data.nextPerk().getString();
+        String bondSummary=ReputationPanel.relationshipSummary(data.bondLevel(),data.socialTrust(),data.relationship(),data.socialCase()).getString();
         String requests=data.nextThreshold()>0 ? Component.translatable("screen.village-quest.notice_board.bond_requests",data.completions(),data.nextThreshold()).getString() : "";
-        if(!requests.isEmpty()) drawCenteredScaled(graphics,requests,left+387,top + 205,INK,.7f,266);
+        drawCenteredScaled(graphics,ReputationPanel.relationshipText("title").getString(),left+387,top + 205,INK,.7f,266);
         drawCenteredScaled(graphics,bondSummary,left+387,top + 214,INK,.7f,266);
-        if(data.nextThreshold()>0) drawCenteredScaled(graphics,data.nextPerk().getString(),left+387,top + 243,BODY,.62f,266);
+        drawCenteredScaled(graphics,(data.nextThreshold()>0 ? data.relationship().nextBond() : data.nextPerk()).getString(),left+387,top + 243,BODY,.62f,266);
 
         int bondTier = Math.max(0, Math.min(data.bondTier(), BOND_CENTERS.length - 1));
         int connectorY = top + BOND_CENTER_Y;
@@ -215,12 +246,7 @@ public final class GuildNoticeBoardScreen extends CompatScreen {
         String hint = Component.translatable("screen.village-quest.notice_board.bond_hint").getString();
         int finalThreshold = data.nextThreshold() > 0 ? data.nextThreshold() : 8;
         if (within(mouseX, mouseY, left + 242, top + 201, 290, 52)) {
-            graphics.setTooltipForNextFrame(font, List.of(
-                    Component.translatable("screen.village-quest.notice_board.bond_path"),
-                    Component.translatable("screen.village-quest.notice_board.bond_summary"),
-                    Component.translatable("screen.village-quest.notice_board.bond_requests",
-                            data.completions(), finalThreshold),
-                    Component.literal(hint), data.nextPerk()), mouseX, mouseY);
+            graphics.setTooltipForNextFrame(font, ReputationPanel.relationshipDetails(data.bondLevel(),data.socialTrust(),data.socialCase(),data.relationship()), mouseX, mouseY);
         }
     }
 
@@ -239,10 +265,14 @@ public final class GuildNoticeBoardScreen extends CompatScreen {
         boolean closeHover = within(mouseX, mouseY,
                 left + CLOSE_X, top + BUTTON_Y, CLOSE_WIDTH, BUTTON_HEIGHT);
         VillageUiTheme.drawButton(graphics, font, left + DELIVER_X, top + BUTTON_Y, DELIVER_WIDTH, BUTTON_HEIGHT,
-                Component.translatable(data.requestAvailable()
+                Component.translatable(data.intro()!=null ? introActionLabel() : data.requestAvailable()
                         ? "screen.village-quest.notice_board.deliver"
                         : "screen.village-quest.notice_board.return_tomorrow").getString(),
-                data.requestAvailable() && selectedOffer().canDeliver(), deliverHover, true, VillageUiTheme.ButtonTone.OAK);
+                actionEnabled(), deliverHover, true, VillageUiTheme.ButtonTone.OAK);
+        if (data.intro()!=null && data.intro().activeId()>=0 && !data.intro().replacement())
+            VillageUiTheme.drawButton(graphics,font,left+224,top+281,204,18,
+                    Component.translatable("screen.village-quest.intro.cancel").getString(),true,
+                    within(mouseX,mouseY,left+224,top+281,204,18),false,VillageUiTheme.ButtonTone.PAPER);
         VillageUiTheme.drawButton(graphics, font,
                 left + CLOSE_X, top + BUTTON_Y, CLOSE_WIDTH, BUTTON_HEIGHT,
                 Component.translatable("screen.village-quest.notice_board.close").getString(),
@@ -259,6 +289,10 @@ public final class GuildNoticeBoardScreen extends CompatScreen {
         int mouseX = responsiveMouseX(click.x(), WIDTH, HEIGHT);
         int mouseY = responsiveMouseY(click.y(), WIDTH, HEIGHT);
         if(KingdomUiAssets.closeBounds(left,top,WIDTH,HEIGHT).contains(mouseX,mouseY)) {onClose();return true;}
+        if (data.intro()!=null && data.intro().activeId()>=0 && !data.intro().replacement()
+                && within(mouseX,mouseY,left+224,top+281,204,18)) {
+            sendIntro(VillageNetworkPayloads.NoticeBoardActionPayload.INTRO_CANCEL,data.intro().activeId()); return true;
+        }
         if (journey == null && within(mouseX, mouseY, left + 28, top + BUTTON_Y, 186, BUTTON_HEIGHT)) {
             UiTestTour.send(new de.quest.network.ReputationPayloads.OpenPayload(0,
                     new net.minecraft.core.BlockPos(data.worldX(), data.worldY(), data.worldZ()), 0)); return true;
@@ -272,7 +306,13 @@ public final class GuildNoticeBoardScreen extends CompatScreen {
         }
         if (within(mouseX, mouseY,
                 left + DELIVER_X, top + BUTTON_Y, DELIVER_WIDTH, BUTTON_HEIGHT)
-                && data.requestAvailable() && selectedOffer().canDeliver()) {
+                && actionEnabled()) {
+            if (data.intro()!=null) {
+                sendIntro(data.intro().replacement() ? VillageNetworkPayloads.NoticeBoardActionPayload.INTRO_REPLACE
+                        : data.intro().activeId()<0 ? VillageNetworkPayloads.NoticeBoardActionPayload.INTRO_ACCEPT
+                        : VillageNetworkPayloads.NoticeBoardActionPayload.INTRO_DELIVER,selectedOffer().id());
+                return true;
+            }
             UiTestTour.send(new VillageNetworkPayloads.NoticeBoardActionPayload(
                     data.worldX(), data.worldY(), data.worldZ(),
                     VillageNetworkPayloads.NoticeBoardActionPayload.ACTION_DELIVER, selectedOffer().id()));
@@ -292,6 +332,44 @@ public final class GuildNoticeBoardScreen extends CompatScreen {
             return true;
         }
         return super.handleMouseClicked(click, doubled);
+    }
+    @Override public boolean keyPressed(net.minecraft.client.input.KeyEvent key) {
+        if (data.intro()!=null && instructionScroll.key(key)) return true;
+        return super.keyPressed(key);
+    }
+    @Override public boolean mouseScrolled(double x,double y,double horizontal,double vertical) {
+        int left=(width-WIDTH)/2,top=(height-HEIGHT)/2;
+        if (data.intro()!=null && within(responsiveMouseX(x,WIDTH,HEIGHT),responsiveMouseY(y,WIDTH,HEIGHT),left+254,top+120,266,30)
+                && instructionScroll.scroll(vertical)) return true;
+        return super.mouseScrolled(x,y,horizontal,vertical);
+    }
+    private boolean actionEnabled() {
+        return data.intro()==null ? data.requestAvailable() && selectedOffer().canDeliver()
+                : data.intro().replacement() || data.intro().activeId()<0
+                || data.intro().activeId()==selectedOffer().id() && selectedOffer().canDeliver();
+    }
+    private String introActionLabel() {
+        return data.intro().replacement() ? "screen.village-quest.intro.replace"
+                : data.intro().activeId()<0 ? "screen.village-quest.intro.accept" : "screen.village-quest.notice_board.deliver";
+    }
+    private Component introDetail() {
+        if (data.intro().replacement()) return data.intro().detail();
+        return Component.translatable(introDetailKey(selectedOffer().id()));
+    }
+    private static String introDetailKey(int id) {
+        return switch (id) {
+            case 0 -> "screen.village-quest.intro.detail_0";
+            case 1 -> "screen.village-quest.intro.detail_1";
+            default -> "screen.village-quest.intro.detail_2";
+        };
+    }
+    private Component introRewardDetail() {
+        return Component.translatable(selectedOffer().reward()==0 ? "screen.village-quest.intro.unpaid"
+                : selectedOffer().id()==2 ? "screen.village-quest.intro.harvest_reward" : "screen.village-quest.intro.material_reward");
+    }
+    private void sendIntro(int action,int id) {
+        if (journey==null || !journey.preview()) UiTestTour.send(new VillageNetworkPayloads.NoticeBoardActionPayload(
+                data.worldX(),data.worldY(),data.worldZ(),action,id,data.intro().token()));
     }
 
     private void drawCenteredScaled(GuiGraphics graphics, String text,

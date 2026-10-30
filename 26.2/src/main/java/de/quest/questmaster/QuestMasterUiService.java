@@ -17,6 +17,7 @@ import de.quest.quest.daily.DailyQuestDefinition;
 import de.quest.quest.daily.DailyQuestGenerator;
 import de.quest.quest.daily.DailyQuestService;
 import de.quest.quest.daily.FirstDailyChoiceService;
+import de.quest.quest.daily.DailyChoiceService;
 import de.quest.quest.special.ApiaristSmokerQuestService;
 import de.quest.quest.special.MerchantSealQuestService;
 import de.quest.quest.special.RelicQuestProgressionService;
@@ -217,6 +218,14 @@ public final class QuestMasterUiService {
             return;
         }
 
+        if (payload.entryId().startsWith(DailyChoiceService.PREFIX)) {
+            if (payload.action() == Payloads.QuestMasterActionPayload.ACTION_ACCEPT) {
+                DailyChoiceService.accept(world, player, payload.entryId());
+            }
+            refreshIfOpen(world, player);
+            return;
+        }
+
         if (payload.entryId().startsWith(ENTRY_DAILY_FIRST_PREFIX)) {
             String typeName = payload.entryId().substring(ENTRY_DAILY_FIRST_PREFIX.length());
             try {
@@ -276,6 +285,7 @@ public final class QuestMasterUiService {
     private static boolean handleDailyMainAction(ServerLevel world, ServerPlayer player, int action) {
         UUID playerId = player.getUUID();
         if (action == Payloads.QuestMasterActionPayload.ACTION_ACCEPT) {
+            if (!DailyChoiceService.offers(world, playerId).isEmpty()) return false;
             DailyQuestService.acceptQuest(world, player);
             return true;
         }
@@ -428,10 +438,27 @@ public final class QuestMasterUiService {
 
     private static List<Payloads.QuestMasterEntryData> buildDailyEntries(ServerLevel world, ServerPlayer player) {
         UUID playerId = player.getUUID();
-        boolean partyUiEnabled = partyUiEnabled(world);
         PlayerQuestData data = data(world, playerId);
+        boolean partyUiEnabled = partyUiEnabled(world) && !FirstDailyChoiceService.isActive(data);
         if (FirstDailyChoiceService.canChoose(data)) {
             return buildFirstDailyEntries(world, playerId);
+        }
+        List<DailyChoiceService.Offer> offers = DailyChoiceService.offers(world, playerId);
+        if (!offers.isEmpty()) {
+            List<Payloads.QuestMasterEntryData> choices = new ArrayList<>();
+            for (var offer : offers) {
+                DailyQuestDefinition definition = DailyQuestGenerator.definition(offer.type());
+                choices.add(entry(offer.entryId(), CATEGORY_DAILY, definition.title(),
+                        Component.translatable("screen.village-quest.questmaster.subtitle.daily"),
+                        Component.translatable("screen.village-quest.questmaster.status.available").withStyle(ChatFormatting.YELLOW),
+                        java.util.stream.Stream.concat(java.util.stream.Stream.of(Component.translatable("screen.village-quest.questmaster.daily.choose_one")),
+                                DailyQuestService.previewOfferedDescription(world,playerId,offer).stream()).toList(),
+                        List.of(DailyQuestService.previewOfferedProgress(world, playerId, offer).copy().withStyle(ChatFormatting.GRAY)),
+                        rewardLines(world, playerId, DailyQuestService.previewOfferedCompletion(world, playerId, offer)),
+                        new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_ACCEPT,
+                                Component.translatable("screen.village-quest.questmaster.action.choose"), true), ActionSpec.NONE, false));
+            }
+            return List.copyOf(choices);
         }
         DailyQuestService.DailyQuestType normalQuest = DailyQuestService.previewQuestChoice(world, playerId);
         DailyQuestDefinition normalDefinition = DailyQuestGenerator.definition(normalQuest);
@@ -442,7 +469,7 @@ public final class QuestMasterUiService {
                 : normalDefinition.title();
         List<Component> mainDescription = normalDefinition == null
                 ? List.of(Component.translatable("screen.village-quest.questmaster.daily.unavailable").withStyle(ChatFormatting.GRAY))
-                : List.of(normalDefinition.offerParagraph1(), normalDefinition.offerParagraph2());
+                : DailyQuestService.descriptionLines(world,playerId,normalDefinition.type(),false);
         List<Component> mainObjectives = normalDefinition == null
                 ? List.of()
                 : List.of(DailyQuestService.previewProgressLine(world, playerId, false).copy().withStyle(ChatFormatting.GRAY));
@@ -451,7 +478,7 @@ public final class QuestMasterUiService {
         ActionSpec secondary = ActionSpec.NONE;
         Component status;
 
-        boolean normalActive = DailyQuestService.isAcceptedToday(world, playerId) && !DailyQuestService.hasCompletedToday(world, playerId);
+        boolean normalActive = data.hasActiveDaily();
         if (normalActive) {
             boolean ready = normalDefinition != null && DailyQuestService.isQuestReady(world, player, false);
             boolean blockedByItems = !ready && DailyQuestService.claimBlockedMessage(world, player, false) != null;
@@ -462,7 +489,7 @@ public final class QuestMasterUiService {
             if (questStatus != null) {
                 mainObjectives = List.of(questStatus.progressLine().copy().withStyle(ChatFormatting.GRAY));
             }
-            primary = activeQuestAction(normalDefinition == null ? QuestCompletionMode.AUTOMATIC : normalDefinition.completionMode(), ready, blockedByItems);
+            primary = activeQuestAction(normalDefinition == null ? QuestCompletionMode.AUTOMATIC : normalDefinition.completionMode(world), ready, blockedByItems);
             secondary = new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_CANCEL, Component.translatable("screen.village-quest.questmaster.action.cancel"), true);
         } else if (DailyQuestService.hasCompletedToday(world, playerId)) {
             status = Component.translatable("screen.village-quest.questmaster.status.completed").withStyle(ChatFormatting.AQUA);
@@ -471,7 +498,7 @@ public final class QuestMasterUiService {
                     QuestCalendarService.remaining(false)).withStyle(ChatFormatting.GRAY));
         } else {
             status = Component.translatable("screen.village-quest.questmaster.status.available").withStyle(ChatFormatting.YELLOW);
-            primary = new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_ACCEPT, Component.translatable("screen.village-quest.questmaster.action.accept"), true);
+            primary = new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_ACCEPT, Component.translatable("screen.village-quest.questmaster.action.accept"), !data.hasActiveDailySlot());
         }
 
         mainDescription = appendQuestEcho(world, playerId, mainDescription, dailyTrack(normalQuest));
@@ -512,11 +539,10 @@ public final class QuestMasterUiService {
                     Component.translatable("screen.village-quest.questmaster.subtitle.first_daily"),
                     Component.translatable("screen.village-quest.questmaster.status.available")
                             .withStyle(ChatFormatting.YELLOW),
-                    List.of(definition.offerParagraph1(), definition.offerParagraph2()),
+                    DailyQuestService.previewFirstChoiceDescription(world,playerId,choice),
                     List.of(DailyQuestService.previewFirstChoiceProgressLine(world, playerId, choice)
                             .copy().withStyle(ChatFormatting.GRAY)),
-                    rewardLines(world, playerId,
-                            DailyQuestService.previewFirstChoiceCompletion(world, choice)),
+                    rewardLines(world, playerId, DailyQuestService.previewFirstChoiceCompletion(world, choice)),
                     new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_ACCEPT,
                             Component.translatable("screen.village-quest.questmaster.action.choose"), true),
                     ActionSpec.NONE,
@@ -533,8 +559,9 @@ public final class QuestMasterUiService {
         long currentDay = QuestCalendarService.currentDay();
         boolean bonusAccepted = DailyQuestService.isBonusAcceptedToday(world, playerId);
         boolean bonusCompleted = DailyQuestService.hasCompletedBonusToday(world, playerId);
-        boolean hasBonusChoice = data.getBonusChoice() != null && data.getBonusChoiceDay() == currentDay;
+        boolean hasBonusChoice = data.getBonusChoice() != null && (bonusAccepted || data.getBonusChoiceDay() == currentDay);
         boolean shardAvailable = DailyQuestService.hasCompletedToday(world, playerId)
+                && !data.hasActiveDailySlot()
                 && !bonusAccepted
                 && !bonusCompleted
                 && !hasBonusChoice
@@ -570,7 +597,7 @@ public final class QuestMasterUiService {
                 : bonusDefinition.title();
         List<Component> description = bonusDefinition == null
                 ? List.of(Component.translatable("screen.village-quest.questmaster.daily.bonus_waiting").withStyle(ChatFormatting.GRAY))
-                : List.of(bonusDefinition.offerParagraph1(), bonusDefinition.offerParagraph2());
+                : DailyQuestService.descriptionLines(world,playerId,bonusDefinition.type(),true);
         List<Component> objectives = bonusDefinition == null
                 ? List.of()
                 : List.of(DailyQuestService.previewProgressLine(world, playerId, true).copy().withStyle(ChatFormatting.GRAY));
@@ -589,7 +616,7 @@ public final class QuestMasterUiService {
             if (questStatus != null) {
                 objectives = List.of(questStatus.progressLine().copy().withStyle(ChatFormatting.GRAY));
             }
-            primary = activeQuestAction(bonusDefinition == null ? QuestCompletionMode.AUTOMATIC : bonusDefinition.completionMode(), ready, blockedByItems);
+            primary = activeQuestAction(bonusDefinition == null ? QuestCompletionMode.AUTOMATIC : bonusDefinition.completionMode(world), ready, blockedByItems);
             secondary = new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_CANCEL, Component.translatable("screen.village-quest.questmaster.action.cancel"), true);
         } else if (bonusCompleted) {
             status = Component.translatable("screen.village-quest.questmaster.status.completed").withStyle(ChatFormatting.AQUA);
@@ -640,7 +667,7 @@ public final class QuestMasterUiService {
         List<Component> rewards = weeklyRewards(world, playerId, completion);
         boolean accepted = WeeklyQuestService.isAcceptedThisWeek(world, playerId);
         boolean completed = WeeklyQuestService.hasCompletedThisWeek(world, playerId);
-        List<Component> description = appendQuestEcho(world, playerId, List.of(definition.offerParagraph1(), definition.offerParagraph2()), completion == null ? null : completion.reputationTrack());
+        List<Component> description = appendQuestEcho(world, playerId, WeeklyQuestService.descriptionLines(world,playerId,questType), completion == null ? null : completion.reputationTrack());
         List<Component> objectives = WeeklyQuestService.previewProgressLines(world, playerId);
         ActionSpec primary = ActionSpec.NONE;
         ActionSpec secondary = ActionSpec.NONE;
@@ -653,7 +680,7 @@ public final class QuestMasterUiService {
             status = ready
                     ? Component.translatable("screen.village-quest.questmaster.status.ready").withStyle(ChatFormatting.GOLD)
                     : Component.translatable("screen.village-quest.questmaster.status.active").withStyle(ChatFormatting.GREEN);
-            primary = activeQuestAction(definition.completionMode(), ready, blockedByItems);
+            primary = activeQuestAction(definition.completionMode(world), ready, blockedByItems);
             secondary = new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_CANCEL, Component.translatable("screen.village-quest.questmaster.action.cancel"), true);
         } else if (completed) {
             status = Component.translatable("screen.village-quest.questmaster.status.completed").withStyle(ChatFormatting.AQUA);
@@ -684,7 +711,9 @@ public final class QuestMasterUiService {
 
     private static List<Payloads.QuestMasterEntryData> buildStoryEntries(ServerLevel world, ServerPlayer player) {
         if (!QuestMasterProgressionService.isStoryCategoryUnlocked(world, player.getUUID())) {
-            return List.of();
+            return List.of(lockedStoryEntry(storyEntryId(StoryArcType.FAILING_HARVEST),
+                    StoryQuestService.definition(StoryArcType.FAILING_HARVEST).title(),
+                    de.quest.quest.QuestGuidanceService.firstStory().action()));
         }
         List<Payloads.QuestMasterEntryData> entries = new ArrayList<>();
         UUID playerId = player.getUUID();
@@ -708,7 +737,7 @@ public final class QuestMasterUiService {
             }
             StoryArcDefinition arc = StoryQuestService.definition(type);
             if (type == StoryArcType.LIVING_KINGDOMS && arc != null && arc.isUnlocked(world, playerId)
-                    && !StoryQuestService.isCompleted(world, playerId, type) && !StoryQuestService.isStoryCooldownActive(world, playerId)) {
+                    && !StoryQuestService.isCompleted(world, playerId, type)) {
                 addEntry(entries, buildStoryEntry(world, player, type));
                 continue;
             }
@@ -734,10 +763,13 @@ public final class QuestMasterUiService {
         boolean active = StoryQuestService.isActive(world, playerId, arcType);
         boolean unlocked = arc.isUnlocked(world, playerId);
         if (!completed && !active && !unlocked && arc.shouldShowLockedEntry(world, playerId)) {
+            var next=de.quest.quest.QuestGuidanceService.lockedStory(world,player,arcType);
             return lockedStoryEntry(
                     storyEntryId(arcType),
                     arc.title(),
-                    arc.lockedEntryBody(world, playerId).copy().withStyle(ChatFormatting.GRAY)
+                    arc.lockedEntryBody(world, playerId).copy()
+                            .append(next==null?Component.empty():Component.literal("\n").append(next.action()))
+                            .withStyle(ChatFormatting.GRAY)
             );
         }
         if (!completed && !active && !unlocked) {
@@ -755,14 +787,14 @@ public final class QuestMasterUiService {
                     Component.translatable("screen.village-quest.questmaster.status.completed").withStyle(ChatFormatting.AQUA),
                     List.of(Component.translatable("screen.village-quest.questmaster.story." + arcType.id() + ".completed").withStyle(ChatFormatting.GRAY)),
                     List.of(),
-                    appendRewardEcho(world, playerId, StoryQuestService.previewRewardLines(world, playerId, completion), completion.reputationTrack()),
+                    appendRewardEcho(world, playerId, StoryQuestService.previewRewardLines(world, playerId, arcType, completion), completion.reputationTrack()),
                     ActionSpec.NONE,
                     ActionSpec.NONE,
                     false
             );
         }
 
-        StoryArcType activeArc = StoryQuestService.activeArcType(world, playerId);
+        StoryArcType activeArc = StoryQuestService.activeArcType(world, playerId, StoryQuestService.laneFor(arcType));
         if (activeArc != null && activeArc != arcType) {
             return lockedStoryEntry(
                     entryId,
@@ -781,9 +813,11 @@ public final class QuestMasterUiService {
             );
         }
 
-        StoryChapterCompletion completion = chapter.buildCompletion();
-        List<Component> description = appendQuestEcho(world, playerId, chapter.descriptionLines(), completion.reputationTrack());
+        StoryChapterCompletion completion = chapter.buildCompletion(world, playerId);
+        List<Component> description = appendQuestEcho(world, playerId, chapter.descriptionLines(world, playerId), completion.reputationTrack());
         List<Component> objectives = new ArrayList<>(chapter.progressLines(world, playerId));
+        if (arcType==StoryArcType.LIVING_KINGDOMS)
+            objectives.addFirst(de.quest.quest.QuestGuidanceService.story(world,player,arcType).action());
         ActionSpec primary = ActionSpec.NONE;
         ActionSpec secondary = ActionSpec.NONE;
         Component status;
@@ -825,7 +859,7 @@ public final class QuestMasterUiService {
                 partyStatus,
                 description,
                 List.copyOf(objectives),
-                appendRewardEcho(world, playerId, StoryQuestService.previewRewardLines(world, playerId, completion), completion.reputationTrack()),
+                appendRewardEcho(world, playerId, StoryQuestService.previewRewardLines(world, playerId, arcType, completion), completion.reputationTrack()),
                 primary,
                 secondary,
                 locked
@@ -841,8 +875,8 @@ public final class QuestMasterUiService {
             entries.add(entry("friends_"+who,CATEGORY_SPECIAL,de.quest.quest.special.FriendsQuestService.tr(q+".title"),
                     Component.translatable("screen.village-quest.questmaster.subtitle.special"),
                     Component.translatable("screen.village-quest.questmaster.status."+(herbs?"active":stage>=3?"completed":friends.active(who)?"active":"available")),
-                    List.of(de.quest.quest.special.FriendsQuestService.tr(stage>=3?who+".again":q+".dialogue"),de.quest.quest.special.FriendsQuestService.tr("visit_guest")),
-                    de.quest.quest.special.FriendsQuestService.lines(friends,who),List.of(de.quest.quest.special.FriendsQuestService.tr(q+".reward")),ActionSpec.NONE,ActionSpec.NONE,false));
+                    List.of(de.quest.quest.special.FriendsQuestService.dialogue(world,friends,who),de.quest.quest.special.FriendsQuestService.tr("visit_guest")),
+                    de.quest.quest.special.FriendsQuestService.lines(world,player,friends,who),List.of(de.quest.quest.special.FriendsQuestService.tr(q+".reward")),ActionSpec.NONE,ActionSpec.NONE,false));
         }
         boolean specialUnlocked = QuestMasterProgressionService.isSpecialCategoryUnlocked(world, player.getUUID());
         if (specialUnlocked) {
@@ -885,6 +919,11 @@ public final class QuestMasterUiService {
         boolean dailyActive = DailyQuestService.openQuestStatus(world, playerId) != null;
         boolean otherSpecialActive = hasOtherActiveSpecial(world, playerId, ENTRY_SPECIAL_SHARD);
 
+        List<Component> description = List.of(
+                Component.translatable("quest.village-quest.special.shards.offer.1").withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.special.shards.offer.2", 10).withStyle(ChatFormatting.GRAY)
+        );
+
         if (data.getShardRelicQuestStage() == ShardRelicQuestStage.TRIAL_ACTIVE) {
             return entry(
                     ENTRY_SPECIAL_SHARD,
@@ -892,7 +931,7 @@ public final class QuestMasterUiService {
                     Component.translatable("quest.village-quest.special.shards.title"),
                     Component.translatable("screen.village-quest.questmaster.subtitle.special"),
                     Component.translatable("screen.village-quest.questmaster.status.active").withStyle(ChatFormatting.GREEN),
-                    List.of(Component.translatable("screen.village-quest.questmaster.special.shards.active").withStyle(ChatFormatting.GRAY)),
+                    specialInstructions("screen.village-quest.questmaster.special.shards.active", description),
                     List.copyOf(ShardRelicQuestService.openStatus(world, playerId).lines()),
                     starreachRewards(),
                     ActionSpec.NONE,
@@ -907,7 +946,7 @@ public final class QuestMasterUiService {
                     Component.translatable("quest.village-quest.special.shards.title"),
                     Component.translatable("screen.village-quest.questmaster.subtitle.special"),
                     Component.translatable("screen.village-quest.questmaster.status.ready").withStyle(ChatFormatting.GOLD),
-                    List.of(Component.translatable("screen.village-quest.questmaster.special.shards.ready").withStyle(ChatFormatting.GRAY)),
+                    specialInstructions("screen.village-quest.questmaster.special.shards.ready", description),
                     List.copyOf(ShardRelicQuestService.openStatus(world, playerId).lines()),
                     starreachRewards(),
                     new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_CLAIM, Component.translatable("screen.village-quest.questmaster.action.receive_map"), true),
@@ -922,7 +961,7 @@ public final class QuestMasterUiService {
                     Component.translatable("quest.village-quest.special.shards.title"),
                     Component.translatable("screen.village-quest.questmaster.subtitle.special"),
                     Component.translatable("screen.village-quest.questmaster.status.active").withStyle(ChatFormatting.GREEN),
-                    List.of(Component.translatable("screen.village-quest.questmaster.special.shards.cache").withStyle(ChatFormatting.GRAY)),
+                    specialInstructions("screen.village-quest.questmaster.special.shards.cache", description),
                     List.copyOf(ShardRelicQuestService.openStatus(world, playerId).lines()),
                     starreachRewards(),
                     new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_CLAIM, Component.translatable("screen.village-quest.questmaster.action.reissue_map"), true),
@@ -985,6 +1024,14 @@ public final class QuestMasterUiService {
         return null;
     }
 
+    /** Keep the full offer accessible in the scrollable detail body after acceptance. */
+    private static List<Component> specialInstructions(String statusKey, List<Component> instructions) {
+        List<Component> result = new ArrayList<>();
+        result.add(Component.translatable(statusKey).withStyle(ChatFormatting.GRAY));
+        result.addAll(instructions);
+        return List.copyOf(result);
+    }
+
     private static int displayCount(String categoryId, List<Payloads.QuestMasterEntryData> entries) {
         if (entries == null || entries.isEmpty()) {
             return 0;
@@ -1020,7 +1067,7 @@ public final class QuestMasterUiService {
                     Component.translatable("quest.village-quest.special.apiarist_smoker.title"),
                     Component.translatable("screen.village-quest.questmaster.subtitle.special"),
                     Component.translatable("screen.village-quest.questmaster.status.active").withStyle(ChatFormatting.GREEN),
-                    List.of(Component.translatable("screen.village-quest.questmaster.special.apiarist_smoker.active").withStyle(ChatFormatting.GRAY)),
+                    specialInstructions("screen.village-quest.questmaster.special.apiarist_smoker.active", description),
                     List.copyOf(ApiaristSmokerQuestService.openStatus(world, playerId).lines()),
                     smokerRewards(),
                     ActionSpec.NONE,
@@ -1035,7 +1082,7 @@ public final class QuestMasterUiService {
                     Component.translatable("quest.village-quest.special.apiarist_smoker.title"),
                     Component.translatable("screen.village-quest.questmaster.subtitle.special"),
                     Component.translatable("screen.village-quest.questmaster.status.ready").withStyle(ChatFormatting.GOLD),
-                    List.of(Component.translatable("screen.village-quest.questmaster.special.apiarist_smoker.ready").withStyle(ChatFormatting.GRAY)),
+                    specialInstructions("screen.village-quest.questmaster.special.apiarist_smoker.ready", description),
                     List.copyOf(ApiaristSmokerQuestService.openStatus(world, playerId).lines()),
                     smokerRewards(),
                     new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_CLAIM, Component.translatable("screen.village-quest.questmaster.action.claim"), true),
@@ -1129,9 +1176,9 @@ public final class QuestMasterUiService {
                     Component.translatable("quest.village-quest.special.surveyor_compass.title"),
                     Component.translatable("screen.village-quest.questmaster.subtitle.special"),
                     Component.translatable("screen.village-quest.questmaster.status.active").withStyle(ChatFormatting.GREEN),
-                    List.of(Component.translatable("screen.village-quest.questmaster.special.surveyor_compass.active").withStyle(ChatFormatting.GRAY)),
+                    specialInstructions("screen.village-quest.questmaster.special.surveyor_compass.active", description),
                     List.copyOf(SurveyorCompassQuestService.openStatus(world, playerId).lines()),
-                    compassRewards(),
+                    compassRewards(data),
                     ActionSpec.NONE,
                     ActionSpec.NONE,
                     false
@@ -1144,9 +1191,9 @@ public final class QuestMasterUiService {
                     Component.translatable("quest.village-quest.special.surveyor_compass.title"),
                     Component.translatable("screen.village-quest.questmaster.subtitle.special"),
                     Component.translatable("screen.village-quest.questmaster.status.ready").withStyle(ChatFormatting.GOLD),
-                    List.of(Component.translatable("screen.village-quest.questmaster.special.surveyor_compass.ready").withStyle(ChatFormatting.GRAY)),
+                    specialInstructions("screen.village-quest.questmaster.special.surveyor_compass.ready", description),
                     List.copyOf(SurveyorCompassQuestService.openStatus(world, playerId).lines()),
-                    compassRewards(),
+                    compassRewards(data),
                     new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_CLAIM, Component.translatable("screen.village-quest.questmaster.action.claim"), true),
                     ActionSpec.NONE,
                     false
@@ -1182,11 +1229,9 @@ public final class QuestMasterUiService {
                                             ? "screen.village-quest.questmaster.status.ready"
                                             : "screen.village-quest.questmaster.status.active"
                             ).withStyle(ready ? ChatFormatting.GOLD : ChatFormatting.GREEN),
-                            List.of(Component.translatable(
-                                    ready
-                                            ? "screen.village-quest.questmaster.special.surveyor_compass_biomes.ready"
-                                            : "screen.village-quest.questmaster.special.surveyor_compass_biomes.active"
-                            ).withStyle(ChatFormatting.GRAY)),
+                            specialInstructions(ready
+                                    ? "screen.village-quest.questmaster.special.surveyor_compass_biomes.ready"
+                                    : "screen.village-quest.questmaster.special.surveyor_compass_biomes.active", biomeDescription),
                             List.copyOf(SurveyorCompassQuestService.biomeCalibrationProgressLines(world, playerId)),
                             compassBiomeRewards(),
                             ready
@@ -1243,7 +1288,7 @@ public final class QuestMasterUiService {
                     Component.translatable("screen.village-quest.questmaster.status.completed").withStyle(ChatFormatting.AQUA),
                     List.of(Component.translatable("screen.village-quest.questmaster.special.completed").withStyle(ChatFormatting.GRAY)),
                     List.of(),
-                    compassRewards(),
+                    compassRewards(data),
                     ActionSpec.NONE,
                     ActionSpec.NONE,
                     false
@@ -1260,7 +1305,7 @@ public final class QuestMasterUiService {
                     Component.translatable("quest.village-quest.special.surveyor_compass.title"),
                     SpecialQuestKind.SURVEYOR_COMPASS,
                     description,
-                    compassRewards()
+                    compassRewards(data)
             );
         }
 
@@ -1269,7 +1314,7 @@ public final class QuestMasterUiService {
                     ENTRY_SPECIAL_COMPASS,
                     Component.translatable("quest.village-quest.special.surveyor_compass.title"),
                     Component.translatable("screen.village-quest.questmaster.special.locked_other").withStyle(ChatFormatting.GRAY),
-                    compassRewards()
+                    compassRewards(data)
             );
         }
         if (dailyActive) {
@@ -1277,7 +1322,7 @@ public final class QuestMasterUiService {
                     ENTRY_SPECIAL_COMPASS,
                     Component.translatable("quest.village-quest.special.surveyor_compass.title"),
                     Component.translatable("screen.village-quest.questmaster.special.locked_daily").withStyle(ChatFormatting.GRAY),
-                    compassRewards()
+                    compassRewards(data)
             );
         }
         if (reputation >= SurveyorCompassQuestService.REQUIRED_CRAFTING_REPUTATION) {
@@ -1289,7 +1334,7 @@ public final class QuestMasterUiService {
                     Component.translatable("screen.village-quest.questmaster.status.available").withStyle(ChatFormatting.YELLOW),
                     description,
                     List.of(Component.translatable("screen.village-quest.questmaster.special.surveyor_compass.requirement").withStyle(ChatFormatting.GRAY)),
-                    compassRewards(),
+                    compassRewards(data),
                     new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_ACCEPT, Component.translatable("screen.village-quest.questmaster.action.accept"), true),
                     ActionSpec.NONE,
                     false
@@ -1316,7 +1361,7 @@ public final class QuestMasterUiService {
                     Component.translatable("quest.village-quest.special.merchant.title"),
                     Component.translatable("screen.village-quest.questmaster.subtitle.special"),
                     Component.translatable("screen.village-quest.questmaster.status.active").withStyle(ChatFormatting.GREEN),
-                    List.of(Component.translatable("screen.village-quest.questmaster.special.merchant.active").withStyle(ChatFormatting.GRAY)),
+                    specialInstructions("screen.village-quest.questmaster.special.merchant.active", description),
                     List.copyOf(MerchantSealQuestService.openStatus(world, playerId).lines()),
                     merchantRewards(),
                     ActionSpec.NONE,
@@ -1331,7 +1376,7 @@ public final class QuestMasterUiService {
                     Component.translatable("quest.village-quest.special.merchant.title"),
                     Component.translatable("screen.village-quest.questmaster.subtitle.special"),
                     Component.translatable("screen.village-quest.questmaster.status.ready").withStyle(ChatFormatting.GOLD),
-                    List.of(Component.translatable("screen.village-quest.questmaster.special.merchant.ready").withStyle(ChatFormatting.GRAY)),
+                    specialInstructions("screen.village-quest.questmaster.special.merchant.ready", description),
                     List.copyOf(MerchantSealQuestService.openStatus(world, playerId).lines()),
                     merchantRewards(),
                     new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_CLAIM, Component.translatable("screen.village-quest.questmaster.action.claim"), true),
@@ -1421,7 +1466,7 @@ public final class QuestMasterUiService {
                     Component.translatable("quest.village-quest.special.flute.title"),
                     Component.translatable("screen.village-quest.questmaster.subtitle.special"),
                     Component.translatable("screen.village-quest.questmaster.status.active").withStyle(ChatFormatting.GREEN),
-                    List.of(Component.translatable("screen.village-quest.questmaster.special.flute.active").withStyle(ChatFormatting.GRAY)),
+                    specialInstructions("screen.village-quest.questmaster.special.flute.active", description),
                     List.copyOf(ShepherdFluteQuestService.openStatus(world, playerId).lines()),
                     fluteRewards(),
                     ActionSpec.NONE,
@@ -1436,7 +1481,7 @@ public final class QuestMasterUiService {
                     Component.translatable("quest.village-quest.special.flute.title"),
                     Component.translatable("screen.village-quest.questmaster.subtitle.special"),
                     Component.translatable("screen.village-quest.questmaster.status.ready").withStyle(ChatFormatting.GOLD),
-                    List.of(Component.translatable("screen.village-quest.questmaster.special.flute.ready").withStyle(ChatFormatting.GRAY)),
+                    specialInstructions("screen.village-quest.questmaster.special.flute.ready", description),
                     List.copyOf(ShepherdFluteQuestService.openStatus(world, playerId).lines()),
                     fluteRewards(),
                     new ActionSpec(Payloads.QuestMasterActionPayload.ACTION_CLAIM, Component.translatable("screen.village-quest.questmaster.action.claim"), true),
@@ -1745,12 +1790,14 @@ public final class QuestMasterUiService {
         );
     }
 
-    private static List<Component> compassRewards() {
-        return List.of(
-                Component.translatable("screen.village-quest.questmaster.reward.item", Component.translatable("item.village-quest.surveyors_compass")).withStyle(ChatFormatting.GOLD),
-                Component.translatable("screen.village-quest.questmaster.reward.item", Component.translatable("item.minecraft.netherite_ingot").copy().append(Component.literal(" x10").withStyle(ChatFormatting.GRAY))).withStyle(ChatFormatting.GOLD),
-                Component.translatable("screen.village-quest.questmaster.reward.effect.surveyor_compass").withStyle(ChatFormatting.GRAY)
-        );
+    private static List<Component> compassRewards(PlayerQuestData data) {
+        var rewards=new ArrayList<Component>();
+        rewards.add(Component.translatable("screen.village-quest.questmaster.reward.item", Component.translatable("item.village-quest.surveyors_compass")).withStyle(ChatFormatting.GOLD));
+        if(!de.quest.data.PersonalResetReceipts.has(data,"relic.surveyor"))
+            rewards.add(Component.translatable("screen.village-quest.questmaster.reward.item", Component.translatable("item.minecraft.netherite_ingot").copy().append(Component.literal(" x" + SurveyorCompassQuestService.bonusIngotCount()).withStyle(ChatFormatting.GRAY))).withStyle(ChatFormatting.GOLD));
+        else rewards.add(Component.translatable("message.village-quest.personal_reset.replay").withStyle(ChatFormatting.GRAY));
+        rewards.add(Component.translatable("screen.village-quest.questmaster.reward.effect.surveyor_compass").withStyle(ChatFormatting.GRAY));
+        return List.copyOf(rewards);
     }
 
     private static List<Component> compassBiomeRewards() {

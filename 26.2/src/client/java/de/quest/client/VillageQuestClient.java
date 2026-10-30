@@ -46,6 +46,8 @@ public class VillageQuestClient implements ClientModInitializer {
         EntityRenderers.register(ModEntities.PILGRIM, PilgrimEntityRenderer::new);
         EntityRenderers.register(ModEntities.QUEST_MASTER, QuestMasterEntityRenderer::new);
         EntityRenderers.register(ModEntities.CARAVAN_MERCHANT, CaravanMerchantEntityRenderer::new);
+        ModelLayerRegistry.registerModelLayer(de.quest.client.render.AmbientAdventurerEntityRenderer.LAYER,CaravanMerchantEntityRenderer::createModelData);
+        EntityRenderers.register(ModEntities.AMBIENT_ADVENTURER,de.quest.client.render.AmbientAdventurerEntityRenderer::new);
         EntityRenderers.register(ModEntities.CARAVAN_PACK_MULE, context -> new DonkeyRenderer<>(
                 context, EquipmentClientInfo.LayerType.MULE_SADDLE, ModelLayers.MULE_SADDLE,
                 DonkeyRenderer.Type.MULE, DonkeyRenderer.Type.MULE_BABY));

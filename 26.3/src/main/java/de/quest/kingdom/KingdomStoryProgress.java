@@ -20,6 +20,8 @@ public final class KingdomStoryProgress {
         if (data == null || village == null || village.equals(BuildingSessionPolicy.NONE)) return false;
         UUID old=target(data);
         if (village.equals(old)) return true;
+        if (old!=null && data.hasStoryFlag(de.quest.quest.story.StoryQuestKeys.sharedTurnInConsumed(
+                de.quest.quest.story.StoryArcType.LIVING_KINGDOMS,data.getStoryChapterProgress(ARC)))) return false;
         if (old!=null && !explicitRebind) return false;
         if(old!=null) for(Deed deed:Deed.values()) if(has(data,deed))
             recordProject(data,old,deed,data.getTradeRouteString(RECEIPT+deed.name()),true);

@@ -13,9 +13,36 @@ public final class GuildCornerCandidateSearch {
     static final int MAX_CANDIDATES_PER_SIDE = 7;
     static final int MAX_INTERIOR_SAMPLES_PER_AXIS = 5;
     private static final int MAX_NEAR_STRUCTURE_CANDIDATES = 96;
-    private static final long MAX_STRUCTURE_DISTANCE_SQR = 12L * 12L;
+    private static final long MAX_STRUCTURE_DISTANCE_SQR = 10L * 10L;
 
     private GuildCornerCandidateSearch() {}
+
+    public static boolean nearBuilding(int x, int z, List<StructureFootprint> buildings) {
+        if (buildings == null) return false;
+        var point = new Candidate(x, z, GuildCornerLandmarkState.CornerFacing.NORTH);
+        return buildings.stream().anyMatch(building -> distanceSqr(point, building) <= MAX_STRUCTURE_DISTANCE_SQR);
+    }
+
+    /** Dense bounded local search followed by real house-edge sites, never a distant road/bounding box. */
+    public static List<Candidate> compactSites(int x, int z, List<StructureFootprint> buildings) {
+        if (buildings == null || buildings.isEmpty()) return List.of();
+        Set<Candidate> sites = new LinkedHashSet<>();
+        for (int radius = 0; radius <= 16; radius++) for (int dx = -radius; dx <= radius; dx++)
+            for (int dz = -radius; dz <= radius; dz++)
+                if (Math.max(Math.abs(dx), Math.abs(dz)) == radius && nearBuilding(x + dx, z + dz, buildings))
+                    sites.add(new Candidate(x + dx, z + dz, GuildCornerLandmarkState.CornerFacing.NORTH));
+        // Remote parts of a large village can be loaded even when the visitor stands at its road end.
+        for (var piece : buildings.stream().sorted(Comparator.comparingLong(value -> distanceSqr(
+                new Candidate(x, z, GuildCornerLandmarkState.CornerFacing.NORTH), value))).limit(128).toList()) {
+            for (var edge : around(piece.minX(), piece.maxX(), piece.minZ(), piece.maxZ(), 3, 2))
+                for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) {
+                    if (sites.size() >= 4096) return List.copyOf(sites);
+                    if (nearBuilding(edge.centerX() + dx, edge.centerZ() + dz, buildings))
+                        sites.add(new Candidate(edge.centerX() + dx, edge.centerZ() + dz, GuildCornerLandmarkState.CornerFacing.NORTH));
+                }
+        }
+        return List.copyOf(sites);
+    }
 
     /** Searches beside real buildings/paths, not empty portions of their combined bounding box. */
     public static List<Candidate> nearStructures(int villageMinX, int villageMaxX,

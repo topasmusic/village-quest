@@ -23,6 +23,25 @@ public final class GuildTownAfterstoryService {
 
     private GuildTownAfterstoryService() {}
 
+    public static List<de.quest.quest.JournalActiveQuest> journalEntries(PlayerQuestData data,ServerPlayer player) {
+        var entries=new ArrayList<de.quest.quest.JournalActiveQuest>();
+        for(int i=0;i<VillageBondService.historicalVillageCount(data);i++) {
+            if(GuildTownAfterstoryLedger.state(data,i)!=GuildTownAfterstoryLedger.State.ACTIVE) continue;
+            var request=GuildTownAfterstoryLedger.request(data,i);
+            var contact=de.quest.shrine.VillageContactService.read(data,i);
+            if(request==null || contact==null || request.bondType()!=contact.type()) continue;
+            var item=Component.translatable(request.item().getDescriptionId());
+            int required=amount(request), carried=GuildTownService.count(player,request.item());
+            Component objective=Component.translatable(carried>=required ? "quest.village-quest.tracker.afterstory_deliver"
+                    : "quest.village-quest.tracker.friend_material",item,carried,required);
+            var title=Component.translatable("quest.village-quest.guild_town.afterstory."+request.bondType().key()+".title");
+            List<Component> details=List.of(Component.translatable("quest.village-quest.guild_town.afterstory.active",required,item),
+                    Component.translatable("quest.village-quest.tracker.afterstory_location",contact.x(),contact.z()));
+            entries.add(new de.quest.quest.JournalActiveQuest(new de.quest.quest.TrackerEntry("story:afterstory:"+i,"story",title,objective),details,-1));
+        }
+        return List.copyOf(entries);
+    }
+
     public record View(GuildTownAfterstoryLedger.State state, Component title, Component detail,
                        ItemStack delivery, int amount, int inventory) {
         public boolean ready() { return state == GuildTownAfterstoryLedger.State.ACTIVE && inventory >= amount; }
@@ -42,7 +61,8 @@ public final class GuildTownAfterstoryService {
         Component title = Component.translatable("quest.village-quest.guild_town.afterstory." + type + ".title");
         if (state == GuildTownAfterstoryLedger.State.COMPLETE) {
             return new View(state, title,
-                    Component.translatable("quest.village-quest.guild_town.afterstory." + type + ".complete"),
+                    Component.translatable("quest.village-quest.guild_town.afterstory." + type + ".complete")
+                            .append("\n\n").append(Component.translatable("screen.village-quest.afterstory.completed_hint")),
                     ItemStack.EMPTY, 0, 0);
         }
         if (state == GuildTownAfterstoryLedger.State.NOT_STARTED) {
@@ -50,7 +70,8 @@ public final class GuildTownAfterstoryService {
                     village.condition(), village.index());
             return new View(state, title,
                     Component.translatable("quest.village-quest.guild_town.afterstory." + type + ".offer",
-                            new ItemStack(request.item()).getHoverName()),
+                            new ItemStack(request.item()).getHoverName()).append("\n\n")
+                            .append(Component.translatable("screen.village-quest.afterstory.once")),
                     new ItemStack(request.item()), amount(request), 0);
         }
         VillageRequestType request = GuildTownAfterstoryLedger.request(data, village.index());
@@ -59,7 +80,8 @@ public final class GuildTownAfterstoryService {
         int carried = GuildTownService.count(player, request.item());
         return new View(state, title,
                 Component.translatable("quest.village-quest.guild_town.afterstory.active",
-                        amount, new ItemStack(request.item()).getHoverName()),
+                        amount, new ItemStack(request.item()).getHoverName()).append("\n\n")
+                        .append(Component.translatable("screen.village-quest.afterstory.once")),
                 new ItemStack(request.item()), amount, carried);
     }
 
@@ -102,9 +124,12 @@ public final class GuildTownAfterstoryService {
                 new GuildTownProgress.VillageIdentity(player.getUUID(), village.x(), village.z()),
                 "afterstory_" + village.type().key(), false, world.getGameTime());
         QuestState.get(world.getServer()).setDirty();
-        CurrencyService.addBalance(world, player.getUUID(), REWARD_SILVERMARKS);
+        String receipt="afterstory."+world.dimension().identifier()+":"+village.x()+":"+village.z();
+        boolean payout=!de.quest.data.PersonalResetReceipts.has(data,receipt);
+        de.quest.data.PersonalResetReceipts.record(data,receipt);
+        if(payout) CurrencyService.addBalance(world, player.getUUID(), REWARD_SILVERMARKS);
         player.sendSystemMessage(Component.translatable("message.village-quest.guild_town.afterstory.completed",
-                REWARD_SILVERMARKS).withStyle(ChatFormatting.GREEN), false);
+                payout ? REWARD_SILVERMARKS : 0).withStyle(ChatFormatting.GREEN), false);
         return true;
     }
 

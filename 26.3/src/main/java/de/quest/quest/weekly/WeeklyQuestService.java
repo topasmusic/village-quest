@@ -160,6 +160,30 @@ public final class WeeklyQuestService {
         return RepeatableRewardTuning.adjustRewardStack(reward, contextTargetProfile());
     }
 
+    public static List<Component> descriptionLines(ServerLevel world, UUID playerId, WeeklyQuestType type) {
+        var definition=WeeklyQuestGenerator.definition(type);if(definition==null)return List.of();
+        return withTargetProfile(data(world,playerId),() -> {
+            var lines=new java.util.ArrayList<Component>(definition.descriptionLines(world,playerId));
+            if(lines.isEmpty())return List.copyOf(lines);
+            var tail=lines.getLast().copy();
+            if(type==WeeklyQuestType.HARVEST_FOR_VILLAGE) {
+                delivery(tail,net.minecraft.world.item.Items.WHEAT,harvestWheatDeliveryTarget());
+                delivery(tail,net.minecraft.world.item.Items.CARROT,harvestCarrotTarget());
+                delivery(tail,net.minecraft.world.item.Items.POTATO,harvestPotatoTarget());
+                delivery(tail,net.minecraft.world.item.Items.BREAD,harvestBreadTarget());
+            } else if(type==WeeklyQuestType.SMITH_WEEK) {
+                delivery(tail,net.minecraft.world.item.Items.RAW_IRON,smithOreDeliveryTarget());
+                delivery(tail,net.minecraft.world.item.Items.RAW_GOLD,smithGoldOreDeliveryTarget());
+                delivery(tail,net.minecraft.world.item.Items.IRON_INGOT,smithIronTarget());
+                delivery(tail,net.minecraft.world.item.Items.GOLD_INGOT,smithGoldTarget());
+            }
+            lines.set(lines.size()-1,tail);return List.copyOf(lines);
+        });
+    }
+    private static void delivery(net.minecraft.network.chat.MutableComponent text,net.minecraft.world.item.Item item,int amount) {
+        if(amount>0)de.quest.quest.QuestRuleText.appendDelivery(text,Component.translatable("quest.village-quest.instructions.delivery",amount,Component.translatable(item.getDescriptionId())));
+    }
+
     public static List<Component> previewProgressLines(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
             return List.of();
@@ -197,6 +221,7 @@ public final class WeeklyQuestService {
     }
 
     private static void ensureCurrentProgressCycle(PlayerQuestData data) {
+        if (data.hasActiveWeekly()) return;
         long cycle = currentCycle();
         if (data.getWeeklyProgressCycle() != cycle) {
             data.clearWeeklyProgress();
@@ -215,6 +240,7 @@ public final class WeeklyQuestService {
     }
 
     private static WeeklyQuestType ensureQuestChoice(ServerLevel world, UUID playerId, PlayerQuestData data) {
+        if (data.hasActiveWeekly()) return data.getWeeklyChoice();
         long cycle = currentCycle();
         boolean changed = false;
 
@@ -379,7 +405,9 @@ public final class WeeklyQuestService {
     }
 
     public static boolean isAcceptedThisWeek(ServerLevel world, UUID playerId) {
-        return world != null && playerId != null && data(world, playerId).getWeeklyAcceptedCycle() == currentCycle();
+        if (world == null || playerId == null) return false;
+        PlayerQuestData data = data(world, playerId);
+        return data.hasActiveWeekly() || data.getWeeklyAcceptedCycle() == currentCycle();
     }
 
     public static boolean hasCompletedThisWeek(ServerLevel world, UUID playerId) {
@@ -460,6 +488,7 @@ public final class WeeklyQuestService {
     }
 
     private static boolean completeIfEligible(ServerLevel world, ServerPlayer player, boolean questMasterClaim) {
+        if (player != null && de.quest.shrine.VillageIntroRequestService.blocksActions(world,player.getUUID())) return false;
         if (world == null || player == null) {
             return false;
         }
@@ -473,7 +502,7 @@ public final class WeeklyQuestService {
         if (definition == null) {
             return false;
         }
-        if (!questMasterClaim && definition.completionMode() == QuestCompletionMode.QUESTMASTER_TURN_IN) {
+        if (!questMasterClaim && definition.completionMode(world) == QuestCompletionMode.QUESTMASTER_TURN_IN) {
             return false;
         }
         PlayerQuestData data = data(world, playerId);
@@ -499,8 +528,9 @@ public final class WeeklyQuestService {
 
         if (shared) {
             List<ServerPlayer> recipients = onlinePlayers(world, QuestPartyService.activeWeeklyMembers(world, playerId, questType, false));
-            var completion = withTargetProfile(data, definition::buildCompletion);
+            var completion = withTargetProfile(data, () -> definition.completionFor(world));
             for (ServerPlayer recipient : recipients) {
+                if (de.quest.shrine.VillageIntroRequestService.blocksActions(world,recipient.getUUID())) continue;
                 deliverCompletion(world, recipient, completion);
                 markCompletedThisWeek(world, recipient.getUUID());
                 de.quest.reputation.SocialReputationService.recordQuestCompletion(world.getServer(), recipient.getUUID(),
@@ -511,7 +541,7 @@ public final class WeeklyQuestService {
             return !recipients.isEmpty();
         }
 
-        deliverCompletion(world, player, withTargetProfile(data, definition::buildCompletion));
+        deliverCompletion(world, player, withTargetProfile(data, () -> definition.completionFor(world)));
         markCompletedThisWeek(world, playerId);
         de.quest.reputation.SocialReputationService.recordQuestCompletion(world.getServer(), playerId,
                 de.quest.reputation.SocialReputationRules.BenefitKind.WEEKLY, currentCycle(), "normal");
@@ -539,6 +569,7 @@ public final class WeeklyQuestService {
     }
 
     public static boolean adminForceCompleteWeekly(ServerLevel world, ServerPlayer player) {
+        if (player != null && de.quest.shrine.VillageIntroRequestService.blocksActions(world,player.getUUID())) return false;
         if (world == null || player == null) {
             return false;
         }
@@ -556,8 +587,9 @@ public final class WeeklyQuestService {
         WeeklyQuestType questType = activeQuestType(world, playerId);
         if (isSharedWeekly(world, playerId, questType)) {
             List<ServerPlayer> recipients = onlinePlayers(world, QuestPartyService.activeWeeklyMembers(world, playerId, questType, false));
-            var completion = withTargetProfile(data(world, playerId), definition::buildCompletion);
+            var completion = withTargetProfile(data(world, playerId), () -> definition.completionFor(world));
             for (ServerPlayer recipient : recipients) {
+                if (de.quest.shrine.VillageIntroRequestService.blocksActions(world,recipient.getUUID())) continue;
                 deliverCompletion(world, recipient, completion);
                 markCompletedThisWeek(world, recipient.getUUID());
                 refreshQuestUi(world, recipient.getUUID());
@@ -566,7 +598,7 @@ public final class WeeklyQuestService {
             return !recipients.isEmpty();
         }
 
-        deliverCompletion(world, player, withTargetProfile(data(world, playerId), definition::buildCompletion));
+        deliverCompletion(world, player, withTargetProfile(data(world, playerId), () -> definition.completionFor(world)));
         markCompletedThisWeek(world, playerId);
         refreshQuestUi(world, playerId);
         return true;
@@ -802,7 +834,7 @@ public final class WeeklyQuestService {
         if (definition == null) {
             return null;
         }
-        return withTargetProfile(data(world, playerId), definition::buildCompletion);
+        return withTargetProfile(data(world, playerId), () -> definition.completionFor(world));
     }
 
     public static int harvestWheatDeliveryTarget() { return tunedTarget(HARVEST_WHEAT_TARGET, "weekly.harvest.wheat"); }
@@ -978,7 +1010,8 @@ public final class WeeklyQuestService {
 
     private static void deliverCompletion(ServerLevel world, ServerPlayer player, WeeklyQuestCompletion completion) {
         var rewardType = data(world, player.getUUID()).getWeeklyChoice();
-        if (rewardType != null) de.quest.reward.VanillaRewardService.complete(world, player, "weekly", de.quest.reward.VanillaRewardService.weeklyIdentity(rewardType.name()));
+        if (rewardType != null) de.quest.reward.VanillaRewardService.complete(world, player, "weekly",
+                rewardType.name() + ":" + data(world, player.getUUID()).getWeeklyAcceptedCycle());
         long actualCurrencyReward = ProsperityService.applyFestivalBonus(world, player.getUUID(),
                 completion.currencyReward() + VillageProjectService.bonusCurrency(world, player.getUUID(), completion.reputationTrack()));
         if (actualCurrencyReward > 0L) {

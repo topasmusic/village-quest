@@ -99,11 +99,18 @@ public final class VillageWelcomeService {
 
         QuestState.get(world.getServer()).setDirty();
         if (result == GreetingResult.COMPLETED) {
-            giveKeepsake(player, contact.contact().type());
+            boolean keepsakeIssued = false;
+            if (!de.quest.data.PersonalResetReceipts.has(data,"welcome")) {
+                de.quest.data.PersonalResetReceipts.record(data,"welcome");
+                giveKeepsake(player, contact.contact().type());
+                keepsakeIssued = true;
+            }
             VillagerDialogueService.sendDialogue(player, villager, Component.translatable(
                     "message.village-quest.guild_intro.completed", contact.contact().type().label()));
-            player.sendSystemMessage(Component.translatable("message.village-quest.guild_intro.keepsake_received")
+            if (keepsakeIssued) {
+                player.sendSystemMessage(Component.translatable("message.village-quest.guild_intro.keepsake_received")
                     .withStyle(ChatFormatting.GOLD), false);
+            }
             world.playSound(null, player.blockPosition(), SoundEvents.VILLAGER_CELEBRATE,
                     SoundSource.PLAYERS, 0.9f, 1.05f);
         } else if (!started) {
@@ -124,6 +131,19 @@ public final class VillageWelcomeService {
         }
         data.setTradeRouteFlag(ACTIVE, true);
         data.setTradeRouteInt(VILLAGE, villageIndex + 1);
+    }
+
+    /** Only the validated replacement-contact action may call this; normal visits never move Welcome. */
+    static boolean rebind(PlayerQuestData data, int expectedOld, int replacement) {
+        if (data == null || expectedOld < 0 || replacement < 0 || expectedOld == replacement
+                || data.getTradeRouteInt(VILLAGE) != expectedOld + 1 || !isActive(data) && !isCompleted(data)) return false;
+        boolean completed = isCompleted(data);
+        for (String flag : java.util.Set.copyOf(data.getTradeRouteFlags()))
+            if (flag.startsWith(GREETED_PREFIX)) data.setTradeRouteFlag(flag, false);
+        data.setTradeRouteInt(GREETINGS, 0);
+        data.setTradeRouteInt(VILLAGE, replacement + 1);
+        data.setTradeRouteFlag(ACTIVE, !completed);
+        return true;
     }
 
     static GreetingResult greet(PlayerQuestData data, UUID villagerId) {
@@ -150,6 +170,8 @@ public final class VillageWelcomeService {
             return Component.empty();
         }
         PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(playerId);
+        if (VillageIntroRequestService.blocksActions(world,playerId))
+            return Component.translatable("quest.village-quest.guidance.pending_delivery");
         if (FirstDailyChoiceService.canChoose(data)) {
             return Component.translatable("screen.village-quest.journal.guild_intro.choose_daily");
         }
@@ -159,20 +181,10 @@ public final class VillageWelcomeService {
         if (!FirstDailyChoiceService.isCompleted(data)) {
             return Component.empty();
         }
-        if (data.hasTradeRouteFlag(ACTIVE)) {
-            int villageIndex = data.getTradeRouteInt(VILLAGE) - 1;
-            VillageContactService.VillageContact contact = VillageContactService.read(data, villageIndex);
-            Component type = contact == null ? Component.translatable("text.village-quest.village_bond.type.granary")
-                    : contact.type().label();
-            return Component.translatable("screen.village-quest.journal.guild_intro.greet",
-                    type, data.getTradeRouteInt(GREETINGS), GREETING_TARGET);
-        }
-        if (data.hasTradeRouteFlag(COMPLETED)) {
-            return TradeRouteService.routeCount(world, playerId) == 0
-                    ? Component.translatable("screen.village-quest.journal.guild_intro.preview")
-                    : Component.empty();
-        }
-        return Component.translatable("screen.village-quest.journal.guild_intro.find_village");
+        var next=de.quest.quest.QuestGuidanceService.villageJourney(data,
+                de.quest.kingdom.LivingKingdomsState.get(world.getServer()),
+                de.quest.village.VillageLifeState.get(world.getServer()));
+        return next==null?Component.empty():next.action();
     }
 
     public static boolean isCompleted(PlayerQuestData data) {
@@ -210,7 +222,7 @@ public final class VillageWelcomeService {
         player.inventoryMenu.broadcastChanges();
     }
 
-    private static boolean hasEnoughVillagers(ServerLevel world,
+    static boolean hasEnoughVillagers(ServerLevel world,
                                                ShadowsTradeRoadEncounterService.VillageMarker marker) {
         AABB area = new AABB(marker.minX() - 8.0, world.getMinY(), marker.minZ() - 8.0,
                 marker.maxX() + 9.0, world.getMaxY(), marker.maxZ() + 9.0);

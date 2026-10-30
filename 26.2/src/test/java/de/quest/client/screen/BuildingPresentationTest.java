@@ -135,6 +135,7 @@ final class BuildingPresentationTest {
                 assertTrue(VillageUiTheme.wrapScaledLines(font,text.apply("council_intro"),246,.7f).size()<=2,locale);
                 assertTrue(VillageUiTheme.wrapScaledLines(font,text.apply("founding_help"),176,.7f).size()<=4,locale);
                 assertTrue(VillageUiTheme.wrapScaledLines(font,text.apply("found_next"),104,.75f).size()<=8,locale+" founding instructions");
+                assertTrue(VillageUiTheme.wrapScaledLines(font,text.apply("council_mandate_requirement"),104,.68f).size()<=8,locale+" mandate instructions" );
                 for(String state:List.of("-1","incoming","outgoing","1","2","3"))
                     assertTrue(font.width(text.apply("relation_agreement."+state))*.72f<=125,locale+" compact agreement "+state);
                 assertTrue(font.width(catalog.get("screen.village-quest.trade_route.guide_title").getAsString())<=230,locale+" map title");
@@ -147,6 +148,19 @@ final class BuildingPresentationTest {
                     assertTrue(font.width(text.apply(key))*.75f<=108,locale+" "+key);
                 for(String key:List.of("require_missing","require_ok")) assertTrue(font.width(text.apply(key))*.65f<=39,locale+" "+key);
             }
+        }
+    }
+    @Test void councilShowsRequiredVillageBondBeforeRequestingMandate() throws Exception {
+        try(var client=mockStatic(Minecraft.class);var theme=mockStatic(VillageUiTheme.class)) {
+            client.when(Minecraft::getInstance).thenReturn(mock(Minecraft.class));
+            var screen=new BuildingScreen(view());var font=mock(Font.class);
+            var field=Screen.class.getDeclaredField("font");field.setAccessible(true);field.set(screen,font);
+            var graphics=mock(GuiGraphics.class);when(graphics.pose()).thenReturn(new Matrix3x2fStack(16));
+            var render=BuildingScreen.class.getDeclaredMethod("renderCouncil",GuiGraphics.class,int.class,int.class,int.class,int.class);render.setAccessible(true);
+            render.invoke(screen,graphics,0,0,-1,-1);
+            var required=Component.translatable("screen.village-quest.building.council_mandate_requirement",
+                    de.quest.shrine.VillageBondLevel.TRUSTED.label()).getString();
+            theme.verify(()->VillageUiTheme.drawWrappedScaled(eq(graphics),eq(font),eq(required),anyInt(),anyInt(),anyInt(),anyInt(),anyFloat(),anyInt()));
         }
     }
     private static BuildingPayloads.View view() {

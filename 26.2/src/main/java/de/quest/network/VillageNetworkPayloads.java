@@ -80,6 +80,26 @@ public final class VillageNetworkPayloads {
         }
     }
 
+    /** Server-issued episode identity; never a client-supplied reward or completion proof. */
+    public record IntroToken(int generation, UUID episode, UUID village, int revision) {
+        static IntroToken read(RegistryFriendlyByteBuf buf) {
+            return new IntroToken(buf.readVarInt(), buf.readUUID(), buf.readUUID(), buf.readVarInt());
+        }
+        static void write(RegistryFriendlyByteBuf buf, IntroToken token) {
+            buf.writeVarInt(token.generation()); buf.writeUUID(token.episode());
+            buf.writeUUID(token.village()); buf.writeVarInt(token.revision());
+        }
+    }
+    public record IntroBoardData(IntroToken token, int activeId, boolean replacement, Component detail) {
+        static IntroBoardData read(RegistryFriendlyByteBuf buf) {
+            return new IntroBoardData(IntroToken.read(buf), buf.readVarInt(), buf.readBoolean(),
+                    ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf));
+        }
+        static void write(RegistryFriendlyByteBuf buf, IntroBoardData value) {
+            IntroToken.write(buf, value.token()); buf.writeVarInt(value.activeId()); buf.writeBoolean(value.replacement());
+            ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, value.detail());
+        }
+    }
     public record NoticeBoardPayload(int worldX, int worldY, int worldZ,
                                      Component villageType, Component bondLevel,
                                      Component villageCondition, Component villageNeed, int villageSupport,
@@ -89,9 +109,37 @@ public final class VillageNetworkPayloads {
                                      int nextThreshold, Component nextLevel, Component nextPerk,
                                      boolean requestAvailable, boolean canDeliver,
                                      List<NoticeBoardOfferData> offers,
-                                     Component adventureProfile) implements CustomPacketPayload {
+                                     Component adventureProfile, Component nextRequest, IntroBoardData intro, int socialTrust, boolean socialCase, de.quest.reputation.VillageRelationship.Hints relationship) implements CustomPacketPayload {
+        public NoticeBoardPayload(int worldX,int worldY,int worldZ,Component villageType,Component bondLevel,Component villageCondition,Component villageNeed,int villageSupport,Component requestTitle,ItemStack requestStack,int requiredAmount,int inventoryAmount,long reward,long balance,int completions,int bondTier,int nextThreshold,Component nextLevel,Component nextPerk,boolean requestAvailable,boolean canDeliver,List<NoticeBoardOfferData> offers,Component adventureProfile,Component nextRequest,IntroBoardData intro) {
+            this(worldX,worldY,worldZ,villageType,bondLevel,villageCondition,villageNeed,villageSupport,requestTitle,requestStack,requiredAmount,inventoryAmount,reward,balance,completions,bondTier,nextThreshold,nextLevel,nextPerk,requestAvailable,canDeliver,offers,adventureProfile,nextRequest,intro,0,false,de.quest.reputation.VillageRelationship.UNKNOWN);
+        }
+        public NoticeBoardPayload(int worldX, int worldY, int worldZ, Component villageType, Component bondLevel,
+                Component villageCondition, Component villageNeed, int villageSupport, Component requestTitle,
+                ItemStack requestStack, int requiredAmount, int inventoryAmount, long reward, long balance,
+                int completions, int bondTier, int nextThreshold, Component nextLevel, Component nextPerk,
+                boolean requestAvailable, boolean canDeliver, List<NoticeBoardOfferData> offers,
+                Component adventureProfile, Component nextRequest) {
+            this(worldX,worldY,worldZ,villageType,bondLevel,villageCondition,villageNeed,villageSupport,requestTitle,
+                    requestStack,requiredAmount,inventoryAmount,reward,balance,completions,bondTier,nextThreshold,
+                    nextLevel,nextPerk,requestAvailable,canDeliver,offers,adventureProfile,nextRequest,null);
+        }
+        /** -1 is an explicitly absent network supply value, never an invented local supply level. */
+        public boolean networkConnected() { return villageSupport >= 0; }
+        /** Compatibility for previews and callers without a live server clock. */
+        public NoticeBoardPayload(int worldX, int worldY, int worldZ,
+                                  Component villageType, Component bondLevel, Component villageCondition,
+                                  Component villageNeed, int villageSupport, Component requestTitle, ItemStack requestStack,
+                                  int requiredAmount, int inventoryAmount, long reward, long balance, int completions,
+                                  int bondTier, int nextThreshold, Component nextLevel, Component nextPerk,
+                                  boolean requestAvailable, boolean canDeliver, List<NoticeBoardOfferData> offers,
+                                  Component adventureProfile) {
+            this(worldX, worldY, worldZ, villageType, bondLevel, villageCondition, villageNeed, villageSupport,
+                    requestTitle, requestStack, requiredAmount, inventoryAmount, reward, balance, completions,
+                    bondTier, nextThreshold, nextLevel, nextPerk, requestAvailable, canDeliver, offers,
+                    adventureProfile, Component.empty());
+        }
         public static final Type<NoticeBoardPayload> ID = new Type<>(
-                Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "notice_board"));
+                Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "notice_board_v3"));
         public static final StreamCodec<RegistryFriendlyByteBuf, NoticeBoardPayload> CODEC =
                 StreamCodec.of(NoticeBoardPayload::write, NoticeBoardPayload::read);
 
@@ -124,7 +172,8 @@ public final class VillageNetworkPayloads {
             return new NoticeBoardPayload(worldX, worldY, worldZ, villageType, bondLevel, condition, need,
                     support, requestTitle, requestStack, required, inventory, reward, balance, completions,
                     bondTier, nextThreshold, nextLevel, nextPerk, available, canDeliver,
-                    List.copyOf(offers), profile);
+                    List.copyOf(offers), profile, ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf),
+                    buf.readBoolean() ? IntroBoardData.read(buf) : null,buf.readVarInt(),buf.readBoolean(),de.quest.reputation.VillageRelationship.read(buf));
         }
 
         private static void write(RegistryFriendlyByteBuf buf, NoticeBoardPayload payload) {
@@ -155,16 +204,22 @@ public final class VillageNetworkPayloads {
             for (int i = 0; i < offerCount; i++) NoticeBoardOfferData.write(buf, offers.get(i));
             ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf,
                     payload.adventureProfile() == null ? Component.empty() : payload.adventureProfile());
+            ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf, payload.nextRequest());
+            buf.writeBoolean(payload.intro() != null);
+            if (payload.intro() != null) IntroBoardData.write(buf, payload.intro());
+            buf.writeVarInt(payload.socialTrust()); buf.writeBoolean(payload.socialCase()); de.quest.reputation.VillageRelationship.write(buf,payload.relationship());
         }
 
         @Override public Type<? extends CustomPacketPayload> type() { return ID; }
     }
 
-    public record NoticeBoardActionPayload(int worldX, int worldY, int worldZ, int action, int requestId)
+    public record NoticeBoardActionPayload(int worldX, int worldY, int worldZ, int action, int requestId, IntroToken token)
             implements CustomPacketPayload {
-        public static final int ACTION_DELIVER = 1;
+        public static final int ACTION_DELIVER = 1, ACTION_REFRESH = 2;
+        public static final int INTRO_ACCEPT = 3, INTRO_CANCEL = 4, INTRO_DELIVER = 5, INTRO_REPLACE = 6;
+        public NoticeBoardActionPayload(int x, int y, int z, int action, int id) { this(x,y,z,action,id,null); }
         public static final Type<NoticeBoardActionPayload> ID = new Type<>(
-                Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "notice_board_action"));
+                Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "notice_board_action_v2"));
         public static final StreamCodec<RegistryFriendlyByteBuf, NoticeBoardActionPayload> CODEC =
                 StreamCodec.of((buf, value) -> {
                     buf.writeInt(value.worldX());
@@ -172,8 +227,10 @@ public final class VillageNetworkPayloads {
                     buf.writeInt(value.worldZ());
                     buf.writeVarInt(value.action());
                     buf.writeVarInt(value.requestId());
+                    buf.writeBoolean(value.token() != null);
+                    if (value.token() != null) IntroToken.write(buf, value.token());
                 }, buf -> new NoticeBoardActionPayload(buf.readInt(), buf.readInt(), buf.readInt(),
-                        buf.readVarInt(), buf.readVarInt()));
+                        buf.readVarInt(), buf.readVarInt(), buf.readBoolean() ? IntroToken.read(buf) : null));
         @Override public Type<? extends CustomPacketPayload> type() { return ID; }
     }
 
@@ -189,7 +246,7 @@ public final class VillageNetworkPayloads {
                 AFTERSTORY_AVAILABLE = 11, AFTERSTORY_ACTIVE = 12,
                 AFTERSTORY_READY = 13, AFTERSTORY_COMPLETE = 14;
         public static final Type<NoticeJourneyPayload> ID = new Type<>(
-                Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "notice_journey"));
+                Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "notice_journey_v3"));
         public static final StreamCodec<RegistryFriendlyByteBuf, NoticeJourneyPayload> CODEC =
                 StreamCodec.of((buf, value) -> {
                     buf.writeInt(value.worldX()); buf.writeInt(value.worldY()); buf.writeInt(value.worldZ());

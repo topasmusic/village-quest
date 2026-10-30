@@ -5,6 +5,7 @@ import de.quest.quest.daily.DailyQuestDefinition;
 import de.quest.quest.daily.DailyQuestKeys;
 import de.quest.quest.daily.DailyQuestService;
 import java.util.UUID;
+import de.quest.quest.PeacefulRepeatableSupplies;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -38,6 +39,7 @@ public final class SkeletonPatrolDailyQuest implements DailyQuestDefinition {
 
     @Override
     public Component progressLine(ServerLevel world, UUID playerId) {
+        if (PeacefulRepeatableSupplies.daily(world,type())) return PeacefulRepeatableSupplies.dailyProgress(world,playerId,type());
         return Component.translatable(
                 "quest.village-quest.daily.skeleton_patrol.progress",
                 DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.SKELETON_PATROL_PROGRESS),
@@ -47,6 +49,7 @@ public final class SkeletonPatrolDailyQuest implements DailyQuestDefinition {
 
     @Override
     public boolean isComplete(ServerLevel world, ServerPlayer player) {
+        if (PeacefulRepeatableSupplies.daily(world,type())) return PeacefulRepeatableSupplies.dailyComplete(world,player,type());
         return DailyQuestService.getQuestInt(world, player.getUUID(), DailyQuestKeys.SKELETON_PATROL_PROGRESS) >= TARGET;
     }
 
@@ -65,6 +68,7 @@ public final class SkeletonPatrolDailyQuest implements DailyQuestDefinition {
 
     @Override
     public void onMonsterKill(ServerLevel world, ServerPlayer player, Entity killedEntity) {
+        if (PeacefulRepeatableSupplies.daily(world,type())) return;
         if (!(killedEntity instanceof AbstractSkeleton)) {
             return;
         }

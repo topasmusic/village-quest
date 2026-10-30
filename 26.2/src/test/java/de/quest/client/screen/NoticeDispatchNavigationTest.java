@@ -46,6 +46,25 @@ final class NoticeDispatchNavigationTest {
             assertEquals("screen.village-quest.notice_journey.objective_one",key.invoke(board(),true),"Unknown literal titles must retain the neutral fallback");
         }
     }
+    @Test void everyLocalStoryRetainsItsObjectiveAndRulesBeforeAndAfterAcceptance() throws Exception {
+        try(var client=mockStatic(Minecraft.class)) {
+            client.when(Minecraft::getInstance).thenReturn(mock(Minecraft.class));
+            var method=NoticeJourneyScreen.class.getDeclaredMethod("activeInstruction");method.setAccessible(true);
+            for(var story:de.quest.guildtown.GuildTownStory.values()) {
+                for(int stage:new int[]{VillageNetworkPayloads.NoticeJourneyPayload.AVAILABLE,
+                        VillageNetworkPayloads.NoticeJourneyPayload.ACTIVE,VillageNetworkPayloads.NoticeJourneyPayload.CHOOSE,
+                        VillageNetworkPayloads.NoticeJourneyPayload.READY}) {
+                    var screen=new NoticeJourneyScreen(new VillageNetworkPayloads.NoticeJourneyPayload(0,64,0,stage,
+                            Component.empty(),story.title(),Component.literal("STATE DETAIL"),0,24,0,1,false,ItemStack.EMPTY,0,null,true));
+                    String text=(String)method.invoke(screen);
+                    assertTrue(text.contains("instruction."+story.key()+".objective"),text);
+                    assertTrue(text.contains("instruction."+story.key()+".rules"),text);
+                    assertTrue(text.contains("STATE DETAIL"),text);
+                }
+            }
+        }
+    }
+
     private static MouseButtonEvent click(int x,int y) {
         return new MouseButtonEvent(x,y,new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT,0));
     }
@@ -57,6 +76,30 @@ final class NoticeDispatchNavigationTest {
             return click(Math.round(screen.width/2f+(left+x-screen.width/2f)*value),
                     Math.round(screen.height/2f+(top+y-screen.height/2f)*value));
         }catch(ReflectiveOperationException failure){throw new AssertionError(failure);}
+    }
+    @Test void introButtonsUseTheDisplayedEpisodeAndNeverSendOrdinaryDelivery() {
+        try(var client=mockStatic(Minecraft.class);var tour=mockStatic(UiTestTour.class)) {
+            client.when(Minecraft::getInstance).thenReturn(mock(Minecraft.class));
+            var token=new VillageNetworkPayloads.IntroToken(3,java.util.UUID.randomUUID(),java.util.UUID.randomUUID(),1);
+            for(int active:new int[]{-1,2}) {
+                var offers=java.util.stream.IntStream.range(0,3).mapToObj(i -> new VillageNetworkPayloads.NoticeBoardOfferData(
+                        i,Component.literal("Task "+i),ItemStack.EMPTY,8,i==2 ? 8 : 0,2,0,false,i==2)).toList();
+                var payload=new VillageNetworkPayloads.NoticeBoardPayload(12,64,34,Component.empty(),Component.empty(),Component.empty(),
+                        Component.empty(),-1,Component.empty(),ItemStack.EMPTY,8,0,2,0,0,0,2,Component.empty(),Component.empty(),true,false,
+                        offers,Component.empty(),Component.empty(),new VillageNetworkPayloads.IntroBoardData(token,active,false,Component.empty()));
+                var screen=new GuildNoticeBoardScreen(payload);size(screen);tour.clearInvocations();
+                assertTrue(screen.mouseClicked(panelClick(screen,300,265),false));
+                int action=active<0 ? VillageNetworkPayloads.NoticeBoardActionPayload.INTRO_ACCEPT : VillageNetworkPayloads.NoticeBoardActionPayload.INTRO_DELIVER;
+                int id=active<0 ? 0 : 2;
+                tour.verify(() -> UiTestTour.send(new VillageNetworkPayloads.NoticeBoardActionPayload(12,64,34,action,id,token)));
+                if(active>=0) {
+                    assertTrue(screen.mouseClicked(panelClick(screen,300,289),false));
+                    tour.verify(() -> UiTestTour.send(new VillageNetworkPayloads.NoticeBoardActionPayload(12,64,34,4,2,token)));
+                }
+                tour.verify(() -> UiTestTour.click(anyDouble(),anyDouble(),anyInt(),anyInt()),times(active<0 ? 1 : 2));
+                tour.verifyNoMoreInteractions();
+            }
+        }
     }
     @Test void dispatchRoundTripKeepsTrustReachableAndTheSingleplayerCooldownRunning() {
         try (var client=mockStatic(Minecraft.class); var tour=mockStatic(UiTestTour.class)) {

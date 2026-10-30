@@ -269,6 +269,8 @@ public final class ShepherdFluteQuestService {
     }
 
     private static void showProgress(ServerPlayer player, PlayerQuestData data) {
+        player.sendSystemMessage(Component.translatable("quest.village-quest.special.flute.offer.1"),false);
+        player.sendSystemMessage(Component.translatable("quest.village-quest.special.flute.offer.2"),false);
         player.sendSystemMessage(Texts.dailyTitle(title(), ChatFormatting.AQUA), false);
         for (Component line : progressLines(data)) {
             player.sendSystemMessage(line, false);

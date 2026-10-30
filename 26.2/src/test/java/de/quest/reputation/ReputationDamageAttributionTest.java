@@ -16,6 +16,16 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 final class ReputationDamageAttributionTest {
+    @Test void exactAnchorStopsAtItsOwnBucketButStillRequiresHeightAndKeepsNonExactTies() {
+        var index=new ProtectedVillageIndex(); var exact=VillageKey.overworld(0,0); var neighbor=VillageKey.overworld(64,0);
+        index.upsert(exact,64); index.upsert(neighbor,96);
+        assertEquals(exact,index.resolve("minecraft:overworld",new BlockPos(0,64,0)).orElseThrow());
+        assertEquals(1,index.lastCandidatesExamined());
+        assertEquals(neighbor,index.resolve("minecraft:overworld",new BlockPos(0,97,0)).orElseThrow());
+        assertEquals(exact,index.resolve("minecraft:overworld",new BlockPos(32,80,0)).orElseThrow());
+        var loaded=ProtectedVillageIndex.fromNbt(index.toNbt());
+        assertEquals(exact,loaded.resolve("minecraft:overworld",new BlockPos(32,80,0)).orElseThrow());
+    }
     @BeforeAll static void bootstrap() { SharedConstants.tryDetectVersion(); Bootstrap.bootStrap(); }
     @Test void onlyAcceptedHealthAndAbsorptionLossCounts() {
         assertEquals(0, ReputationDamageAdapter.acceptedDamage(20, 4, 20, 4, true));

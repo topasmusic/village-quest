@@ -37,13 +37,14 @@ final class GuildNoticePostFallbackTest {
     private static final GuildCornerLandmarkState.VillageKey KEY = GuildCornerLandmarkState.VillageKey.overworld(0, 0);
     @BeforeAll static void bootstrap() { SharedConstants.tryDetectVersion(); Bootstrap.bootStrap(); }
 
+    private static ShadowsTradeRoadEncounterService.VillageMarker marker() { return new ShadowsTradeRoadEncounterService.VillageMarker("test", 0, 0, -16, 16, -16, 16, List.of(new GuildCornerCandidateSearch.StructureFootprint(6, 8, 6, 8))); }
     private static boolean place(ServerLevel world, GuildCornerLandmarkState state) throws Exception {
         var method = GuildCornerPlacementService.class.getDeclaredMethod("placeCompact", ServerLevel.class,
                 GuildCornerLandmarkState.class, GuildCornerLandmarkState.VillageKey.class,
                 ShadowsTradeRoadEncounterService.VillageMarker.class, BlockPos.class);
         method.setAccessible(true);
         return (boolean) method.invoke(null, world, state, KEY,
-                new ShadowsTradeRoadEncounterService.VillageMarker("test", 0, 0, -16, 16, -16, 16), VISITOR);
+                marker(), VISITOR);
     }
 
     @Test void compactBoardSpawnsInClearingAndSurvivesReloadWithoutDuplicates() throws Exception {
@@ -54,6 +55,9 @@ final class GuildNoticePostFallbackTest {
     }
     @Test void missingDecorativePresetStillAllowsRetrofitToPlaceACompactBoard() throws Exception {
         exercise(false, false, true);
+    }
+    @Test void automaticDiscoveryKeepsTheBoardEightBlocksFromTheDiscoveringPlayer() throws Exception {
+        exercise(false, false, true, true);
     }
 
     @Test void replacementOrExplosionCannotTurnDroppedBoardsIntoAnAutomaticItemFarm() {
@@ -79,6 +83,9 @@ final class GuildNoticePostFallbackTest {
         exercise(pending, tree, false);
     }
     private static void exercise(boolean pending, boolean tree, boolean missingPreset) throws Exception {
+        exercise(pending, tree, missingPreset, false);
+    }
+    private static void exercise(boolean pending, boolean tree, boolean missingPreset, boolean automatic) throws Exception {
         var world = mock(ServerLevel.class); var server = mock(MinecraftServer.class);
         var cache = mock(ServerChunkCache.class); var chunk = mock(LevelChunk.class);
         var border = mock(WorldBorder.class); var questState = mock(QuestState.class);
@@ -121,9 +128,24 @@ final class GuildNoticePostFallbackTest {
                 when(templates.get(any())).thenReturn(java.util.Optional.empty());
                 var player = mock(net.minecraft.server.level.ServerPlayer.class);
                 when(player.blockPosition()).thenReturn(VISITOR);
+                when(player.getX()).thenReturn(0.5); when(player.getZ()).thenReturn(0.5);
+                var players = mock(net.minecraft.server.players.PlayerList.class);
+                when(server.getPlayerList()).thenReturn(players); when(players.getPlayers()).thenReturn(List.of(player));
+                when(player.level()).thenReturn(world);
+                if (automatic) {
+                    var method = GuildCornerPlacementService.class.getDeclaredMethod("processLocalVillageVisit", ServerLevel.class,
+                            ShadowsTradeRoadEncounterService.VillageMarker.class, BlockPos.class, long.class);
+                    method.setAccessible(true);
+                    method.invoke(null, world, marker(), VISITOR, 0L);
+                    var placed = state.snapshot(KEY).orElseThrow().footprint();
+                    double dx = Math.max(0, Math.max(placed.minX() - 0.5, 0.5 - (placed.maxX() + 1)));
+                    double dz = Math.max(0, Math.max(placed.minZ() - 0.5, 0.5 - (placed.maxZ() + 1)));
+                    assertTrue(dx * dx + dz * dz >= 64, "automatic footprint must stay eight blocks from players");
+                    return;
+                }
                 assertEquals(GuildCornerPlacementService.ManualPlacementResult.PLACED,
                         GuildCornerPlacementService.requestManualPlacement(world, player,
-                                new ShadowsTradeRoadEncounterService.VillageMarker("test", 0, 0, -16, 16, -16, 16)));
+                                marker()));
             } else assertTrue(place(world, state));
             var saved = state.snapshot(KEY).orElseThrow();
             assertEquals(GuildCornerLandmarkState.LandmarkStatus.GENERATED, saved.status());
@@ -138,6 +160,18 @@ final class GuildNoticePostFallbackTest {
             assertEquals(1, blocks.values().stream().filter(block -> block.is(ModBlocks.GUILD_NOTICE_POST)).count());
             reloaded.markRemovedByPlayer(KEY);
             assertFalse(place(world, reloaded));
+            // Explicit retrofit is allowed to restore even deliberately removed generated posts.
+            blocks.put(saved.cornerPos(), Blocks.AIR.defaultBlockState());
+            when(storage.computeIfAbsent(GuildCornerLandmarkState.TYPE)).thenReturn(reloaded);
+            var templates = mock(net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager.class);
+            when(world.getStructureManager()).thenReturn(templates);
+            when(templates.get(any())).thenReturn(java.util.Optional.empty());
+            var player = mock(net.minecraft.server.level.ServerPlayer.class);
+            when(player.blockPosition()).thenReturn(VISITOR);
+            assertEquals(GuildCornerPlacementService.ManualPlacementResult.PLACED,
+                    GuildCornerPlacementService.requestManualPlacement(world, player,
+                            marker()));
+            assertEquals(1, blocks.values().stream().filter(block -> block.is(ModBlocks.GUILD_NOTICE_POST)).count());
             verify(cache, never()).getChunk(anyInt(), anyInt(), any(), anyBoolean());
         } finally { ModBlocks.GUILD_NOTICE_POST = previous; }
     }

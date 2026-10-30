@@ -1,6 +1,9 @@
 # Village Quest Wiki
 
-Current stable release: `2.6.2` — Living Kingdoms for Minecraft `26.3`.
+This wiki covers **2.6.3** for Minecraft 26.3 and 26.2.
+
+
+Current stable release: `2.6.3` — Living Kingdoms for Minecraft `26.3`.
 
 Help villages, earn trust, follow stories and connect your world through trade.
 Living Kingdoms adds named village staff, player-built council/inn/market/storehouse
@@ -8,7 +11,7 @@ buildings, visiting traders, diplomacy and personal adventures with travelling N
 
 Start with [Getting Started](getting-started.md), then follow
 [Living Kingdoms](living-kingdoms.md). See the [FAQ](faq.md) for common questions.
-Minecraft 26.2 and 26.3 share 2.6.2 content; 26.1.2 and 1.21.11 retain 2.1.1.
+Minecraft 26.2 and 26.3 share 2.6.3 content; 26.1.2 and 1.21.11 retain 2.1.1.
 
 ## Quick Navigation
 
@@ -24,6 +27,7 @@ Minecraft 26.2 and 26.3 share 2.6.2 content; 26.1.2 and 1.21.11 retain 2.1.1.
 - [Kingdom Diplomacy and Crises](./kingdom-diplomacy.md)
 - [Kingdom Stories and Tools](./kingdom-stories-and-tools.md)
 - [Travelling NPCs — Simon, Lutte and Marius](./travelling-npcs.md)
+- [Wanderers and Nightrunners](./ambient-travelers.md)
 - [Living Village Network](./living-village-network.md)
 - [Vanilla reward packages](./vanilla-rewards.md)
 - [Social Reputation](./social-reputation.md)

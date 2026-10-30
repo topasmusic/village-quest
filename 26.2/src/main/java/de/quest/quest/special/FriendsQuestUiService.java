@@ -99,18 +99,21 @@ public final class FriendsQuestUiService {
         int stage=p.stage(who);boolean active=p.active(who),herbs=who.equals("simon") && stage==3 && p.number("simon.herbs")==1;
         String quest=herbs?"simon.herbs":who+"."+(stage+1);
         Component title=stage<3 || herbs?FriendsQuestService.tr(quest+".title"):ui("conversation");
-        Component dialogue=stage<3?FriendsQuestService.tr(quest+".dialogue"):FriendsQuestService.tr(who+".again");
+        Component dialogue=FriendsQuestService.dialogue(world,p,who);
         var objectives=new ArrayList<Component>();var notices=new ArrayList<Component>();var options=new ArrayList<Option>();var progress=new ArrayList<Progress>();
         Component reward=Component.empty();
         if(stage<3 || herbs) {
-            objectives.add(FriendsQuestService.tr(quest+".objective"));reward=FriendsQuestService.tr(quest+".reward");
-            if(active && !(who.equals("simon") && stage==0))objectives.addAll(FriendsQuestService.lines(p,who).stream().filter(c->!c.equals(objectives.getFirst())).toList());
+            objectives.add(herbs?FriendsQuestService.tr(quest+".objective"):FriendsQuestService.objective(world,p,who));reward=FriendsQuestService.tr(quest+".reward");
+            if(active && !(who.equals("simon") && stage==0))objectives.addAll(FriendsQuestService.lines(world,player,p,who).stream().filter(c->!c.equals(objectives.getFirst())).toList());
+            if(who.equals("marius") && stage<3 && MariusQuestService.peaceful(world))for(var cost:MariusQuestService.peacefulCosts(stage).entrySet())progress.add(new Progress(new ItemStack(cost.getKey()),count(player,cost.getKey()),cost.getValue()));
             if((who.equals("simon") && stage==0) || herbs)for(var item:List.of(Items.DANDELION,Items.POPPY,Items.FERN))progress.add(new Progress(new ItemStack(item),count(player,item),8));
             if(who.equals("lutte") && stage==2)for(var cost:FriendsQuestService.forgeCosts().entrySet().stream().sorted(java.util.Comparator.comparing(e->net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(e.getKey()).toString())).toList())progress.add(new Progress(new ItemStack(cost.getKey()),count(player,cost.getKey()),cost.getValue()));
             boolean ready=herbs?progress.stream().allMatch(v->v.carried()>=v.required()):active && FriendsQuestService.ready(world,player,who);
             options.add(new Option(herbs?"herbs":active?"claim":"accept",FriendsQuestService.tr(active || herbs?"turn_in":"accept"),!active && !herbs || ready));
             if(active || herbs)notices.add(ui(ready?"ready":"in_progress"));
         }
+        if(who.equals("simon") && (herbs || stage==2))notices.add(Component.translatable("item.village-quest.weather_tonic.lore"));
+        if(who.equals("marius") && stage==2)notices.add(Component.translatable("item.village-quest.village_watch_seal.lore"));
         if(who.equals("lutte") && active && stage==1) {
             if(!LutteCoastalQuest.hasMap(player,p)) {
                 notices.add(FriendsQuestService.tr(p.text("lutte.replacementDue").isBlank()?p.number("lutte.replacements")>=2?"lutte.replace.expensive":"lutte.replace":"lutte.replace.pending"));
@@ -118,15 +121,21 @@ public final class FriendsQuestUiService {
             }
             if(p.number("lutte.cursor")>=8192 && p.number("lutte.targets")<3)options.add(new Option("survey",ui("survey"),true));
         }
-        if(who.equals("marius") && active && stage==2 && p.number("marius.raidPhase")!=2 && p.number("marius.victory")==0) {
+        if(who.equals("marius") && active && stage==2 && !MariusQuestService.peaceful(world) && p.number("marius.raidPhase")!=2 && p.number("marius.victory")==0) {
             options.add(new Option("ready",FriendsQuestService.tr("marius.ready"),true));options.add(new Option("prepare",FriendsQuestService.tr("marius.prepare"),true));
         }
         if(who.equals("lutte") && stage==2 && !de.quest.quest.story.StoryQuestService.isCompleted(world,player.getUUID(),de.quest.quest.story.StoryArcType.SILENT_FORGE)) {
             notices.add(FriendsQuestService.tr("lutte.forge_locked"));
             options.set(0,new Option(active?"claim":"accept",FriendsQuestService.tr(active?"turn_in":"accept"),false));
         }
+        boolean replay=!herbs && stage<3 && de.quest.data.PersonalResetReceipts.friendPaid(
+                de.quest.data.QuestState.get(world.getServer()).getPlayerData(player.getUUID()),who,stage);
         var rewards=stage<3 || herbs?FriendsQuestRewards.create(world.registryAccess(),who,Math.min(3,stage+1),herbs,player.getUUID()):Rewards.EMPTY;
-        if(who.equals("lutte") && stage==2 && active) {
+        if(replay) {
+            reward=Component.translatable("message.village-quest.personal_reset.replay");
+            rewards=who.equals("marius") && stage==2?new Rewards(0,0,rewards.items(),false):Rewards.EMPTY;
+        }
+        if(!replay && who.equals("lutte") && stage==2 && active) {
             // Accepted choices were frozen once; inspect them without preparing/redeeming anything.
             var frozen=de.quest.reward.VanillaRewardService.state(world,player.getUUID()).snapshot("friends_lutte","lutte_masterpiece");
             if(!frozen.isEmpty()) {

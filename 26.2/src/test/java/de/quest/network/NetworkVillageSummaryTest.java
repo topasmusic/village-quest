@@ -18,6 +18,6 @@ final class NetworkVillageSummaryTest {
         finally { buf.release(); }
         assertThrows(IllegalArgumentException.class,() -> new Payloads.JournalVillageStats(5,0,0,0));
         assertThrows(IllegalArgumentException.class,() -> new Payloads.NetworkVillageData(0,Component.empty(),Component.empty(),Component.empty(),
-                "stable",Component.empty(),0,0,0,false,UUID.randomUUID(),java.util.Collections.nCopies(8,Component.empty())));
+                "stable",Component.empty(),0,0,0,false,UUID.randomUUID(),java.util.Collections.nCopies(Payloads.NetworkVillageData.MAX_SUMMARY_LINES+1,Component.empty())));
     }
 }

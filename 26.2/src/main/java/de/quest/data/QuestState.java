@@ -32,11 +32,119 @@ public final class QuestState extends SavedData {
     public static final SavedDataType<QuestState> TYPE =
             new SavedDataType<>(Identifier.withDefaultNamespace(ID), QuestState::new, CompoundTag.CODEC.xmap(QuestState::fromNbt, QuestState::toNbt), DataFixTypes.LEVEL);
 
+    private CompoundTag preservedStoryLaneManager;
+    public boolean storyLanesWritable() { return preservedStoryLaneManager == null && preservedPartyManager == null
+            && de.quest.party.QuestPartyPersistence.storyLanesWritable(questPartyState); }
+
     private final Map<UUID, PlayerQuestData> players = new ConcurrentHashMap<>();
     /** Exact, durable 32x32-chunk region bitmaps; old safety marks are never evicted. */
     private final Map<Long, long[]> modifiedTerrainRegions = Collections.synchronizedMap(new HashMap<>());
     private long pilgrimNaturalSpawnCooldownUntil;
     private CompoundTag questPartyState = new CompoundTag();
+    private net.minecraft.nbt.Tag preservedPartyManager;
+    // Keep unknown containers and owner records byte-for-byte in NBT; absence alone is new state.
+    private net.minecraft.nbt.Tag villageIntroTransactions = new CompoundTag();
+    private net.minecraft.nbt.Tag personalResetTransactions = new CompoundTag();
+    private final java.util.Set<UUID> resetUnlocked = new java.util.HashSet<>();
+    boolean personalResetUnlocked(UUID actor) { return resetUnlocked.contains(actor); }
+    boolean confirmPersonalResetTerminal(UUID actor,CompoundTag expected) {
+        if(!java.util.Objects.equals(personalResetTransaction(actor),expected) || !expected.getBooleanOr("acknowledged",false)
+                || !java.util.Set.of("COMMITTED","CANCELLED").contains(expected.getStringOr("stage","")))return false;
+        resetUnlocked.add(actor);return true;
+    }
+    // Runtime permission only. After reload, reset must explicitly recover and verify the player document first.
+    private final java.util.Set<UUID> introResetUnlocked = new java.util.HashSet<>();
+    private boolean introAllowsRestart(UUID actor) { return introTransaction(actor) == null || introResetUnlocked.contains(actor); }
+    public boolean confirmIntroTerminal(UUID actor, CompoundTag expected) {
+        if (!java.util.Objects.equals(introTransaction(actor), expected)
+                || !expected.getBooleanOr("acknowledged", false)
+                || !java.util.Set.of("COMMITTED", "CANCELLED").contains(expected.getStringOr("stage", ""))) return false;
+        introResetUnlocked.add(actor); return true;
+    }
+    private final Map<UUID, ListTag> preservedIntroNumbers = new HashMap<>();
+
+    private static boolean introNumber(String key) {
+        return key.equals(PlayerQuestData.PROGRESS_GENERATION) || key.startsWith("village_intro.") || key.startsWith("intro_credits.");
+    }
+
+    /** The legacy generic map reader coerces/drops wrong number types and zero values.
+     * New intro/generation records instead retain affected owners' exact numeric rows and fail closed. */
+    private void preserveMalformedIntroNumbers(CompoundTag root) {
+        var rows = root.getListOrEmpty("tradeRouteInts");
+        var seen = new HashMap<UUID, java.util.Set<String>>();
+        var invalid = new java.util.HashSet<UUID>();
+        for (var tag : rows) {
+            if (!(tag instanceof CompoundTag row)) continue;
+            var owner = parseUuid(row.getStringOr("id", "")); var key = row.getStringOr("key", "");
+            if (owner == null || !introNumber(key)) continue;
+            if (!seen.computeIfAbsent(owner, ignored -> new java.util.HashSet<>()).add(key)
+                    || !(row.get("v") instanceof net.minecraft.nbt.IntTag)
+                    || key.equals(PlayerQuestData.PROGRESS_GENERATION) && row.getIntOr("v", 0) <= 0) invalid.add(owner);
+        }
+        for (var owner : invalid) {
+            var preserved = new ListTag();
+            for (var tag : rows) if (tag instanceof CompoundTag row
+                    && owner.equals(parseUuid(row.getStringOr("id", ""))) && introNumber(row.getStringOr("key", ""))) preserved.add(row.copy());
+            preservedIntroNumbers.put(owner, preserved);
+            getPlayerData(owner).preserveInvalidIntroProgress();
+        }
+    }
+
+    public net.minecraft.nbt.Tag introTransaction(UUID actor) {
+        if (!(villageIntroTransactions instanceof CompoundTag owners)) return villageIntroTransactions.copy();
+        var entry = owners.get(actor.toString());
+        return entry == null ? null : entry.copy();
+    }
+
+    net.minecraft.nbt.Tag personalResetTransaction(UUID actor) {
+        if(!(personalResetTransactions instanceof CompoundTag owners))return personalResetTransactions.copy();
+        var entry=owners.get(actor.toString());return entry==null?null:entry.copy();
+    }
+    boolean comparePersonalResetTransaction(UUID actor,net.minecraft.nbt.Tag expected,CompoundTag next) {
+        if(actor==null || next==null || !(personalResetTransactions instanceof CompoundTag owners)
+                || !java.util.Objects.equals(owners.get(actor.toString()),expected)
+                || expected!=null && (!(expected instanceof CompoundTag old) || !resetHeader(actor,old))
+                || !resetHeader(actor,next))return false;
+        resetUnlocked.remove(actor);owners.put(actor.toString(),next.copy());setDirty();return true;
+    }
+    private static boolean resetHeader(UUID actor,CompoundTag tag) {
+        return tag.get("schema") instanceof net.minecraft.nbt.IntTag && tag.getIntOr("schema",0)==1
+                && actor.toString().equals(tag.getStringOr("actor",""));
+    }
+    /** Personal postimage and its PERSONAL stage are published together in this same saved document. */
+    boolean commitPersonalReset(UUID actor,CompoundTag before,CompoundTag after,CompoundTag expectedJournal,CompoundTag nextJournal) {
+        if(!(personalResetTransactions instanceof CompoundTag owners) || expectedJournal==null || nextJournal==null
+                || !java.util.Objects.equals(owners.get(actor.toString()),expectedJournal) || !resetHeader(actor,expectedJournal)
+                || !expectedJournal.getCompoundOrEmpty("before").equals(before) || !expectedJournal.getCompoundOrEmpty("after").equals(after)
+                || !expectedJournal.getStringOr("stage","").equals("BEFORE"))return false;
+        var required=expectedJournal.copy();required.remove("acknowledged");required.putString("stage","PERSONAL");
+        if(!required.equals(nextJournal) || !publishPersonalReset(actor,before,after))return false;
+        owners.put(actor.toString(),nextJournal.copy());setDirty();return true;
+    }
+
+    /** Compare-and-set prevents overwriting a foreign/unknown pending claim. No deletion API. */
+    public boolean compareIntroTransaction(UUID actor, net.minecraft.nbt.Tag expected, CompoundTag next) {
+        if (actor == null || next == null || !(villageIntroTransactions instanceof CompoundTag owners)
+                || !java.util.Objects.equals(owners.get(actor.toString()), expected)) return false;
+        introResetUnlocked.remove(actor);
+        owners.put(actor.toString(), next.copy()); setDirty(); return true;
+    }
+
+    /** Detached native serialization copy, used to prepare all intro effects before publishing them. */
+    public PlayerQuestData copyPersonalProgress(UUID actor) {
+        return fromNbt(toNbt(this)).getPlayerData(actor);
+    }
+
+    /** Server-thread publication of one fully prepared player/effect-status image; no callbacks. */
+    public boolean commitIntroEffects(UUID actor, PlayerQuestData expectedPlayer, net.minecraft.nbt.Tag expectedJournal,
+                                     PlayerQuestData nextPlayer, CompoundTag nextJournal) {
+        if (actor == null || nextPlayer == null || nextJournal == null || players.get(actor) != expectedPlayer
+                || !(villageIntroTransactions instanceof CompoundTag owners)
+                || !java.util.Objects.equals(owners.get(actor.toString()), expectedJournal)) return false;
+        owners.put(actor.toString(), nextJournal.copy());
+        introResetUnlocked.remove(actor);
+        players.put(actor, nextPlayer); setDirty(); return true;
+    }
     private long socialServerTick;
     private de.quest.quest.special.WeatherTonicState weatherTonic=new de.quest.quest.special.WeatherTonicState();
     public de.quest.quest.special.WeatherTonicState weatherTonic() { return weatherTonic; }
@@ -81,7 +189,9 @@ public final class QuestState extends SavedData {
     static CompoundTag toNbt(QuestState state) {
         CompoundTag root = new CompoundTag();
         root.put("questManager", state.writeDailyQuestData());
-        root.put("questPartyManager", state.questPartyState);
+        root.put("questPartyManager", state.preservedPartyManager == null ? state.questPartyState : state.preservedPartyManager.copy());
+        root.put("villageIntroTransactions", state.villageIntroTransactions.copy());
+        root.put("personalResetTransactions",state.personalResetTransactions.copy());
         CompoundTag rewards = state.orphanRewards.copy();
         state.players.forEach((id, data) -> { if (!state.orphanRewards.contains(id.toString())) rewards.put(id.toString(), data.vanillaRewards().toNbt()); });
         root.put("vanillaRewards", state.preservedRewards == null ? rewards : state.preservedRewards.copy());
@@ -104,8 +214,9 @@ public final class QuestState extends SavedData {
         if (playerId == null) {
             return new PlayerQuestData();
         }
-        return players.computeIfAbsent(playerId, id -> {
+        var personal = players.computeIfAbsent(playerId, id -> {
             var data = new PlayerQuestData();
+            if (preservedIntroNumbers.containsKey(id)) data.preserveInvalidIntroProgress();
             if(preservedMarketTransfers!=null || orphanMarketTransfers.contains(id.toString())) {
                 var quarantine=new CompoundTag(); quarantine.putInt("schema",-1); data.loadMarketWallet(quarantine);
             }
@@ -118,6 +229,9 @@ public final class QuestState extends SavedData {
             }
             return data;
         });
+        if (!storyLanesWritable()) personal.preserveUnknownStoryLanes();
+        personal.bindIntroRestartGuard(() -> introAllowsRestart(playerId));
+        return personal;
     }
 
     public Map<UUID, PlayerQuestData> getPlayersView() {
@@ -128,7 +242,48 @@ public final class QuestState extends SavedData {
         setDirty();
     }
 
+    public void replacePersonalProgress(UUID playerId, PlayerQuestData fresh) {
+        if (!storyLanesWritable()) throw new IllegalStateException("Unknown story lanes are preserved");
+        if (playerId == null || fresh == null) throw new IllegalArgumentException("Missing personal reset state");
+        if (preservedIntroNumbers.containsKey(playerId)) throw new IllegalStateException("Unknown intro progress is preserved");
+        if (!introAllowsRestart(playerId)) throw new IllegalStateException("Intro delivery is not acknowledged");
+        players.put(playerId, fresh); setDirty();
+    }
+
+    /** Actor-only native serialization. It contains no party/world snapshot and no other player's data. */
+    CompoundTag personalResetImage(UUID actor) {
+        var data=actor==null?null:players.get(actor);
+        if(data==null)throw new IllegalStateException("Missing reset owner");
+        return personalResetImage(actor,data);
+    }
+    static CompoundTag personalResetImage(UUID actor,PlayerQuestData data) {
+        if(actor==null || data==null)throw new IllegalArgumentException("Missing reset owner");
+        var isolated=new QuestState();isolated.players.put(actor,data);return toNbt(isolated);
+    }
+    /** Publish exactly the prevalidated next generation, without restoring any shared or foreign document. */
+    boolean publishPersonalReset(UUID actor,CompoundTag before,CompoundTag after) {
+        if(actor==null || before==null || after==null || !players.containsKey(actor)
+                || !storyLanesWritable() || !personalResetImage(actor).equals(before))return false;
+        try {
+            var isolated=fromNbt(before);
+            if(!isolated.getPlayersView().keySet().equals(java.util.Set.of(actor)) || !toNbt(isolated).equals(before))return false;
+            var fresh=isolated.getPlayerData(actor).personalRestart();
+            if(!personalResetImage(actor,fresh).equals(after))return false;
+            players.put(actor,fresh);setDirty();return true;
+        } catch(RuntimeException invalid) { return false; }
+    }
+
+    public void restartPersonalProgress(UUID playerId) {
+        if (playerId == null) throw new IllegalArgumentException("A personal restart requires an owner");
+        players.put(playerId, getPlayerData(playerId).personalRestart());
+        setDirty();
+    }
+
     public void resetAllProgress() {
+        if (!storyLanesWritable()) throw new IllegalStateException("Unknown story lanes are preserved");
+        if (!(villageIntroTransactions instanceof CompoundTag owners)
+                || owners.keySet().stream().map(QuestState::parseUuid).anyMatch(owner -> owner == null || !introAllowsRestart(owner)))
+            throw new IllegalStateException("Intro deliveries must be recovered before an administrative reset");
         Map<UUID, CompoundTag> rewards = new HashMap<>();
         Map<UUID,net.minecraft.nbt.Tag> marketTransfers=new HashMap<>();
         players.forEach((id,data) -> marketTransfers.put(id,data.marketWallet().toNbt()));
@@ -150,6 +305,10 @@ public final class QuestState extends SavedData {
     }
 
     private void readFromNbt(CompoundTag root) {
+        var resets=root.get("personalResetTransactions");
+        personalResetTransactions=resets==null?new CompoundTag():resets.copy();
+        var intro = root.get("villageIntroTransactions");
+        villageIntroTransactions = intro == null ? new CompoundTag() : intro.copy();
         weatherTonic=de.quest.quest.special.WeatherTonicState.fromNbt(root.get("friendsWeatherTonic"));
         worldQuestSettings = root == null ? new CompoundTag() : root.getCompoundOrEmpty("worldQuestSettings26").copy();
         questCalendar = de.quest.util.QuestCalendar.fromNbt(root == null ? new CompoundTag() : root.getCompoundOrEmpty("questCalendar"));
@@ -197,6 +356,8 @@ public final class QuestState extends SavedData {
             } catch (IllegalArgumentException malformed) { orphanRewards.put(owner,rewards.get(owner).copy()); }
         }
         if (preservedRewards != null) players.values().forEach(data -> { CompoundTag quarantine = new CompoundTag(); quarantine.putInt("schema",-1); data.loadVanillaRewards(quarantine); });
+        var rawParty=root.get("questPartyManager");
+        preservedPartyManager=rawParty!=null && !(rawParty instanceof CompoundTag) ? rawParty.copy() : null;
         questPartyState = root.getCompoundOrEmpty("questPartyManager");
         if (preservedSocialRecords != null) de.quest.VillageQuest.LOGGER.warn("Social reputation container is malformed; preserved read-only. Other quest progress remains available.");
         else players.forEach((id, data) -> { if (!data.socialReputation().writable()) de.quest.VillageQuest.LOGGER.warn("Social reputation for {} has an unknown or damaged schema; preserved read-only.", id); });
@@ -208,11 +369,33 @@ public final class QuestState extends SavedData {
     }
 
     public void setQuestPartyState(CompoundTag questPartyState) {
+        if (preservedPartyManager != null || !de.quest.party.QuestPartyPersistence.storyLanesWritable(this.questPartyState))
+            throw new IllegalStateException("Unknown party story lanes are preserved");
         this.questPartyState = questPartyState == null ? new CompoundTag() : questPartyState;
         setDirty();
     }
 
+    private static boolean validKingdomStoryOwners(net.minecraft.nbt.Tag raw) {
+        if (!(raw instanceof ListTag rows)) return false;
+        var owners = new java.util.HashSet<UUID>();
+        for (var entry : rows) {
+            if (!(entry instanceof CompoundTag row) || !row.keySet().equals(java.util.Set.of("id"))) return false;
+            String name = row.getStringOr("id", "");
+            UUID owner = parseUuid(name);
+            if (owner == null || !owner.toString().equals(name) || !owners.add(owner)) return false;
+        }
+        return true;
+    }
+
     private void readDailyQuestData(CompoundTag root) {
+        // The shared generic maps contain lane-owned counters and receipts. A future format
+        // cannot safely be partially rewritten: retain its complete manager and freeze actions.
+        boolean knownFormat = !root.contains("storyLaneFormat")
+                || root.get("storyLaneFormat") instanceof net.minecraft.nbt.IntTag
+                    && root.getIntOr("storyLaneFormat", -1) == 1;
+        boolean validActive = !root.contains("storyLaneFormat") && !root.contains("kingdomStoryActive")
+                || validKingdomStoryOwners(root.get("kingdomStoryActive"));
+        preservedStoryLaneManager = knownFormat && validActive ? null : root.copy();
         if (root.contains("socialReputation")) {
             var raw = root.get("socialReputation"); boolean valid = raw instanceof ListTag;
             java.util.Set<UUID> owners = new java.util.HashSet<>();
@@ -283,6 +466,7 @@ public final class QuestState extends SavedData {
         readUuidSet(root, "starterShardGranted", id -> getPlayerData(id).setStarterShardGranted(true));
         readUuidStringMap(root, "pendingSpecialOfferType", (id, value) -> getPlayerData(id).setPendingSpecialOfferKind(SpecialQuestKind.fromId(value)));
         readUuidStringMap(root, "activeStoryArc", (id, value) -> getPlayerData(id).setActiveStoryArc(StoryArcType.fromId(value)));
+        if (storyLanesWritable()) readUuidSet(root, "kingdomStoryActive", id -> getPlayerData(id).setKingdomStoryActive(true));
         readUuidLongMap(root, "storyCooldownUntil", (id, value) -> getPlayerData(id).setStoryCooldownUntil(value));
         readUuidStringMap(root, "pilgrimActiveContract", (id, value) -> getPlayerData(id).setActivePilgrimContractId(value));
         readUuidIntMap(root, "pilgrimActiveContractProfile", (id, value) -> getPlayerData(id).setActivePilgrimTargetProfile(RepeatableTargetProfile.byId(value)));
@@ -306,6 +490,7 @@ public final class QuestState extends SavedData {
         readUuidNamedIntMap(root, "tradeRouteInts", (id, stateKey, value) -> getPlayerData(id).setTradeRouteInt(stateKey, value));
         readUuidNamedStringMap(root, "tradeRouteStrings", (id, stateKey, value) -> getPlayerData(id).setTradeRouteString(stateKey, value));
         readUuidNamedSet(root, "tradeRouteFlags", (id, stateKey) -> getPlayerData(id).setTradeRouteFlag(stateKey, true));
+        preserveMalformedIntroNumbers(root);
         readUuidNamedIntMap(root, "pilgrimProgressInts", (id, stateKey, value) -> getPlayerData(id).setPilgrimInt(stateKey, value));
         readUuidNamedSet(root, "pilgrimProgressFlags", (id, stateKey) -> getPlayerData(id).setPilgrimFlag(stateKey, true));
         readUuidNamedIntMap(root, "storyChapterProgress", (id, storyId, value) -> getPlayerData(id).setStoryChapterProgress(storyId, value));
@@ -329,19 +514,23 @@ public final class QuestState extends SavedData {
         readUuidNamedSet(root, "dailyProgressFlags", (id, stateKey) -> getPlayerData(id).setDailyFlag(stateKey, true));
         readUuidNamedIntMap(root, "weeklyProgressInts", (id, stateKey, value) -> getPlayerData(id).setWeeklyInt(stateKey, value));
         readUuidNamedSet(root, "weeklyProgressFlags", (id, stateKey) -> getPlayerData(id).setWeeklyFlag(stateKey, true));
+        boolean lanesMigrated = false;
+        if (storyLanesWritable() && !root.contains("storyLaneFormat")) {
+            for (PlayerQuestData data : players.values()) lanesMigrated |= data.migrateLegacyStoryLane();
+        }
         boolean onboardingMigrated = players.values().stream()
                 .map(FirstDailyChoiceService::migratePre24Progress)
                 .reduce(false, (left, right) -> left || right);
         boolean sanitized = players.values().stream()
                 .map(QuestState::sanitizeLoadedPlayerData)
                 .reduce(false, (left, right) -> left || right);
-        if (onboardingMigrated || sanitized) {
+        if (lanesMigrated || onboardingMigrated || sanitized) {
             setDirty();
         }
     }
 
     static boolean sanitizeLoadedPlayerData(PlayerQuestData data) {
-        if (data == null) return false;
+        if (data == null || !data.storyLanesWritable()) return false;
         boolean changed = GuildTownProgress.sanitizeActiveState(data);
         StoryArcType active = data.getActiveStoryArc();
         for (Map.Entry<String, Integer> entry : Map.copyOf(data.getStoryChapterProgressState()).entrySet()) {
@@ -357,6 +546,7 @@ public final class QuestState extends SavedData {
                     || entry.getValue() == chapterCount && !completed;
             if (!malformed) continue;
             data.setStoryChapterProgress(type.id(), completed ? chapterCount : 0);
+            if (type == StoryArcType.LIVING_KINGDOMS) data.setKingdomStoryActive(false);
             if (active == type) {
                 data.setActiveStoryArc(null);
                 active = null;
@@ -367,10 +557,15 @@ public final class QuestState extends SavedData {
             data.setActiveStoryArc(null);
             changed = true;
         }
+        if (data.isKingdomStoryActive() && data.hasStoryCompleted(StoryArcType.LIVING_KINGDOMS.id())) {
+            data.setKingdomStoryActive(false);
+            changed = true;
+        }
         return changed;
     }
 
     private CompoundTag writeDailyQuestData() {
+        if (preservedStoryLaneManager != null) return preservedStoryLaneManager.copy();
         CompoundTag root = new CompoundTag();
         root.putLong("pilgrimNaturalSpawnCooldownUntil", this.pilgrimNaturalSpawnCooldownUntil);
         ListTag modifiedRegions = new ListTag();
@@ -425,6 +620,7 @@ public final class QuestState extends SavedData {
         ListTag starterShardGranted = new ListTag();
         ListTag pendingSpecialOfferType = new ListTag();
         ListTag activeStoryArc = new ListTag();
+        ListTag kingdomStoryActive = new ListTag();
         ListTag storyCooldownUntil = new ListTag();
         ListTag pilgrimActiveContract = new ListTag();
         ListTag pilgrimActiveContractProfile = new ListTag();
@@ -582,6 +778,7 @@ public final class QuestState extends SavedData {
             if (data.getPendingSpecialOfferKind() != null) {
                 pendingSpecialOfferType.add(entryString(id, data.getPendingSpecialOfferKind().id()));
             }
+            if (data.isKingdomStoryActive()) kingdomStoryActive.add(entryId(id));
             if (data.getActiveStoryArc() != null) {
                 activeStoryArc.add(entryString(id, data.getActiveStoryArc().id()));
             }
@@ -623,7 +820,8 @@ public final class QuestState extends SavedData {
                 storyProgressFlags.add(entryNamedKey(id, stateKey));
             }
             for (var stateEntry : data.getTradeRouteIntState().entrySet()) {
-                if (stateEntry.getValue() != null && stateEntry.getValue() != 0) {
+                if (stateEntry.getValue() != null && stateEntry.getValue() != 0
+                        && !(preservedIntroNumbers.containsKey(id) && introNumber(stateEntry.getKey()))) {
                     tradeRouteInts.add(entryNamedInt(id, stateEntry.getKey(), stateEntry.getValue()));
                 }
             }
@@ -704,6 +902,8 @@ public final class QuestState extends SavedData {
         root.put("questTrackerEnabled", questTrackerEnabled);
         root.put("starterShardGranted", starterShardGranted);
         root.put("pendingSpecialOfferType", pendingSpecialOfferType);
+        root.putInt("storyLaneFormat", 1);
+        root.put("kingdomStoryActive", kingdomStoryActive);
         root.put("activeStoryArc", activeStoryArc);
         root.put("storyCooldownUntil", storyCooldownUntil);
         root.put("pilgrimActiveContract", pilgrimActiveContract);
@@ -717,6 +917,7 @@ public final class QuestState extends SavedData {
         root.put("socialReputation", preservedSocialRecords == null ? socialReputation : preservedSocialRecords.copy());
         root.put("storyProgressInts", storyProgressInts);
         root.put("storyProgressFlags", storyProgressFlags);
+        preservedIntroNumbers.values().forEach(rows -> rows.forEach(row -> tradeRouteInts.add(row.copy())));
         root.put("tradeRouteInts", tradeRouteInts);
         root.put("tradeRouteStrings", tradeRouteStrings);
         root.put("tradeRouteFlags", tradeRouteFlags);
@@ -742,6 +943,11 @@ public final class QuestState extends SavedData {
         }
         this.pilgrimNaturalSpawnCooldownUntil = clamped;
         setDirty();
+    }
+
+    /** Event writers must supply their level; old persisted marks remain conservatively intact. */
+    public void markTerrainModified(net.minecraft.server.level.ServerLevel world,BlockPos pos) {
+        if(world!=null && world.dimension()==net.minecraft.world.level.Level.OVERWORLD) markTerrainModified(pos);
     }
 
     public void markTerrainModified(BlockPos pos) {
@@ -1162,6 +1368,7 @@ public final class QuestState extends SavedData {
             data.setSurveyorCompassPickaxeReadyProgress(item.getIntOr("pickaxeReady", 0));
             data.setSurveyorCompassPickaxeBaseline(item.getIntOr("pickaxeBaseline", 0));
             data.setSurveyorCompassModeIndex(item.getIntOr("modeIndex", 0));
+            data.setSurveyorCompassSearchCooldownUntil(item.getLongOr("searchCooldownUntil", 0L));
             data.setSurveyorCompassHomeCooldownUntil(item.getLongOr("homeCooldownUntil", 0L));
             data.setSurveyorCompassHomeConfirmUntil(item.getLongOr("homeConfirmUntil", 0L));
         }
@@ -1177,6 +1384,7 @@ public final class QuestState extends SavedData {
         item.putInt("pickaxeReady", data.getSurveyorCompassPickaxeReadyProgress());
         item.putInt("pickaxeBaseline", data.getSurveyorCompassPickaxeBaseline());
         item.putInt("modeIndex", data.getSurveyorCompassModeIndex());
+        if (data.getSurveyorCompassSearchCooldownUntil() > 0L) item.putLong("searchCooldownUntil", data.getSurveyorCompassSearchCooldownUntil());
         item.putLong("homeCooldownUntil", data.getSurveyorCompassHomeCooldownUntil());
         item.putLong("homeConfirmUntil", data.getSurveyorCompassHomeConfirmUntil());
         return item;

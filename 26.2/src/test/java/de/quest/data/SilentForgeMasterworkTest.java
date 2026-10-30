@@ -138,9 +138,16 @@ final class SilentForgeMasterworkTest {
         assertArrayEquals(new Object[]{0, 1}, ((TranslatableContents) lines.get(1).getContents()).getArgs());
         assertArrayEquals(new Object[]{0, 1}, ((TranslatableContents) lines.get(2).getContents()).getArgs());
         assertEquals("quest.village-quest.story.silent_forge.chapter_4.progress.equipment", ((TranslatableContents) lines.get(3).getContents()).getKey());
-        assertArrayEquals(new Object[]{"✓"}, ((TranslatableContents) lines.get(4).getContents()).getArgs());
-        assertArrayEquals(new Object[]{"—"}, ((TranslatableContents) lines.get(7).getContents()).getArgs());
-        assertArrayEquals(new Object[]{"✓"}, ((TranslatableContents) lines.get(8).getContents()).getArgs());
+        String[] pieces={"helmet","chestplate","leggings","boots","sword"};
+        for(int i=0;i<pieces.length;i++) {
+            var text=(TranslatableContents)lines.get(4+i).getContents();
+            assertEquals("screen.village-quest.ui_review.objective_row",text.getKey());
+            assertEquals("quest.village-quest.tracker.forge."+pieces[i],((TranslatableContents)((Component)text.getArgs()[0]).getContents()).getKey());
+            assertEquals(i==3?0:1,text.getArgs()[1]);assertEquals(1,text.getArgs()[2]);
+            assertEquals(i!=3,de.quest.quest.QuestObjectiveProgress.complete(lines.get(4+i)));
+        }
+        var next=(TranslatableContents)de.quest.quest.QuestShortObjective.first(lines.subList(4,9)).getContents();
+        assertEquals("quest.village-quest.tracker.forge.boots",((TranslatableContents)((Component)next.getArgs()[0]).getContents()).getKey());
         assertFalse(chapter.isComplete(world, player));
     }
 

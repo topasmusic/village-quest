@@ -12,6 +12,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -72,9 +73,21 @@ public final class WoodcuttingDailyQuest implements DailyQuestDefinition {
         if (!DailyQuestService.isTrackingQuest(world, player.getUUID(), type())) return;
         if (state.is(BlockTags.LOGS)) {
             incrementProgress(world, player, DailyQuestKeys.WOOD_PROGRESS, DailyQuestService.woodTarget());
-        } else if (state.is(Blocks.COAL_ORE) || state.is(Blocks.DEEPSLATE_COAL_ORE)) {
-            incrementProgress(world, player, DailyQuestKeys.COAL_PROGRESS, DailyQuestService.coalTarget());
+
         }
+    }
+
+    @Override
+    public void onTrackedItemPickup(ServerLevel world, ServerPlayer player, ItemStack stack, int count) {
+        if (count <= 0 || stack == null || !stack.is(Items.COAL)
+                || !DailyQuestService.isTrackingQuest(world, player.getUUID(), type())) return;
+        int current = DailyQuestService.getQuestInt(world, player.getUUID(), DailyQuestKeys.COAL_PROGRESS);
+        int target = DailyQuestService.coalTarget();
+        if (current >= target) return;
+        DailyQuestService.setQuestInt(world, player.getUUID(), DailyQuestKeys.COAL_PROGRESS,
+                (int) Math.min(target, (long) current + count));
+        DailyQuestService.completeIfEligible(world, player);
+        DailyQuestService.sendCurrentProgressActionbar(world, player);
     }
 
     private void incrementProgress(ServerLevel world, ServerPlayer player, String key, int target) {

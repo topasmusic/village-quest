@@ -142,7 +142,7 @@ public final class GuildTownProgress {
         if (data == null || animalId == null || activeStoryId(data) != GuildTownStory.LONG_DRIVE.id()
                 || storyState(data, GuildTownStory.LONG_DRIVE) != ACTIVE) return false;
         List<UUID> animals = longDriveAnimals(data);
-        if (animals.contains(animalId) || animals.size() >= 3) return false;
+        if (animals.contains(animalId) || animals.size() >= 2) return false;
         for (int slot = 0; slot < 3; slot++) {
             String key = LONG_DRIVE_ANIMAL_PREFIX + slot;
             if (!data.getTradeRouteString(key).isBlank()) continue;
@@ -601,6 +601,8 @@ public final class GuildTownProgress {
     public static boolean grantReward(PlayerQuestData data, String reward) {
         if (data == null || reward == null || reward.isBlank() || hasReward(data, reward)) return false;
         data.setMilestoneFlag(PREFIX + "reward." + reward, true);
+        if (de.quest.data.PersonalResetReceipts.has(data, "town." + reward)) return false;
+        de.quest.data.PersonalResetReceipts.record(data, "town." + reward);
         return true;
     }
 

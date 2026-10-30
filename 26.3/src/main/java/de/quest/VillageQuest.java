@@ -46,12 +46,23 @@ public class VillageQuest implements ModInitializer {
         ModItems.register();
         ModCreativeTabs.register();
         ModEntities.register();
+        de.quest.shrine.VillageIntroRequestService.initializeAttachment();
+        de.quest.data.PersonalResetService.initializeAttachment();
+        net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.JOIN.register((handler,sender,server) -> {
+            if(de.quest.network.ProgressionProtocol.require(handler.player))
+                de.quest.shrine.VillageIntroRequestService.recoverBeforeActions(handler.player);
+        });
+        net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.DISCONNECT.register((handler,server) ->
+                de.quest.network.ProgressionProtocol.disconnected(handler.player.getUUID()));
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPED.register(server -> de.quest.network.ProgressionProtocol.stopped());
         QuestService.registerEvents();
         de.quest.quest.special.WayfarersTokenService.register();
         de.quest.quest.WorldNewsService.register();
         QuestNetworking.register();
         de.quest.kingdom.KingdomNpcService.register();
         de.quest.kingdom.NpcSpeechService.register();
+        de.quest.ambient.AmbientAdventurerService.register();
+        de.quest.ambient.EncounterQuestService.register();
         de.quest.kingdom.KingdomBuildingService.register();
         de.quest.kingdom.KingdomMarketSourceService.register();
         de.quest.kingdom.KingdomMarketTransferService.register();

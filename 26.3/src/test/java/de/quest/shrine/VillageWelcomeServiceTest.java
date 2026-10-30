@@ -57,4 +57,21 @@ final class VillageWelcomeServiceTest {
         assertEquals(VillageWelcomeService.GreetingResult.IGNORED,
                 VillageWelcomeService.greet(data, UUID.randomUUID()));
     }
+
+    @Test void approvedReplacementOfUnfinishedWelcomeRequiresThreeNewLocalGreetings() {
+        var data = new PlayerQuestData();
+        VillageWelcomeService.begin(data, 0);
+        VillageWelcomeService.greet(data, FIRST); VillageWelcomeService.greet(data, SECOND);
+        assertFalse(VillageWelcomeService.rebind(data, 1, 2));
+        assertTrue(VillageWelcomeService.rebind(data, 0, 2));
+        assertEquals(0, VillageWelcomeService.greetingCount(data));
+        assertEquals(VillageWelcomeService.GreetingResult.PROGRESSED, VillageWelcomeService.greet(data, FIRST));
+        assertEquals(VillageWelcomeService.GreetingResult.PROGRESSED, VillageWelcomeService.greet(data, SECOND));
+        assertEquals(VillageWelcomeService.GreetingResult.COMPLETED, VillageWelcomeService.greet(data, THIRD));
+        assertFalse(VillageWelcomeService.rebind(data, 0, 3));
+        assertTrue(VillageWelcomeService.rebind(data, 2, 3));
+        assertTrue(VillageWelcomeService.isCompleted(data));
+        assertFalse(VillageWelcomeService.isActive(data));
+        assertEquals(VillageWelcomeService.GreetingResult.IGNORED, VillageWelcomeService.greet(data, UUID.randomUUID()));
+    }
 }

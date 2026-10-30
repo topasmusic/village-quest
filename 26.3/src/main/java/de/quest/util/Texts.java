@@ -44,6 +44,17 @@ public final class Texts {
         return turnInMissing(new TurnInRequirement(label, current, target));
     }
 
+    /** Full tracker snapshot uses the same producer-owned quantities as the error message. */
+    public static Component turnInMissing(boolean allRequirements, Object... triples) {
+        if(triples.length%3!=0) throw new IllegalArgumentException("Invalid turn-in requirements");
+        var requirements=new TurnInRequirement[triples.length/3];
+        for(int i=0;i<requirements.length;i++) requirements[i]=new TurnInRequirement(
+                (Component)triples[i*3],(Integer)triples[i*3+1],(Integer)triples[i*3+2]);
+        if(!allRequirements) return turnInMissing(requirements);
+        return de.quest.quest.QuestShortObjective.group(java.util.Arrays.stream(requirements)
+                .map(r->de.quest.quest.QuestShortObjective.material(r.label(),r.current(),r.target())).toList());
+    }
+
     public static Component turnInMissing(Component labelA, int currentA, int targetA,
                                           Component labelB, int currentB, int targetB) {
         return turnInMissing(

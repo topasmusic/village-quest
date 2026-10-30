@@ -80,6 +80,19 @@ class LocaleContextTest(unittest.TestCase):
         self.assertTrue(self.check('de_de',{key:'Effekt: mehr Ruf.'}))
         self.assertEqual([],self.check('de_de',{key:'Wirkung: mehr Ruf.'}))
 
+    def test_ledger_can_explain_both_current_route_permit_paths(self):
+        key='screen.village-quest.guild_path.node.ledger.requirement'
+        for language,market,charter,kingdom in (
+            ('en_us','Market Road Troubles','Market Charter','A Place at the Table'),
+            ('de_de','Unruhige Marktstraße','Markt-Charta','Ein Platz am Tisch'),
+            ('es_es','Problemas en el camino del mercado','Carta del Mercado','Un lugar en la mesa')):
+            catalog={'quest.village-quest.story.market_road_troubles.title':market,
+                     'quest.village-quest.project.market_charter.title':charter,
+                     'quest.village-quest.story.living_kingdoms.title':kingdom}
+            self.assertEqual([],self.check(language,{**catalog,key:charter+' / '+kingdom}))
+            self.assertTrue(self.check(language,{**catalog,key:charter}))
+            self.assertTrue(self.check(language,{**catalog,key:kingdom}))
+
     def test_market_charter_explains_first_route_without_dropping_compass(self):
         key='quest.village-quest.project.market_charter.effect'
         self.assertTrue(self.check('en_us',{key:'Effect: the pilgrim adds compass roadmarks.'}))

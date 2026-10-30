@@ -27,13 +27,30 @@ public final class FirstDailyChoiceService {
 
     public static boolean canChoose(PlayerQuestData data) {
         return data != null
+                && data.validProgressGeneration()
+                && data.getLastRewardDay() != de.quest.util.QuestCalendarService.currentDay()
+                && !data.hasActiveDailySlot()
                 && !data.isDailyDiscovered()
-                && data.getLastRewardDay() == PlayerQuestData.UNSET_DAY
-                && data.getBonusRewardDay() == PlayerQuestData.UNSET_DAY
+                && (data.getLastRewardDay() == PlayerQuestData.UNSET_DAY && data.getBonusRewardDay() == PlayerQuestData.UNSET_DAY
+                    || isRestart(data))
                 && data.getAcceptedDay() == PlayerQuestData.UNSET_DAY
                 && data.getReputationState().isEmpty()
                 && !data.hasTradeRouteFlag(ACTIVE)
                 && !data.hasTradeRouteFlag(COMPLETED);
+    }
+
+    public static boolean isRestart(PlayerQuestData data) {
+        return data != null && data.validProgressGeneration() && data.progressGeneration() > 1
+                && data.hasTradeRouteFlag("personal_reset.fresh_intro");
+    }
+
+    /** Identifies an active reset introduction, including legacy acceptances sharing a paid day. */
+    public static boolean isRestartIntroduction(PlayerQuestData data) { return isRestart(data) && isActive(data); }
+
+    public static void cancel(PlayerQuestData data) {
+        if (!isActive(data)) return;
+        data.setTradeRouteFlag(ACTIVE, false);
+        data.setDailyDiscovered(false);
     }
 
     public static boolean canChoose(ServerLevel world, UUID playerId) {
@@ -69,6 +86,8 @@ public final class FirstDailyChoiceService {
         }
         data.setTradeRouteFlag(ACTIVE, false);
         data.setTradeRouteFlag(COMPLETED, true);
+        data.setTradeRouteFlag("personal_reset.fresh_intro", false);
+        de.quest.data.PersonalResetReceipts.record(data, "intro");
         return true;
     }
 
@@ -90,7 +109,7 @@ public final class FirstDailyChoiceService {
             return false;
         }
         data.setTradeRouteFlag(MIGRATION_CHECKED, true);
-        if (!isActive(data) && !isCompleted(data) && hasRecognizableLegacyProgress(data)) {
+        if (!data.hasTradeRouteFlag("personal_reset.fresh_intro") && !isActive(data) && !isCompleted(data) && hasRecognizableLegacyProgress(data)) {
             data.setTradeRouteFlag(COMPLETED, true);
         }
         return true;

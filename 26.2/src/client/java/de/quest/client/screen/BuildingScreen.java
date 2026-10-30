@@ -43,6 +43,7 @@ public final class BuildingScreen extends CompatScreen {
     private boolean projectEditing;
     private boolean diplomacyEditing;
     private boolean crisisEditing;
+    private final de.quest.client.ui.InstructionScroll crisisInstructions = new de.quest.client.ui.InstructionScroll();
     private boolean relationEditing,relationHome,relationDetails;
     private boolean relationList=true;
     private int relationDetailPage;
@@ -197,14 +198,16 @@ public final class BuildingScreen extends CompatScreen {
         if(data.manageable()&&official) button(g,l,t,262,256,128,text("release"),true,false,mx,my,() -> releasing=true);
         button(g,l,t,18,226,110,text("recheck"),true,false,mx,my,() -> action(BuildingPayloads.Kind.RECHECK));
         button(g,l,t,134,226,112,text(data.range()==BuildingScanner.Range.BASIC?"extend":"basic"),true,false,mx,my,() -> action(BuildingPayloads.Kind.EXTEND));
-        if (!data.innOpening().getString().isBlank()) {
-            VillageUiTheme.drawWrappedScaled(g,font,data.innOpening().getString(),l+22,t+251,220,INK,.72f,3);
-            if(within(mx,my,l+18,t+249,228,25)) hints.setTooltipForNextFrame(font,List.of(data.innOpening(),
+        boolean hasOpening=!data.innOpening().getString().isBlank();
+        if (hasOpening) {
+            VillageUiTheme.drawWrappedScaled(g,font,data.innOpening().getString(),l+22,t+278,220,INK,.72f,3);
+            if(within(mx,my,l+18,t+276,228,28)) hints.setTooltipForNextFrame(font,List.of(data.innOpening(),
                     Component.translatable("screen.village-quest.inn.opening.conditions")),mx,my);
         }
         String feedback=data.feedback().isBlank()?(data.status()!=BuildingScanner.Status.VALID?text("found_missing"):""):Component.translatable(data.feedback()).getString();
-        VillageUiTheme.drawWrappedScaled(g,font,feedback,l+22,t+277,220,INK,.72f,4);
-        if(within(mx,my,l+18,t+273,228,39)) hints.setTooltipForNextFrame(font,Component.literal(feedback),mx,my);
+        int feedbackY=hasOpening?308:277;
+        VillageUiTheme.drawWrappedScaled(g,font,feedback,l+22,t+feedbackY,220,INK,.72f,4);
+        if(within(mx,my,l+18,t+feedbackY-2,228,34)) hints.setTooltipForNextFrame(font,Component.literal(feedback),mx,my);
     }
     private boolean registered() { return data.binding()==BuildingPayloads.Binding.REGISTERED || data.binding()==BuildingPayloads.Binding.CHANGED; }
     private boolean needsVillageChoice() { return !registered() && data.villages().size()>1; }
@@ -290,6 +293,8 @@ public final class BuildingScreen extends CompatScreen {
             }
         } else if(!data.selectedVillage().equals(BuildingPayloads.NONE) && !data.manageable())
             button(g,l,t,278,191,120,text("mandate"),true,false,mx,my,() -> action(BuildingPayloads.Kind.MANDATE));
+        if(!founding && !data.manageable() && !data.selectedVillage().equals(BuildingPayloads.NONE))
+            VillageUiTheme.drawWrappedScaled(g,font,text("council_mandate_requirement",de.quest.shrine.VillageBondLevel.TRUSTED.label()),l+286,t+239,104,INK,.68f,8);
     }
     private void requirement(GuiGraphics g,int l,int t,int y,KingdomUiAssets.DetailIcon icon,String label,String count,boolean passed) {
         if(icon==KingdomUiAssets.DetailIcon.JOB) g.renderItem(new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.COMPOSTER),l+214,t+y+24-2);
@@ -456,6 +461,7 @@ public final class BuildingScreen extends CompatScreen {
     }
     private void selectRelation(int index) { partnerIndex=index; relationHome=false; relationDetailPage=0; relationDetails=false; }
     @Override public boolean keyPressed(KeyEvent key) {
+        if(crisisEditing && crisisInstructions.key(key)) return true;
         if(checkHelp>=0 && key.key()==InputConstants.KEY_ESCAPE) { checkHelp=-1; return true; }
         if(villageEditing && key.key()==InputConstants.KEY_ESCAPE) { villageEditing=false; return true; }
         if(naming!=null) {
@@ -639,7 +645,8 @@ public final class BuildingScreen extends CompatScreen {
             line(g,text("crisis_time",(crisis.remaining()+1199)/1200),l+30,t+164,355,MUTED);
         String instruction=text((loyalty?"loyalty":"crisis")+"_instruction."+crisis.phase(),crisis.host(),crisis.other(),need);
         if(crisis.phase().equals("reconciling")) instruction+=" "+text(loyalty&&crisis.personality()==2?"loyalty_repair.2":"crisis_repair."+crisis.personality());
-        VillageUiTheme.drawWrappedScaled(g,font,instruction,l+30,t+186,355,INK,.75f,5);
+        instruction += "\n\n" + text("crisis_time.rules");
+        crisisInstructions.draw(g,font,instruction,l+30,t+186,355,5,.75f,INK);
         if(within(mx,my,l+28,t+183,360,66)) hints.setTooltipForNextFrame(font,Component.literal(instruction),mx,my);
         boolean editable=data.manageable() && !data.diplomacy().readOnly();
         if(crisis.phase().equals("open")) {
@@ -650,6 +657,12 @@ public final class BuildingScreen extends CompatScreen {
         } else if(crisis.phase().equals("withdrawn")) button(g,l,t,30,237,355,text("crisis_choice.2"),editable&&(crisis.heard()&2)!=0,false,mx,my,() -> crisisAction(crisis,2));
         else if(crisis.phase().equals("ready")) button(g,l,t,30,237,355,text("crisis_choice.3"),editable,false,mx,my,() -> crisisAction(crisis,3));
         line(g,text("crisis_heard",(crisis.heard()&1)!=0?1:0,(crisis.heard()&2)!=0?1:0),l+30,t+286,355,MUTED);
+    }
+    @Override public boolean mouseScrolled(double x,double y,double horizontal,double vertical) {
+        int l=(width-W)/2,t=(height-H)/2;
+        if(crisisEditing && within(responsiveMouseX(x,W,H),responsiveMouseY(y,W,H),l+28,t+183,360,44)
+                && crisisInstructions.scroll(vertical)) return true;
+        return super.mouseScrolled(x,y,horizontal,vertical);
     }
     private void crisisAction(BuildingPayloads.Crisis crisis,int choice) {
         if(!closed && ClientPlayNetworking.canSend(BuildingPayloads.Action.ID)) UiTestTour.send(new BuildingPayloads.Action(

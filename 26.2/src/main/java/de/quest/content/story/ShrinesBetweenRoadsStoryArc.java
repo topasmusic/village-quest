@@ -84,6 +84,7 @@ public final class ShrinesBetweenRoadsStoryArc implements StoryArcDefinition {
     public static boolean canBreakActiveRuinMilestone(ServerLevel world, ServerPlayer player,
                                                        BlockPos pos, BlockState state) {
         if (world == null || player == null || pos == null || state == null
+                || world!=world.getServer().overworld()
                 || !state.is(ModBlocks.GUILD_MILESTONE)) {
             return true;
         }
@@ -139,7 +140,7 @@ public final class ShrinesBetweenRoadsStoryArc implements StoryArcDefinition {
         protected int progress(ServerLevel world, UUID playerId, String key) { return StoryQuestService.getQuestInt(world, playerId, key); }
         protected boolean flag(ServerLevel world, UUID playerId, String key) { return StoryQuestService.hasStoryFlag(world, playerId, key); }
         protected Component title(int chapter) { return Component.translatable(key(chapter, "title")); }
-        protected Component offer(int chapter, int paragraph, Object... args) { return Component.translatable(key(chapter, "offer." + paragraph), args).withStyle(ChatFormatting.GRAY); }
+        protected Component offer(int chapter, int paragraph, Object... args) { return de.quest.quest.QuestRuleText.translate(key(chapter, "offer." + paragraph), args).withStyle(ChatFormatting.GRAY); }
         protected StoryChapterCompletion completion(int chapter, long currency, int levels, ReputationService.ReputationTrack track, int reputation, VillageProjectType project) {
             String prefix = key(chapter, "");
             return new StoryChapterCompletion(title(chapter), Component.translatable(prefix + ".complete.1").withStyle(ChatFormatting.GRAY),
@@ -202,6 +203,7 @@ public final class ShrinesBetweenRoadsStoryArc implements StoryArcDefinition {
             give(player, createHeartstoneMap(world, target));
         }
         @Override public void onServerTick(ServerLevel world, ServerPlayer player) {
+            if (player.level()!=world || world!=world.getServer().overworld()) return;
             if (flag(world, player.getUUID(), StoryQuestKeys.SHRINES_CORE_RECOVERED)) return;
             if ((world.getGameTime() + player.getId()) % RUIN_SEARCH_INTERVAL != 0L) return;
             int x = progress(world, player.getUUID(), StoryQuestKeys.SHRINES_TARGET_X), z = progress(world, player.getUUID(), StoryQuestKeys.SHRINES_TARGET_Z);
@@ -336,7 +338,13 @@ public final class ShrinesBetweenRoadsStoryArc implements StoryArcDefinition {
         }
         @Override public List<Component> progressLines(ServerLevel world, UUID id) { return List.of(
                 Component.translatable("quest.village-quest.story.shrines_between_roads.chapter_3.people", progress(world, id, StoryQuestKeys.SHRINES_CRAFTSPEOPLE), 3).withStyle(ChatFormatting.GRAY),
+                materialProgress(world,id,Items.AMETHYST_SHARD,16),materialProgress(world,id,Items.GOLD_INGOT,8),
+                materialProgress(world,id,Items.LAPIS_LAZULI,16),materialProgress(world,id,ModItems.CRACKED_SHRINE_CORE,1),
                 Component.translatable("quest.village-quest.story.shrines_between_roads.chapter_3.materials").withStyle(ChatFormatting.GRAY)); }
+        private Component materialProgress(ServerLevel world,UUID id,net.minecraft.world.item.Item item,int target) {
+            return Component.translatable("screen.village-quest.ui_review.objective_row",Component.translatable(item.getDescriptionId()),
+                    Math.min(target,StoryQuestService.countCompletionItem(world,id,item)),target);
+        }
         @Override public boolean isComplete(ServerLevel world, ServerPlayer player) { return progress(world, player.getUUID(), StoryQuestKeys.SHRINES_CRAFTSPEOPLE) >= 3
                 && StoryQuestService.countCompletionItem(world, player.getUUID(), Items.AMETHYST_SHARD) >= 16
                 && StoryQuestService.countCompletionItem(world, player.getUUID(), Items.GOLD_INGOT) >= 8
@@ -365,7 +373,15 @@ public final class ShrinesBetweenRoadsStoryArc implements StoryArcDefinition {
         @Override public Component title() { return title(5); }
         @Override public Component offerParagraph1() { return offer(5, 1); }
         @Override public Component offerParagraph2() { return offer(5, 2); }
-        @Override public void onAccepted(ServerLevel world, ServerPlayer player) { give(player, new ItemStack(ModItems.GUILD_NOTICE_POST, 2)); give(player, new ItemStack(ModItems.GUILD_WAYSHRINE, 2)); }
+        @Override public void onAccepted(ServerLevel world, ServerPlayer player) {
+            var data = QuestState.get(world.getServer()).getPlayerData(player.getUUID());
+            if (!de.quest.data.PersonalResetReceipts.has(data, "supplies.shrine_chain")) {
+                de.quest.data.PersonalResetReceipts.record(data, "supplies.shrine_chain");
+                QuestState.get(world.getServer()).setDirty();
+                give(player, new ItemStack(ModItems.GUILD_NOTICE_POST, 2));
+                give(player, new ItemStack(ModItems.GUILD_WAYSHRINE, 2));
+            }
+        }
         @Override public void onServerTick(ServerLevel world, ServerPlayer player) { StoryQuestService.setQuestIntQuietly(world, player.getUUID(), StoryQuestKeys.SHRINES_ACTIVATED, VillageBondService.shrineCount(world, player.getUUID())); }
         @Override public List<Component> progressLines(ServerLevel world, UUID id) { return List.of(
                 Component.translatable("quest.village-quest.story.shrines_between_roads.chapter_5.trust", progress(world, id, StoryQuestKeys.SHRINES_TRUSTED_VILLAGES), 2).withStyle(ChatFormatting.GRAY),
@@ -378,6 +394,15 @@ public final class ShrinesBetweenRoadsStoryArc implements StoryArcDefinition {
         @Override public Component title() { return title(6); }
         @Override public Component offerParagraph1() { return offer(6, 1); }
         @Override public Component offerParagraph2() { return offer(6, 2); }
+        @Override public Component shortObjective(ServerLevel world, UUID id, List<Component> lines) {
+            boolean contract=TradeRouteService.completedGuildContracts(world,id)
+                    > progress(world,id,StoryQuestKeys.SHRINES_RELAY_CONTRACT_BASELINE);
+            boolean incident=TradeRouteService.totalRouteSuccesses(world,id)
+                    > progress(world,id,StoryQuestKeys.SHRINES_RELAY_SUCCESS_BASELINE);
+            boolean interactive=VillageQuestServerConfig.get().caravanVisualMode()!=VillageQuestServerConfig.CaravanVisualMode.MAP_ONLY;
+            return Component.translatable(!contract?"quest.village-quest.tracker.relay_contract":interactive && !incident
+                    ?"quest.village-quest.tracker.relay_incident":"quest.village-quest.guidance.claim");
+        }
         @Override public void onAccepted(ServerLevel world, ServerPlayer player) {
             StoryQuestService.setQuestInt(world, player.getUUID(), StoryQuestKeys.SHRINES_RELAY_CONTRACT_BASELINE, TradeRouteService.completedGuildContracts(world, player.getUUID()));
             StoryQuestService.setQuestInt(world, player.getUUID(), StoryQuestKeys.SHRINES_RELAY_SUCCESS_BASELINE, TradeRouteService.totalRouteSuccesses(world, player.getUUID()));

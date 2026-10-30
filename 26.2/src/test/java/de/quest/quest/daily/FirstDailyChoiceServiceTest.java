@@ -9,6 +9,32 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 final class FirstDailyChoiceServiceTest {
+    @Test void resetIntroductionRespectsPaidCycleAndConsumesTheNextDailySlot() {
+        try(var clock=org.mockito.Mockito.mockStatic(de.quest.util.QuestCalendarService.class)) {
+            clock.when(de.quest.util.QuestCalendarService::currentDay).thenReturn(20000L);
+            var old=new PlayerQuestData();old.setLastRewardDay(20000);old.setBonusRewardDay(20000);old.setWeeklyRewardCycle(19999);
+            var data=old.personalRestart();
+            assertFalse(FirstDailyChoiceService.canChoose(data));
+            clock.when(de.quest.util.QuestCalendarService::currentDay).thenReturn(20001L);
+            assertTrue(FirstDailyChoiceService.canChoose(data));
+            data.setTradeRouteFlag("guild_intro.first_daily_active",true);
+            data.setDailyChoice(DailyQuestService.DailyQuestType.WHEAT_HARVEST);data.setAcceptedDay(20001);
+            assertTrue(FirstDailyChoiceService.isRestartIntroduction(data));
+            data.setLastRewardDay(20001);
+            assertTrue(FirstDailyChoiceService.complete(data));assertFalse(data.hasActiveDaily());
+            assertEquals(20001,data.getAcceptedDay());assertEquals(20001,data.getLastRewardDay());
+            assertEquals(20000,data.getBonusRewardDay());assertEquals(19999,data.getWeeklyRewardCycle());
+            assertFalse(FirstDailyChoiceService.complete(data));assertFalse(FirstDailyChoiceService.canChoose(data));
+        }
+    }
+
+    @Test void restartFlagWithoutValidNewGenerationDoesNotBypassPaidCycle() {
+        var data = new PlayerQuestData(); data.setLastRewardDay(20000);
+        data.setTradeRouteFlag("personal_reset.fresh_intro", true);
+        assertFalse(FirstDailyChoiceService.canChoose(data));
+        data.setTradeRouteInt(PlayerQuestData.PROGRESS_GENERATION, -1);
+        assertFalse(FirstDailyChoiceService.canChoose(data));
+    }
     @Test
     void freshPlayerReceivesThreeSafeDistinctChoices() {
         PlayerQuestData data = new PlayerQuestData();

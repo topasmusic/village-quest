@@ -32,14 +32,14 @@ final class FriendsQuestScreenTest {
         assertEquals(0,view.chapter());assertFalse(view.active());assertTrue(view.objectives().isEmpty());assertTrue(view.options().isEmpty());assertTrue(view.progress().isEmpty());assertEquals(Component.empty(),view.reward());
         assertTrue(view.dialogue().getSiblings().stream().anyMatch(c->c.getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents t && t.getKey().equals("message.village-quest.guest.ravel.music")));
         var image=FriendsQuestScreen.artwork("ravel",0);assertTrue(image.getPath().endsWith("/raphael_harp.png"));
-        var area=de.quest.client.ui.QuestArtwork.contentArea(image);assertEquals(2048,area.textureWidth());assertEquals(768,area.textureHeight());
+        var area=de.quest.client.ui.QuestArtwork.contentArea(image);assertEquals(768,area.textureWidth());assertEquals(288,area.textureHeight());
     }
     @Test void longLocalizedContentReachesItsFinalLineWithoutMovingTheFooterAtEveryViewport()throws Exception {
         try(var client=mockStatic(Minecraft.class);var tour=mockStatic(UiTestTour.class);var theme=mockStatic(VillageUiTheme.class,CALLS_REAL_METHODS)) {
             client.when(Minecraft::getInstance).thenReturn(mock(Minecraft.class));tour.when(UiTestTour::active).thenReturn(true);
             for(String locale:List.of("en_us","de_de","es_es")) {
                 var catalog=com.google.gson.JsonParser.parseReader(new java.io.InputStreamReader(getClass().getResourceAsStream("/assets/village-quest/lang/"+locale+".json"),java.nio.charset.StandardCharsets.UTF_8)).getAsJsonObject();
-                String prose=catalog.get("quest.village-quest.friends.lutte.2.objective").getAsString();
+                String prose=catalog.get("quest.village-quest.friends.lutte.2.objective").getAsString()+" "+catalog.get("quest.village-quest.friends.lutte.2.objective.rules").getAsString();
                 for(var size:new int[][]{{1000,700},{480,270},{320,200}})for(int glyph:List.of(5,8)) {
                     var base=FriendsQuestPreview.view("lutte_map");
                     var v=new View(base.session(),0,true,true,base.who(),2,true,base.name(),base.title(),Component.literal(prose),List.of(Component.literal(prose.repeat(4))),base.reward(),List.of(Component.literal("QA_FINAL_LINE")),base.progress(),base.options());

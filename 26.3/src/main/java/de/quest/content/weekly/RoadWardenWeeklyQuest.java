@@ -6,6 +6,7 @@ import de.quest.quest.weekly.WeeklyQuestKeys;
 import de.quest.quest.weekly.WeeklyQuestService;
 import java.util.List;
 import java.util.UUID;
+import de.quest.quest.PeacefulRepeatableSupplies;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -38,6 +39,7 @@ public final class RoadWardenWeeklyQuest implements WeeklyQuestDefinition {
 
     @Override
     public List<Component> progressLines(ServerLevel world, UUID playerId) {
+        if (PeacefulRepeatableSupplies.weekly(world,type())) return PeacefulRepeatableSupplies.weeklyProgress(world,playerId,type());
         return List.of(
                 Component.translatable(
                         "quest.village-quest.weekly.roadwarden.progress.1",
@@ -54,6 +56,7 @@ public final class RoadWardenWeeklyQuest implements WeeklyQuestDefinition {
 
     @Override
     public boolean isComplete(ServerLevel world, ServerPlayer player) {
+        if (PeacefulRepeatableSupplies.weekly(world,type())) return PeacefulRepeatableSupplies.weeklyComplete(world,player,type());
         UUID playerId = player.getUUID();
         return WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.ROADWARDEN_HOSTILES) >= WeeklyQuestService.roadWardenHostileTarget()
                 && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.ROADWARDEN_CREEPERS) >= WeeklyQuestService.roadWardenCreeperTarget();
@@ -77,6 +80,7 @@ public final class RoadWardenWeeklyQuest implements WeeklyQuestDefinition {
 
     @Override
     public void onMonsterKill(ServerLevel world, ServerPlayer player, Entity killedEntity) {
+        if (PeacefulRepeatableSupplies.weekly(world,type())) return;
         if (!WeeklyQuestService.isAcceptedThisWeek(world, player.getUUID()) || WeeklyQuestService.hasCompletedThisWeek(world, player.getUUID()) || killedEntity == null) {
             return;
         }

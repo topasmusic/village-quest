@@ -24,8 +24,8 @@ public final class KingdomStoryService {
         boolean project=KingdomStoryProgress.recordProject(actor,village,deed,receipt,true);
         if(project) state.setDirty();
         if (!village.equals(KingdomStoryProgress.target(actor))) return project;
-        List<UUID> recipients=actor.getActiveStoryArc()==StoryArcType.LIVING_KINGDOMS
-                ?QuestPartyService.activeStoryMembers(world,player.getUUID(),StoryArcType.LIVING_KINGDOMS,actor.getStoryChapterProgress(KingdomStoryProgress.ARC))
+        List<UUID> recipients=actor.isKingdomStoryActive()
+                ?QuestPartyService.storyProgressMembers(world,player.getUUID(),StoryArcType.LIVING_KINGDOMS,actor.getStoryChapterProgress(KingdomStoryProgress.ARC))
                 :List.of(player.getUUID());
         boolean changed=project;
         for(UUID recipient:recipients) {
@@ -37,7 +37,7 @@ public final class KingdomStoryService {
         if (changed) state.setDirty(); return changed;
     }
     private static void refresh(ServerLevel world,ServerPlayer player) {
-        if (StoryQuestService.isActive(world,player.getUUID(),StoryArcType.LIVING_KINGDOMS)) StoryQuestService.completeIfEligible(world,player);
+        if (StoryQuestService.isActive(world,player.getUUID(),StoryArcType.LIVING_KINGDOMS)) StoryQuestService.completeIfEligible(world,player,StoryArcType.LIVING_KINGDOMS);
         de.quest.questmaster.QuestMasterUiService.refreshIfOpen(world,player);
     }
     /** Called after native reservation, before the first three-document BEFORE checkpoint. */
@@ -46,8 +46,8 @@ public final class KingdomStoryService {
         var state=LivingKingdomsState.get(world.getServer()); var visit=state.markets().visitById(quote.visit());
         if(visit.isEmpty()) return false;
         var quests=QuestState.get(world.getServer()); var actor=quests.getPlayerData(player.getUUID());
-        var recipients=actor.getActiveStoryArc()==StoryArcType.LIVING_KINGDOMS
-                ?QuestPartyService.activeStoryMembers(world,player.getUUID(),StoryArcType.LIVING_KINGDOMS,actor.getStoryChapterProgress(KingdomStoryProgress.ARC))
+        var recipients=actor.isKingdomStoryActive()
+                ?QuestPartyService.storyProgressMembers(world,player.getUUID(),StoryArcType.LIVING_KINGDOMS,actor.getStoryChapterProgress(KingdomStoryProgress.ARC))
                 :List.of(player.getUUID());
         boolean prepared=KingdomMarketStoryProof.prepare(quests,player.getUUID(),quote.id(),visit.get().market(),recipients);
         return prepared;

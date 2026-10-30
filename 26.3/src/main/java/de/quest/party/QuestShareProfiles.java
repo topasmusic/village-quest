@@ -261,7 +261,7 @@ public final class QuestShareProfiles {
                         StoryQuestKeys.MARKET_ROAD_SHEPHERD,
                         StoryQuestKeys.MARKET_ROAD_LIBRARIAN
                 ),
-                Set.of()
+                Set.of("market_road_profession_")
         ));
         STORY.put(storyKey(StoryArcType.MARKET_ROAD_TROUBLES, 3), profile(
                 Set.of(StoryQuestKeys.MARKET_ROAD_VILLAGERS, StoryQuestKeys.MARKET_ROAD_BELL),
@@ -291,7 +291,7 @@ public final class QuestShareProfiles {
         ));
 
         STORY.put(storyKey(StoryArcType.NIGHT_BELLS, 0), profile(
-                nightBellsInts(StoryQuestKeys.NIGHT_BELLS_ZOMBIES,
+                nightBellsInts(0,StoryQuestKeys.NIGHT_BELLS_ZOMBIES,
                         StoryQuestKeys.NIGHT_BELLS_PEACEFUL_BELL,
                         "night_bells_peaceful_marker_0_0", "night_bells_peaceful_marker_0_1",
                         "night_bells_peaceful_marker_0_2", "night_bells_peaceful_marker_0_3"),
@@ -299,21 +299,21 @@ public final class QuestShareProfiles {
                 Set.of()
         ));
         STORY.put(storyKey(StoryArcType.NIGHT_BELLS, 1), profile(
-                nightBellsInts(StoryQuestKeys.NIGHT_BELLS_SKELETONS, StoryQuestKeys.NIGHT_BELLS_SPIDERS,
+                nightBellsInts(1,StoryQuestKeys.NIGHT_BELLS_SKELETONS, StoryQuestKeys.NIGHT_BELLS_SPIDERS,
                         "night_bells_peaceful_marker_1_0", "night_bells_peaceful_marker_1_1",
                         "night_bells_peaceful_marker_1_2", "night_bells_peaceful_marker_1_3"),
                 Set.of(),
                 Set.of()
         ));
         STORY.put(storyKey(StoryArcType.NIGHT_BELLS, 2), profile(
-                nightBellsInts(StoryQuestKeys.NIGHT_BELLS_CREEPERS, StoryQuestKeys.NIGHT_BELLS_HOSTILES,
+                nightBellsInts(2,StoryQuestKeys.NIGHT_BELLS_CREEPERS, StoryQuestKeys.NIGHT_BELLS_HOSTILES,
                         "night_bells_peaceful_marker_2_0", "night_bells_peaceful_marker_2_1",
                         "night_bells_peaceful_marker_2_2", "night_bells_peaceful_marker_2_3"),
                 Set.of(),
                 Set.of()
         ));
         STORY.put(storyKey(StoryArcType.NIGHT_BELLS, 3), profile(
-                nightBellsInts(StoryQuestKeys.NIGHT_BELLS_RAID_WON,
+                nightBellsInts(3,StoryQuestKeys.NIGHT_BELLS_RAID_WON,
                         StoryQuestKeys.NIGHT_BELLS_PEACEFUL_BELL,
                         "night_bells_peaceful_marker_3_0", "night_bells_peaceful_marker_3_1",
                         "night_bells_peaceful_marker_3_2", "night_bells_peaceful_marker_3_3"),
@@ -365,8 +365,9 @@ public final class QuestShareProfiles {
 
     private QuestShareProfiles() {}
 
-    private static Set<String> nightBellsInts(String... progressKeys) {
+    private static Set<String> nightBellsInts(int chapter,String... progressKeys) {
         Set<String> keys = new HashSet<>(Set.of(progressKeys));
+        keys.addAll(de.quest.content.story.NightBellsMarkerProgress.keys(chapter));
         keys.add(StoryQuestKeys.NIGHT_BELLS_VILLAGE_BOUND);
         keys.add(StoryQuestKeys.NIGHT_BELLS_VILLAGE_X);
         keys.add(StoryQuestKeys.NIGHT_BELLS_VILLAGE_Z);

@@ -47,5 +47,11 @@ public final class NpcSkinCatalog {
             "caravan_violet_courier",
             "caravan_violet_guard",
             "caravan_violet_master",
-            "caravan_violet_trader");
+            "caravan_violet_trader",
+            "ambient/wanderer_hanno",
+            "ambient/wanderer_bennet",
+            "ambient/wanderer_alva",
+            "ambient/nightrunner_ronan",
+            "ambient/nightrunner_silas",
+            "ambient/nightrunner_enna");
 }

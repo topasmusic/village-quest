@@ -10,21 +10,33 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 final class KingdomVillageSessionTest {
+    @Test void pendingChapterClaimCannotBeTransferredToAnotherVillage() {
+        UUID town=UUID.randomUUID(), next=UUID.randomUUID(), owner=UUID.randomUUID();
+        var data=member(town,3);
+        data.setStoryFlag(de.quest.quest.story.StoryQuestKeys.sharedTurnInConsumed(StoryArcType.LIVING_KINGDOMS,3),true);
+        assertFalse(KingdomStoryProgress.bind(data,next,true));
+        assertEquals(town,KingdomStoryProgress.target(data));
+        var session=new SharedQuestRuntime(); session.bind("living_kingdoms#3",3); session.markSynced(owner);
+        session.setFlag("kingdoms.bound."+town,true);
+        session.setFlag(de.quest.quest.story.StoryQuestKeys.SHARED_TURN_IN_CONSUMED,true);
+        assertFalse(QuestPartyService.updateKingdomVillageBinding(Map.of(owner,data),session,owner,owner,next,true,3));
+        assertEquals(town,QuestPartyService.kingdomVillageBinding(session));
+    }
     @Test void firstSharedVillageSurvivesPersistenceAndRejectsASecondPersonalTarget() {
         UUID town=UUID.randomUUID(), other=UUID.randomUUID(), owner=UUID.randomUUID();
         var party=new PartyRuntime(UUID.randomUUID(),owner); party.members().add(owner);
-        party.story().bind(QuestPartySessions.storySessionId(StoryArcType.LIVING_KINGDOMS,1),1);
-        party.story().markSynced(owner);
+        party.kingdomStory().bind(QuestPartySessions.storySessionId(StoryArcType.LIVING_KINGDOMS,1),1);
+        party.kingdomStory().markSynced(owner);
         var alice=new PlayerQuestData(); KingdomStoryProgress.bind(alice,town,false);
         var bob=new PlayerQuestData(); KingdomStoryProgress.bind(bob,other,false);
-        assertTrue(QuestPartyService.mergeKingdomVillageBinding(alice,party.story()));
-        assertFalse(QuestPartyService.mergeKingdomVillageBinding(bob,party.story()));
-        assertEquals(town,QuestPartyService.kingdomVillageBinding(party.story()));
+        assertTrue(QuestPartyService.mergeKingdomVillageBinding(alice,party.kingdomStory()));
+        assertFalse(QuestPartyService.mergeKingdomVillageBinding(bob,party.kingdomStory()));
+        assertEquals(town,QuestPartyService.kingdomVillageBinding(party.kingdomStory()));
         var saved=QuestPartyPersistence.write(Map.of(party.id(),party),Map.of());
         var restored=new HashMap<UUID,PartyRuntime>();
         QuestPartyPersistence.read(saved,restored,new HashMap<>(),new HashMap<>());
-        assertEquals(town,QuestPartyService.kingdomVillageBinding(restored.get(party.id()).story()));
-        assertTrue(restored.get(party.id()).story().hasSynced(owner));
+        assertEquals(town,QuestPartyService.kingdomVillageBinding(restored.get(party.id()).kingdomStory()));
+        assertTrue(restored.get(party.id()).kingdomStory().hasSynced(owner));
         assertEquals(other,KingdomStoryProgress.target(bob));
     }
     @Test void anUnboundAdmittedMemberInheritsOnlyTheExistingSharedTarget() {
@@ -60,7 +72,7 @@ final class KingdomVillageSessionTest {
         assertEquals(target,QuestPartyService.kingdomVillageBinding(session));
     }
     private static PlayerQuestData member(UUID town,int chapter) {
-        var data=new PlayerQuestData(); data.setActiveStoryArc(StoryArcType.LIVING_KINGDOMS);
+        var data=new PlayerQuestData(); data.setActiveStoryArc(de.quest.quest.story.StoryLane.KINGDOM,StoryArcType.LIVING_KINGDOMS);
         data.setStoryChapterProgress("living_kingdoms",chapter); KingdomStoryProgress.bind(data,town,false); return data;
     }
 }

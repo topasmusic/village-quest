@@ -41,7 +41,13 @@ final class ReputationOpenFeedbackTest {
         var state = QuestState.fromNbt(new CompoundTag());
         var sent = new ArrayList<CustomPacketPayload>();
         try (var lookup = mockStatic(QuestState.class); var settings = mockStatic(SocialReputationService.class);
-             var anchor = mockStatic(ReparationService.class); var network = mockStatic(ServerPlayNetworking.class)) {
+             var anchor = mockStatic(ReparationService.class); var network = mockStatic(ServerPlayNetworking.class);
+             var dispatch=mockStatic(de.quest.caravan.RegionalDispatchService.class);
+             var convoy=mockStatic(de.quest.caravan.GuildConvoyService.class)) {
+            // This fixture tests desk-vs-feedback transport. Native service prerequisites have their own boundary tests.
+            dispatch.when(() -> de.quest.caravan.RegionalDispatchService.access(eq(world),eq(player),any())).thenReturn(ReputationPayloads.ServiceView.unknown());
+            convoy.when(() -> de.quest.caravan.GuildConvoyService.access(world,player)).thenReturn(ReputationPayloads.ServiceView.unknown());
+            network.when(() -> ServerPlayNetworking.canSend(eq(player),any(net.minecraft.network.protocol.common.custom.CustomPacketPayload.Type.class))).thenReturn(true);
             lookup.when(() -> QuestState.get(server)).thenReturn(state);
             settings.when(SocialReputationService::enabled).thenReturn(enabled);
             anchor.when(() -> ReparationService.validAnchor(eq(player), any())).thenReturn(valid);

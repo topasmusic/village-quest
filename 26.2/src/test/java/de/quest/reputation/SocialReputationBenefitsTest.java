@@ -104,6 +104,14 @@ final class SocialReputationBenefitsTest {
         assertEquals(3, SocialReputationService.recordQuestCompletion(loaded, PLAYER, BenefitKind.WEEKLY, 7, "normal", 11, 5).guildDelta());
         assertFalse(SocialReputationService.recordQuestCompletion(loaded, PLAYER, BenefitKind.WEEKLY, 7, "normal", 12, 6).applied());
     }
+    @Test void actualDailyAndWeeklyCompletionBenefitsDoNotCreateLocalVillageTrustEvents() {
+        var data=new SocialReputationData();
+        var daily=SocialReputationService.recordQuestCompletion(data,PLAYER,BenefitKind.DAILY,10,"normal",10,1);
+        var weekly=SocialReputationService.recordQuestCompletion(data,PLAYER,BenefitKind.WEEKLY,7,"normal",10,2);
+        assertEquals(1,daily.guildDelta());assertEquals(3,weekly.guildDelta());
+        assertTrue(daily.localDeltas().isEmpty());assertTrue(weekly.localDeltas().isEmpty());
+        assertEquals(0,data.localTrust(SOURCE));assertEquals(0,data.localTrust(TARGET));
+    }
     @Test void aDelayedRepeatableSourceCannotBeBankedIntoANewerReset() {
         var data = new SocialReputationData();
         SocialReputationService.recordBenefit(data, event(BenefitKind.DAILY, 11), 100);

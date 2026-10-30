@@ -90,7 +90,16 @@ public final class GuildNoticePostBlock extends HorizontalDirectionalBlock {
         if (level instanceof net.minecraft.server.level.ServerLevel world
                 && placer instanceof net.minecraft.server.level.ServerPlayer player) {
             VillageBondService.registerDecoration(world, player, pos, 0);
+            GuildCornerLandmarkState.get(world.getServer()).recordPlayerPlacedPost(
+                    GuildCornerLandmarkState.dimensionKey(world), pos);
         }
+    }
+    @Override protected List<ItemStack> getDrops(BlockState state, net.minecraft.world.level.storage.loot.LootParams.Builder params) {
+        var origin = params.getOptionalParameter(net.minecraft.world.level.storage.loot.parameters.LootContextParams.ORIGIN);
+        var world = params.getLevel();
+        if (origin != null && GuildCornerLandmarkState.get(world.getServer()).isGeneratedPost(
+                GuildCornerLandmarkState.dimensionKey(world), BlockPos.containing(origin))) return List.of();
+        return super.getDrops(state, params);
     }
     @Override public void destroy(net.minecraft.world.level.LevelAccessor level, BlockPos pos, BlockState state) {
         if (level instanceof net.minecraft.server.level.ServerLevel world) VillageBondService.removeDecoration(world, pos);

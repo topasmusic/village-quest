@@ -265,6 +265,7 @@ public class JournalScreen extends CompatScreen {
     enum HomeDestination { QUESTS, VILLAGES, QUEST_MASTER }
 
     static HomeDestination homeDestination(JournalScreenData view) {
+        if(!view.activeQuests.isEmpty()) return HomeDestination.QUESTS;
         if (view.storyActive || view.specialActive || view.weeklyActive || view.dailyActive || view.pilgrimActive)
             return HomeDestination.QUESTS;
         return view.networkNextAction.getString().isBlank() ? HomeDestination.QUEST_MASTER : HomeDestination.VILLAGES;
@@ -1253,9 +1254,9 @@ public class JournalScreen extends CompatScreen {
             }
             lineY += REPUTATION_PROGRESS_HEIGHT;
         }
-        for (String line : compactDetails(card, cardWidth)) {
-            VillageUiTheme.drawStringScaled(graphics, font, line,
-                    x + CARD_TEXT_INSET, lineY, BODY, CARD_BODY_SCALE);
+        for (var line : compactDetails(card, cardWidth)) {
+            VillageUiTheme.drawStringScaled(graphics, font, line.text(),
+                    x + CARD_TEXT_INSET, lineY, line.complete()?0xFF306C42:BODY, CARD_BODY_SCALE);
             lineY += CARD_DETAIL_STEP;
         }
     }
@@ -1506,6 +1507,7 @@ public class JournalScreen extends CompatScreen {
     }
 
     private static int questPriority(String id) {
+        if(id.contains(":")) id=id.substring(0,id.indexOf(':'));
         return switch (id) {
             case "story" -> 0;
             case "special" -> 1;
@@ -1752,7 +1754,7 @@ public class JournalScreen extends CompatScreen {
         return artworkFor(card).isPresent() ? CARD_IMAGE_TEXT_INSET : CARD_TEXT_INSET;
     }
 
-    private List<String> compactDetails(JournalCard card, int cardWidth) {
+    private List<de.quest.client.ui.QuestObjectiveText.Line> compactDetails(JournalCard card, int cardWidth) {
         int renderedWidth = Math.max(12, cardWidth - CARD_TEXT_INSET - 18);
         int unscaledWidth = Math.max(1, (int) Math.floor(renderedWidth / CARD_BODY_SCALE));
         return wrappedDetails(card, unscaledWidth);
@@ -1763,10 +1765,10 @@ public class JournalScreen extends CompatScreen {
                 Math.max(1, (int) Math.floor(renderedWidth / scale)));
     }
 
-    private List<String> wrappedDetails(JournalCard card, int width) {
-        List<String> lines = new ArrayList<>();
+    private List<de.quest.client.ui.QuestObjectiveText.Line> wrappedDetails(JournalCard card, int width) {
+        var lines = new ArrayList<de.quest.client.ui.QuestObjectiveText.Line>();
         for (Component detail : card.details()) {
-            lines.addAll(wrapText(detail.getString(), width));
+            lines.addAll(de.quest.client.ui.QuestObjectiveText.wrap(detail, text -> wrapText(text, width)));
         }
         return lines;
     }

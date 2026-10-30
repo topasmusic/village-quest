@@ -89,6 +89,11 @@ public final class CoalMiningDailyQuest implements DailyQuestDefinition {
 
     @Override
     public Component claimBlockedMessage(ServerLevel world, ServerPlayer player) {
+        return claimBlockedMessage(world, player, false);
+    }
+
+    @Override
+    public Component claimBlockedMessage(ServerLevel world, ServerPlayer player, boolean allRequirements) {
         if (player == null || world == null) {
             return null;
         }
@@ -102,7 +107,7 @@ public final class CoalMiningDailyQuest implements DailyQuestDefinition {
             return null;
         }
 
-        return Texts.turnInMissing(
+        return Texts.turnInMissing(allRequirements,
                 Items.RAW_IRON.getDefaultInstance().getDisplayName(),
                 DailyQuestService.countCompletionItem(world, player, Items.RAW_IRON),
                 ironTarget,

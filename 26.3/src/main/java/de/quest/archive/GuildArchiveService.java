@@ -167,6 +167,12 @@ public final class GuildArchiveService {
         return issue.type == type && issue.owner.equals(player.getUUID())
                 && issue.generation == currentGeneration && currentGeneration > 0;
     }
+    /** Exact existing issue check for owner-scoped storage; grants no use permission or legacy adoption. */
+    public static boolean isIssuedTo(ServerLevel world,UUID owner,ItemStack stack,ArchiveItem type) {
+        if(world==null || owner==null || stack==null || type==null || !stack.is(item(type)))return false;
+        var issue=readIssue(stack);int generation=data(world,owner).getTradeRouteInt(generationKey(type));
+        return issue!=null && issue.type==type && issue.owner.equals(owner) && generation>0 && issue.generation==generation;
+    }
 
     /**
      * Marks recovered old serials as soon as they return to the owner's carried
@@ -484,7 +490,8 @@ public final class GuildArchiveService {
     public static boolean eligible(ServerLevel world, ServerPlayer player, ArchiveItem type) {
         PlayerQuestData playerData = data(world, player.getUUID());
         return switch (type) {
-            case STARREACH_RING -> playerData.getShardRelicQuestStage() == ShardRelicQuestStage.COMPLETED;
+            case STARREACH_RING -> playerData.getShardRelicQuestStage() == ShardRelicQuestStage.COMPLETED
+                    || de.quest.quest.special.ShardRelicQuestService.hasIssuedCacheRing(playerData);
             case MERCHANT_SEAL -> playerData.getMerchantSealQuestStage() == RelicQuestStage.COMPLETED;
             case SHEPHERD_FLUTE -> playerData.getShepherdFluteQuestStage() == RelicQuestStage.COMPLETED;
             case APIARISTS_SMOKER -> playerData.getApiaristSmokerQuestStage() == RelicQuestStage.COMPLETED;

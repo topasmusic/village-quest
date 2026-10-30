@@ -113,6 +113,29 @@ public final class GuildCornerLandmarkState extends SavedData {
         old.retryAfterGameTime = 0L; old.revision++; setDirty(); return true;
     }
 
+    /** Explicit local retrofit only, after the caller has checked that the saved root is absent. */
+    public boolean reopenForManualPlacement(VillageKey key) {
+        MutableLandmark old = key == null ? null : landmarks.get(key);
+        if (old == null || old.status != LandmarkStatus.REMOVED_BY_PLAYER) return false;
+        old.status = LandmarkStatus.PENDING;
+        old.retryAttempts = MAX_RETRY_ATTEMPTS; old.retryAfterGameTime = 0L;
+        old.revision++; setDirty(); return true;
+    }
+
+    /** Persist provenance through removal, since Minecraft may ask for loot after block replacement. */
+    public boolean isGeneratedPost(String dimension, BlockPos pos) {
+        return findAt(dimension, pos).map(saved -> !landmarks.get(saved.key()).playerPlaced).orElse(false);
+    }
+
+    /** A crafted replacement at a historical root must retain its ordinary item drop. */
+    public void recordPlayerPlacedPost(String dimension, BlockPos pos) {
+        findAt(dimension, pos).ifPresent(saved -> {
+            MutableLandmark old = landmarks.get(saved.key());
+            old.playerPlaced = true; old.status = LandmarkStatus.GENERATED;
+            old.revision++; setDirty();
+        });
+    }
+
     public Optional<LandmarkSnapshot> findAt(String dimension, BlockPos cornerPos) {
         if (!validDimension(dimension) || cornerPos == null) return Optional.empty();
         return landmarks.entrySet().stream()
@@ -127,6 +150,7 @@ public final class GuildCornerLandmarkState extends SavedData {
         MutableLandmark landmark = key == null ? null : landmarks.get(key);
         if (landmark == null || landmark.status != LandmarkStatus.PENDING) return false;
         landmark.status = LandmarkStatus.GENERATED;
+        landmark.playerPlaced = false;
         landmark.retryAfterGameTime = 0L;
         landmark.revision++;
         setDirty();
@@ -225,6 +249,7 @@ public final class GuildCornerLandmarkState extends SavedData {
             if (landmark.status != LandmarkStatus.PENDING) {
                 landmark.retryAfterGameTime = 0L;
             }
+            landmark.playerPlaced = entry.getBooleanOr("playerPlaced", false);
             state.landmarks.put(key, landmark);
         }
         state.schemaVersion = CURRENT_SCHEMA_VERSION;
@@ -260,6 +285,7 @@ public final class GuildCornerLandmarkState extends SavedData {
                     entry.putInt("retryAttempts", landmark.retryAttempts);
                     entry.putLong("retryAfterGameTime", landmark.retryAfterGameTime);
                     entry.putInt("revision", landmark.revision);
+                    entry.putBoolean("playerPlaced", landmark.playerPlaced);
                     entries.add(entry);
                 });
         root.put("landmarks", entries);
@@ -406,6 +432,7 @@ public final class GuildCornerLandmarkState extends SavedData {
         private int retryAttempts;
         private long retryAfterGameTime;
         private int revision;
+        private boolean playerPlaced;
 
         private MutableLandmark(BlockPos cornerPos, CornerFacing facing, CornerStyle style,
                                 Footprint footprint, LandmarkStatus status, int retryAttempts,

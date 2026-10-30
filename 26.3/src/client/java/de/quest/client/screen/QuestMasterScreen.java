@@ -256,6 +256,21 @@ public final class QuestMasterScreen extends CompatScreen {
             this.onClose();
             return true;
         }
+        if (detailScrollMax > 0 && !this.partyDrawerOpen) {
+            int change = switch (key.key()) {
+                case InputConstants.KEY_DOWN -> 12;
+                case InputConstants.KEY_UP -> -12;
+                case InputConstants.KEY_PAGEDOWN -> 120;
+                case InputConstants.KEY_PAGEUP -> -120;
+                case InputConstants.KEY_HOME -> -detailScrollMax;
+                case InputConstants.KEY_END -> detailScrollMax;
+                default -> 0;
+            };
+            if (change != 0) {
+                detailScrollOffset = Math.max(0, Math.min(detailScrollMax, detailScrollOffset + change));
+                return true;
+            }
+        }
         return super.keyPressed(key);
     }
 
@@ -612,9 +627,10 @@ public final class QuestMasterScreen extends CompatScreen {
                 String count=row.current()+" / "+row.target();
                 int countWidth=Math.round(font.width(count)*.8f);
                 int labelWidth=Math.max(8,textWidth-23-countWidth-7);
-                JournalV3Visuals.heading(context,font,row.label().getString(),textX+19,cursorY+2,labelWidth,.82f,BODY);
+                JournalV3Visuals.heading(context,font,row.label().getString(),textX+19,cursorY+2,labelWidth,.82f,
+                        row.target()>0 && row.current()>=row.target()?0xFF306C42:BODY);
                 VillageUiTheme.drawStringScaled(context,font,count,textX+textWidth-countWidth-2,cursorY+2,
-                        row.current()>=row.target()?VillageUiTheme.TEAL:BODY,.8f);
+                        row.target()>0 && row.current()>=row.target()?0xFF306C42:BODY,.8f);
                 int barWidth=textWidth-23;
                 context.fill(textX+19,cursorY+13,textX+19+barWidth,cursorY+17,0xFFB89E70);
                 context.fill(textX+19,cursorY+13,textX+19+row.filledPixels(barWidth),cursorY+17,VillageUiTheme.TEAL);
@@ -677,7 +693,10 @@ public final class QuestMasterScreen extends CompatScreen {
             lines.add(new DetailLine("", BODY, 0, true, false));
         }
         lines.add(new DetailLine(heading.getString(), TITLE, 0, false, descriptionPreview));
+        boolean firstParagraph=true;
         for (Component component : content) {
+            if(descriptionPreview && !firstParagraph) lines.add(new DetailLine("",bodyColor,0,true,true));
+            firstParagraph=false;
             var objectives=de.quest.client.ui.QuestObjectiveRows.rows(component);
             if(!objectives.isEmpty()) {
                 for(var row:objectives) lines.add(new DetailLine("",bodyColor,5,false,false,row));
@@ -688,10 +707,21 @@ public final class QuestMasterScreen extends CompatScreen {
                     && component.getSiblings().isEmpty() && t.getArgs().length==1) {
                 Object amount=t.getArgs()[0];
                 component=amount instanceof Component c ? c : Component.literal(String.valueOf(amount));
+                // Currency is one styled sentence, not a list of objective components.
+                for(String wrapped:collectWrappedLines(List.of(component),maxWidth-5,Integer.MAX_VALUE))
+                    lines.add(new DetailLine(wrapped,bodyColor,5,false,descriptionPreview));
+                continue;
             }
             for (Component row : de.quest.client.ui.QuestObjectiveRows.separate(component)) {
+                String value=row.getString();
+                if(value.isBlank()) {
+                    if(value.contains("\n\n")) lines.add(new DetailLine("",bodyColor,0,true,descriptionPreview));
+                    continue;
+                }
+                boolean subheading=de.quest.quest.QuestRuleText.heading(row);
                 for (String wrapped : collectWrappedLines(List.of(row), maxWidth - 5, Integer.MAX_VALUE))
-                    lines.add(new DetailLine(wrapped, bodyColor, 5, false, descriptionPreview));
+                    lines.add(wrapped.isEmpty()?new DetailLine("",bodyColor,0,true,descriptionPreview):new DetailLine(wrapped,
+                            subheading?TITLE:de.quest.quest.QuestObjectiveProgress.complete(row)?0xFF306C42:bodyColor,subheading?2:5,false,descriptionPreview));
             }
         }
     }
@@ -1023,8 +1053,10 @@ public final class QuestMasterScreen extends CompatScreen {
             return lines;
         }
 
+        for(String paragraph:text.split("\\R",-1)) {
+        if(paragraph.isBlank()) { lines.add(""); continue; }
         StringBuilder current = new StringBuilder();
-        for (String word : text.split("\\s+")) {
+        for (String word : paragraph.strip().split("\\s+")) {
             if (current.length() == 0) {
                 current.append(word);
                 continue;
@@ -1041,6 +1073,7 @@ public final class QuestMasterScreen extends CompatScreen {
 
         if (current.length() > 0) {
             lines.add(current.toString());
+        }
         }
         return lines;
     }

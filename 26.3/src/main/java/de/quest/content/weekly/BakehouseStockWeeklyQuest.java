@@ -59,7 +59,7 @@ public final class BakehouseStockWeeklyQuest implements WeeklyQuestDefinition {
                 WeeklyQuestService.bakehousePotatoTarget()
         ).withStyle(ChatFormatting.GRAY);
         ServerPlayer player = world == null ? null : world.getServer().getPlayerList().getPlayer(playerId);
-        Component blocked = player == null ? null : claimBlockedMessage(world, player);
+        Component blocked = player == null ? null : claimBlockedMessage(world, player, true);
         return blocked == null ? List.of(line1, line2) : List.of(line1, line2, blocked);
     }
 
@@ -110,6 +110,11 @@ public final class BakehouseStockWeeklyQuest implements WeeklyQuestDefinition {
 
     @Override
     public Component claimBlockedMessage(ServerLevel world, ServerPlayer player) {
+        return claimBlockedMessage(world, player, false);
+    }
+
+    @Override
+    public Component claimBlockedMessage(ServerLevel world, ServerPlayer player, boolean allRequirements) {
         if (player == null || world == null) {
             return null;
         }
@@ -125,7 +130,7 @@ public final class BakehouseStockWeeklyQuest implements WeeklyQuestDefinition {
                 && WeeklyQuestService.countCompletionItem(world, player, Items.BAKED_POTATO) >= potatoTarget)) {
             return null;
         }
-        return Texts.turnInMissing(
+        return Texts.turnInMissing(allRequirements,
                 Items.BREAD.getDefaultInstance().getDisplayName(),
                 WeeklyQuestService.countCompletionItem(world, player, Items.BREAD),
                 breadTarget,

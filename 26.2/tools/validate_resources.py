@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the self-contained Village Quest 26.3 source/audit package."""
+"""Validate the self-contained Village Quest 26.2 source/audit package."""
 
 from __future__ import annotations
 
@@ -99,7 +99,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--line",
-        choices=("26.3",),
+        choices=("26.2",),
         help="accepted for command compatibility with the repository-root validator",
     )
     parser.parse_args()
@@ -110,7 +110,7 @@ def main() -> int:
         for error in errors:
             print(f"- {error}", file=sys.stderr)
         return 1
-    print(f"Validated JSON resources and {len(english)} localization keys for 26.3.")
+    print(f"Validated JSON resources and {len(english)} localization keys for 26.2.")
     return 0
 
 

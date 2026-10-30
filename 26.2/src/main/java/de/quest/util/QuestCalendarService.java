@@ -15,12 +15,12 @@ public final class QuestCalendarService {
         if (server == null) return null;
         var state = QuestState.get(server);
         var calendar = state.questCalendar();
-        if (calendar.update(minecraft(), server.overworld().getOverworldClockTime(), TimeUtil.currentDay(), TimeUtil.currentWeekCycle())) state.setDirty();
+        if (calendar.update(minecraft(), server.overworld().getOverworldClockTime(), TimeUtil.realTimeDay(), TimeUtil.realTimeWeekCycle())) state.setDirty();
         return calendar;
     }
     public static boolean minecraft() { return VillageQuestServerConfig.get().minecraftQuestCalendar(); }
-    public static long currentDay() { var calendar = sample(); return calendar == null ? TimeUtil.currentDay() : calendar.day(); }
-    public static long currentWeekCycle() { var calendar = sample(); return calendar == null ? TimeUtil.currentWeekCycle() : calendar.week(); }
+    public static long currentDay() { var calendar = sample(); return calendar == null ? TimeUtil.realTimeDay() : calendar.day(); }
+    public static long currentWeekCycle() { var calendar = sample(); return calendar == null ? TimeUtil.realTimeWeekCycle() : calendar.week(); }
     public static Component remaining(boolean weekly) {
         var calendar = sample();
         if (minecraft() && calendar != null) {

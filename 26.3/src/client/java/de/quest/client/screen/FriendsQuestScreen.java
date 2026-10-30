@@ -57,7 +57,7 @@ public final class FriendsQuestScreen extends CompatScreen {
             int end;
             try { end=content(g,bodyX,bodyY-scroll,bodyW); }
             finally {g.disableScissor();}
-            maxScroll=Math.max(0,end-(bodyY-scroll)-bodyH+4);scroll=Math.clamp(scroll,0,maxScroll);
+            maxScroll=Math.max(0,end-(bodyY-scroll)-bodyH);scroll=Math.clamp(scroll,0,maxScroll);
             if(maxScroll>0) {
                 g.fill(x+W-25,bodyY,x+W-23,bodyY+bodyH,0x557C613D);
                 int thumb=Math.max(18,bodyH*bodyH/(bodyH+maxScroll));

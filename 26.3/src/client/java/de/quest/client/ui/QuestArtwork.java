@@ -46,14 +46,14 @@ public final class QuestArtwork {
     public record ContentArea(int textureWidth,int textureHeight,int x,int y,int width,int height) {}
     public static ContentArea contentArea(Identifier image) {
         String path=image.getPath();
-        if(path.endsWith("/friends_herbs.png") || path.endsWith("/friends_coastal_signals.png") || path.endsWith("/friends_golem_repair.png") || path.endsWith("/raphael_harp.png"))return new ContentArea(2048,768,0,0,2048,768);
+        if(path.endsWith("/friends_herbs.png") || path.endsWith("/friends_coastal_signals.png") || path.endsWith("/friends_golem_repair.png") || path.endsWith("/raphael_harp.png"))return new ContentArea(768,288,0,0,768,288);
         boolean small=path.endsWith("_64x24.png");
         int width=small?64:192,height=small?24:72;
         String name=path.substring(path.lastIndexOf('/')+1);
         int top=small ? switch(name) {
             case "archive_knowledge_64x24.png", "mine_ore_64x24.png" -> 2;
             case "market_trade_64x24.png" -> 1;
-            case "river_fish_64x24.png" -> 3;
+            case "river_fish_64x24.png", "forge_64x24.png" -> 3;
             default -> 0;
         } : switch(name) {
             case "archive_knowledge_192x72.png" -> 6;

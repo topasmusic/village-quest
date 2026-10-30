@@ -4,6 +4,16 @@ The NPC trading community keeps **Guild trust** and each registered physical vil
 
 ## Standing and services
 
+The Trust desk's Dispatch and Convoy cards check actual service prerequisites,
+including active routes, your guild role, Bells of Concord and the current
+location. A neutral score such as 8 does not itself block either service, but
+it does not unlock the route network or the guild story. Hover a card for missing
+steps; click a locked card to read its complete scrollable explanation. A ready
+Dispatch card opens the existing Notice Post board without accepting cargo.
+The Convoy card opens a confirmation page before starting or joining. The server
+rechecks access on every action. Journal standing summaries explicitly describe
+only restrictions caused by reputation.
+
 The Trust desk groups standing, services and village aid in subtle parchment insets. Its three sidebar sections—Trust, Making amends and Resettlement—fit without vertical scrolling; arrows switch village and support pages. Hover hints explain each field. When no amends are due, a compact message appears beside its shield emblem. The Back action and page navigation share a compact parchment footer.
 
 | Guild trust | Standing | Caravan purchases per player/connection/Daily reset | New Dispatches / Convoys |
@@ -87,3 +97,42 @@ Player inventories and mod SavedData have separate storage files. These mechanis
 ## Trust before village connection
 
 Clicking Trust at an unavailable Notice Post shows a hint inside the board instead of doing nothing. Complete Village Welcome and connect the village, or use your own Homestead board or a nearby Questmaster; stay within eight blocks. Update progress returns to the normal village page. If Trust is disabled in the server configuration, the board explains that separately. The hint grants no standing, discovery or access rights.
+
+
+## Village relationship (2.6.3)
+
+The Journal and village Notice Board show **Bond** and **Standing** together as your
+village relationship. Bond is earned through completed village requests and qualified
+villager trades: Trusted after two requests, or one request and four qualified trades;
+Allied after eight requests. Misconduct does not erase this earned bond. Standing is
+the separate, current social value and can restrict services through existing sanctions.
+A Council mandate still requires the village’s Trusted bond, not 20 social points.
+
+Attack conflicts remain visible independently of the social value. If the village
+remembers refused aid, apologize to its leader at the Council Hall; after the apology,
+the relationship details name the existing guild delivery need that repairs the conflict.
+An active reparation case gives its existing recovery instructions. Disabled or protected
+social data is shown explicitly as disabled or unavailable. Historical bond evidence
+remains visible even if current attack-conflict information is unavailable.
+
+Guild standing, expertise reputation and network renown remain separate. Opening or
+refreshing these views grants no points, rewards, rights or trade receipts.
+
+Client and server must use exactly the same Village Quest version, including the
+Unreleased revision. A mismatch is rejected on joining, before normal VQ synchronization.
+Both the server and updated client check the version capability. A server running an
+older mod cannot retroactively acquire this rule; the updated client still rejects its
+mismatching VQ server. Matching version numbers are required, not byte-identical JARs.
+
+
+## Introductory Daily after a personal reset (2.6.3)
+
+The first Questmaster choice remains a short introductory Daily with LIGHT base
+rewards. It pays normally, also after a personal reset, and consumes the current
+normal Daily allowance. Its extra choice is eight bread or two Silvermarks.
+After completion, village greetings unlock immediately; further normal Daily
+offers wait until the next cycle. A reset never clears an already paid cycle.
+Unaccepted offers display fresh counters without deleting saved progress.
+The older unpaid introductory-replay rule is superseded; one-time story/tool
+receipts and bonus/weekly caps remain unchanged. No retroactive payout is issued
+for previously completed unpaid replays.

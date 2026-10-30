@@ -42,6 +42,10 @@ public final class QuestDropTracker {
 
     private QuestDropTracker() {}
 
+    public static void clearPlayer(UUID owner) {
+        PENDING_SOURCES.removeIf(source -> owner.equals(source.playerId));
+        PENDING_SHEARS.removeIf(source -> owner.equals(source.playerId));
+    }
     public static void clear() {
         PENDING_SOURCES.clear();
         PENDING_SHEARS.clear();

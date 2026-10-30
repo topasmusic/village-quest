@@ -49,7 +49,7 @@ def validate_catalog_context(language: str, catalog: dict[str, object]) -> list[
     """Guard confirmed semantic regressions, not arbitrary editorial wording.
 
     Evidence: PilgrimContractService spider objective, StonesThatRemember's two
-    surveys, MarketRoadTroubles's initial ledger, and JournalScreen's label strip.
+    surveys, the ledger's route permit paths, and JournalScreen's label strip.
     Changes to those mechanics require reviewing these expectations as well.
     """
     errors: list[str] = []
@@ -71,7 +71,13 @@ def validate_catalog_context(language: str, catalog: dict[str, object]) -> list[
         if key=='item.village-quest.cartographers_lens.lore.3' and not re.search(two[language],value,re.I) and placeholders(value) != Counter({'%s':1}):
             reason='lens is installed after two village surveys'
         if key=='screen.village-quest.guild_path.node.ledger.requirement' and isinstance(title,str) and title not in value:
-            reason='initial ledger requires the localized Market Road Troubles story'
+            # TradeRouteService.hasRouteAccess/initializeProvisionalNetwork also
+            # grants the ledger via the local permit from Living Kingdoms ch. 2.
+            charter=catalog.get('quest.village-quest.project.market_charter.title')
+            kingdom=catalog.get('quest.village-quest.story.living_kingdoms.title')
+            if not (isinstance(charter,str) and charter and charter in value
+                    and isinstance(kingdom,str) and kingdom and kingdom in value):
+                reason='ledger requirement must name the market story or both localized route permit paths'
         if key.startswith('quest.village-quest.project.') and key.endswith('.effect') and not value.startswith(labels[language]):
             reason='effect label does not match the Atlas heading'
         if key in ('quest.village-quest.project.market_charter.effect','screen.village-quest.questmaster.reward.effect.market_charter') and (not re.search(route[language],value) or not re.search(compass[language],value)):

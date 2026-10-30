@@ -20,6 +20,7 @@ import net.minecraft.world.level.levelgen.Heightmap;
 
 /** Physical registered anchors, not owner-qualified route slots. Queries touch only nine 64-block cells. */
 public final class ProtectedVillageIndex {
+    private static final int[] CELL_OFFSETS = {0, -1, 1};
     private record Cell(String dimension, int x, int z) {}
     private record AnchorChunk(String dimension, int x, int z) {}
     private final Map<Cell, Set<VillageKey>> buckets = new HashMap<>();
@@ -53,8 +54,10 @@ public final class ProtectedVillageIndex {
     private Optional<VillageKey> resolve(String dimension, BlockPos position, ServerLevel world) {
         int cellX = position.getX() >> 6, cellZ = position.getZ() >> 6;
         long best = Long.MAX_VALUE; VillageKey result = null; lastCandidates = 0;
-        for (int x = cellX - 1; x <= cellX + 1; x++) for (int z = cellZ - 1; z <= cellZ + 1; z++) {
-            for (VillageKey key : buckets.getOrDefault(new Cell(dimension, x, z), Set.of())) {
+        for (int offsetX : CELL_OFFSETS) for (int offsetZ : CELL_OFFSETS) {
+            var candidates = buckets.get(new Cell(dimension, cellX + offsetX, cellZ + offsetZ));
+            if (candidates == null) continue;
+            for (VillageKey key : candidates) {
                 lastCandidates++;
                 long dx = (long) position.getX() - key.anchorX(), dz = (long) position.getZ() - key.anchorZ();
                 long distance = dx * dx + dz * dz; if (distance > 64L * 64) continue;
@@ -64,6 +67,8 @@ public final class ProtectedVillageIndex {
                     y = heights.get(key);
                 }
                 if (y == null || Math.abs((long) position.getY() - y) > 32) continue;
+                // A canonical key is dimension+x+z: another anchor cannot beat or tie this exact match.
+                if (distance == 0) return Optional.of(key);
                 if (distance < best || distance == best && (result == null || key.compareTo(result) < 0)) { best = distance; result = key; }
             }
         }

@@ -56,7 +56,7 @@ public final class ReputationPayloads {
         buf.writeBoolean(view.dispatchAllowed()); buf.writeBoolean(view.convoyAllowed()); buf.writeVarInt(view.rewardPercent());
         buf.writeVarInt(view.villagePage()); buf.writeVarInt(view.villageTotal());
         buf.writeVarInt(checkedCount(view.villages().size(), 8));
-        for (var village : view.villages()) { writeKey(buf, village.key()); buf.writeVarInt(village.trust()); buf.writeBoolean(village.affected()); }
+        for (var village : view.villages()) { writeKey(buf, village.key()); buf.writeVarInt(village.trust()); buf.writeBoolean(village.affected()); net.minecraft.network.chat.ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf,village.bond()); de.quest.reputation.VillageRelationship.write(buf,village.hints()); }
         buf.writeVarInt(checkedCount(view.history().size(), 32));
         for (var history : view.history()) {
             buf.writeUUID(history.id()); buf.writeUtf(history.event(), 64); buf.writeVarInt(history.guildDelta());
@@ -71,7 +71,7 @@ public final class ReputationPayloads {
         int guild = buf.readVarInt(), probation = buf.readVarInt(), buys = buf.readVarInt();
         boolean dispatch = buf.readBoolean(), convoy = buf.readBoolean(); int bonus = buf.readVarInt(), page = buf.readVarInt(), total = buf.readVarInt();
         int count = checkedCount(buf.readVarInt(), 8); List<VillageView> villages = new ArrayList<>(count);
-        for (int i = 0; i < count; i++) villages.add(new VillageView(readKey(buf), buf.readVarInt(), buf.readBoolean()));
+        for (int i = 0; i < count; i++) villages.add(new VillageView(readKey(buf), buf.readVarInt(), buf.readBoolean(),net.minecraft.network.chat.ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf),de.quest.reputation.VillageRelationship.read(buf)));
         count = checkedCount(buf.readVarInt(), 32); List<HistoryView> history = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
             UUID id = buf.readUUID(); String event = buf.readUtf(64); int delta = buf.readVarInt();
@@ -81,7 +81,7 @@ public final class ReputationPayloads {
         return new View(schema, revision, enabled, writable, guild, probation, buys, dispatch, convoy, bonus, page, total, villages, history, readCase(buf));
     }
     public record ViewPayload(View view) implements CustomPacketPayload {
-        public static final Type<ViewPayload> ID = id("reputation_view");
+        public static final Type<ViewPayload> ID = id("reputation_view_v2");
         public static final StreamCodec<RegistryFriendlyByteBuf, ViewPayload> CODEC = StreamCodec.of(
                 (buf, value) -> writeView(buf, value.view()), buf -> new ViewPayload(readView(buf)));
         @Override public Type<? extends CustomPacketPayload> type() { return ID; }
@@ -107,7 +107,8 @@ public final class ReputationPayloads {
         @Override public Type<? extends CustomPacketPayload> type() { return ID; }
     }
     public record ActionPayload(UUID session, UUID subject, long revision, int action, int material, int villagePage) implements CustomPacketPayload {
-        public static final int CLOSE = 0, CHOOSE = 1, SUBMIT = 2, SUPPORT_ACCEPT = 3, SUPPORT_SUBMIT = 4, PAGE = 5;
+        public static final int CLOSE = 0, CHOOSE = 1, SUBMIT = 2, SUPPORT_ACCEPT = 3, SUPPORT_SUBMIT = 4, PAGE = 5,
+                OPEN_DISPATCH=6, CONVOY_START=7, CONVOY_JOIN=8;
         public static final Type<ActionPayload> ID = id("reputation_action");
         public static final StreamCodec<RegistryFriendlyByteBuf, ActionPayload> CODEC = StreamCodec.of(
                 (buf, value) -> { buf.writeUUID(value.session()); buf.writeUUID(value.subject()); buf.writeLong(value.revision()); buf.writeVarInt(value.action()); buf.writeVarInt(value.material()); buf.writeVarInt(value.villagePage()); },
@@ -115,20 +116,47 @@ public final class ReputationPayloads {
         @Override public Type<? extends CustomPacketPayload> type() { return ID; }
     }
     public record SupportView(UUID id, VillageKey village, boolean accepted, boolean supplied, boolean barred) {}
-    public record InteractionPayload(UUID session, boolean preview, boolean canReparate, View view, List<SupportView> support, String feedback) implements CustomPacketPayload {
+    /** A server-observed action and its missing steps. Opening never accepts freight or starts a convoy. */
+    public record ServiceView(int action, String statusKey, List<net.minecraft.network.chat.Component> hints) {
+        public static final int LOCKED=0, DISPATCH=1, START_CONVOY=2, JOIN_CONVOY=3, CONVOY_STATUS=4;
+        public ServiceView {
+            hints=List.copyOf(hints);
+            if(action<0 || action>4 || statusKey==null || statusKey.length()>128 || hints.size()>8) throw new IllegalArgumentException("Invalid logistics view");
+        }
+        public boolean available() { return action!=LOCKED; }
+        public net.minecraft.network.chat.Component status() { return net.minecraft.network.chat.Component.translatable(statusKey); }
+        public static ServiceView unknown() { return new ServiceView(0,"screen.village-quest.reputation.desk.logistics.unknown",List.of()); }
+    }
+    private static void writeService(RegistryFriendlyByteBuf buf,ServiceView service) {
+        buf.writeVarInt(service.action()); buf.writeUtf(service.statusKey(),128); buf.writeVarInt(checkedCount(service.hints().size(),8));
+        for(var hint:service.hints()) net.minecraft.network.chat.ComponentSerialization.TRUSTED_STREAM_CODEC.encode(buf,hint);
+    }
+    private static ServiceView readService(RegistryFriendlyByteBuf buf) {
+        int action=buf.readVarInt(); String status=buf.readUtf(128); int count=checkedCount(buf.readVarInt(),8);
+        List<net.minecraft.network.chat.Component> hints=new ArrayList<>(count);
+        for(int i=0;i<count;i++) hints.add(net.minecraft.network.chat.ComponentSerialization.TRUSTED_STREAM_CODEC.decode(buf));
+        return new ServiceView(action,status,hints);
+    }
+    public record InteractionPayload(UUID session, boolean preview, boolean canReparate, View view, List<SupportView> support, String feedback,
+                                     ServiceView dispatch,ServiceView convoy) implements CustomPacketPayload {
         public InteractionPayload { support = List.copyOf(support); }
-        public static final Type<InteractionPayload> ID = id("reputation_interaction");
+        public InteractionPayload(UUID session,boolean preview,boolean canReparate,View view,List<SupportView> support,String feedback) {
+            this(session,preview,canReparate,view,support,feedback,ServiceView.unknown(),ServiceView.unknown());
+        }
+        public static final Type<InteractionPayload> ID = id("reputation_interaction_v3");
         public static final StreamCodec<RegistryFriendlyByteBuf, InteractionPayload> CODEC = StreamCodec.of(
                 (buf, value) -> {
                     buf.writeUUID(value.session()); buf.writeBoolean(value.preview()); buf.writeBoolean(value.canReparate()); writeView(buf, value.view());
                     buf.writeVarInt(checkedCount(value.support().size(), 8));
                     for (var offer : value.support()) { buf.writeUUID(offer.id()); writeKey(buf, offer.village()); buf.writeBoolean(offer.accepted()); buf.writeBoolean(offer.supplied()); buf.writeBoolean(offer.barred()); }
                     buf.writeUtf(value.feedback(), 128);
+                    writeService(buf,value.dispatch()); writeService(buf,value.convoy());
                 }, buf -> {
                     UUID session = buf.readUUID(); boolean preview = buf.readBoolean(), canReparate = buf.readBoolean(); View view = readView(buf);
                     int count = checkedCount(buf.readVarInt(), 8); List<SupportView> support = new ArrayList<>(count);
                     for (int i = 0; i < count; i++) support.add(new SupportView(buf.readUUID(), readKey(buf), buf.readBoolean(), buf.readBoolean(), buf.readBoolean()));
-                    return new InteractionPayload(session, preview, canReparate, view, support, buf.readUtf(128));
+                    String feedback=buf.readUtf(128);
+                    return new InteractionPayload(session, preview, canReparate, view, support, feedback,readService(buf),readService(buf));
                 });
         @Override public Type<? extends CustomPacketPayload> type() { return ID; }
     }

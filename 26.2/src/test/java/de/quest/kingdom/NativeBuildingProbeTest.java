@@ -43,6 +43,50 @@ final class NativeBuildingProbeTest {
         var inverted = NativeBuildingProbe.classify(state.setValue(StairBlock.HALF, Half.TOP), blocks(), POS);
         assertFalse(inverted.features().contains(BuildingScanner.Feature.SEAT));
     }
+    @Test void anyTaggedWoodFenceCanBeATableLegButBareAndWaterloggedFencesAreNotTables() {
+        // Bootstrap has no resource-pack tags; supply tag membership on native states, without mutating global registries.
+        for(String wood:java.util.List.of("oak","spruce","birch","jungle","acacia","dark_oak","mangrove","cherry","bamboo","crimson","warped","pale_oak")) {
+            var raw=net.minecraft.core.registries.BuiltInRegistries.BLOCK.getValue(net.minecraft.resources.Identifier.withDefaultNamespace(wood+"_fence")).defaultBlockState();
+            var state=spy(raw); doReturn(true).when(state).is(net.minecraft.tags.BlockTags.WOODEN_FENCES);
+            var cell=NativeBuildingProbe.classify(state,blocks(),POS);
+            assertTrue(cell.features().contains(BuildingScanner.Feature.TABLE_LEG),wood);
+            assertFalse(cell.features().contains(BuildingScanner.Feature.TABLE),wood);
+            assertFalse(NativeBuildingProbe.classify(raw.setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.WATERLOGGED,true),blocks(),POS)
+                    .features().contains(BuildingScanner.Feature.TABLE_LEG));
+        }
+        assertFalse(NativeBuildingProbe.classify(Blocks.NETHER_BRICK_FENCE.defaultBlockState(),blocks(),POS).features().contains(BuildingScanner.Feature.TABLE_LEG));
+    }
+    @Test void allPressurePlatesAndClosedTrapdoorsAreTableCoversButOpenTrapdoorsAreNot() {
+        int plates=0,trapdoors=0;
+        for(var block:net.minecraft.core.registries.BuiltInRegistries.BLOCK) {
+            if(block instanceof net.minecraft.world.level.block.BasePressurePlateBlock) {
+                assertTrue(NativeBuildingProbe.classify(block.defaultBlockState(),blocks(),POS).features().contains(BuildingScanner.Feature.TABLE_TOP)); plates++;
+            }
+            if(block instanceof net.minecraft.world.level.block.TrapDoorBlock) {
+                var closed=block.defaultBlockState().setValue(net.minecraft.world.level.block.TrapDoorBlock.OPEN,false);
+                assertTrue(NativeBuildingProbe.classify(closed,blocks(),POS).features().contains(BuildingScanner.Feature.TABLE_TOP));
+                assertFalse(NativeBuildingProbe.classify(closed.setValue(net.minecraft.world.level.block.TrapDoorBlock.OPEN,true),blocks(),POS).features().contains(BuildingScanner.Feature.TABLE_TOP)); trapdoors++;
+            }
+        }
+        assertTrue(plates>=4); assertTrue(trapdoors>=4);
+    }
+    @Test void allSixteenWoolCarpetColoursCanCoverATableLeg() {
+        for(var colour:DyeColor.values()) {
+            var block=net.minecraft.core.registries.BuiltInRegistries.BLOCK.getValue(net.minecraft.resources.Identifier.withDefaultNamespace(colour.getName()+"_carpet"));
+            assertNotEquals(Blocks.AIR,block);
+            var state=spy(block.defaultBlockState()); doReturn(true).when(state).is(net.minecraft.tags.BlockTags.WOOL_CARPETS);
+            var cell=NativeBuildingProbe.classify(state,blocks(),POS);
+            assertTrue(cell.features().contains(BuildingScanner.Feature.TABLE_TOP),colour.getName());
+            assertFalse(cell.features().contains(BuildingScanner.Feature.TABLE));
+        }
+    }
+    @Test void compoundFurnitureClassificationDoesNotReadNeighbours() {
+        var world=mock(ServerLevel.class); when(world.hasChunkAt(POS)).thenReturn(true);
+        var fence=spy(Blocks.OAK_FENCE.defaultBlockState()); doReturn(true).when(fence).is(net.minecraft.tags.BlockTags.WOODEN_FENCES);
+        when(world.getBlockState(POS)).thenReturn(fence);
+        assertTrue(new NativeBuildingProbe(world).read(POS).features().contains(BuildingScanner.Feature.TABLE_LEG));
+        verify(world,times(1)).getBlockState(POS); verify(world,never()).getBlockState(POS.above());
+    }
 
     @Test void closedWoodDoorIsTraversableForOwnDoorOpeningNpcButClosedIronDoorIsNot() {
         var wood = NativeBuildingProbe.classify(Blocks.OAK_DOOR.defaultBlockState().setValue(DoorBlock.OPEN, false), blocks(), POS);
@@ -83,6 +127,30 @@ final class NativeBuildingProbeTest {
         assertFalse(bedCheck(foot,head.setValue(BedBlock.FACING,Direction.WEST)));
         assertFalse(bedCheck(foot,Blocks.BED.pick(DyeColor.BLUE).defaultBlockState().setValue(BedBlock.FACING,Direction.EAST).setValue(BedBlock.PART,BedPart.HEAD)));
         assertTrue(bedCheck(foot,head));
+        assertFalse(bedCheck(foot.setValue(BedBlock.OCCUPIED,true),head.setValue(BedBlock.OCCUPIED,true)));
+    }
+    @Test void aFreeBedAtY68IsReachableViaNativeStairsFromAnInnAnchorAtY63InTheExtendedScan() {
+        var anchor=new BlockPos(0,63,0); var foot=new BlockPos(7,68,-1);
+        var nativeCells=new java.util.HashMap<BlockPos,net.minecraft.world.level.block.state.BlockState>();
+        for(int x=-2;x<=10;x++) for(int z=-3;z<=2;z++) {
+            nativeCells.put(new BlockPos(x,62,z),Blocks.STONE.defaultBlockState());
+            nativeCells.put(new BlockPos(x,71,z),Blocks.STONE.defaultBlockState());
+            if(x>=6) nativeCells.put(new BlockPos(x,67,z),Blocks.STONE.defaultBlockState());
+        }
+        for(int step=1;step<=5;step++) nativeCells.put(new BlockPos(step,62+step,-1),
+                Blocks.OAK_STAIRS.defaultBlockState().setValue(StairBlock.FACING,Direction.EAST));
+        var bed=Blocks.BED.pick(DyeColor.RED).defaultBlockState().setValue(BedBlock.FACING,Direction.EAST);
+        nativeCells.put(foot,bed.setValue(BedBlock.PART,BedPart.FOOT));
+        nativeCells.put(foot.east(),bed.setValue(BedBlock.PART,BedPart.HEAD));
+        var geometry=blocks();
+        for(var range:BuildingScanner.Range.values()) {
+            var scanner=new BuildingScanner(anchor,Direction.NORTH,BuildingScanner.Role.INN,range,
+                    pos->NativeBuildingProbe.classify(nativeCells.getOrDefault(pos,Blocks.AIR.defaultBlockState()),geometry,pos));
+            while(!scanner.done()) scanner.advance(256);
+            var report=scanner.report().orElseThrow();
+            assertEquals(range==BuildingScanner.Range.EXTENDED,report.checks().get(BuildingScanner.Check.BED),range.name());
+            if(range==BuildingScanner.Range.EXTENDED) assertTrue(report.walkable().contains(new BlockPos(7,68,0)));
+        }
     }
     private static boolean bedCheck(net.minecraft.world.level.block.state.BlockState foot,net.minecraft.world.level.block.state.BlockState head) {
         var bedPos=POS.west(4);

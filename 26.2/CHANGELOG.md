@@ -1,4 +1,214 @@
+## 2.6.3 Stable — Living Kingdoms
+
+- Add six personal roadside quests with natural Wanderers and Nightrunners, two conversation buttons, reward icons, tracker support and automatic completion. Every quest awards 4 emeralds and 2 experience levels, at most once per quest-calendar day.
+- Accept delivery quests before collecting supplies; consume only the full exact bundle, without a return trip. Preserve pending rewards and report completion in the Questmaster chat format with item hover and the usual completion sound.
+- Separate Core and Living Kingdoms story progress, improve personal restart and early village guidance, and retain saved reward receipts and shared contributions.
+- Improve quest rules, material trackers, Peaceful alternatives, village relationships, inn furniture, traveler movement and offline party names. Fix journal summary overflow and unrelated entity interaction warnings.
+- Align both supported lines deliberately while keeping their native Minecraft APIs and dependencies. Remove the temporary operator encounter tool and its forced-offer path.
+
+## 2.6.3 Stable — Living Kingdoms
+
+- Add six personal roadside quests with natural Wanderers and Nightrunners, two conversation buttons, reward icons, tracker support and automatic completion. Every quest awards 4 emeralds and 2 experience levels, at most once per quest-calendar day.
+- Accept delivery quests before collecting supplies; consume only the full exact bundle, without a return trip. Preserve pending rewards and report completion in the Questmaster chat format with item hover and the usual completion sound.
+- Separate Core and Living Kingdoms story progress, improve personal restart and early village guidance, and retain saved reward receipts and shared contributions.
+- Improve quest rules, material trackers, Peaceful alternatives, village relationships, inn furniture, traveler movement and offline party names. Fix journal summary overflow and unrelated entity interaction warnings.
+- Align both supported lines deliberately while keeping their native Minecraft APIs and dependencies. Remove the temporary operator encounter tool and its forced-offer path.
+
+## 2.6.3-unreleased.22 — Questmaster completion chat format
+
+- Show encounter completion and rewards in the normal Questmaster chat format: gray dividers, green completed quest title, closing dialogue, rewards heading, native emerald item hover with quantity, and green experience line. Replace the separate plain completion/reward messages; keep pending rewards, payout amounts and sound unchanged.
+
+## 2.6.3-unreleased.20 — Accept, track and automatically deliver
+
+- Use exactly two conversation buttons: Accept and Maybe later. Accept delivery quests without having their materials; they enter the quest tracker and automatically consume the full required amount when it is in your inventory, without returning to the NPC. Food uses 2 bread first, otherwise 3 baked potatoes; partial quantities are never taken.
+- Preview 4 emeralds and 2 experience levels with item icons before accepting, for all six quests. Pay once with a completion/reward chat message and the existing level-up sound, respecting sound preferences. Keep earned rewards pending when the inventory is full.
+- Maybe later closes the window without declining the saved offer.
+
+## 2.6.3-unreleased.18 — Inn opening text layout
+
+- Keep the inn opening progress and its tooltip below the scan buttons, with a separate bounded feedback area. No timing or gameplay changes.
+
+## 2.6.3-unreleased.17 — Small roadside stories
+
+- Add six personal Wanderer/Nightrunner miniquests with a compact VQ conversation window, journal/track support and automatic completion.
+- Reward each quest with 4 emeralds and 3 (delivery) or 4 (other tasks) experience levels; keep pending rewards when the inventory is full and limit completions to one per quest-calendar day.
+- Preserve accepted tasks across death/logout, and let unfinished walking companionship resume with another wanderer.
+- Reduce natural regional traveler spawn rolls by 25%, retaining existing movement, caps and cooldowns.
+- Keep quest-description paragraphs and show clear task/rules/consumed-delivery headings in EN/DE/ES.
+
+## 2.6.3-unreleased.16 — Fence tables and remembered party names
+
+- Recognize any wooden fence with a pressure plate, closed horizontal trapdoor or wool carpet directly above as one table, for both inns and council buildings. All wool carpet colours and pressure plate/trapdoor materials are supported.
+- Keep existing tables and chair-facing/range requirements. Bare fences, floating covers, open trapdoors and waterlogged furniture do not qualify; recognition uses the bounded existing scan without extra world reads.
+- Explain the new furniture combinations in English, German and Spanish building hints.
+- Retain party members' last known names across disconnects and save/reload, and use them in offline rosters and leave/timeout messages. Legacy records without a known name use a readable unknown-player fallback instead of a UUID fragment. A timeout no longer also announces a voluntary departure.
+
+## 2.6.3-unreleased.15 — Travelers and honest service requirements
+
+- Travelers retry failed walks after a finite pause, try shorter alternative directions and can walk a certified safe part of a longer route. Terrain failures no longer permanently freeze them or invent a danger state.
+- Ignore hidden, inactive and calm neutral monsters when reacting to nearby danger. Starting a retreat interrupts an ordinary walk; retiring from combat alone no longer prevents friendly conversation after danger has passed.
+- Share terrain-read work fairly between travelers. Pace dialogue per listener and pause a walk only when a reply was actually delivered.
+- Trust service cards show actual route, story, guild-role and location prerequisites. Hover for missing steps or open the full scrollable explanation. Unlocked Dispatch opens its existing board; Convoy departure/join requires confirmation and fresh server checks.
+- Rename the council's unclear “Paid trade” requirement to “Market trade” and explain which visiting-trader purchases or sales count in English, German and Spanish.
+
+## 2.6.3-unreleased.14 — Unrelated entity interaction feedback
+
+- Stop the Overworld route-survey warning from appearing when interacting with unrelated entities, including entering minecarts outside the Overworld. Only registered caravan NPC interactions enter the route handler.
+- Keep the Overworld restriction and feedback for actual route actions. No route, quest, reward or save-state rules changed.
+
+## 2.6.3-unreleased.13 — Final localization corrections
+
+- Correct 13 reviewed localization keys in German, English and Spanish: quest-calendar order delivery, alternative Prosperity access, exact recognition agreements and distinct partner villages.
+- Clarify Spanish story-wait settings, Beehive kit contents, container grammar and the simulated next-day admin test; qualify the German agreement status by selected type.
+- Preserve unaffected text, gameplay, rewards, inventories, permissions and saved progression.
+
+## 2.6.3-unreleased.12 — Quest text and complete rule access
+
+- Apply the reviewed German, English and Spanish quest and dialogue corrections while preserving the texts marked to keep.
+- Keep full special quest instructions available after acceptance, in the journal and in text-only interactions.
+- Separate local village stories into narrative, short objectives and full rules. Show commission rules before acceptance and retain them while active.
+- Make introductory board and crisis instructions scrollable with mouse, arrow keys, Page Up/Down and Home/End. Questmaster and local-story details support the same keys.
+- Show full consumed delivery bundles for multistage Dailys and Weeklys using the saved quest profile, including old raw-iron deliveries and first-choice previews.
+- Retain construction, time, location and consumption rules in story, companion and Pilgrim details. Show complete tonic and seal usage rules before their quests are accepted.
+- Correct the first Wayfinder preview to three Netherite Ingots, use receipt-aware replay reward text and show keepsake feedback only when one is issued.
+- Reward amounts, permissions, inventory transactions and saved progression remain unchanged.
+
+## 2.6.3-unreleased.11 — Introductory Daily reward and offer preview fix
+
+- Keep the shorter introductory Daily and its LIGHT base rewards, including after
+  a personal reset; pay normally once per Daily cycle and consume the normal slot.
+- Intro reward selection: eight bread or two Silvermarks. Existing same-cycle
+  payout caps still prevent duplicate rewards through resets.
+- Unaccepted Daily offers start with fresh objective counters; previews preserve
+  the player's existing saved quest progress.
+
+## 2.6.3-unreleased.10 — Village relationship and exact version check
+
+- Show earned village bond and current local standing together, with reparation,
+  independent attack conflicts and disabled/unavailable states clearly identified.
+- Keep guild standing, expertise and network renown separate; preserve existing
+  progression, sanctions, rewards and saved data.
+- Require the exact same VQ version on client and server, including Unreleased revision.
+
 # Changelog
+
+## 2.6.3-unreleased.9 — Safe chunk unload and clearer progress
+
+- Defer ambient adventurer removal until the server end tick, preventing entity-section mutation during chunk unload after travel.
+- Confirm personal restart with `/vq reset` then `/vq reset confirm` within two minutes. A direct confirm first warns and arms the request; no generated code is required.
+- Show trust against the next rank threshold with remaining points and an explicit highest-rank hint. Council screens state the separate local village bond needed for a mandate.
+- Keep compound currency rewards together in quest details for every quest category.
+- Resize four oversized quest illustrations from 2048×768 to 768×288, preserving the full image and aspect ratio. Master images remain outside packaged resources.
+
+## 2.6.3-unreleased.8 — Clearer quest instructions
+
+- Remove redundant route, daily/weekly reset and combat disclaimers from quest guidance, introductory village help, follow-ups and related journal text in English, German and Spanish.
+- Keep objectives, quantities, material consumption, one-time status and necessary reward, recovery and waiting-time information. Gameplay and saved progress are unchanged.
+
+## 2.6.3-unreleased.7 — Final RC follow-up
+
+- Recover an undelivered Shadows courier after five continuous minutes of absence. Retire its old identity before replacement so later chunk loads cannot revive an authorized duplicate. Brief unloads and delivered warning letters retain their existing behavior.
+- Resolve safe home destinations only after the second compass click. Keep bed/anchor checks, safe world-spawn fallback and the 30-minute successful-travel cooldown.
+
+## 2.6.3-unreleased.6 — Survival and encounter reliability
+
+- Limit biome/structure searches to one attempt per player every 30 seconds, including unsuccessful searches. Keep this deadline across reconnects and keep the existing 30-minute home cooldown.
+- Return home beside a valid bed or charged respawn anchor at a checked safe exit, otherwise use a bounded safe world-spawn fallback. An anchor charge is not spent by compass travel; unsafe arrivals fail without spending the home cooldown.
+- Keep caravan targets, imprint hints, village guardian checks and encounter planning in the player's actual Overworld. Story bearings cannot bind Overworld encounters in the Nether or End.
+- Distinguish unloaded enemies from confirmed deaths in Empty Caravan, Shadows and False Distress. Unresolved enemies do not unlock victories or rewards. Discarded encounters recover without a free win, and stale tagged bodies are removed when their chunks load after cleanup/restart.
+- Preserve unloaded courier identities, stop new courier creation after letter delivery and prevent repeated bait choices from replacing an active or won encounter.
+- Require the last guild member to finish an active shared project before personal restart, preserving contributed materials and earned personal claims. Other members' projects and existing payout records stay intact.
+
+
+## 2.6.3-unreleased.5 — Starreach cache candidate fix
+
+- Skip unsuitable buried cache cells during the natural-site search, including air, ore, player blocks and foreign block entities. Continue with the next candidate; retain saved cache coordinates, progress, contents and existing ring recovery. Initial placement still rechecks its protection guards.
+
+26.2 parity candidate: `2.6.3-unreleased.4` ports the complete current26.3 Unreleased scope using the pinned26.2 APIs and dependencies. Historical candidate headings below describe the inherited change sequence.
+
+## Unreleased — Audit stabilization (Minecraft 26.2)
+
+- Protect saved Starreach cache positions from overwriting replacement blocks. Only freshly validated natural sites receive a first chest; issued caches are never recreated or refilled. Keep the owned archive recovery and existing chest contents. Spatial checks use loaded nearby Overworld chunks at the existing interval.
+- Keep Nether/End block changes out of the Overworld terrain history and stop remote-dimensional player coordinates from revealing Overworld quest sites. Existing protection marks and inventory/crafting progression remain valid.
+- Count active book crafting independently of the paper step and show both counters together. Keep the 96-Paper/16-Book crafting and 48-Paper/16-Book delivery requirements.
+- Market Day Returns now needs six different adult contacts and six adults near the bell. Goods Must Flow accepts any four working professions alongside its existing 24 trades. Keep stored and shared-party contacts.
+- Tools for the Hall asks for one newly crafted, undamaged Iron Pickaxe, Bucket, pair of Shears and Shield. The four tools are consumed. The Shepherd's Call accepts every native vanilla horse armor and keeps it in the player's inventory.
+- Require a locally usable market counter with reachable customer/merchant sides and nearby storage. Retain outdoor building, functional Vanilla counters and compatible saved places.
+- Update English, German and Spanish instructions and progress feedback together. Existing counters are retained; already discarded historical book-stat differences cannot be reliably reconstructed.
+
+
+## Unreleased — Peaceful pilgrim expeditions (Minecraft 26.2)
+
+- All seven Peaceful pilgrim contracts explain the destination, distance, exact supplies and return check in offers and active cards. Recorded starting coordinates remain visible. End contracts explain the accepted End City requirement; materials and travel progress appear separately.
+- Completion dialogue follows the recipient's saved objective mode. Contract rewards, progress and unlock credit keep their existing rules.
+- Future Ash on the Pass reward offers add a four-Blaze-Rod material choice alongside the existing supplies and currency choices, providing a Peaceful source for brewing and Eyes of Ender. Previously accepted reward snapshots retain their original choices.
+
+## In development — Progression overhaul (Minecraft 26.2)
+
+- Add the confirmed self-only `/vq reset` for living Survival players. Reset both story slots, quests, reputation, village links, routes and VQ money; leave party/guild without deleting another member's progress or earned shared-project claims. Preserve ordinary items, placed world objects, shared village rights, previous payout receipts and cycle caps. Settle pending rewards/freight/market transfers first. Persist native reset phases and verified player/world save records; uncertain recovery stays locked.
+- Store all cursor and crafting contents safely before removing VQ items, including VQ items nested inside portable storage. Refuse before removal if complete contents or rescued ordinary items cannot fit. Old personal tools elsewhere are invalidated through increasing owner generations; functional quest tools can be re-earned.
+- Correct paid story, Friends and Surveyor reward previews after reset. Issue the Starreach cache ring for its actual owner/generation, preserve existing chest contents, avoid refilling a removed issue, and allow the existing archive replacement path during the cache hunt.
+
+- Accepted freight and shared guild projects now have separate journal and tracker entries. Freight shows actual cargo, loading, arrival or settlement hold; shared projects show contributed materials. Earned project rewards remain visible after leaving the guild.
+- Show independent material requirements together in the quest tracker, including completed materials until the bundle is ready. Keep each material's own count and completion color, wrap every row, and retain the next action for sequential tasks. Full hand-in snapshots also retain supplies already in the inventory.
+- Shadows on the Trade Road explains Peaceful bread deliveries, merchant checkpoints and the retained nighttime schedule. Active escorts show individual bread progress and the next checkpoint coordinates. Empty Caravan explains its exact Peaceful supplies and successive route inspections. Offers and completion dialogue use the saved objective mode; chapter rewards keep their existing values.
+- Night Bells Peaceful completion dialogue describes watch checks and supplied protection instead of claiming a survived raid.
+- A special-quest tracker with completed work counters now shows the next missing hand-in material in a compact form, including stored-away honey supplies for the Apiarist's Smoker.
+
+- Marius offers personal watch-supply hand-ins on Peaceful for all three stages: 16 Torches, then 8 Iron Ingots, then 16 Bread and 1 Shield. Dialogues, item rows and trackers show the current requirement; supplies are consumed on hand-in without granting combat counters or starting a raid. Existing stage rewards and payout receipts apply.
+- Story trackers with completed collection counters show the actual hand-in bundle when items were stored elsewhere, instead of directing you to claim an unavailable reward.
+
+- Make all four combat Dailys and both combat Weeklies completable on Peaceful through explicit patrol-supply hand-ins. Show exact materials in offers and trackers, validate the whole bundle before consuming anything, and use the existing party hand-in paths. Keep earned combat counters, normal-mode objectives, reward identities and cycle limits.
+
+- Keep one ordinary cobblestone upkeep task among every village's three regular offers, including villages without bees, livestock or rare crops. Two specialist choices remain; normal daily limits, profile scaling and material-based rewards still apply.
+
+- Explain all four Night Bells Peaceful chapters in game: right-click protection objects in different 8×8 areas, bring each exact supply, then satisfy the separate final golem and confirmation conditions. Show the bound village and a loaded unused area. Preserve older area evidence while fixing colliding area identities and merging party coordinates as complete records.
+- Show concrete short actions for the night convoy, guild courier, bait caravan choice and defence, fresh shrine relay work and Lutte’s next mapped coast. Peaceful bait supplies show both materials together; searching for a coast is distinct from building at a known target.
+- Display each completed part of a mixed objective consistently, using its numeric progress before wrapping. Journal and Questmaster details keep completed and unfinished parts distinct in EN/DE/ES; tracker colors no longer infer progress from translated fractions.
+- Show independent materials together, or the next expedition step or artifact deed, in the short tracker. Friends and accepted village follow-ups have concise objectives; full instructions stay in the journal.
+- Explain that village follow-ups are once-only, refreshing only reloads progress, and Daily/Weekly Guild trust is separate from the local village bond needed for a mandate.
+- Fix GitHub #10: opening the journal or refreshing it after using the Caravan Ledger could crash with `Invalid village summary` when an inn added its opening information. The bounded summary now accepts all nine legitimate lines.
+- Give Core, Kingdom, local stories, commissions and special quests separate active journal cards and stable tracker identities. A personal pin survives chapter/title changes; a legacy pin is migrated only when its old title identifies exactly one quest. The HUD shows one current objective with a two-line body budget; full details remain in the journal.
+- Require matching Progression Overhaul installations before the new journal/tracker packets are sent. Mixed unreleased.2/Overhaul clients and servers are not compatible.
+- Show the first story as a locked preview before the first Daily and enforce that prerequisite on the server. No Weekly is required. Journal and Questmaster explain the same next step.
+- Replace the early village teaser with concrete local help, greeting, saved delivery recovery and replacement-contact steps. Kingdom guidance distinguishes preparing the Council Seat, earning Trust, requesting a mandate and confirming the building; reading a hint grants no authority.
+- Separate the personal and party Core and Living Kingdoms story slots, join offers, chapter claims, ready notices and reserved bonus storage. Kingdom progress does not clear Core/local story counters or use its cooldown.
+- Require an explicit party decision for each story. Offer buttons select their own slot; when two offers are open, the general story accept/decline command asks you to choose `core` or `kingdom`.
+- Preserve admitted offline partners' progress and consumed-material evidence across chapter changes, leaving, reset detach and reload. Kingdom events require the same bound village; claim evidence cannot move to another village before the claim is collected.
+- Migrate legacy Kingdom activity and ready evidence before validating loaded chapters; preserve reward receipts. Unsupported or damaged new lane formats are preserved and block progression until the matching version is used.
+- Connect three explicit Village help tasks to the Notice Post: mixed ordinary logs, cobblestone, or eight verified ripe crop harvests. Two different introductory tasks work without a daily reset, with at most two personal starter payments overall.
+- Keep accepted tasks and harvest progress through saves; cancel only unfinished work. Confirmed village loss allows an explicit replacement contact and unpaid rebuilding help, preserving earlier trust and reward records.
+- Use versioned board packets with client capability checks; mixed older board formats receive a version message. Full overhaul integration and manual in-game acceptance remain in progress; no new test JAR is published for this block.
+
+## Unreleased — Progression overhaul in development (Minecraft 26.2)
+
+- The personal-restart data path can repeat the introductory Daily even when that cycle's rewards were already claimed. The repeat requires fresh work, grants no new rewards, and preserves normal, bonus and weekly payout limits.
+- Right-click harvest verification now recognizes fully grown beetroot using its own crop age, alongside wheat, carrots and potatoes. A harmless click on a ripe crop still grants no harvest credit.
+- After Village Welcome, use a valid village Notice Post for local delivery requests without registering a trade route. Local work builds the personal village bond and pays its ordinary delivery reward; network supply, renown and guild bonuses require a connected destination. Requests remain separate from local stories and afterstories.
+- Boards validate the player's current village against the board's canonical village. Inactive settlements and active reparation cases retain their recovery requirements; the board explains the existing way to make amends.
+- Earn Trusted with two actual village requests, or one request plus four confirmed villager trades in that same village. Trade credit starts after the first request, counts at most twice per villager per quest-calendar day, and stops at four in total. Allied still requires eight actual requests. Existing request counts and earned ranks are preserved.
+
+## 2.6.3-unreleased.2 — Persistent quests and clearer local work (Minecraft 26.2)
+- All daily/weekly gameplay cycles now share the selected real-time or Minecraft-day calendar, including village deliveries, support, reputation and trade limits.
+- Notice-board delivery requests show the remaining daily wait and refresh once per second while open.
+- Accepted local stories/commissions appear alongside story tracker objectives; ready work uses the existing validated, atomic final delivery automatically when its bundle is carried near the bound village. Shared Table still requires its explicit choice.
+- Local story instructions state the exact actions and distances; animal selection confirms the two-animal limit and each completed 32-block journey.
+- Fuel for the Workshop counts freshly mined coal pickups instead of coal-ore block breaks; its icon and EN/DE/ES labels match.
+- Choose from three persisted normal Daily offers every cycle after the easier introduction. Refreshing, reconnecting or cancelling keeps the same offers and target profiles; stale entries cannot accept a different cycle's work. Normal and shard-bonus Dailies retain one shared active slot. An explicit choice keeps its quest type when a party has other work running.
+- Personal reset remains disabled during development and must pass its full safety qualification before the next overhaul test candidate. The complete quest-family text review and the reset remain ongoing work.
+
+
+- Keep accepted Daily and Weekly quests, target profiles, progress and reward snapshots through calendar changes, logout and restart. Normal and bonus Dailies share one active slot; late completion counts toward the delivery cycle. Shared offline members keep their bound progress and consumed turn-in requirements.
+- Restore missing or deliberately removed generated Notice Posts through explicit `/vq town retrofit`. Placement stays within 10 horizontal blocks of actual village houses/jobsites, and automatic placement keeps the entire structure at least 8 blocks from players. Unsafe or unloaded sites wait for a later attempt. Generated boards have no item drop; crafted boards keep normal drops. Recovery does not replenish decorative materials.
+- Remove the baked pale stripe from the small Smithy quest illustration through the existing display crop.
+
+## 2.6.3-unreleased.1 — Travelers after dark (Minecraft 26.2)
+
+- Meet temporary Wanderers along open roads and village edges, and independent Nightrunners at night or occasionally near shallow cave entrances. Six new named appearances have individual faces and matching role outfits.
+- Right-click for a short private remark about the actual surroundings. Wanderers flee danger; Nightrunners hunt a small native monster allowlist with finite targets, attacks and pursuit. They never take over player fights, raids or Village Quest encounters.
+- Player attacks cause a warning and retreat. Repeated hits by the same player can cause brief stationary Nightrunner self-defense, with only three counterattacks during the entire encounter. Pet owners are never attacked by proxy; disabling PvP disables player counterattacks.
+- Encounters grant no quests, trade, resident progress, items or experience. Direct Nightrunner monster kills have no normal loot or XP; player final kills retain normal handling. Per-player/global caps, regional cooldowns, loaded-only bounded navigation and finite lifetimes keep encounters limited.
+- Add three server-file settings for enabling ambient travelers and reducing their caps, independent of caravan presentation. Published 2.6.2 and other Minecraft lines remain unchanged.
 
 ## 2.6.2 — Living Kingdoms
 

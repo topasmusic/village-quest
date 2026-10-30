@@ -13,10 +13,48 @@ import net.minecraft.server.Bootstrap;
 import org.junit.jupiter.api.*;
 
 final class ReputationPayloadsTest {
+    @Test void realLogisticsConditionsRoundTripAndInvalidActionsAreRejected() {
+        var view=ReputationViewService.build(new SocialReputationData(),List.of(),0,true);
+        var locked=new ReputationPayloads.ServiceView(0,"screen.village-quest.reputation.desk.logistics.routes",List.of(net.minecraft.network.chat.Component.literal("Connect two active villages")));
+        var ready=new ReputationPayloads.ServiceView(2,"screen.village-quest.reputation.desk.logistics.ready",List.of(net.minecraft.network.chat.Component.literal("Confirm departure")));
+        var payload=new ReputationPayloads.InteractionPayload(UUID.randomUUID(),false,false,view,List.of(),"",locked,ready);
+        var buf=new RegistryFriendlyByteBuf(Unpooled.buffer(),registries);
+        try { ReputationPayloads.InteractionPayload.CODEC.encode(buf,payload); assertEquals(payload,ReputationPayloads.InteractionPayload.CODEC.decode(buf)); assertEquals(0,buf.readableBytes()); }
+        finally { buf.release(); }
+        assertThrows(IllegalArgumentException.class,()->new ReputationPayloads.ServiceView(5,"bad",List.of()));
+        assertThrows(IllegalArgumentException.class,()->new ReputationPayloads.ServiceView(0,"bad",java.util.Collections.nCopies(9,net.minecraft.network.chat.Component.empty())));
+    }
     static RegistryAccess registries;
     @BeforeAll static void bootstrap() {
         SharedConstants.tryDetectVersion(); Bootstrap.bootStrap();
         registries = RegistryAccess.fromRegistryOfRegistries(BuiltInRegistries.REGISTRY);
+    }
+    @Test void serverRejectsOldOrNewVersionEvenWhenEveryOtherPacketIsSupported() {
+        var player=org.mockito.Mockito.mock(net.minecraft.server.level.ServerPlayer.class);
+        org.mockito.Mockito.when(player.getUUID()).thenReturn(UUID.randomUUID());
+        player.connection=org.mockito.Mockito.mock(net.minecraft.server.network.ServerGamePacketListenerImpl.class);
+        try(var networkMock=org.mockito.Mockito.mockStatic(net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.class)) {
+            networkMock.when(()->net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(org.mockito.ArgumentMatchers.eq(player),org.mockito.ArgumentMatchers.any(net.minecraft.network.protocol.common.custom.CustomPacketPayload.Type.class))).thenReturn(true);
+            assertTrue(ProgressionProtocol.require(player));
+            networkMock.when(()->net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(player,ExactVersionPayload.ID)).thenReturn(false);
+            assertFalse(ProgressionProtocol.require(player));
+            org.mockito.Mockito.verify(player.connection).disconnect(org.mockito.ArgumentMatchers.any(net.minecraft.network.chat.Component.class));
+        } finally { ProgressionProtocol.disconnected(player.getUUID()); }
+    }
+    @Test void exactVersionsAndEveryNewCapabilityAreRequired() {
+        assertNotEquals(ExactVersionPayload.capability("2.6.3-unreleased.9"),ExactVersionPayload.capability("2.6.3-unreleased.10"));
+        assertNotEquals(ExactVersionPayload.capability("2.6.3"),ExactVersionPayload.capability("2.6.3-unreleased.10"));
+        assertNotEquals(ExactVersionPayload.capability("A+B"),ExactVersionPayload.capability("a_b"));
+        assertEquals(ExactVersionPayload.capability("2.6.3"),ExactVersionPayload.capability("2.6.3"));
+        assertTrue(ProgressionProtocol.compatible(true,true,true,true,true,true));
+        for(int i=0;i<6;i++) { boolean[] b={true,true,true,true,true,true};b[i]=false;
+            assertFalse(ProgressionProtocol.compatible(b[0],b[1],b[2],b[3],b[4],b[5])); }
+    }
+    @Test void relationshipHintsRoundTripAndRejectUnknownConflictBeforePresentation() {
+        var hints=new VillageRelationship.Hints(false,true,2,net.minecraft.network.chat.Component.literal("Next bond"),net.minecraft.network.chat.Component.literal("Repair"));
+        var buf=new RegistryFriendlyByteBuf(Unpooled.buffer(),registries);
+        VillageRelationship.write(buf,hints);assertEquals(hints,VillageRelationship.read(buf));assertEquals(0,buf.readableBytes());buf.release();
+        assertThrows(IllegalArgumentException.class,()->new VillageRelationship.Hints(true,true,3,net.minecraft.network.chat.Component.empty(),net.minecraft.network.chat.Component.empty()));
     }
     @Test void maximumPersonalViewRoundTripsBelowSixteenKiB() {
         var data = new SocialReputationData();

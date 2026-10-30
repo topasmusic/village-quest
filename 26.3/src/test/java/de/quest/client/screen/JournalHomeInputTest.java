@@ -30,6 +30,33 @@ final class JournalHomeInputTest {
     private static Object get(JournalScreen screen, String name) throws Exception {
         var field = JournalScreen.class.getDeclaredField(name); field.setAccessible(true); return field.get(screen);
     }
+    @Test void independentKingdomLocalAndCommissionCardsRemainAccessibleWithoutAnActiveCoreStory() {
+        var c=Component.empty();
+        var quests=List.of("story:kingdom:living_kingdoms","story:local:2:shared_table","story:commission:legacy:winter_feed")
+                .stream().map(id -> new de.quest.quest.JournalActiveQuest(new de.quest.quest.TrackerEntry(id,"story",Component.literal(id),
+                        Component.literal("Short current objective")),List.of(Component.literal("Full server detail")),-1)).toList();
+        var view=new JournalScreenData(10,0,0,3,0,0,0,0,0,0,
+                false,false,false,false,false,false,
+                false,c,c,false,c,c,false,c,c,false,c,c,false,c,c,
+                false,false,false,false,false,false,false,false,List.of(),c,
+                new Payloads.NetworkSummaryData(0,0,0,c,c,c),List.of(),List.of(),quests);
+        assertEquals(JournalScreen.HomeDestination.QUESTS,JournalScreen.homeDestination(view));
+        assertEquals(quests.stream().map(q -> q.entry().id()).toList(),new JournalContentBuilder(view).activeQuestCards().stream().map(JournalCard::id).toList());
+        assertEquals(3,view.activeTitles().size());
+        assertTrue(new JournalContentBuilder(view).overviewCards().getLast().details().stream().anyMatch(line -> line.getString().equals("Short current objective")));
+    }
+    @Test void serverLockedStoryPreviewRemainsVisibleWithoutBecomingAnActiveQuest() {
+        var c=Component.empty();
+        var view=new JournalScreenData(10,0,0,0,0,0,0,0,0,0,
+                false,false,false,false,false,false,
+                false,c,c,false,c,c,false,Component.literal("Failing Harvest"),
+                Component.translatable("quest.village-quest.guidance.first_daily"),false,c,c,false,c,c,
+                false,false,false,false,false,false,false,false,List.of(),c,
+                new Payloads.NetworkSummaryData(0,0,0,c,c,c),List.of(),List.of());
+        var cards=new JournalContentBuilder(view).activeQuestCards();
+        assertEquals(List.of("story_locked"),cards.stream().map(JournalCard::id).toList());
+        assertFalse(view.storyActive);
+    }
     private static void font(JournalScreen screen) throws Exception {
         var font = mock(Font.class); when(font.width(anyString())).thenAnswer(c -> ((String)c.getArgument(0)).length() * 6);
         var field = Screen.class.getDeclaredField("font"); field.setAccessible(true); field.set(screen, font);

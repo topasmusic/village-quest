@@ -34,6 +34,11 @@ final class GuildTownSharedStateTest {
         assertEquals(0, state.contribute(GUILD, ALICE, TOKEN, 20).applied());
         assertEquals(20, state.project(GUILD).orElseThrow().progress());
     }
+    @Test void futureSharedDocumentAndItsEntitlementsArePreservedForResetPreflight() {
+        var state=new GuildTownSharedState();state.accept(GUILD,GuildTownSharedProject.ROAD_WAYMARKERS);
+        state.contribute(GUILD,ALICE,TOKEN,48);var root=GuildTownSharedState.toNbt(state);root.putInt("schemaVersion",99);
+        var loaded=GuildTownSharedState.fromNbt(root);assertTrue(loaded.readOnly());assertEquals(root,GuildTownSharedState.toNbt(loaded));
+    }
 
     @Test
     void completionFreesActiveSlotAndEachParticipantKeepsAnIndependentClaim() {

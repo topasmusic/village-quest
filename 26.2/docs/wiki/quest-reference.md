@@ -8,6 +8,17 @@ See [Travelling NPCs](travelling-npcs.md) for Simon, Lutte and Marius.
 
 ## Current Reward Rules
 
+In 2.6.3, combat Dailys and Weeklies have supply
+alternatives on Peaceful. Bring the listed materials to the Questmaster and
+explicitly hand them in; merely carrying the bundle never spends it. Dailys:
+Zombie Cull needs 16 cobblestone, Skeleton Patrol 16 torches, Spider Sweep
+8 oak fences, and Creeper Watch 12 coal. Night Watch needs 32 cobblestone and
+16 torches; Road Warden needs 32 bread and 16 oak fences. Each item is checked
+before consumption, including shared party supplies. Normal reward identities
+and cycle limits remain. Switching to another difficulty resumes the original
+combat objectives and preserves actual combat counts; supplies never count as
+kills.
+
 - Easy, standard, and hard Daily wallet rewards start at `3`, `6`, and `12 Silvermarks`, then follow the stored light/normal/heavy profile.
 - Quest experience is paid in bounded level bars instead of a fixed raw-XP amount. A `+3` reward advances the same three bars at vanilla level `10` and level `200`; vanilla determines the larger raw-XP cost at the higher level.
 - Normal Daily difficulties grant `1.5`, `3`, and `4.5` bars. Normal Weeklies grant `5.25`, `6`, or `6.75`; Pilgrim combat tiers grant `3`, `4.5`, or `6`; Story rewards scale with their chapter weight and cap at `7.5` bars.

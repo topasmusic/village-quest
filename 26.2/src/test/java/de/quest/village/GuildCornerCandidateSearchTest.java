@@ -105,7 +105,7 @@ final class GuildCornerCandidateSearchTest {
         var candidates = GuildCornerCandidateSearch.nearStructures(0, 180, 0, 100, 7, 6, pieces);
         assertTrue(!candidates.isEmpty());
         for (var candidate : candidates) {
-            assertTrue(pieces.stream().anyMatch(piece -> distanceSqr(candidate, piece) <= 12L * 12L),
+            assertTrue(pieces.stream().anyMatch(piece -> distanceSqr(candidate, piece) <= 10L * 10L),
                     "site must remain beside a real village piece: " + candidate);
         }
         assertTrue(candidates.getFirst().centerX() > 110, "empty bounding-box center must not win");

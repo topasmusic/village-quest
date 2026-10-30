@@ -38,7 +38,7 @@ public final class WheatHarvestDailyQuest implements DailyQuestDefinition {
 
     @Override
     public Component offerParagraph2() {
-        return Component.translatable("quest.village-quest.daily.wheat.offer.2").withStyle(ChatFormatting.GRAY);
+        return de.quest.quest.QuestRuleText.translate("quest.village-quest.daily.wheat.offer.2").withStyle(ChatFormatting.GRAY);
     }
 
     @Override
@@ -110,6 +110,11 @@ public final class WheatHarvestDailyQuest implements DailyQuestDefinition {
 
     @Override
     public Component claimBlockedMessage(ServerLevel world, ServerPlayer player) {
+        return claimBlockedMessage(world, player, false);
+    }
+
+    @Override
+    public Component claimBlockedMessage(ServerLevel world, ServerPlayer player, boolean allRequirements) {
         if (player == null || world == null) {
             return null;
         }
@@ -121,7 +126,7 @@ public final class WheatHarvestDailyQuest implements DailyQuestDefinition {
                 || hasTurnInItems(player)) {
             return null;
         }
-        return Texts.turnInMissing(
+        return Texts.turnInMissing(allRequirements,
                 Items.WHEAT.getDefaultInstance().getDisplayName(),
                 DailyQuestService.countCompletionItem(world, player, Items.WHEAT),
                 wheatTarget,

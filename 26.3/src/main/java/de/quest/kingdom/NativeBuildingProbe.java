@@ -14,6 +14,8 @@ import net.minecraft.world.level.block.ChestBlock;
 import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.SlabBlock;
 import net.minecraft.world.level.block.StairBlock;
+import net.minecraft.world.level.block.BasePressurePlateBlock;
+import net.minecraft.world.level.block.TrapDoorBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BedPart;
 import net.minecraft.world.level.block.state.properties.ChestType;
@@ -93,6 +95,10 @@ public final class NativeBuildingProbe implements BuildingScanner.Probe {
             boolean table = state.getBlock() instanceof SlabBlock || state.is(Blocks.CRAFTING_TABLE)
                     || state.is(Blocks.CARTOGRAPHY_TABLE) || state.is(Blocks.LECTERN);
             if (table) features.add(BuildingScanner.Feature.TABLE);
+            if (state.is(BlockTags.WOODEN_FENCES)) features.add(BuildingScanner.Feature.TABLE_LEG);
+            if (state.getBlock() instanceof BasePressurePlateBlock || state.is(BlockTags.WOOL_CARPETS)
+                    || state.getBlock() instanceof TrapDoorBlock && !state.getValue(TrapDoorBlock.OPEN))
+                features.add(BuildingScanner.Feature.TABLE_TOP);
             if (state.getBlock() instanceof de.quest.content.block.MarketStallBlock) {
                 features.add(BuildingScanner.Feature.STALL); features.add(BuildingScanner.Feature.COUNTER);
             }

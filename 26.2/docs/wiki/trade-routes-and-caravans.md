@@ -1,5 +1,7 @@
 # Trade Routes and Caravans
 
+Normal entity interactions, including boarding minecarts outside the Overworld, do not trigger route-survey warnings. Explicit route actions remain restricted to the Overworld.
+
 Use the Caravan Ledger to connect real villages, survey roads and manage your personal trade network in Minecraft 26.3.
 
 ## Unlocking the Network
@@ -227,6 +229,11 @@ Five collectible liveries can be assigned independently to installed routes. Eve
 Crews and the pack mule now have persistent lives and are physically vulnerable by default. Confirmed personal attacks trigger warnings, measured trust losses and temporary work restrictions; guards defend only against proven attackers within the route leash. A real death interrupts the affected trip, keeps freight in safe saved claims and replaces the lost person only at a later safe departure. Cleanup/ferries/unload preserve living identities. Full rules and the reachable aid path are in [Social reputation](social-reputation.md). Caravan purchase limits now use the configured real Daily reset, with personal standing limits2/4/5/6 and case/ostracism0.
 
 ## Dispatch board
+
+The Trust desk can open Regional Dispatch from a nearby Guild Notice Post in
+one of your own active connected villages. It explains the missing network,
+route or location prerequisites instead of equating neutral standing with an
+unlocked service. At least two suitable active village routes are needed.
 
 Regional Dispatch moves cargo source → hub → destination on actual caravan
 arrivals. Keep the required routes active and inspect the board for delivery

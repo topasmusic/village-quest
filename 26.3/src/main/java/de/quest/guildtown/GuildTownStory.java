@@ -28,6 +28,13 @@ public enum GuildTownStory {
     public int bit() { return 1 << id; }
     public Component title() { return Component.translatable("quest.village-quest.guild_town.story." + key + ".title"); }
 
+    /** Narrative, short objective and complete rules share every presentation path. */
+    public java.util.List<Component> instructionLines() {
+        String prefix = "screen.village-quest.notice_journey.instruction." + key;
+        return java.util.List.of(Component.translatable(prefix), Component.translatable(prefix + ".objective"),
+                Component.translatable(prefix + ".rules"));
+    }
+
     public static GuildTownStory forVillage(VillageBondType type) {
         for (GuildTownStory story : values()) if (story.villageType == type) return story;
         return SHARED_TABLE;

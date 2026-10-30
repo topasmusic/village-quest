@@ -12,7 +12,7 @@ the older village-core arcs.
 | 1 | Accept to learn Council Seat crafting. Confirm/register a furnished council and choose the village name; claim for the other three anchor recipes and Trader Stall recipe. |
 | 2 | Confirm the inn, market and storehouse in any order, and assign at least one trader place. Existing confirmed buildings can count. |
 | 3 | Speak to the leader, innkeeper and storekeeper at valid local buildings. |
-| 4 | Complete a paid confirmed market trade and actual storehouse freight delivery. |
+| 4 | Buy from or sell to a visiting market trader in this village, and complete an actual storehouse freight delivery. Ordinary villager trades do not satisfy this market requirement. |
 | 5 | Earn the first village recognition project and return to claim your personal Village Seal. |
 
 The village target stays fixed when you build elsewhere. At a Council Seat use
@@ -21,6 +21,13 @@ remain. Only the party leader may replace an existing shared target. Admitted
 offline members receive the same change. Party membership grants no village
 management mandate. See [Buildings](kingdom-buildings.md) for the separate empty
 settlement and inhabited-recognition requirements.
+
+Friends at different chapters can use the same village's confirmed buildings.
+Do not build a second inn just to repeat chapter two: bind both personal stories
+to that village, with the required village authority. Each player claims their
+own chapters and rewards. Conversations, market trades and freight still need
+personal confirmed evidence or an eligible shared-story session; merely joining
+a party does not copy another player's completed story or grant management rights.
 
 In **2.6.2-unreleased.1**, the Journal's next-step card names the first unfinished
 requirement of the current chapter, including trader-place assignment, each staff

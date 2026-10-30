@@ -31,7 +31,7 @@ public final class LivingKingdomsStoryArc implements StoryArcDefinition {
     @Override public StoryChapterDefinition chapter(int index) { return index>=0 && index<chapters.size()?chapters.get(index):null; }
     @Override public boolean isUnlocked(ServerLevel world, UUID player) { return QuestMasterProgressionService.isStoryCategoryUnlocked(world,player); }
     private static PlayerQuestData data(ServerLevel world,UUID player) { return QuestState.get(world.getServer()).getPlayerData(player); }
-    private static Component part(int index,String suffix) { return Component.translatable(TEXT+"chapter_"+(index+1)+"."+suffix); }
+    private static Component part(int index,String suffix) { return de.quest.quest.QuestRuleText.translate(TEXT+"chapter_"+(index+1)+"."+suffix); }
     private static final class Chapter implements StoryChapterDefinition {
         private final int index;
         Chapter(int index) { this.index=index; }

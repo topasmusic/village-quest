@@ -7,6 +7,7 @@ import java.util.List;
 
 /** Immutable client view-model received from the server-authoritative journal payload. */
 public final class JournalScreenData {
+    public final List<de.quest.quest.JournalActiveQuest> activeQuests;
     public final int total, discovered, completed, active;
     public final long currencyBalance;
     public final int farmingReputation, craftingReputation, animalReputation, tradeReputation, monsterReputation;
@@ -43,6 +44,29 @@ public final class JournalScreenData {
             Component networkNextAction, Payloads.NetworkSummaryData networkSummary,
             List<Payloads.NetworkVillageData> networkVillages,
             List<Component> networkGuildLines) {
+        this(total, discovered, completed, active, currencyBalance, farmingReputation, craftingReputation, animalReputation, tradeReputation, monsterReputation, hasStarreachRing, hasMerchantSeal, hasShepherdFlute, hasApiaristSmoker, hasSurveyorCompass, hasCaravanLedger, dailyActive, dailyTitle, dailyProgress, weeklyActive, weeklyTitle, weeklyProgress, storyActive, storyTitle, storyProgress, pilgrimActive, pilgrimTitle, pilgrimProgress, specialActive, specialTitle, specialProgress, hasVillageLedgerProject, hasApiaryCharterProject, hasForgeCharterProject, hasMarketCharterProject, hasPastureCharterProject, hasWatchBellProject, hasCaravanYardProject, hasWayshrineNetworkProject, guildPathNodes, networkNextAction, networkSummary, networkVillages, networkGuildLines, List.of());
+    }
+
+    public JournalScreenData(
+            int total, int discovered, int completed, int active, long currencyBalance,
+            int farmingReputation, int craftingReputation, int animalReputation,
+            int tradeReputation, int monsterReputation,
+            boolean hasStarreachRing, boolean hasMerchantSeal, boolean hasShepherdFlute,
+            boolean hasApiaristSmoker, boolean hasSurveyorCompass, boolean hasCaravanLedger,
+            boolean dailyActive, Component dailyTitle, Component dailyProgress,
+            boolean weeklyActive, Component weeklyTitle, Component weeklyProgress,
+            boolean storyActive, Component storyTitle, Component storyProgress,
+            boolean pilgrimActive, Component pilgrimTitle, Component pilgrimProgress,
+            boolean specialActive, Component specialTitle, Component specialProgress,
+            boolean hasVillageLedgerProject, boolean hasApiaryCharterProject,
+            boolean hasForgeCharterProject, boolean hasMarketCharterProject,
+            boolean hasPastureCharterProject, boolean hasWatchBellProject,
+            boolean hasCaravanYardProject, boolean hasWayshrineNetworkProject,
+            List<Payloads.GuildPathNodeData> guildPathNodes,
+            Component networkNextAction, Payloads.NetworkSummaryData networkSummary,
+            List<Payloads.NetworkVillageData> networkVillages,
+            List<Component> networkGuildLines, List<de.quest.quest.JournalActiveQuest> activeQuests) {
+        this.activeQuests=de.quest.quest.JournalActiveQuest.checked(activeQuests);
         this.total = total;
         this.discovered = discovered;
         this.completed = completed;
@@ -99,6 +123,10 @@ public final class JournalScreenData {
 
     public java.util.Map<String, Component> activeTitles() {
         var titles = new java.util.LinkedHashMap<String, Component>();
+        if (!activeQuests.isEmpty()) {
+            for(var quest:activeQuests) titles.put(quest.entry().id(),quest.entry().title());
+            return titles;
+        }
         if (storyActive) titles.put("story", storyTitle);
         if (specialActive) titles.put("special", specialTitle);
         if (weeklyActive) titles.put("weekly", weeklyTitle);

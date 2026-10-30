@@ -27,7 +27,14 @@ public enum VillageRequestType {
     APIARY_HONEYCOMB(16, VillageBondType.APIARY, Items.HONEYCOMB, 60, 38, "apiary_honeycomb"),
     APIARY_CANDLES(17, VillageBondType.APIARY, Items.CANDLE, 40, 45, "apiary_candles"),
     ARCHIVE_INK(18, VillageBondType.ARCHIVE, Items.INK_SAC, 40, 40, "archive_ink"),
-    ARCHIVE_FEATHERS(19, VillageBondType.ARCHIVE, Items.FEATHER, 120, 34, "archive_feathers");
+    ARCHIVE_FEATHERS(19, VillageBondType.ARCHIVE, Items.FEATHER, 120, 34, "archive_feathers"),
+
+    // Append-only saved IDs. Ordinary upkeep remains possible without specialist farms.
+    GRANARY_REPAIRS(20, VillageBondType.GRANARY, Items.COBBLESTONE, 32, 0, "granary_repairs"),
+    FORGE_REPAIRS(21, VillageBondType.FORGE, Items.COBBLESTONE, 32, 0, "forge_repairs"),
+    PASTURE_REPAIRS(22, VillageBondType.PASTURE, Items.COBBLESTONE, 32, 0, "pasture_repairs"),
+    APIARY_REPAIRS(23, VillageBondType.APIARY, Items.COBBLESTONE, 32, 0, "apiary_repairs"),
+    ARCHIVE_REPAIRS(24, VillageBondType.ARCHIVE, Items.COBBLESTONE, 32, 0, "archive_repairs");
 
     private static final VillageRequestType[] VALUES = values();
 
@@ -65,7 +72,17 @@ public enum VillageRequestType {
         return GRANARY_SEED;
     }
 
-    /** Deterministic four-entry cycle with no immediate repeat. */
+    public static VillageRequestType upkeep(VillageBondType type) {
+        return switch (type == null ? VillageBondType.GRANARY : type) {
+            case GRANARY -> GRANARY_REPAIRS;
+            case FORGE -> FORGE_REPAIRS;
+            case PASTURE -> PASTURE_REPAIRS;
+            case APIARY -> APIARY_REPAIRS;
+            case ARCHIVE -> ARCHIVE_REPAIRS;
+        };
+    }
+
+    /** Deterministic identity cycle with no immediate repeat. */
     public static VillageRequestType nextAfter(VillageBondType type, VillageRequestType current) {
         VillageBondType safeType = type == null ? VillageBondType.GRANARY : type;
         VillageRequestType first = null;

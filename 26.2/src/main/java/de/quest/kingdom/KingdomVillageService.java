@@ -107,7 +107,11 @@ public final class KingdomVillageService {
                 zones.stream().mapToInt(LivingKingdomsState.Zone::minX).min().orElseThrow(),
                 zones.stream().mapToInt(LivingKingdomsState.Zone::maxX).max().orElseThrow(),
                 zones.stream().mapToInt(LivingKingdomsState.Zone::minZ).min().orElseThrow(),
-                zones.stream().mapToInt(LivingKingdomsState.Zone::maxZ).max().orElseThrow());
+                zones.stream().mapToInt(LivingKingdomsState.Zone::maxZ).max().orElseThrow(),
+                state.anchors().all().stream().filter(anchor -> anchor.villageId().equals(value.id()))
+                        .map(anchor -> new de.quest.village.GuildCornerCandidateSearch.StructureFootprint(
+                                anchor.position().getX(), anchor.position().getX(),
+                                anchor.position().getZ(), anchor.position().getZ())).toList());
     }
 
     public static Component name(LivingKingdomsState state, VillageKey key, Component fallback) {

@@ -27,6 +27,8 @@ public final class VillageGuildState extends SavedData {
     private final Map<UUID, MutableGuild> guilds = new HashMap<>();
     private final Map<UUID, UUID> memberGuilds = new HashMap<>();
     private final Map<UUID, Invitation> invitations = new HashMap<>();
+    private CompoundTag unsupported;
+    public boolean readOnly() { return unsupported != null; }
 
     private record Invitation(UUID guildId, long createdAt) {}
 
@@ -171,6 +173,18 @@ public final class VillageGuildState extends SavedData {
         return guild.snapshot();
     }
 
+    /** Personal restart must not disband a guild belonging to other members. */
+    public void detachForPersonalRestart(UUID playerId) {
+        if (readOnly()) throw new IllegalStateException("Unknown guild state");
+        var guild = guildFor(playerId).orElse(null);
+        if (guild != null && guild.role(playerId) == VillageGuildRole.LEADER && guild.members().size() > 1) {
+            var successor = guild.members().keySet().stream().filter(id -> !id.equals(playerId)).sorted().findFirst().orElseThrow();
+            if (!transferLeadership(playerId, successor)) throw new IllegalStateException("Guild leadership changed");
+        }
+        invitations.remove(playerId);
+        leave(playerId);
+        setDirty();
+    }
     public int removePlayer(UUID playerId) {
         if (playerId == null) return 0;
         invitations.remove(playerId);
@@ -217,7 +231,9 @@ public final class VillageGuildState extends SavedData {
         VillageGuildState state = new VillageGuildState();
         if (root == null || root.isEmpty()) return state;
         int schema = root.getIntOr("schemaVersion", 0);
-        if (schema < 0 || schema > CURRENT_SCHEMA_VERSION) return state;
+        if (schema < 0 || schema > CURRENT_SCHEMA_VERSION || root.contains("schemaVersion") && !(root.get("schemaVersion") instanceof net.minecraft.nbt.IntTag)) {
+            state.unsupported=root.copy();return state;
+        }
         for (CompoundTag entry : compounds(root.getListOrEmpty("guilds"))) {
             UUID id = parseUuid(entry.getStringOr("id", ""));
             // First valid occurrence wins. Never populate reverse membership for an entry
@@ -256,6 +272,7 @@ public final class VillageGuildState extends SavedData {
     }
 
     static CompoundTag toNbt(VillageGuildState state) {
+        if (state.unsupported != null) return state.unsupported.copy();
         CompoundTag root = new CompoundTag();
         root.putInt("schemaVersion", CURRENT_SCHEMA_VERSION);
         ListTag guildEntries = new ListTag();

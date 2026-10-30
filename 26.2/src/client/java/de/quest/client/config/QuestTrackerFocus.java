@@ -61,10 +61,10 @@ public final class QuestTrackerFocus {
 
     public String quest() { return quest; }
     public boolean onlyPinned() { return onlyPinned; }
-    public boolean matches(String id, Component value) { return quest.equals(id) && title.equals(identity(value)); }
+    public boolean matches(String id, Component value) { return quest.equals(id) && (id.contains(":") || title.equals(identity(value))); }
 
     public void toggle(String id, Component value) {
-        if (!QUESTS.contains(id)) return;
+        if (!de.quest.quest.TrackerEntry.validId(id)) return;
         if (matches(id, value)) { quest = ""; title = ""; }
         else {
             String identity = identity(value);
@@ -78,9 +78,15 @@ public final class QuestTrackerFocus {
 
     /** Called only with a complete active-quest snapshot, never a disabled HUD packet. */
     public void reconcile(Map<String, Component> active) {
-        if (!quest.isEmpty() && (!active.containsKey(quest) || !matches(quest, active.get(quest)))) {
-            quest = ""; title = ""; save();
+        if(quest.isEmpty()) return;
+        if(active.containsKey(quest) && matches(quest,active.get(quest))) return;
+        if(!quest.contains(":")) {
+            String category=quest;
+            var matches=active.entrySet().stream().filter(e -> e.getKey().startsWith(category+":")
+                    && title.equals(identity(e.getValue()))).toList();
+            if(matches.size()==1) { quest=matches.getFirst().getKey(); title=""; save(); return; }
         }
+        quest=""; title=""; save();
     }
 
     static QuestTrackerFocus load(Path path) {
@@ -89,7 +95,7 @@ public final class QuestTrackerFocus {
         try (var input = Files.newInputStream(path)) {
             var values = new Properties(); values.load(input);
             String id = values.getProperty("quest", ""), title = values.getProperty("title", "");
-            if (QUESTS.contains(id) && !title.isEmpty() && title.length() <= 4096) {
+            if (de.quest.quest.TrackerEntry.validId(id) && (id.contains(":") || !title.isEmpty() && title.length() <= 4096)) {
                 focus.quest = id; focus.title = title;
             }
             focus.onlyPinned = Boolean.parseBoolean(values.getProperty("only_pinned", "false"));

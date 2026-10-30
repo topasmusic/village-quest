@@ -27,7 +27,9 @@ final class GuildConvoyStateTest {
     @Test
     void threeRealHubAndVillageRoundTripsSurviveReloadAndCompleteOnce() {
         GuildConvoyState state = new GuildConvoyState();
+        assertTrue(state.canStart(GUILD,10)); assertNull(state.active(GUILD));
         assertTrue(state.start(GUILD, OWNER, ROUTES, 10));
+        assertFalse(state.canStart(GUILD,11));
         assertFalse(state.start(GUILD, OWNER, ROUTES, 11));
         assertTrue(state.join(GUILD, MEMBER));
         assertFalse(state.join(GUILD, MEMBER));
@@ -53,6 +55,7 @@ final class GuildConvoyStateTest {
         assertNull(state.active(GUILD));
         assertFalse(state.arrive(OWNER, ROUTES.get(2), false).advanced());
         assertFalse(state.start(GUILD, OWNER, ROUTES, 20));
+        assertFalse(state.canStart(GUILD,10+7L*24_000-1)); assertTrue(state.canStart(GUILD,10+7L*24_000));
         assertTrue(state.start(GUILD, OWNER, ROUTES, 10 + 7L * 24_000));
     }
 

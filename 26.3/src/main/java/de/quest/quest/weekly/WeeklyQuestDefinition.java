@@ -22,17 +22,45 @@ public interface WeeklyQuestDefinition {
 
     Component offerParagraph2();
 
+    default List<Component> descriptionLines(ServerLevel world, UUID playerId) {
+        return de.quest.quest.PeacefulRepeatableSupplies.weekly(world,type())
+                ? de.quest.quest.PeacefulRepeatableSupplies.weeklyDescription(type())
+                : List.of(offerParagraph1(),offerParagraph2());
+    }
+
     List<Component> progressLines(ServerLevel world, UUID playerId);
 
     boolean isComplete(ServerLevel world, ServerPlayer player);
 
     WeeklyQuestCompletion buildCompletion();
 
+    default WeeklyQuestCompletion completionFor(ServerLevel world) {
+        var completion = buildCompletion();
+        return de.quest.quest.PeacefulRepeatableSupplies.weekly(world,type())
+                ? de.quest.quest.PeacefulRepeatableSupplies.completion(completion) : completion;
+    }
+
     default QuestCompletionMode completionMode() { return QuestCompletionMode.AUTOMATIC; }
 
-    default boolean consumeCompletionRequirements(ServerLevel world, ServerPlayer player) { return true; }
+    default QuestCompletionMode completionMode(ServerLevel world) {
+        return de.quest.quest.PeacefulRepeatableSupplies.weekly(world,type())
+                ? QuestCompletionMode.QUESTMASTER_TURN_IN : completionMode();
+    }
 
-    default Component claimBlockedMessage(ServerLevel world, ServerPlayer player) { return null; }
+    default boolean consumeCompletionRequirements(ServerLevel world, ServerPlayer player) {
+        return !de.quest.quest.PeacefulRepeatableSupplies.weekly(world,type())
+                || de.quest.quest.PeacefulRepeatableSupplies.consumeWeekly(world,player,type());
+    }
+
+    default Component claimBlockedMessage(ServerLevel world, ServerPlayer player) {
+        return de.quest.quest.PeacefulRepeatableSupplies.weekly(world,type())
+                && !de.quest.quest.PeacefulRepeatableSupplies.weeklyComplete(world,player,type())
+                ? de.quest.quest.PeacefulRepeatableSupplies.blocked() : null;
+    }
+
+    default Component claimBlockedMessage(ServerLevel world, ServerPlayer player, boolean allRequirements) {
+        return claimBlockedMessage(world, player);
+    }
 
     default void onAccepted(ServerLevel world, ServerPlayer player) {}
 

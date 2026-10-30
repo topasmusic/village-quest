@@ -44,6 +44,15 @@ final class JournalContentBuilder {
 
     List<JournalCard> activeQuestCards() {
         List<JournalCard> cards = new ArrayList<>();
+        if (!data.activeQuests.isEmpty()) {
+            for(var quest:data.activeQuests) {
+                var entry=quest.entry();
+                int accent=switch(entry.category()) { case "daily" -> BLUE; case "weekly" -> GOLD; case "special" -> PURPLE; default -> GREEN; };
+                var details=new ArrayList<Component>(); details.add(entry.shortObjective()); details.addAll(quest.details());
+                cards.add(new JournalCard(entry.id(),entry.title(),Component.translatable("screen.village-quest.journal.active."+entry.category()),List.copyOf(details),accent,quest.cancelAction()));
+            }
+        }
+        if(data.activeQuests.isEmpty()) {
         addActive(cards, data.dailyActive, "daily", "screen.village-quest.journal.active.daily",
                 data.dailyTitle, data.dailyProgress, "screen.village-quest.journal.active.daily_hint",
                 BLUE, JournalActionPayload.ACTION_CANCEL_DAILY);
@@ -59,6 +68,11 @@ final class JournalContentBuilder {
         addActive(cards, data.specialActive, "special", "screen.village-quest.journal.active.special",
                 data.specialTitle, data.specialProgress, "screen.village-quest.journal.v2.active.special_hint",
                 PURPLE, -1);
+        }
+        if (!data.storyActive && data.storyProgress.getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents preview
+                && preview.getKey().equals("quest.village-quest.guidance.first_daily"))
+            cards.add(new JournalCard("story_locked",data.storyTitle,
+                    Component.translatable("screen.village-quest.questmaster.status.locked"),List.of(data.storyProgress),MUTED,-1));
         if(!data.dailyActive && !data.dailyProgress.getString().isBlank())
             cards.add(new JournalCard("daily_reset",Component.translatable("screen.village-quest.journal.daily_done"),Component.translatable("screen.village-quest.journal.active.daily"),List.of(data.dailyProgress,data.dailyTitle),BLUE,-1));
         if(!data.weeklyActive && !data.weeklyProgress.getString().isBlank())
@@ -101,12 +115,11 @@ final class JournalContentBuilder {
                     Component.translatable("screen.village-quest.journal.network.village.need",village.need()),
                     Component.translatable("screen.village-quest.journal.network.village.support",village.support(),100),
                     Component.translatable("screen.village-quest.journal.network.village.energy",village.energyProgress(),3),
-                    ReputationPanel.text("local_standing",ReputationPanel.rank(village.socialTrust()),village.socialTrust()),
-                    ReputationPanel.text(village.socialCase()?"local_case":"local_open")));
+                    village.condition()));
+            villageDetails.addAll(0,ReputationPanel.relationshipDetails(village.bondLevel(),village.socialTrust(),village.socialCase(),village.relationship()));
             villageDetails.addAll(village.lastKnown());
             cards.add(new JournalCard("network_village_" + village.index(), village.villageType(),
-                    Component.translatable("screen.village-quest.journal.network.village.subtitle",
-                            village.bondLevel(), village.condition()),
+                    ReputationPanel.relationshipSummary(village.bondLevel(),village.socialTrust(),village.relationship(),village.socialCase()),
                     List.copyOf(villageDetails),
                     conditionAccent(village.conditionKey()), -1));
         }
@@ -144,6 +157,12 @@ final class JournalContentBuilder {
         for (var card : activeQuestCards()) if (focus.matches(card.id(), card.title()))
             return new JournalCard("overview_next", Component.translatable("screen.village-quest.journal.v2.overview.next"),
                     card.title(), card.details(), card.accent(), -1);
+        if(!data.activeQuests.isEmpty()) {
+            var quest=data.activeQuests.stream().filter(q -> q.entry().category().equals("story")).findFirst().orElse(data.activeQuests.getFirst());
+            var details=new ArrayList<Component>(); details.add(quest.entry().shortObjective()); details.addAll(quest.details());
+            return new JournalCard("overview_next",Component.translatable("screen.village-quest.journal.v2.overview.next"),
+                    quest.entry().title(),List.copyOf(details),GREEN,-1);
+        }
         if (data.storyActive) return nextAction(data.storyTitle, data.storyProgress,
                 "screen.village-quest.journal.v2.active.story_hint", GREEN);
         if (data.specialActive) return nextAction(data.specialTitle, data.specialProgress,

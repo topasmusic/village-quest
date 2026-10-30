@@ -61,7 +61,7 @@ public final class StallAndPastureWeeklyQuest implements WeeklyQuestDefinition {
                 WeeklyQuestService.pastureWoolTarget()
         ).withStyle(ChatFormatting.GRAY);
         ServerPlayer player = world == null ? null : world.getServer().getPlayerList().getPlayer(playerId);
-        Component blocked = player == null ? null : claimBlockedMessage(world, player);
+        Component blocked = player == null ? null : claimBlockedMessage(world, player, true);
         return blocked == null ? List.of(line1, line2) : List.of(line1, line2, blocked);
     }
 
@@ -81,6 +81,11 @@ public final class StallAndPastureWeeklyQuest implements WeeklyQuestDefinition {
 
     @Override
     public Component claimBlockedMessage(ServerLevel world, ServerPlayer player) {
+        return claimBlockedMessage(world, player, false);
+    }
+
+    @Override
+    public Component claimBlockedMessage(ServerLevel world, ServerPlayer player, boolean allRequirements) {
         if (player == null || world == null) {
             return null;
         }
@@ -92,7 +97,7 @@ public final class StallAndPastureWeeklyQuest implements WeeklyQuestDefinition {
                 || countInventoryWool(world, player) >= woolTarget) {
             return null;
         }
-        return Texts.turnInMissing(
+        return Texts.turnInMissing(allRequirements,
                 Component.translatable("text.village-quest.turnin.label.wool"),
                 countInventoryWool(world, player),
                 woolTarget

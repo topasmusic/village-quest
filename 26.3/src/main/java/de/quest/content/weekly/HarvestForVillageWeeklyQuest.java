@@ -41,7 +41,7 @@ public final class HarvestForVillageWeeklyQuest implements WeeklyQuestDefinition
 
     @Override
     public Component offerParagraph2() {
-        return Component.translatable("quest.village-quest.weekly.harvest.offer.2").withStyle(ChatFormatting.GRAY);
+        return de.quest.quest.QuestRuleText.translate("quest.village-quest.weekly.harvest.offer.2").withStyle(ChatFormatting.GRAY);
     }
 
     @Override
@@ -73,7 +73,7 @@ public final class HarvestForVillageWeeklyQuest implements WeeklyQuestDefinition
         }
 
         ServerPlayer player = world == null ? null : world.getServer().getPlayerList().getPlayer(playerId);
-        Component blocked = player == null ? null : claimBlockedMessage(world, player);
+        Component blocked = player == null ? null : claimBlockedMessage(world, player, true);
         return List.of(blocked == null
                 ? Component.translatable("quest.village-quest.weekly.harvest.stage.3").withStyle(ChatFormatting.GRAY)
                 : blocked);
@@ -124,6 +124,11 @@ public final class HarvestForVillageWeeklyQuest implements WeeklyQuestDefinition
 
     @Override
     public Component claimBlockedMessage(ServerLevel world, ServerPlayer player) {
+        return claimBlockedMessage(world, player, false);
+    }
+
+    @Override
+    public Component claimBlockedMessage(ServerLevel world, ServerPlayer player, boolean allRequirements) {
         if (player == null || world == null) {
             return null;
         }
@@ -140,7 +145,7 @@ public final class HarvestForVillageWeeklyQuest implements WeeklyQuestDefinition
                 || hasTurnInItems(player)) {
             return null;
         }
-        return Texts.turnInMissing(
+        return Texts.turnInMissing(allRequirements,
                 Items.WHEAT.getDefaultInstance().getDisplayName(),
                 WeeklyQuestService.countCompletionItem(world, player, Items.WHEAT),
                 wheatDeliveryTarget,

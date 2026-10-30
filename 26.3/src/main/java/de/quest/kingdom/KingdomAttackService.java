@@ -27,7 +27,8 @@ public final class KingdomAttackService {
         if(a.incident().toString().equals(data.getTradeRouteString("kingdoms.attack.notice")))return;
         data.setTradeRouteString("kingdoms.attack.notice",a.incident().toString());quests.setDirty();
         String town=LivingKingdomsState.get(server).village(a.village()).orElseThrow().name();
-        player.sendSystemMessage(Component.translatable("message.village-quest.kingdom.attack_warning",town,a.position().getX(),a.position().getZ(),a.incident().toString()));
+        player.sendSystemMessage(Component.translatable("message.village-quest.kingdom.attack_warning",town,a.position().getX(),a.position().getZ(),a.incident().toString())
+                .append(Component.literal("\n\n")).append(Component.translatable("message.village-quest.kingdom.attack_warning.rules")));
         player.sendSystemMessage(Component.translatable("message.village-quest.kingdom.attack_help")
                 .withStyle(s -> s.withColor(0x57A550).withClickEvent(new ClickEvent.RunCommand("/vq aid help "+a.incident())))
                 .append(Component.literal("  ")).append(Component.translatable("message.village-quest.kingdom.attack_refuse")

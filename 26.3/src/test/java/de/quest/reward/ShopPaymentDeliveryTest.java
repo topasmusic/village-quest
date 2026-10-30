@@ -40,6 +40,7 @@ final class ShopPaymentDeliveryTest {
         var world=mock(ServerLevel.class);var server=mock(MinecraftServer.class);when(world.getServer()).thenReturn(server);when(server.isSameThread()).thenReturn(true);
         var player=mock(ServerPlayer.class);var id=UUID.randomUUID();when(player.getUUID()).thenReturn(id);
         var state=new PlayerRewardState();var quest=mock(QuestState.class);var goods=List.of(new ItemStack(Items.BREAD));
+        when(quest.storyLanesWritable()).thenReturn(true);
         var raw=new CompoundTag();raw.putString("test","bread");var encoded=new ListTag();encoded.add(raw);
         try(var reward=mockStatic(VanillaRewardService.class,CALLS_REAL_METHODS);var items=mockStatic(RewardItems.class);var money=mockStatic(CurrencyService.class);var quests=mockStatic(QuestState.class)) {
             reward.when(()->VanillaRewardService.state(world,id)).thenReturn(state);
@@ -60,7 +61,10 @@ final class ShopPaymentDeliveryTest {
     @Test void unavailableOrEmptyPreparationNeverDebits() throws Exception {
         var world=mock(ServerLevel.class);var server=mock(MinecraftServer.class);when(world.getServer()).thenReturn(server);when(server.isSameThread()).thenReturn(true);
         var player=mock(ServerPlayer.class);when(player.getUUID()).thenReturn(UUID.randomUUID());
-        try(var money=mockStatic(CurrencyService.class);var rewards=mockStatic(VanillaRewardService.class,CALLS_REAL_METHODS);var items=mockStatic(RewardItems.class)) {
+        var quests=mock(QuestState.class);
+        try(var money=mockStatic(CurrencyService.class);var rewards=mockStatic(VanillaRewardService.class,CALLS_REAL_METHODS);var items=mockStatic(RewardItems.class);
+            var saved=mockStatic(QuestState.class)) {
+            saved.when(()->QuestState.get(server)).thenReturn(quests);
             rewards.when(()->VanillaRewardService.state(eq(world),any())).thenReturn(new PlayerRewardState());
             assertFalse(purchase(world,player,List.of(ItemStack.EMPTY),10));
             var full=new PlayerRewardState();var pending=new ListTag();for(int i=0;i<240;i++)pending.add(new CompoundTag());full.pending(pending);

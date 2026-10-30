@@ -2,7 +2,15 @@
 
 Village Quest uses a single-active-line development policy.
 
-## 2.6.2 current release
+## 2.6.3 current release
+
+`Village Quest 2.6.3 — Living Kingdoms` is released for Minecraft `26.3` and
+`26.2`. It adds roadside quests, parallel Core and Kingdom story progress,
+personal restart, clearer quest rules and more reliable village services.
+Both lines contain the same intended content with their native APIs and dependencies.
+Older supported lines remain unchanged.
+
+## 2.6.2 release
 
 `Village Quest 2.6.2 — Living Kingdoms` is released for Minecraft `26.3` and
 `26.2`, with illustrated Friends quests, tracker pins, village-story guidance,
@@ -62,7 +70,7 @@ The release contains the same intended features, fixes, documentation, and resou
 ## Current support policy
 
 - Minecraft `26.3` is the only active content-development line.
-- Minecraft `26.2` remains available as the previous maintenance line on Stable 2.6.1 through the explicitly authorized content port.
+- Minecraft `26.2` remains available as the previous maintenance line on Stable 2.6.3 through the explicitly authorized content port.
 - New quests, systems, items, interfaces, balancing passes, visual redesigns, and other content updates are not automatically backported to previous lines.
 - The released `2.1.x` builds for older Minecraft versions remain available for download.
 - Older lines may receive deliberately scoped maintenance releases for confirmed bug fixes, crash prevention, save-safety fixes, severe exploits, and meaningful performance improvements.

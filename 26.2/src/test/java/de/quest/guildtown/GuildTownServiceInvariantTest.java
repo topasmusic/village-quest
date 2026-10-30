@@ -31,6 +31,27 @@ import org.junit.jupiter.api.Test;
 
 final class GuildTownServiceInvariantTest {
     @Test
+    void onlyTwoAnimalsCanBeSelectedForTheTwoAnimalDrive() {
+        var data = new PlayerQuestData();
+        assertTrue(GuildTownProgress.beginStory(data, GuildTownStory.LONG_DRIVE, 1, GuildTownProgress.PREVENTIVE));
+        assertTrue(GuildTownProgress.registerLongDriveAnimal(data, UUID.randomUUID()));
+        assertTrue(GuildTownProgress.registerLongDriveAnimal(data, UUID.randomUUID()));
+        assertFalse(GuildTownProgress.registerLongDriveAnimal(data, UUID.randomUUID()));
+        assertEquals(2, GuildTownProgress.longDriveAnimals(data).size());
+    }
+
+    @Test
+    void availableForgeOfferShowsActualTargetsBeforeAcceptance() {
+        var data = new PlayerQuestData();
+        var village = new GuildTownStoryVillageResolver.StoryVillage(3, 100, 200, VillageBondType.FORGE, null, false);
+        var offer = GuildTownService.noticePostUiState(data, new GuildTownService.NoticePostStoryResolution(
+                village, GuildTownStory.SPARKS_FOR_THE_ROAD, GuildTownService.NoticePostStoryState.AVAILABLE));
+        assertEquals(12, offer.firstTarget());
+        assertEquals(6, offer.secondTarget());
+        assertEquals(-1, GuildTownProgress.activeStoryId(data));
+    }
+
+    @Test
     void noticePostStorySnapshotTracksSavedSharedTableProgressAndDelivery() {
         PlayerQuestData data = new PlayerQuestData();
         GuildTownStory story = GuildTownStory.SHARED_TABLE;

@@ -1,5 +1,131 @@
 # Stories and Village Projects
 
+## Progression overhaul in 2.6.3
+
+Accepted freight contracts and shared guild projects appear separately in the
+journal and can be pinned in the tracker. Freight counts the same loose goods
+and courier-satchel cargo as the supply action. Load the goods with
+`/vq routes contracts supply`; the next arrival on the selected route completes
+the delivery. A settlement hold is shown instead of an impossible delivery.
+Shared projects show the guild's delivered total and the actual material;
+carry the rest and use `/vq town project contribute`. Personal earned project
+rewards remain visible after leaving the guild and can still be collected with
+`/vq town project claim`. Reading these cards never delivers goods, expires a
+contract or collects a reward.
+
+On Peaceful, Marius accepts watch supplies personally: **16 Torches** for his
+first task, **8 Iron Ingots** for the second, then **16 Bread and 1 Shield** for
+the last. Accept each task and bring the entire bundle back to Marius. Hand-in
+consumes the supplies and uses the usual stage rewards. His dialogue, item rows
+and tracker explain this route; it needs no raid or night-time wait. Changing
+back to another difficulty restores the combat requirements with your actual
+kill, healing and raid evidence preserved. Supplies never count as combat events.
+
+Completed collection counters still require the actual hand-in items. If you
+store them elsewhere, the short tracker points to the next missing material.
+
+Village Quest 2.6.3 separates personal stories into two slots: one Core
+story and **A Place at the Table**. Local village stories keep their own state.
+Kingdom chapters do not clear Core objectives or use the Core cooldown.
+Parties have the same two independent slots and separate join offers. Accept or
+decline each chapter using its own buttons. With two open offers, add `core` or
+`kingdom` to `/vq party share story accept` or `/vq party share story decline`.
+Kingdom sharing requires the same village and an explicit chapter invitation.
+Admitted offline partners keep earned progress and pending claims, including
+after another partner moves to the next chapter. Collect a pending Kingdom claim
+before changing its village. These progression changes are included in 2.6.3.
+
+Each active Core story, Kingdom story, local story and commission has its own
+journal card and can be selected as your personal tracker focus. The single pin
+survives chapter and language changes. An old title-based pin moves only when it
+matches exactly one active quest; an ambiguous old pin is cleared while your
+tracker filter preference is kept. The HUD shows one short current objective;
+open the journal for the full requirements and delivery details.
+Completed parts are highlighted independently in the journal and Questmaster,
+including mixed harvest or crafting lines. Their color follows the recorded
+numeric progress, and stays the same when the text wraps or the language changes.
+Friends, accepted village follow-ups, pilgrim expeditions and artifact tasks
+use concise next steps; the journal retains the full instructions.
+
+The short tracker also distinguishes waiting for a convoy from following its
+compass trail, speaking to the courier and delivering the warning. For the bait
+caravan, show the Questmaster a banner or iron sword to choose an approach;
+then follow the compass. On Peaceful, gather 12 bread and 16 oak planks before
+following the route checks. The final shrine relay shows the next fresh freight
+contract or caravan incident; Map Only mode needs no interactive incident.
+Lutte’s tracker distinguishes a coast still being surveyed, a search that needs
+another region and the coordinates of an available coastal signal target.
+
+### Pilgrim expeditions on Peaceful
+
+All seven combat contract families have an expedition alternative. Accept the
+contract, enter its target dimension and travel normally at least 320 horizontal
+blocks from the first recorded position. The three distance checks follow that
+distance; walking in circles does not replace it. The active card shows the
+recorded starting coordinates and each requirement separately.
+
+| Contract | Dimension | Supplies consumed by the pilgrim |
+| --- | --- | --- |
+| Quench for the Hall | Overworld | 12 iron ingots |
+| Wool Before Rain | Overworld | 16 white wool |
+| Tracks in the Dark | Overworld | 12 redstone dust |
+| Fangs by the Hedgerow | Overworld | 12 string |
+| Ash on the Pass | Nether | 12 nether wart |
+| Smoke over Blackstone | Nether | 32 blackstone |
+| Stillness Beyond the Gate | End | 12 chorus fruit |
+
+Carry the supplies when returning. Overworld expeditions require returning
+within 32 blocks of their recorded starting point. Nether and End expeditions
+require returning to the Overworld. Newly accepted End reward contracts also
+require entering an End City after acceptance. Speak to the pilgrim to hand in
+the materials; the displayed card uses the saved mode until a normal difficulty
+transition updates it. Switching difficulty preserves the contract and rewards
+but clears incompatible objective progress.
+
+New Ash on the Pass reward choices include four Blaze Rods as a material option,
+alongside the existing supplies and currency. This provides fuel for brewing
+and material for Eyes of Ender on Peaceful. Nether wart can be gathered from
+Nether fortresses without fighting. Existing accepted reward snapshots keep
+their original choices; later contracts use the updated choices. The usual
+contract cycle still applies. Peaceful expedition completion also counts toward
+the existing pilgrim prerequisite for Shadows on the Trade Road.
+
+### Night Bells on Peaceful
+
+Use the bell or right-click a lantern, soul lantern, campfire, soul campfire or
+fence gate in the bound village. Each distinct 8×8 area counts once per chapter;
+walking, trading and repeating the same area do not add a check. The journal
+names your bound village and suggests an unused, loaded area. This does not
+promise that an object is already there: you can place one yourself.
+
+| Chapter | Protection checks | Supplies consumed at the Questmaster |
+| --- | --- | --- |
+| 1 | Bell and 3 different areas | 16 torches |
+| 2 | 3 different areas | 16 oak fences (not fence gates) |
+| 3 | 3 different areas | 16 bread |
+| 4 | Bell and 4 different areas | 8 lanterns and 1 shield |
+
+The final chapter also needs a living iron golem in the same village within
+48 blocks of you, and confirmation using the bell or guild notice board.
+Placed lanterns do not replace the lanterns for hand-in. Accepted chapters use
+their saved objective mode in the dialogue. Changing difficulty resets only
+the incompatible objectives; village identity, chapters and rewards remain.
+Older area checks remain counted even though their original coordinates cannot
+be reconstructed. New checks use exact area coordinates, including in parties.
+
+Village follow-ups such as **Tack for the Long Drive** are once-only for that
+village. Completing a Weekly, a Daily, or waiting for a Minecraft day does not
+renew them. Open **Village requests** for available local help and that request's
+own reset information. **Update progress** reloads current progress and carried
+supplies; it does not regenerate a story or advance a reset.
+Use exactly the same Village Quest version on client and server, including any Unreleased revision. A mismatch is rejected before normal VQ synchronization.
+
+Back up your world before updating to 2.6.3.
+Existing Kingdom chapter and reward evidence is migrated without paying rewards
+again. Downgrading a world saved with the two slots to unreleased.2 is unsupported.
+Unknown or damaged new story formats are preserved and prevent reconnection
+until a matching version can read them safely.
+
 ## Living Kingdoms 2.6
 
 See [Living Kingdoms stories and tools](kingdom-stories-and-tools.md) for
@@ -104,7 +230,7 @@ This is the late road-defense follow-up unlocked after `Watch Bell` and `3` comp
 - defend the larger guild caravan through the full assault
 - the last wave adds elite `Traitor` bandits
 
-Combat size follows the world's Vanilla difficulty and the number of active story-party members actually present within `64` blocks when the encounter starts. `Peaceful` uses an explicit no-hostile escort success: the caravan appears, no combat wave is queued, and Vanilla's hostile-mob removal therefore cannot leave the chapter waiting for impossible kills.
+Combat size follows the world's Vanilla difficulty and the number of active story-party members actually present within `64` blocks when the encounter starts. On `Peaceful`, the nighttime schedule and two-night final warning still apply. Bring `8 Bread` per caravan: it is consumed automatically within `10` blocks of the caravan's starting point. Guide the merchants through `3` checkpoints per ordinary escort or `4` for the final convoy. At each checkpoint, stay within `10` blocks until at least half the merchants arrive within `8` blocks. The journal shows the next checkpoint coordinates and tracks bread separately; no hostile wave is queued. Offers and completion dialogue describe the saved objective mode without changing chapter rewards.
 
 ### `The Empty Caravan`
 
@@ -140,6 +266,12 @@ This is a pure supply delivery. Stored or traded goods are valid, and the full b
 - hold any banner and interact to offer amnesty, or hold an iron sword and interact to demand justice
 - defend the bait caravan from the resulting attack
 - amnesty favors trade reputation; justice favors currency and roadside-watch reputation
+
+On `Peaceful`, the choice remains, followed by route provisioning and inspections.
+Bring `12 Bread` and `16 Oak Planks`; both are consumed when you approach the
+first route marker within `12` blocks. Follow the Wayfinder's Compass through
+`3` successive checkpoints. Each inspection reveals the next target. Delivered
+supplies remain credited even after they leave your inventory; no combat is required.
 
 #### Chapter 6: `Roads Between Villages`
 
@@ -203,10 +335,10 @@ The furnace work must be fresh. The blast furnaces and cauldrons are supplies, s
 
 Craft after accepting:
 
-- `3` iron pickaxes
-- `3` buckets
-- `3` shears
-- `3` shields
+- `1` iron pickaxe
+- `1` bucket
+- `1` pair of shears
+- `1` shield
 
 At turn-in, carry a complete pristine kit with those quantities. The craft progress and the carried kit are checked separately, then the kit is consumed.
 
@@ -238,21 +370,22 @@ After both book purchases are proven, the quest checks the finished set directly
 
 ### Chapter 2: `Ledger And Notices`
 
-1. craft `48` paper
-2. after the paper stage completes, craft `16` books
-3. carry and turn in the complete paper-and-book bundle
+1. craft `96` paper after accepting
+2. craft `16` books while this chapter is active, even before finishing all the paper
+3. turn in `48` paper and `16` books together; the bundle is consumed
 
-Each completed stage unlocks the next automatically. Books crafted before the paper stage is complete do not count for this chapter.
+Both crafting counters advance independently. Saved progress remains valid; work made before accepting does not provide new crafting proof.
 
 ### Chapter 3: `Goods Must Flow`
 
 - complete `24` real villager trades
-- speak to the `Toolsmith`, `Weaponsmith`, `Farmer`, `Fisherman`, `Shepherd`, and `Librarian`
+- speak with adult villagers from any `4` different working professions; unemployed villagers and nitwits do not count
+- previous profession contacts remain credited, including shared-party evidence
 
 ### Chapter 4: `Market Day Returns`
 
-- speak with `12` different adult villagers
-- ring a bell while at least `12` adult villagers are within `20` blocks
+- speak with `6` different adult villagers
+- ring a bell while at least `6` adult villagers are within `20` blocks
 
 ### Result
 
@@ -279,7 +412,7 @@ Each completed stage unlocks the next automatically. Books crafted before the pa
 
 - ring a bell
 - have at least `8` adult pasture animals within `12` blocks when the bell rings
-- carry `Gold Horse Armor` or `Diamond Horse Armor`
+- carry any vanilla Horse Armor in your inventory, including Leather, Copper, Iron, Gold, Diamond or Netherite when present in this Minecraft version; the armor is kept
 
 ### Result
 
@@ -338,3 +471,16 @@ Each completed stage unlocks the next automatically. Books crafted before the pa
 See [Trade Routes and Caravans](./trade-routes-and-caravans.md) for the complete system and its in-game test command.
 
 Village Quest 2.5 adds [chosen Vanilla reward packages and saved collection](vanilla-rewards.md), including `/vq rewards claim`. Existing accepted contracts and prepaid orders retain their original conditions.
+
+## Encounter recovery
+
+Empty Caravan, Shadows and False Distress do not count unloaded enemies as
+kills. Return to the encounter in the Overworld to continue. After a server
+restart a transient fight can be restarted; obsolete encounter bodies are
+removed when their chunks load. This does not grant a victory or extra reward.
+Before warning-letter handover, a courier missing for five continuous minutes
+can be replaced near you in the Overworld. Brief unloads retain the original;
+returning before the deadline restarts that window. An old replaced courier is
+removed when its chunk loads again. A delivered warning letter stops further
+courier spawning. The Empty Caravan
+bait approach is chosen once; speaking again cannot replace an ongoing fight.
