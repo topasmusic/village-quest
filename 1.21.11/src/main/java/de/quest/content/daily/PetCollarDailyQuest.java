@@ -4,14 +4,12 @@ import de.quest.quest.daily.DailyQuestCompletion;
 import de.quest.quest.daily.DailyQuestDefinition;
 import de.quest.quest.daily.DailyQuestKeys;
 import de.quest.quest.daily.DailyQuestService;
-import net.minecraft.entity.Entity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-
 import java.util.UUID;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
 
 public final class PetCollarDailyQuest implements DailyQuestDefinition {
     @Override
@@ -20,58 +18,59 @@ public final class PetCollarDailyQuest implements DailyQuestDefinition {
     }
 
     @Override
-    public Text title() {
-        return Text.translatable("quest.village-quest.daily.pet_collar.title");
+    public Component title() {
+        return Component.translatable("quest.village-quest.daily.pet_collar.title");
     }
 
     @Override
-    public Text offerParagraph1() {
-        return Text.translatable("quest.village-quest.daily.pet_collar.offer.1").formatted(net.minecraft.util.Formatting.GRAY);
+    public Component offerParagraph1() {
+        return Component.translatable("quest.village-quest.daily.pet_collar.offer.1").withStyle(net.minecraft.ChatFormatting.GRAY);
     }
 
     @Override
-    public Text offerParagraph2() {
-        return Text.translatable("quest.village-quest.daily.pet_collar.offer.2").formatted(net.minecraft.util.Formatting.GRAY);
+    public Component offerParagraph2() {
+        return Component.translatable("quest.village-quest.daily.pet_collar.offer.2").withStyle(net.minecraft.ChatFormatting.GRAY);
     }
 
     @Override
-    public Text progressLine(ServerWorld world, UUID playerId) {
+    public Component progressLine(ServerLevel world, UUID playerId) {
         int target = DailyQuestService.petCollarTarget();
-        return Text.translatable(
+        return Component.translatable(
                 "quest.village-quest.daily.pet_collar.progress",
-                Math.min(target, DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.PET_COLLAR_PROGRESS)), target
-        ).formatted(Formatting.GRAY);
+                Math.min(target, DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.PET_COLLAR_PROGRESS)),
+                target
+        ).withStyle(ChatFormatting.GRAY);
     }
 
     @Override
-    public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
-        int progress = DailyQuestService.getQuestInt(world, player.getUuid(), DailyQuestKeys.PET_COLLAR_PROGRESS);
+    public boolean isComplete(ServerLevel world, ServerPlayer player) {
+        int progress = DailyQuestService.getQuestInt(world, player.getUUID(), DailyQuestKeys.PET_COLLAR_PROGRESS);
         return progress >= DailyQuestService.petCollarTarget()
-                || (progress == 0 && DailyQuestService.hasQuestFlag(world, player.getUuid(), DailyQuestKeys.PET_COLLAR_DONE));
+                || (progress == 0 && DailyQuestService.hasQuestFlag(world, player.getUUID(), DailyQuestKeys.PET_COLLAR_DONE));
     }
 
     @Override
-    public DailyQuestCompletion buildCompletion(ServerWorld world) {
+    public DailyQuestCompletion buildCompletion(ServerLevel world) {
         return DailyQuestService.buildCompletion(
                 type(),
                 title(),
-                Text.translatable("quest.village-quest.daily.pet_collar.completion.1").formatted(Formatting.GRAY),
-                Text.translatable("quest.village-quest.daily.pet_collar.completion.2").formatted(Formatting.GRAY),
-                Text.translatable("quest.village-quest.daily.pet_collar.completion.3").formatted(Formatting.GRAY),
+                Component.translatable("quest.village-quest.daily.pet_collar.completion.1").withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.daily.pet_collar.completion.2").withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.daily.pet_collar.completion.3").withStyle(ChatFormatting.GRAY),
                 ItemStack.EMPTY,
                 ItemStack.EMPTY
         );
     }
 
-    public static void trackSuccessfulRecolor(ServerWorld world, ServerPlayerEntity player) {
+    public static void trackSuccessfulRecolor(ServerLevel world, ServerPlayer player) {
         if (world == null || player == null) {
             return;
         }
-        if (!DailyQuestService.isTrackingQuest(world, player.getUuid(), DailyQuestService.DailyQuestType.PET_COLLAR)) {
+        if (!DailyQuestService.isTrackingQuest(world, player.getUUID(), DailyQuestService.DailyQuestType.PET_COLLAR)) {
             return;
         }
-        int progress = DailyQuestService.getQuestInt(world, player.getUuid(), DailyQuestKeys.PET_COLLAR_PROGRESS) + 1;
-        DailyQuestService.setQuestInt(world, player.getUuid(), DailyQuestKeys.PET_COLLAR_PROGRESS, progress);
+        int progress = DailyQuestService.getQuestInt(world, player.getUUID(), DailyQuestKeys.PET_COLLAR_PROGRESS) + 1;
+        DailyQuestService.setQuestInt(world, player.getUUID(), DailyQuestKeys.PET_COLLAR_PROGRESS, progress);
         DailyQuestService.completeIfEligible(world, player);
         DailyQuestService.sendCurrentProgressActionbar(world, player);
     }

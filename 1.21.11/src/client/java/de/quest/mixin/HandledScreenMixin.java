@@ -3,12 +3,12 @@ package de.quest.mixin;
 import de.quest.client.ui.InventoryJournalButtonLayout;
 import de.quest.client.ui.InventoryJournalCompat;
 import de.quest.client.ui.InventoryJournalTutorialState;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.Click;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.screen.ingame.HandledScreen;
-import net.minecraft.client.gui.screen.ingame.InventoryScreen;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.network.chat.Component;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -16,15 +16,15 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-@Mixin(HandledScreen.class)
+@Mixin(AbstractContainerScreen.class)
 public abstract class HandledScreenMixin extends Screen {
     @Shadow
-    protected int x;
+    protected int leftPos;
 
     @Shadow
-    protected int y;
+    protected int topPos;
 
-    protected HandledScreenMixin(Text title) {
+    protected HandledScreenMixin(Component title) {
         super(title);
     }
 
@@ -40,12 +40,12 @@ public abstract class HandledScreenMixin extends Screen {
 
     @Unique
     private boolean villageQuest$useTopRightFallback() {
-        return InventoryJournalCompat.shouldUseTopRightFallback(MinecraftClient.getInstance());
+        return InventoryJournalCompat.shouldUseTopRightFallback(Minecraft.getInstance());
     }
 
     @Unique
     private boolean villageQuest$isJournalButtonEnabled() {
-        return InventoryJournalCompat.shouldRenderInventoryJournalOverlay(MinecraftClient.getInstance());
+        return InventoryJournalCompat.shouldRenderInventoryJournalOverlay(Minecraft.getInstance());
     }
 
     @Unique
@@ -54,8 +54,8 @@ public abstract class HandledScreenMixin extends Screen {
             return false;
         }
         InventoryJournalButtonLayout.Layout layout = villageQuest$journalLayout();
-        int inventoryTop = this.y;
-        int inventoryRight = this.x + ((HandledScreenAccessor) (Object) this).villageQuest$getBackgroundWidth();
+        int inventoryTop = this.topPos;
+        int inventoryRight = this.leftPos + ((HandledScreenAccessor) (Object) this).villageQuest$getBackgroundWidth();
         int x = layout.expandedX();
         int y = layout.expandedY();
         int visibleWidth = layout.width();
@@ -75,8 +75,8 @@ public abstract class HandledScreenMixin extends Screen {
                 && mouseY < y + visibleHeight;
     }
 
-    @Inject(method = "mouseClicked(Lnet/minecraft/client/gui/Click;Z)Z", at = @At("HEAD"), cancellable = true)
-    private void villageQuest$clickJournalButton(Click click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
+    @Inject(method = "mouseClicked(Lnet/minecraft/client/input/MouseButtonEvent;Z)Z", at = @At("HEAD"), cancellable = true)
+    private void villageQuest$clickJournalButton(MouseButtonEvent click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
         if (!villageQuest$isPlayerInventoryScreen()
                 || !villageQuest$isJournalButtonEnabled()
                 || click.button() != 0
@@ -84,10 +84,10 @@ public abstract class HandledScreenMixin extends Screen {
             return;
         }
         try {
-            MinecraftClient client = MinecraftClient.getInstance();
-            if (client.player != null && client.player.networkHandler != null) {
+            Minecraft client = Minecraft.getInstance();
+            if (client.player != null && client.player.connection != null) {
                 InventoryJournalTutorialState.markInventoryHintSeen();
-                client.player.networkHandler.sendChatCommand("vq journal open");
+                client.player.connection.sendCommand("vq journal open");
                 cir.setReturnValue(true);
             }
         } catch (Throwable throwable) {

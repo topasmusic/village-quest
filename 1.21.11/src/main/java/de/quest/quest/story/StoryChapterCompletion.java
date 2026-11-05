@@ -1,13 +1,13 @@
 package de.quest.quest.story;
 
 import de.quest.reputation.ReputationService;
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.Component;
 
 public record StoryChapterCompletion(
-        Text title,
-        Text completionLine1,
-        Text completionLine2,
-        Text completionLine3,
+        Component title,
+        Component completionLine1,
+        Component completionLine2,
+        Component completionLine3,
         long currencyReward,
         int levels,
         ReputationService.ReputationTrack reputationTrack,

@@ -1,8 +1,8 @@
 package de.quest.caravan;
 
-import net.minecraft.item.Item;
-import net.minecraft.item.Items;
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Items;
 
 public enum TradeContractType {
     BAKERS_DELIVERY(Items.WHEAT, 64, 20, 1, TradeRouteSpecialization.PROVISIONS, "bakers"),
@@ -12,7 +12,12 @@ public enum TradeContractType {
     WINTER_FODDER(Items.HAY_BLOCK, 24, 34, 3, TradeRouteSpecialization.LIVESTOCK, "fodder"),
     APIARY_CRATES(Items.HONEY_BOTTLE, 12, 38, 3, TradeRouteSpecialization.PROVISIONS, "apiary"),
     WATCH_SUPPLIES(Items.ARROW, 48, 44, 4, TradeRouteSpecialization.GUARDED, "watch"),
-    FESTIVAL_BREAD(Items.BREAD, 48, 50, 5, TradeRouteSpecialization.PROVISIONS, "festival");
+    FESTIVAL_BREAD(Items.BREAD, 48, 50, 5, TradeRouteSpecialization.PROVISIONS, "festival"),
+    // Append only: existing saved contract/refund IDs use ordinal + 1.
+    FORGE_FUEL(Items.COAL, 64, 22, 1, TradeRouteSpecialization.FORGE, "forge_fuel"),
+    LEATHER_BALES(Items.LEATHER, 24, 26, 1, TradeRouteSpecialization.LIVESTOCK, "leather_bales"),
+    WAX_RESERVES(Items.HONEYCOMB, 32, 24, 1, TradeRouteSpecialization.PROVISIONS, "wax_reserves"),
+    WRITERS_PAPER(Items.PAPER, 64, 22, 1, TradeRouteSpecialization.COURIER, "writers_paper");
 
     private final Item item;
     private final int amount;
@@ -33,8 +38,10 @@ public enum TradeContractType {
 
     public Item item() { return item; }
     public int amount() { return amount; }
-    public int reward() { return reward; }
+    public int reward() { return de.quest.economy.DeliveryEconomy.freightBase(item, amount, requiredGuildRank); }
+    /** Existing accepted saves predate stored quotes; honor their original formula. */
+    public int legacyReward() { return reward; }
     public int requiredGuildRank() { return requiredGuildRank; }
     public TradeRouteSpecialization specialization() { return specialization; }
-    public Text title() { return Text.translatable("text.village-quest.trade_guild.contract." + key); }
+    public Component title() { return Component.translatable("text.village-quest.trade_guild.contract." + key); }
 }

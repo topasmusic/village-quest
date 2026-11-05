@@ -1,7 +1,6 @@
 package de.quest.shop;
 
 import de.quest.VillageQuest;
-import de.quest.data.QuestState;
 import de.quest.economy.CurrencyService;
 import de.quest.economy.ProsperityService;
 import de.quest.painting.PaintingStackFactory;
@@ -10,6 +9,7 @@ import de.quest.pilgrim.PilgrimContractType;
 import de.quest.quest.daily.DailyQuestService;
 import de.quest.quest.special.SpecialQuestService;
 import de.quest.quest.special.MerchantSealQuestService;
+import de.quest.data.QuestState;
 import de.quest.quest.story.VillageProjectService;
 import de.quest.quest.story.VillageProjectType;
 import de.quest.quest.weekly.WeeklyQuestService;
@@ -22,30 +22,32 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.Holder;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.decoration.painting.PaintingVariant;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.ItemLore;
 
 public final class ShopService {
-    private static final long PRICE_MULTIPLIER = 3L;
-    private static final long PROVISIONS_PRICE = price(12L);
-    private static final long HUNTER_PRICE = price(8L);
-    private static final long BEEKEEPER_PRICE = price(8L);
-    private static final long ROAD_CAMP_PRICE = price(10L);
-    private static final long LEDGER_DESK_PRICE = price(10L);
-    private static final long APIARY_SUPPLIES_PRICE = price(11L);
-    private static final long SMITHING_SUPPLIES_PRICE = price(12L);
-    private static final long MARKET_STALL_PRICE = price(11L);
-    private static final long PASTURE_TACK_PRICE = price(13L);
-    private static final long WATCH_POST_PRICE = price(15L);
-    private static final long PREMIUM_HEAD_PRICE = CurrencyService.toBase(5L, CurrencyService.CurrencyUnit.CROWN);
-    private static final long PLAQUE_PRICE = CurrencyService.toBase(3L, CurrencyService.CurrencyUnit.CROWN)
-            + CurrencyService.toBase(5L, CurrencyService.CurrencyUnit.SILVERMARK);
+    private static final long PROVISIONS_PRICE = 12L;
+    private static final long HUNTER_PRICE = 14L;
+    private static final long BEEKEEPER_PRICE = ShopAcquisitionCatalog.utility("beekeepers_kit").price();
+    private static final long ROAD_CAMP_PRICE = ShopAcquisitionCatalog.utility("road_camp_kit").price();
+    private static final long LEDGER_DESK_PRICE = ShopAcquisitionCatalog.utility("village_ledger_desk").price();
+    private static final long APIARY_SUPPLIES_PRICE = ShopAcquisitionCatalog.utility("apiary_supply_crate").price();
+    private static final long SMITHING_SUPPLIES_PRICE = ShopAcquisitionCatalog.utility("smithing_supply_rack").price();
+    private static final long MARKET_STALL_PRICE = ShopAcquisitionCatalog.utility("market_stall_kit").price();
+    private static final long PASTURE_TACK_PRICE = ShopAcquisitionCatalog.utility("pasture_tack_bundle").price();
+    private static final long WATCH_POST_PRICE = ShopAcquisitionCatalog.utility("watch_post_kit").price();
     private static final String BARREL_TEXTURE = "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvNzdhOGRiMjFhNDUxOTQ0NGZkZDM2OTNmN2NmMjExMTFjMjhhNjk5NmNiZDNhYmM0MTZiM2QxNWM1YmFlN2VmMyJ9fX0=";
     private static final String CHISELED_BOOKSHELF_TEXTURE = "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYWUxZTEyNzg1YjlmZGFiMTllMWIxNGMwNjEwNDZhMzk3YjNmZDM4ZmMzYmU2NzJkMWQ3ZGIyZTJhNTU1MzZiYyJ9fX0=";
     private static final String HAYBALE_TEXTURE = "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvMzYyYjcyZWJmZGU0ZjY0YzRhNTNjNzlmY2MwZWE0YmE3NzA3N2NkNmViNTkwMzg3OGU3OGRjN2Q2NzViYjNmZCJ9fX0=";
@@ -80,6 +82,9 @@ public final class ShopService {
             "decor_creeper_plushie", PilgrimContractType.WOOL_BEFORE_RAIN
     );
     private static final Map<String, VillageProjectType> PROJECT_UNLOCKS = Map.ofEntries(
+            Map.entry("nether_supplies", VillageProjectType.WATCH_BELL),
+            Map.entry("rail_supplies", VillageProjectType.FORGE_CHARTER),
+            Map.entry("leather_supplies", VillageProjectType.PASTURE_CHARTER),
             Map.entry("village_ledger_desk", VillageProjectType.VILLAGE_LEDGER),
             Map.entry("apiary_charter_plaque", VillageProjectType.APIARY_CHARTER),
             Map.entry("village_ledger_plaque", VillageProjectType.VILLAGE_LEDGER),
@@ -102,40 +107,47 @@ public final class ShopService {
         offers.put("proviantbeutel", new ShopOffer(
                 "proviantbeutel",
                 "travel",
-                Text.translatable("text.village-quest.shop.offer.proviantbeutel.title"),
-                Text.translatable("text.village-quest.shop.offer.proviantbeutel.description"),
+                Component.translatable("text.village-quest.shop.offer.proviantbeutel.title"),
+                Component.translatable("text.village-quest.shop.offer.proviantbeutel.description"),
                 PROVISIONS_PRICE,
                 world -> previewStack(Items.BUNDLE, "text.village-quest.shop.offer.proviantbeutel.title"),
-                (world, player) -> deliver(player, createProvisionsSatchelLoot(world))
+                itemPurchase(world -> createProvisionsSatchelLoot(world))
         ));
         offers.put("hunters_satchel", new ShopOffer(
                 "hunters_satchel",
                 "travel",
-                Text.translatable("text.village-quest.shop.offer.hunters_satchel.title"),
-                Text.translatable("text.village-quest.shop.offer.hunters_satchel.description"),
+                Component.translatable("text.village-quest.shop.offer.hunters_satchel.title"),
+                Component.translatable("text.village-quest.shop.offer.hunters_satchel.description"),
                 HUNTER_PRICE,
                 world -> previewStack(Items.BUNDLE, "text.village-quest.shop.offer.hunters_satchel.title"),
-                (world, player) -> deliver(player,
-                        new ItemStack(Items.ARROW, 32),
-                        new ItemStack(Items.COOKED_BEEF, 6))
+                itemPurchase(world -> new ItemStack[]{new ItemStack(Items.ARROW, 32),
+                        new ItemStack(Items.COOKED_BEEF, 6)})
         ));
+        for (var entry : de.quest.reward.RewardShopCatalog.all().entrySet()) {
+            String id = entry.getKey(); var pack = entry.getValue();
+            offers.put(id, new ShopOffer(id, "travel", Component.translatable("reward.village-quest.shop." + id),
+                    de.quest.reward.VanillaRewardService.summary(new de.quest.reward.VanillaRewardRegistry.Option("",0,pack.goods(),false)), pack.price(),
+                    world -> new ItemStack(Items.BUNDLE),
+                    (world, player) -> de.quest.reward.VanillaRewardService.enqueue(world,player,de.quest.reward.RewardItems.create(world,pack.goods()))
+                            ? ShopOffer.PurchaseResult.success(Component.empty()) : ShopOffer.PurchaseResult.fail(Component.translatable("reward.village-quest.unavailable"))));
+        }
         offers.put("honigfass", new ShopOffer(
                 "honigfass",
                 "decor",
-                Text.translatable("text.village-quest.shop.offer.honigfass.title"),
-                Text.translatable("text.village-quest.shop.offer.honigfass.description"),
-                PREMIUM_HEAD_PRICE,
+                Component.translatable("text.village-quest.shop.offer.honigfass.title"),
+                Component.translatable("text.village-quest.shop.offer.honigfass.description"),
+                ShopSupplementalCatalog.offer("honigfass").price(),
                 world -> VillageQuest.createHoneyBarrelHead(),
-                (world, player) -> deliver(player, VillageQuest.createHoneyBarrelHead())
+                itemPurchase(world -> new ItemStack[]{VillageQuest.createHoneyBarrelHead()})
         ));
         offers.put("bienenwabe", new ShopOffer(
                 "bienenwabe",
                 "decor",
-                Text.translatable("text.village-quest.shop.offer.bienenwabe.title"),
-                Text.translatable("text.village-quest.shop.offer.bienenwabe.description"),
-                PREMIUM_HEAD_PRICE,
+                Component.translatable("text.village-quest.shop.offer.bienenwabe.title"),
+                Component.translatable("text.village-quest.shop.offer.bienenwabe.description"),
+                ShopSupplementalCatalog.offer("bienenwabe").price(),
                 world -> VillageQuest.createAltRewardHead(),
-                (world, player) -> deliver(player, VillageQuest.createAltRewardHead())
+                itemPurchase(world -> new ItemStack[]{VillageQuest.createAltRewardHead()})
         ));
         addDecorHeadOffer(
                 offers,
@@ -224,51 +236,35 @@ public final class ShopService {
         offers.put("beekeepers_kit", new ShopOffer(
                 "beekeepers_kit",
                 "utility",
-                Text.translatable("text.village-quest.shop.offer.beekeepers_kit.title"),
-                Text.translatable("text.village-quest.shop.offer.beekeepers_kit.description"),
+                Component.translatable("text.village-quest.shop.offer.beekeepers_kit.title"),
+                Component.translatable("text.village-quest.shop.offer.beekeepers_kit.description"),
                 BEEKEEPER_PRICE,
                 world -> previewStack(Items.BEEHIVE, "text.village-quest.shop.offer.beekeepers_kit.title"),
-                (world, player) -> deliver(player,
-                        new ItemStack(Items.BEEHIVE),
-                        new ItemStack(Items.CAMPFIRE),
-                        new ItemStack(Items.GLASS_BOTTLE, 8))
+                itemPurchase(world -> ShopAcquisitionCatalog.utilityStacks("beekeepers_kit"))
         ));
         offers.put("road_camp_kit", new ShopOffer(
                 "road_camp_kit",
                 "travel",
-                Text.translatable("text.village-quest.shop.offer.road_camp_kit.title"),
-                Text.translatable("text.village-quest.shop.offer.road_camp_kit.description"),
+                Component.translatable("text.village-quest.shop.offer.road_camp_kit.title"),
+                Component.translatable("text.village-quest.shop.offer.road_camp_kit.description"),
                 ROAD_CAMP_PRICE,
                 world -> previewStack(Items.CAMPFIRE, "text.village-quest.shop.offer.road_camp_kit.title"),
-                (world, player) -> deliver(player,
-                        new ItemStack(Items.WHITE_BED),
-                        new ItemStack(Items.CAMPFIRE, 2),
-                        new ItemStack(Items.LANTERN, 4),
-                        new ItemStack(Items.CHEST, 2),
-                        new ItemStack(Items.TORCH, 32),
-                        new ItemStack(Items.BREAD, 16),
-                        new ItemStack(Items.COOKED_BEEF, 16))
+                itemPurchase(world -> ShopAcquisitionCatalog.utilityStacks("road_camp_kit"))
         ));
         offers.put("village_ledger_desk", new ShopOffer(
                 "village_ledger_desk",
                 "decor",
-                Text.translatable("text.village-quest.shop.offer.village_ledger_desk.title"),
-                Text.translatable("text.village-quest.shop.offer.village_ledger_desk.description"),
+                Component.translatable("text.village-quest.shop.offer.village_ledger_desk.title"),
+                Component.translatable("text.village-quest.shop.offer.village_ledger_desk.description"),
                 LEDGER_DESK_PRICE,
                 world -> previewStack(Items.LECTERN, "text.village-quest.shop.offer.village_ledger_desk.title"),
-                (world, player) -> deliver(player,
-                        new ItemStack(Items.LECTERN),
-                        new ItemStack(Items.CHISELED_BOOKSHELF, 2),
-                        new ItemStack(Items.BOOKSHELF, 4),
-                        new ItemStack(Items.ITEM_FRAME, 8),
-                        new ItemStack(Items.LANTERN, 4),
-                        new ItemStack(Items.WRITABLE_BOOK))
+                itemPurchase(world -> ShopAcquisitionCatalog.utilityStacks("village_ledger_desk"))
         ));
         addBlockOffer(
                 offers,
                 "apiary_charter_plaque",
                 "decor",
-                PLAQUE_PRICE,
+                ShopSupplementalCatalog.offer("apiary_charter_plaque").price(),
                 "text.village-quest.shop.offer.apiary_charter_plaque.title",
                 "text.village-quest.shop.offer.apiary_charter_plaque.description",
                 ModItems.APIARY_CHARTER_PLAQUE
@@ -277,7 +273,7 @@ public final class ShopService {
                 offers,
                 "village_ledger_plaque",
                 "decor",
-                PLAQUE_PRICE,
+                ShopSupplementalCatalog.offer("village_ledger_plaque").price(),
                 "text.village-quest.shop.offer.village_ledger_plaque.title",
                 "text.village-quest.shop.offer.village_ledger_plaque.description",
                 ModItems.VILLAGE_LEDGER_PLAQUE
@@ -286,7 +282,7 @@ public final class ShopService {
                 offers,
                 "forge_charter_plaque",
                 "decor",
-                PLAQUE_PRICE,
+                ShopSupplementalCatalog.offer("forge_charter_plaque").price(),
                 "text.village-quest.shop.offer.forge_charter_plaque.title",
                 "text.village-quest.shop.offer.forge_charter_plaque.description",
                 ModItems.FORGE_CHARTER_PLAQUE
@@ -295,7 +291,7 @@ public final class ShopService {
                 offers,
                 "market_charter_plaque",
                 "decor",
-                PLAQUE_PRICE,
+                ShopSupplementalCatalog.offer("market_charter_plaque").price(),
                 "text.village-quest.shop.offer.market_charter_plaque.title",
                 "text.village-quest.shop.offer.market_charter_plaque.description",
                 ModItems.MARKET_CHARTER_PLAQUE
@@ -304,7 +300,7 @@ public final class ShopService {
                 offers,
                 "pasture_charter_plaque",
                 "decor",
-                PLAQUE_PRICE,
+                ShopSupplementalCatalog.offer("pasture_charter_plaque").price(),
                 "text.village-quest.shop.offer.pasture_charter_plaque.title",
                 "text.village-quest.shop.offer.pasture_charter_plaque.description",
                 ModItems.PASTURE_CHARTER_PLAQUE
@@ -313,7 +309,7 @@ public final class ShopService {
                 offers,
                 "watch_bell_reliquary",
                 "decor",
-                PLAQUE_PRICE,
+                ShopSupplementalCatalog.offer("watch_bell_reliquary").price(),
                 "text.village-quest.shop.offer.watch_bell_reliquary.title",
                 "text.village-quest.shop.offer.watch_bell_reliquary.description",
                 ModItems.WATCH_BELL_RELIQUARY
@@ -321,98 +317,70 @@ public final class ShopService {
         offers.put("apiary_supply_crate", new ShopOffer(
                 "apiary_supply_crate",
                 "utility",
-                Text.translatable("text.village-quest.shop.offer.apiary_supply_crate.title"),
-                Text.translatable("text.village-quest.shop.offer.apiary_supply_crate.description"),
+                Component.translatable("text.village-quest.shop.offer.apiary_supply_crate.title"),
+                Component.translatable("text.village-quest.shop.offer.apiary_supply_crate.description"),
                 APIARY_SUPPLIES_PRICE,
                 world -> previewStack(Items.BEEHIVE, "text.village-quest.shop.offer.apiary_supply_crate.title"),
-                (world, player) -> deliver(player,
-                        new ItemStack(Items.BEEHIVE, 2),
-                        new ItemStack(Items.CAMPFIRE, 2),
-                        new ItemStack(Items.GLASS_BOTTLE, 32),
-                        new ItemStack(Items.CANDLE, 8),
-                        new ItemStack(Items.OAK_TRAPDOOR, 16))
+                itemPurchase(world -> ShopAcquisitionCatalog.utilityStacks("apiary_supply_crate"))
         ));
         offers.put("smithing_supply_rack", new ShopOffer(
                 "smithing_supply_rack",
                 "utility",
-                Text.translatable("text.village-quest.shop.offer.smithing_supply_rack.title"),
-                Text.translatable("text.village-quest.shop.offer.smithing_supply_rack.description"),
+                Component.translatable("text.village-quest.shop.offer.smithing_supply_rack.title"),
+                Component.translatable("text.village-quest.shop.offer.smithing_supply_rack.description"),
                 SMITHING_SUPPLIES_PRICE,
                 world -> previewStack(Items.SMITHING_TABLE, "text.village-quest.shop.offer.smithing_supply_rack.title"),
-                (world, player) -> deliver(player,
-                        new ItemStack(Items.SMITHING_TABLE, 2),
-                        new ItemStack(Items.GRINDSTONE, 2),
-                        new ItemStack(Items.LANTERN, 4),
-                        new ItemStack(Items.IRON_CHAIN, 24),
-                        new ItemStack(Items.IRON_BARS, 32))
+                itemPurchase(world -> ShopAcquisitionCatalog.utilityStacks("smithing_supply_rack"))
         ));
         offers.put("market_stall_kit", new ShopOffer(
                 "market_stall_kit",
                 "utility",
-                Text.translatable("text.village-quest.shop.offer.market_stall_kit.title"),
-                Text.translatable("text.village-quest.shop.offer.market_stall_kit.description"),
+                Component.translatable("text.village-quest.shop.offer.market_stall_kit.title"),
+                Component.translatable("text.village-quest.shop.offer.market_stall_kit.description"),
                 MARKET_STALL_PRICE,
                 world -> previewStack(Items.BARREL, "text.village-quest.shop.offer.market_stall_kit.title"),
-                (world, player) -> deliver(player,
-                        new ItemStack(Items.BARREL, 4),
-                        new ItemStack(Items.LANTERN, 8),
-                        new ItemStack(Items.RED_WOOL, 32),
-                        new ItemStack(Items.WHITE_WOOL, 32),
-                        new ItemStack(Items.SPRUCE_FENCE, 16),
-                        new ItemStack(Items.SPRUCE_SIGN, 8))
+                itemPurchase(world -> ShopAcquisitionCatalog.utilityStacks("market_stall_kit"))
         ));
         offers.put("pasture_tack_bundle", new ShopOffer(
                 "pasture_tack_bundle",
                 "utility",
-                Text.translatable("text.village-quest.shop.offer.pasture_tack_bundle.title"),
-                Text.translatable("text.village-quest.shop.offer.pasture_tack_bundle.description"),
+                Component.translatable("text.village-quest.shop.offer.pasture_tack_bundle.title"),
+                Component.translatable("text.village-quest.shop.offer.pasture_tack_bundle.description"),
                 PASTURE_TACK_PRICE,
                 world -> previewStack(Items.LEAD, "text.village-quest.shop.offer.pasture_tack_bundle.title"),
-                (world, player) -> deliver(player,
-                        new ItemStack(Items.LEAD, 8),
-                        new ItemStack(Items.HAY_BLOCK, 16),
-                        new ItemStack(Items.OAK_FENCE, 32),
-                        new ItemStack(Items.OAK_FENCE_GATE, 4),
-                        new ItemStack(Items.LANTERN, 4),
-                        new ItemStack(Items.WHITE_CARPET, 8))
+                itemPurchase(world -> ShopAcquisitionCatalog.utilityStacks("pasture_tack_bundle"))
         ));
         offers.put("watch_post_kit", new ShopOffer(
                 "watch_post_kit",
                 "utility",
-                Text.translatable("text.village-quest.shop.offer.watch_post_kit.title"),
-                Text.translatable("text.village-quest.shop.offer.watch_post_kit.description"),
+                Component.translatable("text.village-quest.shop.offer.watch_post_kit.title"),
+                Component.translatable("text.village-quest.shop.offer.watch_post_kit.description"),
                 WATCH_POST_PRICE,
                 world -> previewStack(Items.BELL, "text.village-quest.shop.offer.watch_post_kit.title"),
-                (world, player) -> deliver(player,
-                        new ItemStack(Items.BELL, 2),
-                        new ItemStack(Items.SPYGLASS),
-                        new ItemStack(Items.LANTERN, 8),
-                        new ItemStack(Items.SOUL_LANTERN, 4),
-                        new ItemStack(Items.TORCH, 64),
-                        new ItemStack(Items.DARK_OAK_FENCE, 32))
+                itemPurchase(world -> ShopAcquisitionCatalog.utilityStacks("watch_post_kit"))
         ));
         offers.put("gemaelde_begleiter", new ShopOffer(
                 "gemaelde_begleiter",
                 "decor",
-                Text.translatable("text.village-quest.shop.offer.gemaelde_begleiter.title"),
-                Text.translatable("text.village-quest.shop.offer.gemaelde_begleiter.description"),
-                price(15L),
+                Component.translatable("text.village-quest.shop.offer.gemaelde_begleiter.title"),
+                Component.translatable("text.village-quest.shop.offer.gemaelde_begleiter.description"),
+                ShopSupplementalCatalog.offer("gemaelde_begleiter").price(),
                 world -> DailyQuestService.createCompanionPainting(world, false),
-                (world, player) -> deliver(player, DailyQuestService.createCompanionPainting(world, false))
+                itemPurchase(world -> new ItemStack[]{DailyQuestService.createCompanionPainting(world, false)})
         ));
         offers.put("gemaelde_majestaet", new ShopOffer(
                 "gemaelde_majestaet",
                 "decor",
-                Text.translatable("text.village-quest.shop.offer.gemaelde_majestaet.title"),
-                Text.translatable("text.village-quest.shop.offer.gemaelde_majestaet.description"),
-                price(15L),
+                Component.translatable("text.village-quest.shop.offer.gemaelde_majestaet.title"),
+                Component.translatable("text.village-quest.shop.offer.gemaelde_majestaet.description"),
+                ShopSupplementalCatalog.offer("gemaelde_majestaet").price(),
                 world -> DailyQuestService.createCompanionPainting(world, true),
-                (world, player) -> deliver(player, DailyQuestService.createCompanionPainting(world, true))
+                itemPurchase(world -> new ItemStack[]{DailyQuestService.createCompanionPainting(world, true)})
         ));
         addPaintingOffer(
                 offers,
                 "gemaelde_pepe_the_almighty",
-                price(10L),
+                ShopSupplementalCatalog.offer("gemaelde_pepe_the_almighty").price(),
                 "text.village-quest.shop.offer.gemaelde_pepe_the_almighty.title",
                 "text.village-quest.shop.offer.gemaelde_pepe_the_almighty.description",
                 "pepe_the_almighty",
@@ -422,7 +390,7 @@ public final class ShopService {
         addPaintingOffer(
                 offers,
                 "gemaelde_over_there",
-                price(10L),
+                ShopSupplementalCatalog.offer("gemaelde_over_there").price(),
                 "text.village-quest.shop.offer.gemaelde_over_there.title",
                 "text.village-quest.shop.offer.gemaelde_over_there.description",
                 "over_there",
@@ -432,7 +400,7 @@ public final class ShopService {
         addPaintingOffer(
                 offers,
                 "gemaelde_good_doge",
-                price(5L),
+                ShopSupplementalCatalog.offer("gemaelde_good_doge").price(),
                 "text.village-quest.shop.offer.gemaelde_good_doge.title",
                 "text.village-quest.shop.offer.gemaelde_good_doge.description",
                 "good_doge",
@@ -442,7 +410,7 @@ public final class ShopService {
         addPaintingOffer(
                 offers,
                 "gemaelde_something_is_sus",
-                price(5L),
+                ShopSupplementalCatalog.offer("gemaelde_something_is_sus").price(),
                 "text.village-quest.shop.offer.gemaelde_something_is_sus.title",
                 "text.village-quest.shop.offer.gemaelde_something_is_sus.description",
                 "something_is_sus",
@@ -452,7 +420,7 @@ public final class ShopService {
         addPaintingOffer(
                 offers,
                 "gemaelde_the_legend",
-                price(10L),
+                ShopSupplementalCatalog.offer("gemaelde_the_legend").price(),
                 "text.village-quest.shop.offer.gemaelde_the_legend.title",
                 "text.village-quest.shop.offer.gemaelde_the_legend.description",
                 "the_legend",
@@ -462,7 +430,7 @@ public final class ShopService {
         addPaintingOffer(
                 offers,
                 "gemaelde_ancient_warrior",
-                price(5L),
+                ShopSupplementalCatalog.offer("gemaelde_ancient_warrior").price(),
                 "text.village-quest.shop.offer.gemaelde_ancient_warrior.title",
                 "text.village-quest.shop.offer.gemaelde_ancient_warrior.description",
                 "ancient_warrior",
@@ -472,7 +440,7 @@ public final class ShopService {
         addPaintingOffer(
                 offers,
                 "gemaelde_happy_doge",
-                price(15L),
+                ShopSupplementalCatalog.offer("gemaelde_happy_doge").price(),
                 "text.village-quest.shop.offer.gemaelde_happy_doge.title",
                 "text.village-quest.shop.offer.gemaelde_happy_doge.description",
                 "happy_doge",
@@ -482,35 +450,31 @@ public final class ShopService {
         offers.put("zombie_trophy", new ShopOffer(
                 "zombie_trophy",
                 "decor",
-                Text.translatable("text.village-quest.shop.offer.zombie_trophy.title"),
-                Text.translatable("text.village-quest.shop.offer.zombie_trophy.description"),
-                price(10L),
+                Component.translatable("text.village-quest.shop.offer.zombie_trophy.title"),
+                Component.translatable("text.village-quest.shop.offer.zombie_trophy.description"),
+                ShopSupplementalCatalog.offer("zombie_trophy").price(),
                 world -> previewStack(Items.ZOMBIE_HEAD, "text.village-quest.shop.offer.zombie_trophy.title"),
-                (world, player) -> deliver(player, new ItemStack(Items.ZOMBIE_HEAD))
+                itemPurchase(world -> new ItemStack[]{new ItemStack(Items.ZOMBIE_HEAD)})
         ));
         offers.put("skeleton_trophy", new ShopOffer(
                 "skeleton_trophy",
                 "decor",
-                Text.translatable("text.village-quest.shop.offer.skeleton_trophy.title"),
-                Text.translatable("text.village-quest.shop.offer.skeleton_trophy.description"),
-                price(12L),
+                Component.translatable("text.village-quest.shop.offer.skeleton_trophy.title"),
+                Component.translatable("text.village-quest.shop.offer.skeleton_trophy.description"),
+                ShopSupplementalCatalog.offer("skeleton_trophy").price(),
                 world -> previewStack(Items.SKELETON_SKULL, "text.village-quest.shop.offer.skeleton_trophy.title"),
-                (world, player) -> deliver(player, new ItemStack(Items.SKELETON_SKULL))
+                itemPurchase(world -> new ItemStack[]{new ItemStack(Items.SKELETON_SKULL)})
         ));
         offers.put("creeper_trophy", new ShopOffer(
                 "creeper_trophy",
                 "decor",
-                Text.translatable("text.village-quest.shop.offer.creeper_trophy.title"),
-                Text.translatable("text.village-quest.shop.offer.creeper_trophy.description"),
-                price(16L),
+                Component.translatable("text.village-quest.shop.offer.creeper_trophy.title"),
+                Component.translatable("text.village-quest.shop.offer.creeper_trophy.description"),
+                ShopSupplementalCatalog.offer("creeper_trophy").price(),
                 world -> previewStack(Items.CREEPER_HEAD, "text.village-quest.shop.offer.creeper_trophy.title"),
-                (world, player) -> deliver(player, new ItemStack(Items.CREEPER_HEAD))
+                itemPurchase(world -> new ItemStack[]{new ItemStack(Items.CREEPER_HEAD)})
         ));
         return offers;
-    }
-
-    private static long price(long basePrice) {
-        return Math.max(0L, basePrice) * PRICE_MULTIPLIER;
     }
 
     public static ShopOffer offer(String offerId) {
@@ -524,13 +488,15 @@ public final class ShopService {
         return !OFFERS.isEmpty();
     }
 
-    public static List<String> rollPilgrimOfferIds(net.minecraft.util.math.random.Random random, int count) {
+    public static Set<String> offerIds() { return Set.copyOf(OFFERS.keySet()); }
+
+    public static List<String> rollPilgrimOfferIds(net.minecraft.util.RandomSource random, int count) {
         List<String> ids = new ArrayList<>(OFFERS.keySet());
         return shuffleAndTrim(random, ids, count);
     }
 
-    public static List<String> rollPilgrimOfferIds(net.minecraft.util.math.random.Random random,
-                                                   ServerWorld world,
+    public static List<String> rollPilgrimOfferIds(net.minecraft.util.RandomSource random,
+                                                   ServerLevel world,
                                                    UUID playerId,
                                                    int count) {
         List<String> ids = availableOfferIds(world, playerId);
@@ -540,7 +506,7 @@ public final class ShopService {
         if (world != null && playerId != null && MerchantSealQuestService.isCompleted(world, playerId)) {
             List<String> unseen = new ArrayList<>();
             List<String> repeats = new ArrayList<>();
-            splitCollectibles(world, playerId, ids, unseen, repeats);
+            PlayerQuestDataSplit.split(world, playerId, ids, unseen, repeats);
             shuffle(random, unseen);
             shuffle(random, repeats);
             unseen.addAll(repeats);
@@ -549,7 +515,7 @@ public final class ShopService {
         return shuffleAndTrim(random, ids, count);
     }
 
-    public static List<String> availableOfferIds(ServerWorld world, UUID playerId) {
+    public static List<String> availableOfferIds(ServerLevel world, UUID playerId) {
         List<String> ids = new ArrayList<>();
         for (String offerId : OFFERS.keySet()) {
             if (isOfferUnlocked(world, playerId, offerId)) {
@@ -559,7 +525,7 @@ public final class ShopService {
         return ids;
     }
 
-    private static boolean hasCompletedVillageProject(ServerWorld world, UUID playerId) {
+    private static boolean hasCompletedVillageProject(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
             return false;
         }
@@ -574,7 +540,7 @@ public final class ShopService {
         return false;
     }
 
-    private static boolean isProjectOfferUnlocked(ServerWorld world, UUID playerId, VillageProjectType projectUnlock) {
+    private static boolean isProjectOfferUnlocked(ServerLevel world, UUID playerId, VillageProjectType projectUnlock) {
         if (projectUnlock == null) {
             return true;
         }
@@ -584,7 +550,7 @@ public final class ShopService {
         return VillageProjectService.isUnlocked(world, playerId, projectUnlock);
     }
 
-    public static boolean isOfferUnlocked(ServerWorld world, UUID playerId, String offerId) {
+    public static boolean isOfferUnlocked(ServerLevel world, UUID playerId, String offerId) {
         if (offerId == null || offerId.isBlank()) {
             return false;
         }
@@ -602,48 +568,48 @@ public final class ShopService {
         return ReputationService.isOfferUnlocked(world, playerId, offerId);
     }
 
-    private static boolean isProjectUnlocked(ServerWorld world, UUID playerId, String offerId) {
+    private static boolean isProjectUnlocked(ServerLevel world, UUID playerId, String offerId) {
         VillageProjectType projectUnlock = PROJECT_UNLOCKS.get(offerId);
         return isProjectOfferUnlocked(world, playerId, projectUnlock);
     }
 
-    private static Text lockedMessage(ServerWorld world, UUID playerId, String offerId) {
+    private static Component lockedMessage(ServerLevel world, UUID playerId, String offerId) {
         VillageProjectType projectUnlock = PROJECT_UNLOCKS.get(offerId);
         ReputationService.OfferUnlock unlock = ReputationService.unlockForOffer(offerId);
         boolean projectLocked = projectUnlock != null && !isProjectUnlocked(world, playerId, offerId);
         boolean reputationLocked = unlock != null && !ReputationService.isOfferUnlocked(world, playerId, offerId);
         if (projectLocked && reputationLocked) {
-            return Text.translatable(
+            return Component.translatable(
                     "command.village-quest.shop.locked.project_reputation",
-                    Text.translatable("quest.village-quest.project." + projectUnlock.id() + ".title"),
-                    ReputationService.displayName(unlock.track()),
-                    ReputationService.displayUnlockTitle(unlock),
-                    Text.literal(Integer.toString(ReputationService.get(world, playerId, unlock.track()))).formatted(unlock.track().color()),
-                    Text.literal(Integer.toString(unlock.requiredReputation())).formatted(unlock.track().color())
+                    Component.translatable("quest.village-quest.project." + projectUnlock.id() + ".title"),
+                    ReputationService.displayName(unlock.track()).copy().withStyle(ChatFormatting.GRAY),
+                    ReputationService.displayUnlockTitle(unlock).copy().withStyle(ChatFormatting.GRAY),
+                    Component.literal(Integer.toString(ReputationService.get(world, playerId, unlock.track()))),
+                    Component.literal(Integer.toString(unlock.requiredReputation()))
             );
         }
         if (projectLocked) {
             if (projectUnlock == VillageProjectType.VILLAGE_LEDGER) {
-                return Text.translatable("command.village-quest.shop.locked.project_any");
+                return Component.translatable("command.village-quest.shop.locked.project_any");
             }
-            return Text.translatable(
+            return Component.translatable(
                     "command.village-quest.shop.locked.project",
-                    Text.translatable("quest.village-quest.project." + projectUnlock.id() + ".title")
+                    Component.translatable("quest.village-quest.project." + projectUnlock.id() + ".title")
             );
         }
         if (reputationLocked) {
-            return Text.translatable(
+            return Component.translatable(
                     "command.village-quest.shop.locked",
-                    ReputationService.displayName(unlock.track()),
-                    ReputationService.displayUnlockTitle(unlock),
-                    Text.literal(Integer.toString(ReputationService.get(world, playerId, unlock.track()))).formatted(unlock.track().color()),
-                    Text.literal(Integer.toString(unlock.requiredReputation())).formatted(unlock.track().color())
+                    ReputationService.displayName(unlock.track()).copy().withStyle(ChatFormatting.GRAY),
+                    ReputationService.displayUnlockTitle(unlock).copy().withStyle(ChatFormatting.GRAY),
+                    Component.literal(Integer.toString(ReputationService.get(world, playerId, unlock.track()))),
+                    Component.literal(Integer.toString(unlock.requiredReputation()))
             );
         }
         return null;
     }
 
-    private static List<String> shuffleAndTrim(net.minecraft.util.math.random.Random random, List<String> ids, int count) {
+    private static List<String> shuffleAndTrim(net.minecraft.util.RandomSource random, List<String> ids, int count) {
         if (ids.isEmpty() || count <= 0) {
             return List.of();
         }
@@ -670,7 +636,7 @@ public final class ShopService {
         return selected;
     }
 
-    private static void shuffle(net.minecraft.util.math.random.Random random, List<String> ids) {
+    private static void shuffle(net.minecraft.util.RandomSource random, List<String> ids) {
         for (int i = ids.size() - 1; i > 0; i--) {
             int swapIndex = random.nextInt(i + 1);
             Collections.swap(ids, i, swapIndex);
@@ -683,120 +649,146 @@ public final class ShopService {
                 || offerId.endsWith("_trophy");
     }
 
-    private static void splitCollectibles(ServerWorld world, UUID playerId, List<String> ids,
-                                          List<String> unseen, List<String> repeats) {
-        var data = QuestState.get(world.getServer()).getPlayerData(playerId);
-        for (String id : ids) {
-            if (isCollectible(id) && !data.hasMilestoneFlag("shop.collectible." + id)) unseen.add(id);
-            else repeats.add(id);
+    private static final class PlayerQuestDataSplit {
+        private static void split(ServerLevel world, UUID playerId, List<String> ids,
+                                  List<String> unseen, List<String> repeats) {
+            var data = QuestState.get(world.getServer()).getPlayerData(playerId);
+            for (String id : ids) {
+                if (isCollectible(id) && !data.hasMilestoneFlag("shop.collectible." + id)) unseen.add(id);
+                else repeats.add(id);
+            }
         }
     }
 
-    public static int buy(ServerWorld world, ServerPlayerEntity player, String offerId) {
+    public static int buy(ServerLevel world, ServerPlayer player, String offerId) {
         if (world == null || player == null) {
             return 0;
         }
 
         ShopOffer offer = offer(offerId);
         if (offer == null) {
-            player.sendMessage(Text.translatable("command.village-quest.shop.offer_missing").formatted(Formatting.RED), false);
+            player.sendSystemMessage(Component.translatable("command.village-quest.shop.offer_missing").withStyle(ChatFormatting.RED), false);
             return 0;
         }
-        Text lockedMessage = lockedMessage(world, player.getUuid(), offerId);
+        Component lockedMessage = lockedMessage(world, player.getUUID(), offerId);
         if (lockedMessage != null) {
-            player.sendMessage(lockedMessage.copy().formatted(Formatting.RED), false);
+            player.sendSystemMessage(lockedMessage.copy().withStyle(ChatFormatting.GRAY), false);
             return 0;
         }
-        long actualPrice = ProsperityService.shopPrice(world, player.getUuid(), offer);
-        if (!CurrencyService.canAfford(world, player.getUuid(), actualPrice)) {
-            player.sendMessage(Text.translatable(
+        long actualPrice = ProsperityService.shopPrice(world, player.getUUID(), offer);
+        if (!CurrencyService.canAfford(world, player.getUUID(), actualPrice)) {
+            player.sendSystemMessage(Component.translatable(
                     "command.village-quest.shop.not_enough",
                     CurrencyService.formatBalance(actualPrice),
-                    CurrencyService.formatBalance(CurrencyService.getBalance(world, player.getUuid()))
-            ).formatted(Formatting.RED), false);
+                    CurrencyService.formatBalance(CurrencyService.getBalance(world, player.getUUID()))
+            ).withStyle(ChatFormatting.RED), false);
             return 0;
         }
 
-        ShopOffer.PurchaseResult result = offer.purchaseHandler().purchase(world, player);
-        if (!result.success()) {
-            player.sendMessage(result.message(), false);
+        List<ItemStack> goods;
+        try {
+            var pack=de.quest.reward.RewardShopCatalog.get(offerId);
+            goods=pack!=null?de.quest.reward.RewardItems.create(world,pack.goods()):offer.purchaseHandler().prepareGoods(world);
+        } catch(RuntimeException invalidGoods) {
+            VillageQuest.LOGGER.warn("Cannot prepare shop offer {}",offerId,invalidGoods);
+            player.sendSystemMessage(Component.translatable("command.village-quest.shop.offer_missing").withStyle(ChatFormatting.RED),false);
             return 0;
         }
-
-        if (!CurrencyService.removeBalance(world, player.getUuid(), actualPrice)) {
-            player.sendMessage(Text.translatable("command.village-quest.shop.not_enough",
-                    CurrencyService.formatBalance(actualPrice),
-                    CurrencyService.formatBalance(CurrencyService.getBalance(world, player.getUuid()))
-            ).formatted(Formatting.RED), false);
+        if (!de.quest.reward.VanillaRewardService.enqueuePurchase(world,player,goods,actualPrice)) {
+            player.sendSystemMessage(Component.translatable("reward.village-quest.unavailable"),false);
             return 0;
         }
 
         recordCompletedPurchase(world, player, offerId);
-        long newBalance = CurrencyService.getBalance(world, player.getUuid());
-        player.sendMessage(Text.translatable(
+        long newBalance = CurrencyService.getBalance(world, player.getUUID());
+        player.sendSystemMessage(Component.translatable(
                 "command.village-quest.shop.buy.success",
                 offer.title(),
                 CurrencyService.formatBalance(actualPrice),
                 CurrencyService.formatBalance(newBalance)
-        ).formatted(Formatting.GREEN), false);
+        ).withStyle(ChatFormatting.GREEN), false);
         return 1;
     }
 
     /** Delivers a prepaid 2.1.0 commission without charging the wallet twice. */
-    public static boolean fulfillCommission(ServerWorld world, ServerPlayerEntity player, String offerId) {
-        if (world == null || player == null || offerId == null || !isOfferUnlocked(world, player.getUuid(), offerId)) {
+    public static boolean fulfillCommission(ServerLevel world, ServerPlayer player, String offerId) {
+        // The server commission caller already validates the paid claim and due day. New gates apply at purchase.
+        if (world == null || player == null || offerId == null) {
             return false;
         }
         ShopOffer offer = offer(offerId);
-        if (offer == null) {
-            return false;
+        if (offer == null) return false;
+        var rewards = de.quest.reward.VanillaRewardService.state(world, player.getUUID());
+        var saved = rewards.snapshot("shop", rewards.currentIdentity("shop"));
+        if (QuestState.get(world.getServer()).getPlayerData(player.getUUID()).hasMilestoneFlag("reward.shop_snapshot")) {
+            if (!rewards.writable() || !saved.getStringOr("key", "").equals("shop:" + offerId) || saved.getBooleanOr("redeemed",true)) return false;
+            de.quest.reward.VanillaRewardService.completeCurrent(world,player,"shop");
+            QuestState.get(world.getServer()).getPlayerData(player.getUUID()).setMilestoneFlag("reward.shop_snapshot",false);
+            recordCompletedPurchase(world,player,offerId); return true;
         }
-        ShopOffer.PurchaseResult result = offer.purchaseHandler().purchase(world, player);
+        // Older prepaid supplies retain their historical random bonuses/arrows and steak.
+        ShopOffer.PurchaseResult result = offerId.equals("proviantbeutel") ? deliver(player, createProvisionsSatchelLoot(world))
+                : offerId.equals("hunters_satchel") ? deliver(player,new ItemStack(Items.ARROW,32),new ItemStack(Items.COOKED_BEEF,6))
+                : offer.purchaseHandler().purchase(world, player);
         if (!result.success()) {
-            player.sendMessage(result.message(), false);
+            player.sendSystemMessage(result.message(), false);
             return false;
         }
         recordCompletedPurchase(world, player, offerId);
         return true;
     }
 
-    private static void recordCompletedPurchase(ServerWorld world, ServerPlayerEntity player, String offerId) {
+    private static void recordCompletedPurchase(ServerLevel world, ServerPlayer player, String offerId) {
         SpecialQuestService.onPilgrimPurchase(world, player, offerId);
         WeeklyQuestService.onPilgrimPurchase(world, player, offerId);
-        ProsperityService.recordShopPurchase(world, player.getUuid());
-        QuestState.get(world.getServer()).getPlayerData(player.getUuid())
+        ProsperityService.recordShopPurchase(world, player.getUUID());
+        QuestState.get(world.getServer()).getPlayerData(player.getUUID())
                 .setMilestoneFlag("shop.known." + offerId, true);
         if (isCollectible(offerId)) {
-            QuestState.get(world.getServer()).getPlayerData(player.getUuid())
+            QuestState.get(world.getServer()).getPlayerData(player.getUUID())
                     .setMilestoneFlag("shop.collectible." + offerId, true);
         }
-        QuestState.get(world.getServer()).markDirty();
+        QuestState.get(world.getServer()).setDirty();
     }
 
-    private static ShopOffer.PurchaseResult deliver(ServerPlayerEntity player, ItemStack... stacks) {
-        if (player == null || stacks == null || stacks.length == 0) {
-            return ShopOffer.PurchaseResult.fail(Text.translatable("command.village-quest.shop.offer_missing").formatted(Formatting.RED));
-        }
-
-        for (ItemStack stack : stacks) {
-            if (stack == null || stack.isEmpty()) {
-                continue;
+    private static ShopOffer.PurchaseHandler itemPurchase(java.util.function.Function<ServerLevel,ItemStack[]> factory) {
+        return new ShopOffer.PurchaseHandler() {
+            @Override public List<ItemStack> prepareGoods(ServerLevel world) {
+                var stacks=factory.apply(world); var goods=new ArrayList<ItemStack>();
+                if(stacks!=null) for(var stack:stacks) if(stack!=null && !stack.isEmpty()) goods.add(stack.copy());
+                return List.copyOf(goods);
             }
-            giveOrDrop(player, stack.copy());
-        }
-        return ShopOffer.PurchaseResult.success(Text.empty());
+            @Override public ShopOffer.PurchaseResult purchase(ServerLevel world,ServerPlayer player) {
+                return deliver(player,prepareGoods(world).toArray(ItemStack[]::new));
+            }
+        };
     }
 
-    private static ItemStack[] createProvisionsSatchelLoot(ServerWorld world) {
+    private static ShopOffer.PurchaseResult deliver(ServerPlayer player, ItemStack... stacks) {
+        if (player == null || stacks == null || stacks.length == 0) {
+            return ShopOffer.PurchaseResult.fail(Component.translatable("command.village-quest.shop.offer_missing").withStyle(ChatFormatting.RED));
+        }
+
+        boolean deliveredAny=false;
+        for (ItemStack stack : stacks) {
+            if (stack == null || stack.isEmpty()) continue;
+            giveOrDrop(player, stack.copy());
+            deliveredAny=true;
+        }
+        return deliveredAny?ShopOffer.PurchaseResult.success(Component.empty())
+                :ShopOffer.PurchaseResult.fail(Component.translatable("command.village-quest.shop.offer_missing").withStyle(ChatFormatting.RED));
+    }
+
+    private static ItemStack[] createProvisionsSatchelLoot(ServerLevel world) {
         List<ItemStack> rewards = new ArrayList<>();
         rewards.add(new ItemStack(Items.GOLDEN_CARROT, 24));
 
-        if (world != null && world.random.nextFloat() < 0.05f) {
+        if (world != null && world.getRandom().nextFloat() < 0.05f) {
             rewards.add(new ItemStack(Items.GOLDEN_APPLE, 1));
         }
 
         rewards.add(rollProvisionsSatchelBonus(world));
-        if (world != null && world.random.nextFloat() < 0.45f) {
+        if (world != null && world.getRandom().nextFloat() < 0.45f) {
             rewards.add(rollProvisionsSatchelBonus(world));
         }
 
@@ -804,8 +796,8 @@ public final class ShopService {
         return rewards.toArray(ItemStack[]::new);
     }
 
-    private static ItemStack rollProvisionsSatchelBonus(ServerWorld world) {
-        int roll = world == null ? 0 : world.random.nextInt(100);
+    private static ItemStack rollProvisionsSatchelBonus(ServerLevel world) {
+        int roll = world == null ? 0 : world.getRandom().nextInt(100);
         if (roll < 24) {
             return new ItemStack(Items.GOLD_INGOT, randomRange(world, 8, 20));
         }
@@ -827,19 +819,19 @@ public final class ShopService {
         return new ItemStack(Items.COAL, randomRange(world, 16, 32));
     }
 
-    private static int randomRange(ServerWorld world, int minInclusive, int maxInclusive) {
+    private static int randomRange(ServerLevel world, int minInclusive, int maxInclusive) {
         if (maxInclusive <= minInclusive) {
             return minInclusive;
         }
         if (world == null) {
             return minInclusive;
         }
-        return minInclusive + world.random.nextInt(maxInclusive - minInclusive + 1);
+        return minInclusive + world.getRandom().nextInt(maxInclusive - minInclusive + 1);
     }
 
     private static ItemStack previewStack(Item item, String titleKey) {
         ItemStack stack = new ItemStack(item);
-        stack.set(DataComponentTypes.CUSTOM_NAME, Text.translatable(titleKey).formatted(Formatting.GREEN));
+        stack.set(DataComponents.CUSTOM_NAME, Component.translatable(titleKey).withStyle(ChatFormatting.GREEN));
         return stack;
     }
 
@@ -853,11 +845,11 @@ public final class ShopService {
         offers.put(offerId, new ShopOffer(
                 offerId,
                 category,
-                Text.translatable(offerTitleKey),
-                Text.translatable(offerDescriptionKey),
+                Component.translatable(offerTitleKey),
+                Component.translatable(offerDescriptionKey),
                 price,
                 world -> previewStack(item, offerTitleKey),
-                (world, player) -> deliver(player, new ItemStack(item))
+                itemPurchase(world -> new ItemStack[]{new ItemStack(item)})
         ));
     }
 
@@ -871,11 +863,11 @@ public final class ShopService {
         offers.put(offerId, new ShopOffer(
                 offerId,
                 "decor",
-                Text.translatable(offerTitleKey),
-                Text.translatable(offerDescriptionKey),
-                PREMIUM_HEAD_PRICE,
+                Component.translatable(offerTitleKey),
+                Component.translatable(offerDescriptionKey),
+                ShopSupplementalCatalog.offer(offerId).price(),
                 world -> VillageQuest.createDecorHead(offerId, itemTitleKey, itemLoreKey, textureValue),
-                (world, player) -> deliver(player, VillageQuest.createDecorHead(offerId, itemTitleKey, itemLoreKey, textureValue))
+                itemPurchase(world -> new ItemStack[]{VillageQuest.createDecorHead(offerId, itemTitleKey, itemLoreKey, textureValue)})
         ));
     }
 
@@ -898,32 +890,30 @@ public final class ShopService {
         offers.put(offerId, new ShopOffer(
                 offerId,
                 "art",
-                Text.translatable(offerTitleKey),
-                Text.translatable(offerDescriptionKey),
+                Component.translatable(offerTitleKey),
+                Component.translatable(offerDescriptionKey),
                 price,
                 world -> createPaintingStack(world, variantPath, itemTitleKey, loreKey),
-                (world, player) -> deliver(player, createPaintingStack(world, variantPath, itemTitleKey, loreKey))
+                itemPurchase(world -> new ItemStack[]{createPaintingStack(world, variantPath, itemTitleKey, loreKey)})
         ));
     }
 
-    private static ItemStack createPaintingStack(ServerWorld world, String variantPath, String titleKey, String loreKey) {
+    private static ItemStack createPaintingStack(ServerLevel world, String variantPath, String titleKey, String loreKey) {
         return PaintingStackFactory.create(world, variantPath);
     }
 
-    private static void giveOrDrop(ServerPlayerEntity player, ItemStack stack) {
+    private static void giveOrDrop(ServerPlayer player, ItemStack stack) {
         ItemStack remainder = stack.copy();
-        boolean inserted = player.getInventory().insertStack(remainder);
+        boolean inserted = player.getInventory().add(remainder);
         if (!inserted || !remainder.isEmpty()) {
             if (!remainder.isEmpty()) {
-                player.dropItem(remainder, false);
+                player.drop(remainder, false);
             }
-            player.sendMessage(Text.translatable("message.village-quest.daily.inventory_full.prefix").formatted(Formatting.GRAY)
-                    .append(stack.toHoverableText())
-                    .append(Text.translatable("message.village-quest.daily.inventory_full.suffix").formatted(Formatting.GRAY)), false);
+            player.sendSystemMessage(Component.translatable("message.village-quest.daily.inventory_full.prefix").withStyle(ChatFormatting.GRAY)
+                    .append(stack.getDisplayName())
+                    .append(Component.translatable("message.village-quest.daily.inventory_full.suffix").withStyle(ChatFormatting.GRAY)), false);
         } else {
-            player.playerScreenHandler.sendContentUpdates();
+            player.inventoryMenu.broadcastChanges();
         }
     }
 }
-
-

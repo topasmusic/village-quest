@@ -1,24 +1,25 @@
 package de.quest.reputation;
 
+import de.quest.archive.GuildArchiveService;
+import de.quest.archive.GuildArchiveService.ArchiveItem;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.quest.daily.DailyQuestService;
 import de.quest.quest.special.RelicQuestProgressionService;
 import de.quest.questmaster.QuestMasterProgressionService;
 import de.quest.registry.ModItems;
-import net.minecraft.item.ItemStack;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
 
 public final class ReputationService {
     public static final int MASTERY_START = 200;
@@ -26,17 +27,17 @@ public final class ReputationService {
     public static final int MAX_MASTERY = 5;
     private static final String ROADWARDEN_HORN_CLAIMED = "relic.roadwarden_horn.claimed";
     public enum ReputationTrack {
-        FARMING("farming", "text.village-quest.reputation.track.farming", Formatting.GREEN),
-        CRAFTING("crafting", "text.village-quest.reputation.track.crafting", Formatting.GOLD),
-        ANIMALS("animals", "text.village-quest.reputation.track.animals", Formatting.AQUA),
-        TRADE("trade", "text.village-quest.reputation.track.trade", Formatting.BLUE),
-        MONSTER_HUNTING("monster", "text.village-quest.reputation.track.monster", Formatting.RED);
+        FARMING("farming", "text.village-quest.reputation.track.farming", ChatFormatting.GREEN),
+        CRAFTING("crafting", "text.village-quest.reputation.track.crafting", ChatFormatting.GOLD),
+        ANIMALS("animals", "text.village-quest.reputation.track.animals", ChatFormatting.AQUA),
+        TRADE("trade", "text.village-quest.reputation.track.trade", ChatFormatting.BLUE),
+        MONSTER_HUNTING("monster", "text.village-quest.reputation.track.monster", ChatFormatting.RED);
 
         private final String id;
         private final String translationKey;
-        private final Formatting color;
+        private final ChatFormatting color;
 
-        ReputationTrack(String id, String translationKey, Formatting color) {
+        ReputationTrack(String id, String translationKey, ChatFormatting color) {
             this.id = id;
             this.translationKey = translationKey;
             this.color = color;
@@ -50,7 +51,7 @@ public final class ReputationService {
             return translationKey;
         }
 
-        public Formatting color() {
+        public ChatFormatting color() {
             return color;
         }
     }
@@ -84,6 +85,8 @@ public final class ReputationService {
     public record ReputationUnlock(ReputationTrack track, int requiredReputation, String titleKey) {}
 
     private static final Map<String, OfferUnlock> OFFER_UNLOCKS = List.of(
+            new OfferUnlock("proviantbeutel", ReputationTrack.FARMING, 25, "reward.village-quest.shop.proviantbeutel"),
+            new OfferUnlock("light_supplies", ReputationTrack.CRAFTING, 25, "reward.village-quest.shop.light_supplies"),
             new OfferUnlock("honigfass", ReputationTrack.FARMING, 25, "text.village-quest.shop.offer.honigfass.title"),
             new OfferUnlock("bienenwabe", ReputationTrack.FARMING, 60, "text.village-quest.shop.offer.bienenwabe.title"),
             new OfferUnlock("beekeepers_kit", ReputationTrack.FARMING, 120, "text.village-quest.shop.offer.beekeepers_kit.title"),
@@ -103,6 +106,8 @@ public final class ReputationService {
     ).stream().collect(Collectors.toUnmodifiableMap(OfferUnlock::offerId, unlock -> unlock));
 
     private static final List<ReputationUnlock> REPUTATION_UNLOCKS = List.of(
+            new ReputationUnlock(ReputationTrack.FARMING, 25, "reward.village-quest.shop.proviantbeutel"),
+            new ReputationUnlock(ReputationTrack.CRAFTING, 25, "reward.village-quest.shop.light_supplies"),
             new ReputationUnlock(ReputationTrack.FARMING, 25, "text.village-quest.shop.offer.honigfass.title"),
             new ReputationUnlock(ReputationTrack.FARMING, 60, "text.village-quest.shop.offer.bienenwabe.title"),
             new ReputationUnlock(ReputationTrack.FARMING, 120, "text.village-quest.shop.offer.beekeepers_kit.title"),
@@ -127,18 +132,18 @@ public final class ReputationService {
 
     private ReputationService() {}
 
-    private static PlayerQuestData data(ServerWorld world, UUID playerId) {
+    private static PlayerQuestData data(ServerLevel world, UUID playerId) {
         return QuestState.get(world.getServer()).getPlayerData(playerId);
     }
 
-    public static int get(ServerWorld world, UUID playerId, ReputationTrack track) {
+    public static int get(ServerLevel world, UUID playerId, ReputationTrack track) {
         if (world == null || playerId == null || track == null) {
             return 0;
         }
         return data(world, playerId).getReputation(track.id());
     }
 
-    public static int add(ServerWorld world, UUID playerId, ReputationTrack track, int amount) {
+    public static int add(ServerLevel world, UUID playerId, ReputationTrack track, int amount) {
         if (world == null || playerId == null || track == null || amount == 0) {
             return get(world, playerId, track);
         }
@@ -146,52 +151,53 @@ public final class ReputationService {
         PlayerQuestData data = data(world, playerId);
         data.addReputation(track.id(), amount);
         if (track == ReputationTrack.MONSTER_HUNTING) {
-            ServerPlayerEntity player = world.getServer().getPlayerManager().getPlayer(playerId);
+            ServerPlayer player = world.getServer().getPlayerList().getPlayer(playerId);
             if (player != null) {
                 backfillRoadwardenHorn(world, player);
             }
         }
-        QuestState.get(world.getServer()).markDirty();
+        QuestState.get(world.getServer()).setDirty();
         QuestMasterProgressionService.onReputationChanged(world, playerId, previousTotal);
         return data.getReputation(track.id());
     }
 
-    public static boolean backfillRoadwardenHorn(ServerWorld world, ServerPlayerEntity player) {
+    public static boolean backfillRoadwardenHorn(ServerLevel world, ServerPlayer player) {
         if (world == null || player == null || ModItems.ROADWARDEN_HORN == null
-                || get(world, player.getUuid(), ReputationTrack.MONSTER_HUNTING) < MASTERY_START) {
+                || get(world, player.getUUID(), ReputationTrack.MONSTER_HUNTING) < MASTERY_START) {
             return false;
         }
-        PlayerQuestData data = data(world, player.getUuid());
+        PlayerQuestData data = data(world, player.getUUID());
         if (data.hasMilestoneFlag(ROADWARDEN_HORN_CLAIMED)) {
             return false;
         }
         boolean alreadyPresent = hasRoadwardenHorn(player);
         if (!alreadyPresent) {
-            ItemStack horn = new ItemStack(ModItems.ROADWARDEN_HORN);
-            if (!player.getInventory().insertStack(horn)) {
-                player.dropItem(horn, false);
+            ItemStack horn = GuildArchiveService.issueInitial(world, player, ArchiveItem.ROADWARDEN_HORN,
+                    new ItemStack(ModItems.ROADWARDEN_HORN));
+            if (!player.getInventory().add(horn)) {
+                player.drop(horn, false);
             }
-            player.playerScreenHandler.sendContentUpdates();
+            player.inventoryMenu.broadcastChanges();
         }
         data.setMilestoneFlag(ROADWARDEN_HORN_CLAIMED, true);
-        QuestState.get(world.getServer()).markDirty();
+        QuestState.get(world.getServer()).setDirty();
         if (!alreadyPresent) {
-            player.sendMessage(Text.translatable("message.village-quest.roadwarden_horn.awarded")
-                    .formatted(Formatting.GOLD), false);
+            player.sendSystemMessage(Component.translatable("message.village-quest.roadwarden_horn.awarded")
+                    .withStyle(ChatFormatting.GOLD), false);
         }
         return !alreadyPresent;
     }
 
-    private static boolean hasRoadwardenHorn(ServerPlayerEntity player) {
-        for (int slot = 0; slot < player.getInventory().size(); slot++) {
-            if (player.getInventory().getStack(slot).isOf(ModItems.ROADWARDEN_HORN)) {
+    private static boolean hasRoadwardenHorn(ServerPlayer player) {
+        for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
+            if (player.getInventory().getItem(slot).is(ModItems.ROADWARDEN_HORN)) {
                 return true;
             }
         }
         return false;
     }
 
-    public static int total(ServerWorld world, UUID playerId) {
+    public static int total(ServerLevel world, UUID playerId) {
         int sum = 0;
         for (ReputationTrack track : ReputationTrack.values()) {
             sum += get(world, playerId, track);
@@ -232,7 +238,9 @@ public final class ReputationService {
             return null;
         }
         String normalized = raw.trim().replace('-', '_');
-        if (normalized.equalsIgnoreCase("monster_hunting")) return ReputationTrack.MONSTER_HUNTING;
+        if (normalized.equalsIgnoreCase("monster_hunting")) {
+            return ReputationTrack.MONSTER_HUNTING;
+        }
         for (ReputationTrack track : ReputationTrack.values()) {
             if (track.id().equalsIgnoreCase(normalized)) {
                 return track;
@@ -255,24 +263,26 @@ public final class ReputationService {
         return Math.max(0, Math.min(MAX_MASTERY, (reputation - MASTERY_START) / MASTERY_STEP));
     }
 
-    public static int totalMastery(ServerWorld world, UUID playerId) {
+    public static int totalMastery(ServerLevel world, UUID playerId) {
         int total = 0;
-        for (ReputationTrack track : ReputationTrack.values()) total += masteryLevel(get(world, playerId, track));
+        for (ReputationTrack track : ReputationTrack.values()) {
+            total += masteryLevel(get(world, playerId, track));
+        }
         return total;
     }
 
-    public static Text displayRank(ReputationRank rank) {
+    public static Component displayRank(ReputationRank rank) {
         if (rank == null) {
-            return Text.empty();
+            return Component.empty();
         }
-        return Text.translatable(rank.translationKey()).formatted(Formatting.GRAY);
+        return Component.translatable(rank.translationKey()).withStyle(ChatFormatting.GRAY);
     }
 
-    public static Text displayName(ReputationTrack track) {
+    public static Component displayName(ReputationTrack track) {
         if (track == null) {
-            return Text.empty();
+            return Component.empty();
         }
-        return Text.translatable(track.translationKey()).formatted(track.color());
+        return Component.translatable(track.translationKey()).withStyle(track.color());
     }
 
     public static OfferUnlock unlockForOffer(String offerId) {
@@ -282,7 +292,7 @@ public final class ReputationService {
         return OFFER_UNLOCKS.get(offerId);
     }
 
-    public static boolean isOfferUnlocked(ServerWorld world, UUID playerId, String offerId) {
+    public static boolean isOfferUnlocked(ServerLevel world, UUID playerId, String offerId) {
         OfferUnlock unlock = unlockForOffer(offerId);
         if (unlock == null) {
             return true;
@@ -304,11 +314,11 @@ public final class ReputationService {
                 .orElse(null);
     }
 
-    public static Text displayUnlockTitle(OfferUnlock unlock) {
+    public static Component displayUnlockTitle(OfferUnlock unlock) {
         if (unlock == null) {
-            return Text.empty();
+            return Component.empty();
         }
-        return Text.translatable(unlock.titleKey()).formatted(unlock.track().color());
+        return Component.translatable(unlock.titleKey()).withStyle(unlock.track().color());
     }
 
     public static List<ReputationUnlock> reputationUnlocksFor(ReputationTrack track) {
@@ -329,84 +339,87 @@ public final class ReputationService {
         return !reputationUnlocksFor(track).isEmpty();
     }
 
-    public static Text displayUnlockTitle(ReputationUnlock unlock) {
+    public static Component displayUnlockTitle(ReputationUnlock unlock) {
         if (unlock == null) {
-            return Text.empty();
+            return Component.empty();
         }
-        return Text.translatable(unlock.titleKey()).formatted(unlock.track().color());
+        return Component.translatable(unlock.titleKey()).withStyle(unlock.track().color());
     }
 
-    public static Text formatRewardLine(ReputationTrack track, int amount) {
-        MutableText amountText = Text.literal("+" + amount).formatted(track.color());
-        return Text.translatable("text.village-quest.reputation.reward_line", displayName(track), amountText)
-                .formatted(Formatting.GRAY);
+    public static Component formatRewardLine(ReputationTrack track, int amount) {
+        MutableComponent amountText = Component.literal("+" + amount).withStyle(track.color());
+        return Component.translatable("text.village-quest.reputation.reward_line", displayName(track), amountText)
+                .withStyle(ChatFormatting.GRAY);
     }
 
-    public static Text formatOverviewLine(ServerWorld world, UUID playerId, ReputationTrack track) {
+    public static Component formatOverviewLine(ServerLevel world, UUID playerId, ReputationTrack track) {
         int currentValue = get(world, playerId, track);
-        MutableText value = Text.literal(Integer.toString(currentValue)).formatted(track.color());
+        MutableComponent value = Component.literal(Integer.toString(currentValue)).withStyle(track.color());
         int mastery = masteryLevel(currentValue);
         if (mastery > 0) {
-            return Text.translatable("text.village-quest.reputation.overview_mastery_line", displayName(track), value,
-                    displayRank(rankFor(currentValue)), mastery, MAX_MASTERY).formatted(Formatting.GRAY);
+            return Component.translatable("text.village-quest.reputation.overview_mastery_line",
+                    displayName(track), value, displayRank(rankFor(currentValue)), mastery, MAX_MASTERY)
+                    .withStyle(ChatFormatting.GRAY);
         }
-        return Text.translatable("text.village-quest.reputation.overview_line", displayName(track), value, displayRank(rankFor(currentValue)))
-                .formatted(Formatting.GRAY);
+        return Component.translatable("text.village-quest.reputation.overview_line", displayName(track), value, displayRank(rankFor(currentValue)))
+                .withStyle(ChatFormatting.GRAY);
     }
 
-    public static Text formatNextUnlockLine(ServerWorld world, UUID playerId, ReputationTrack track) {
+    public static Component formatNextUnlockLine(ServerLevel world, UUID playerId, ReputationTrack track) {
         int currentValue = get(world, playerId, track);
         if (!hasReputationUnlocks(track)) {
-            return Text.translatable("text.village-quest.reputation.no_unlocks_yet").formatted(Formatting.GRAY);
+            return Component.translatable("text.village-quest.reputation.no_unlocks_yet").withStyle(ChatFormatting.GRAY);
         }
         ReputationUnlock nextUnlock = nextReputationUnlock(track, currentValue);
         RelicQuestProgressionService.RelicUnlockPath relicPath = RelicQuestProgressionService.pathFor(track);
         boolean storyRequired = relicPath != null && !RelicQuestProgressionService.hasStoryRequirement(world, playerId, track);
         if (storyRequired) {
-            Text relicTitle = Text.translatable(relicPath.titleKey()).formatted(track.color());
-            Text storyTitle = Text.translatable("quest.village-quest.story." + relicPath.requiredStoryArc().id() + ".title").formatted(Formatting.GOLD);
+            Component relicTitle = Component.translatable(relicPath.titleKey()).withStyle(track.color());
+            Component storyTitle = Component.translatable("quest.village-quest.story." + relicPath.requiredStoryArc().id() + ".title").withStyle(ChatFormatting.GOLD);
             if (nextUnlock != null && nextUnlock.requiredReputation() >= relicPath.requiredReputation()) {
-                return Text.translatable(
+                return Component.translatable(
                         "text.village-quest.reputation.next_unlock_story",
                         relicTitle,
                         storyTitle,
-                        Text.literal(Integer.toString(relicPath.requiredReputation())).formatted(track.color())
-                ).formatted(Formatting.GRAY);
+                        Component.literal(Integer.toString(relicPath.requiredReputation())).withStyle(track.color())
+                ).withStyle(ChatFormatting.GRAY);
             }
             if (nextUnlock == null) {
-                return Text.translatable(
+                return Component.translatable(
                         "text.village-quest.reputation.story_required",
                         relicTitle,
                         storyTitle
-                ).formatted(Formatting.GRAY);
+                ).withStyle(ChatFormatting.GRAY);
             }
         }
         if (nextUnlock == null) {
             int mastery = masteryLevel(currentValue);
             if (mastery < MAX_MASTERY) {
                 int nextMastery = MASTERY_START + (mastery + 1) * MASTERY_STEP;
-                return Text.translatable("text.village-quest.reputation.next_mastery", mastery + 1,
-                        Text.literal(Integer.toString(nextMastery)).formatted(track.color())).formatted(Formatting.GRAY);
+                return Component.translatable("text.village-quest.reputation.next_mastery",
+                        mastery + 1,
+                        Component.literal(Integer.toString(nextMastery)).withStyle(track.color()))
+                        .withStyle(ChatFormatting.GRAY);
             }
-            return Text.translatable("text.village-quest.reputation.all_unlocked").formatted(Formatting.DARK_GREEN);
+            return Component.translatable("text.village-quest.reputation.all_unlocked").withStyle(ChatFormatting.DARK_GREEN);
         }
-        return Text.translatable(
+        return Component.translatable(
                 "text.village-quest.reputation.next_unlock",
                 displayUnlockTitle(nextUnlock),
-                Text.literal(Integer.toString(nextUnlock.requiredReputation())).formatted(track.color())
-        ).formatted(Formatting.GRAY);
+                Component.literal(Integer.toString(nextUnlock.requiredReputation())).withStyle(track.color())
+        ).withStyle(ChatFormatting.GRAY);
     }
 
-    public static List<Text> buildOverview(ServerWorld world, UUID playerId) {
-        List<Text> lines = new ArrayList<>();
+    public static List<Component> buildOverview(ServerLevel world, UUID playerId) {
+        List<Component> lines = new ArrayList<>();
         for (ReputationTrack track : ReputationTrack.values()) {
             lines.add(formatOverviewLine(world, playerId, track));
             lines.add(formatNextUnlockLine(world, playerId, track));
         }
-        lines.add(Text.translatable(
+        lines.add(Component.translatable(
                 "text.village-quest.reputation.overview_total",
-                Text.literal(Integer.toString(total(world, playerId))).formatted(Formatting.GOLD)
-        ).formatted(Formatting.GRAY));
+                Component.literal(Integer.toString(total(world, playerId))).withStyle(ChatFormatting.GOLD)
+        ).withStyle(ChatFormatting.GRAY));
         return lines;
     }
 }

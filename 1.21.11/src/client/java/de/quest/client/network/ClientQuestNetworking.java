@@ -2,19 +2,26 @@ package de.quest.client.network;
 
 import de.quest.client.config.VillageQuestClientConfig;
 import de.quest.client.hud.QuestTrackerHud;
-import de.quest.client.hud.TradeRouteMinimapHud;
 import de.quest.client.screen.AdminJournalScreen;
 import de.quest.client.screen.JournalScreen;
+import de.quest.client.screen.JournalScreenData;
 import de.quest.client.screen.PilgrimTradeScreen;
 import de.quest.client.screen.ProsperityScreen;
 import de.quest.client.screen.QuestMasterScreen;
 import de.quest.client.screen.TradeRouteMapScreen;
+import de.quest.client.screen.WayshrineScreen;
+import de.quest.client.screen.GuildNoticeBoardScreen;
+import de.quest.client.screen.NoticeJourneyScreen;
+import de.quest.client.screen.RegionalDispatchScreen;
+import de.quest.client.screen.CaravanMasterScreen;
+import de.quest.client.screen.GuildPathScreen;
+import de.quest.client.hud.TradeRouteMinimapHud;
 import de.quest.network.Payloads;
+import de.quest.network.VillageNetworkPayloads;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.sound.PositionedSoundInstance;
-import net.minecraft.sound.SoundEvents;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.sounds.SoundEvents;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,10 +29,90 @@ import java.util.List;
 public final class ClientQuestNetworking {
     private ClientQuestNetworking() {}
 
+    private static net.minecraft.client.gui.screens.Screen currentScreen(net.minecraft.client.Minecraft client) {
+        if (de.quest.client.screen.UiTestTour.active()) return null;
+        return client.screen instanceof de.quest.client.screen.VanillaRewardScreen rewards ? rewards.parent() : client.screen;
+    }
+
+    private static void setScreen(net.minecraft.client.Minecraft client, net.minecraft.client.gui.screens.Screen screen) {
+        if (de.quest.client.screen.UiTestTour.active()) return;
+        if (client.screen instanceof de.quest.client.screen.VanillaRewardScreen rewards
+                && !(screen instanceof de.quest.client.screen.VanillaRewardScreen)) { rewards.parent(screen); return; }
+        client.setScreen(screen);
+    }
+
     public static void register() {
         Payloads.register();
+        ClientPlayNetworking.registerGlobalReceiver(de.quest.network.EncounterQuestPayloads.View.ID,(payload,context)->context.client().execute(()->{
+            if(currentScreen(context.client()) instanceof de.quest.client.screen.EncounterQuestScreen screen && screen.session().equals(payload.session())){
+                if(payload.valid())screen.update(payload);else setScreen(context.client(),null);
+            }else if(payload.valid())setScreen(context.client(),new de.quest.client.screen.EncounterQuestScreen(payload));
+        }));
+        ClientPlayNetworking.registerGlobalReceiver(de.quest.network.ExactVersionPayload.ID,(payload,context) -> {});
+        ClientPlayConnectionEvents.DISCONNECT.register((handler,client) -> QuestTrackerHud.update(QuestTrackerHud.TrackerState.disabled()));
+        ClientPlayNetworking.registerGlobalReceiver(de.quest.network.FriendsQuestPayloads.View.ID,(payload,context) -> context.client().execute(() -> {
+            if(currentScreen(context.client()) instanceof de.quest.client.screen.FriendsQuestScreen screen && screen.session().equals(payload.session())) {
+                screen.update(payload);if(!payload.valid())setScreen(context.client(),null);
+            } else if(payload.initial() && payload.valid())setScreen(context.client(),new de.quest.client.screen.FriendsQuestScreen(payload));
+        }));
+        ClientPlayNetworking.registerGlobalReceiver(de.quest.network.VillageCheckPayload.ID,(payload,context) ->
+                context.client().execute(() -> {
+                    de.quest.client.hud.VillageCheckHighlights.receive(context.client(),payload);
+                    if(context.client().level!=null && context.client().level.dimension().identifier().toString().equals(payload.dimension())) {
+                        if(currentScreen(context.client()) instanceof de.quest.client.screen.VillageCheckScreen screen) screen.updateData(payload);
+                        else if(payload.initial() && !payload.markers().isEmpty()) context.client().setScreen(new de.quest.client.screen.VillageCheckScreen(payload));
+                    }
+                }));
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(de.quest.client.hud.VillageCheckHighlights::tick);
+        ClientPlayConnectionEvents.DISCONNECT.register((handler,client) -> de.quest.client.hud.VillageCheckHighlights.clear());
+        ClientPlayNetworking.registerGlobalReceiver(de.quest.network.NpcSpeechPayload.ID,(payload,context) ->
+                context.client().execute(() -> de.quest.client.hud.NpcSpeechHud.receive(payload)));
+        ClientPlayNetworking.registerGlobalReceiver(de.quest.network.MarketPayloads.View.ID,(payload,context) -> context.client().execute(() -> {
+            if(currentScreen(context.client()) instanceof de.quest.client.screen.MarketScreen screen && screen.session().equals(payload.session())) {
+                if(screen.updateData(payload) && !payload.active()) setScreen(context.client(),null);
+            }
+            else if(payload.initial() && payload.active() && !de.quest.client.screen.MarketScreen.wasClosed(payload.session()))
+                setScreen(context.client(),new de.quest.client.screen.MarketScreen(payload));
+        }));
+        ClientPlayConnectionEvents.DISCONNECT.register((handler,client) -> de.quest.client.screen.MarketScreen.disconnected());
+        ClientPlayNetworking.registerGlobalReceiver(de.quest.network.BuildingPayloads.View.ID, (payload, context) ->
+                context.client().execute(() -> {
+                    if (currentScreen(context.client()) instanceof de.quest.client.screen.BuildingScreen screen && screen.session().equals(payload.session())) screen.updateData(payload);
+                    else if (payload.open()) {
+                        var screen=new de.quest.client.screen.BuildingScreen(payload);
+                        setScreen(context.client(),screen);
+                    }
+                }));
+        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(de.quest.client.screen.BuildingScreen::tickHighlights);
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> de.quest.client.screen.BuildingScreen.clearHighlights());
+        ClientPlayNetworking.registerGlobalReceiver(de.quest.network.RewardPayloads.View.ID, (payload, context) ->
+                context.client().execute(() -> setScreen(context.client(), new de.quest.client.screen.VanillaRewardScreen(payload, currentScreen(context.client())))));
+        ClientPlayNetworking.registerGlobalReceiver(de.quest.network.UiTestTourPayload.ID, (payload, context) ->
+                context.client().execute(de.quest.client.screen.UiTestTour::start));
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> de.quest.client.screen.UiTestTour.disconnected());
+        ClientPlayNetworking.registerGlobalReceiver(de.quest.network.ReputationPayloads.ViewPayload.ID, (payload, context) -> context.client().execute(() -> {
+            if (currentScreen(context.client()) instanceof JournalScreen screen) screen.updateReputation(payload.view());
+            if (currentScreen(context.client()) instanceof CaravanMasterScreen screen) screen.updateReputation(payload.view());
+        }));
+        ClientPlayNetworking.registerGlobalReceiver(de.quest.network.ReputationPayloads.InteractionPayload.ID, (payload, context) -> context.client().execute(() -> {
+            var client = context.client();
+            if (currentScreen(client) instanceof de.quest.client.screen.ReparationScreen screen && screen.session().equals(payload.session())) screen.updateData(payload);
+            else setScreen(client, new de.quest.client.screen.ReparationScreen(payload, currentScreen(client)));
+        }));
+        ClientPlayNetworking.registerGlobalReceiver(de.quest.network.ReputationPayloads.ClosePayload.ID, (payload, context) -> context.client().execute(() -> {
+            if (currentScreen(context.client()) instanceof de.quest.client.screen.ReparationScreen screen && screen.session().equals(payload.session())) screen.closeFromServer();
+        }));
+        ClientPlayNetworking.registerGlobalReceiver(de.quest.network.ReputationPayloads.OpenFeedbackPayload.ID, (payload, context) -> context.client().execute(() -> {
+            if (currentScreen(context.client()) instanceof NoticeJourneyScreen screen) screen.showTrustFeedback(payload.reasonKey());
+            else if (context.client().player != null) context.client().getChatListener().handleSystemMessage(
+                    net.minecraft.network.chat.Component.translatable(payload.reasonKey()), true);
+        }));
 
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> client.execute(() -> {
+            if(ClientPlayNetworking.canSend(Payloads.ClientPreferencesPayload.ID) && !ClientPlayNetworking.canSend(de.quest.network.ExactVersionPayload.ID)) {
+                handler.getConnection().disconnect(de.quest.network.ExactVersionPayload.mismatch());
+                return;
+            }
             VillageQuestClientConfig config = VillageQuestClientConfig.get();
             if (ClientPlayNetworking.canSend(Payloads.ClientPreferencesPayload.ID)) {
                 ClientPlayNetworking.send(new Payloads.ClientPreferencesPayload(
@@ -38,26 +125,40 @@ public final class ClientQuestNetworking {
             if (config.minimapEnabledByDefault()
                     && ClientPlayNetworking.canSend(Payloads.TradeRouteActionPayload.ID)) {
                 ClientPlayNetworking.send(new Payloads.TradeRouteActionPayload(
-                        Payloads.TradeRouteActionPayload.ACTION_MINIMAP_TOGGLE, -1));
+                        Payloads.TradeRouteActionPayload.ACTION_MINIMAP_RESTORE, -1));
             }
         }));
+
+        ClientPlayNetworking.registerGlobalReceiver(de.quest.network.QuestTrackerPositionPayload.ID,(payload,context) ->
+                context.client().execute(() -> {
+                    boolean saved=VillageQuestClientConfig.get().setQuestTrackerSide(payload.right());
+                    String key=!saved?"command.village-quest.questtracker.position_failed"
+                            :payload.right()?"command.village-quest.questtracker.right":"command.village-quest.questtracker.left";
+                    if(context.client().player!=null) context.client().getChatListener().handleSystemMessage(
+                            net.minecraft.network.chat.Component.translatable(key),false);
+                }));
 
         ClientPlayNetworking.registerGlobalReceiver(Payloads.QuestFeedbackPayload.ID, (payload, context) -> {
             var client = context.client();
             client.execute(() -> playQuestFeedback(client, payload.tier()));
         });
 
+        ClientPlayNetworking.registerGlobalReceiver(de.quest.network.QuestSetupPayloads.View.ID, (payload, context) ->
+                context.client().execute(() -> {
+                    if (currentScreen(context.client()) instanceof de.quest.client.screen.QuestSetupScreen screen) screen.update(payload);
+                    else setScreen(context.client(), new de.quest.client.screen.QuestSetupScreen(payload));
+                }));
         ClientPlayNetworking.registerGlobalReceiver(Payloads.JournalPayload.ID, (payload, context) -> {
             var client = context.client();
             client.execute(() -> {
                 if (payload.action() == Payloads.JournalPayload.ACTION_CLOSE) {
-                    if (client.currentScreen instanceof JournalScreen) {
-                        client.setScreen(null);
+                    if (currentScreen(client) instanceof JournalScreen) {
+                        setScreen(client, null);
                     }
                     return;
                 }
 
-                JournalScreen.JournalData data = new JournalScreen.JournalData(
+                JournalScreenData data = new JournalScreenData(
                         payload.total(),
                         payload.discovered(),
                         payload.completed(),
@@ -95,15 +196,21 @@ public final class ClientQuestNetworking {
                         payload.hasMarketCharterProject(),
                         payload.hasPastureCharterProject(),
                         payload.hasWatchBellProject(),
-                        payload.hasCaravanYardProject()
+                        payload.hasCaravanYardProject(),
+                        payload.hasWayshrineNetworkProject(),
+                        payload.guildPathNodes(),
+                        payload.networkNextAction(),
+                        payload.networkSummary(),
+                        payload.networkVillages(),
+                        payload.networkGuildLines(), payload.activeQuests()
                 );
 
                 if (payload.action() == Payloads.JournalPayload.ACTION_OPEN) {
-                    client.setScreen(new JournalScreen(data));
+                    setScreen(client, new JournalScreen(data));
                     return;
                 }
 
-                if (client.currentScreen instanceof JournalScreen screen) {
+                if (currentScreen(client) instanceof JournalScreen screen) {
                     screen.updateData(data);
                 }
             });
@@ -111,37 +218,20 @@ public final class ClientQuestNetworking {
 
         ClientPlayNetworking.registerGlobalReceiver(Payloads.AdminJournalPayload.ID, (payload, context) -> {
             var client = context.client();
-            client.execute(() -> client.setScreen(new AdminJournalScreen(payload.lines())));
+            client.execute(() -> setScreen(client, new AdminJournalScreen(payload.lines())));
         });
 
         ClientPlayNetworking.registerGlobalReceiver(Payloads.QuestTrackerPayload.ID, (payload, context) -> {
             var client = context.client();
-            client.execute(() -> QuestTrackerHud.update(new QuestTrackerHud.TrackerState(
-                    payload.enabled(),
-                    payload.dailyActive(),
-                    payload.dailyTitle(),
-                    payload.dailyLines(),
-                    payload.weeklyActive(),
-                    payload.weeklyTitle(),
-                    payload.weeklyLines(),
-                    payload.storyActive(),
-                    payload.storyTitle(),
-                    payload.storyLines(),
-                    payload.pilgrimActive(),
-                    payload.pilgrimTitle(),
-                    payload.pilgrimLines(),
-                    payload.specialActive(),
-                    payload.specialTitle(),
-                    payload.specialLines()
-            )));
+            client.execute(() -> QuestTrackerHud.update(new QuestTrackerHud.TrackerState(payload.enabled(),payload.entries())));
         });
 
         ClientPlayNetworking.registerGlobalReceiver(Payloads.PilgrimTradePayload.ID, (payload, context) -> {
             var client = context.client();
             client.execute(() -> {
                 if (payload.action() == Payloads.PilgrimTradePayload.ACTION_CLOSE) {
-                    if (client.currentScreen instanceof PilgrimTradeScreen) {
-                        client.setScreen(null);
+                    if (currentScreen(client) instanceof PilgrimTradeScreen) {
+                        setScreen(client, null);
                     }
                     return;
                 }
@@ -182,16 +272,16 @@ public final class ClientQuestNetworking {
                 );
 
                 if (payload.action() == Payloads.PilgrimTradePayload.ACTION_OPEN) {
-                    client.setScreen(new PilgrimTradeScreen(data));
+                    setScreen(client, new PilgrimTradeScreen(data));
                     return;
                 }
 
-                if (client.currentScreen instanceof PilgrimTradeScreen screen) {
+                if (currentScreen(client) instanceof PilgrimTradeScreen screen) {
                     screen.updateData(data);
                     return;
                 }
 
-                client.setScreen(new PilgrimTradeScreen(data));
+                setScreen(client, new PilgrimTradeScreen(data));
             });
         });
 
@@ -199,14 +289,14 @@ public final class ClientQuestNetworking {
             var client = context.client();
             client.execute(() -> {
                 if (payload.action() == Payloads.EconomyPayload.ACTION_OPEN) {
-                    client.setScreen(new ProsperityScreen(payload));
+                    setScreen(client, new ProsperityScreen(payload));
                     return;
                 }
-                if (client.currentScreen instanceof ProsperityScreen screen) {
+                if (currentScreen(client) instanceof ProsperityScreen screen) {
                     screen.updateData(payload);
                     return;
                 }
-                client.setScreen(new ProsperityScreen(payload));
+                setScreen(client, new ProsperityScreen(payload));
             });
         });
 
@@ -214,11 +304,14 @@ public final class ClientQuestNetworking {
             var client = context.client();
             client.execute(() -> {
                 if (payload.action() == Payloads.QuestMasterPayload.ACTION_CLOSE) {
-                    if (client.currentScreen instanceof QuestMasterScreen) {
-                        client.setScreen(null);
+                    if (currentScreen(client) instanceof QuestMasterScreen) {
+                        setScreen(client, null);
                     }
                     return;
                 }
+
+                if (payload.action() == Payloads.QuestMasterPayload.ACTION_UPDATE
+                        && currentScreen(client) instanceof de.quest.client.screen.ReparationScreen) return;
 
                 List<QuestMasterScreen.CategoryView> categories = new ArrayList<>(payload.categories().size());
                 for (Payloads.QuestMasterCategoryData category : payload.categories()) {
@@ -288,16 +381,16 @@ public final class ClientQuestNetworking {
                 );
 
                 if (payload.action() == Payloads.QuestMasterPayload.ACTION_OPEN) {
-                    client.setScreen(new QuestMasterScreen(data));
+                    setScreen(client, new QuestMasterScreen(data));
                     return;
                 }
 
-                if (client.currentScreen instanceof QuestMasterScreen screen) {
+                if (currentScreen(client) instanceof QuestMasterScreen screen) {
                     screen.updateData(data);
                     return;
                 }
 
-                client.setScreen(new QuestMasterScreen(data));
+                setScreen(client, new QuestMasterScreen(data));
             });
         });
 
@@ -305,8 +398,8 @@ public final class ClientQuestNetworking {
             var client = context.client();
             client.execute(() -> {
                 if (payload.action() == Payloads.TradeRouteMapPayload.ACTION_CLOSE) {
-                    if (client.currentScreen instanceof TradeRouteMapScreen) {
-                        client.setScreen(null);
+                    if (currentScreen(client) instanceof TradeRouteMapScreen) {
+                        setScreen(client, null);
                     }
                     return;
                 }
@@ -323,17 +416,83 @@ public final class ClientQuestNetworking {
                     return;
                 }
                 if (payload.action() == Payloads.TradeRouteMapPayload.ACTION_OPEN) {
-                    client.setScreen(new TradeRouteMapScreen(payload));
+                    setScreen(client, new TradeRouteMapScreen(payload));
                     return;
                 }
-                if (client.currentScreen instanceof TradeRouteMapScreen screen) {
+                if (currentScreen(client) instanceof TradeRouteMapScreen screen) {
                     screen.updateData(payload);
+                }
+            });
+        });
+
+        ClientPlayNetworking.registerGlobalReceiver(VillageNetworkPayloads.WayshrinePayload.ID, (payload, context) -> {
+            var client = context.client();
+            client.execute(() -> {
+                if (currentScreen(client) instanceof WayshrineScreen screen) {
+                    screen.updateData(payload);
+                } else {
+                    setScreen(client, new WayshrineScreen(payload));
+                }
+            });
+        });
+
+        ClientPlayNetworking.registerGlobalReceiver(VillageNetworkPayloads.NoticeBoardPayload.ID, (payload, context) -> {
+            var client = context.client();
+            client.execute(() -> {
+                if (currentScreen(client) instanceof GuildNoticeBoardScreen screen) {
+                    screen.updateData(payload);
+                } else {
+                    setScreen(client, new GuildNoticeBoardScreen(payload));
+                }
+            });
+        });
+
+        ClientPlayNetworking.registerGlobalReceiver(VillageNetworkPayloads.NoticeJourneyPayload.ID, (payload, context) -> {
+            var client = context.client();
+            client.execute(() -> {
+                if (currentScreen(client) instanceof NoticeJourneyScreen screen) {
+                    screen.updateData(payload);
+                } else {
+                    setScreen(client, new NoticeJourneyScreen(payload));
+                }
+            });
+        });
+
+        ClientPlayNetworking.registerGlobalReceiver(VillageNetworkPayloads.RegionalDispatchPayload.ID, (payload, context) -> {
+            var client = context.client();
+            client.execute(() -> {
+                if (currentScreen(client) instanceof RegionalDispatchScreen screen) {
+                    screen.updateData(payload);
+                } else {
+                    setScreen(client, new RegionalDispatchScreen(payload));
+                }
+            });
+        });
+
+        ClientPlayNetworking.registerGlobalReceiver(VillageNetworkPayloads.CaravanMasterPayload.ID, (payload, context) -> {
+            var client = context.client();
+            client.execute(() -> {
+                if (currentScreen(client) instanceof CaravanMasterScreen screen) {
+                    screen.updateData(payload);
+                } else if (currentScreen(client) == null) {
+                    setScreen(client, new CaravanMasterScreen(payload));
+                }
+            });
+        });
+
+        ClientPlayNetworking.registerGlobalReceiver(Payloads.GuildPathPayload.ID, (payload, context) -> {
+            var client = context.client();
+            client.execute(() -> {
+                if (currentScreen(client) instanceof GuildPathScreen screen) {
+                    screen.updateData(payload);
+                } else {
+                    setScreen(client, new GuildPathScreen(payload));
                 }
             });
         });
     }
 
-    private static void playQuestFeedback(MinecraftClient client, int tier) {
+    private static void playQuestFeedback(net.minecraft.client.Minecraft client, int tier) {
         VillageQuestClientConfig config = VillageQuestClientConfig.get();
         if (client == null || !config.questProgressSounds() || config.questProgressSoundVolume() <= 0.0f) {
             return;
@@ -341,19 +500,19 @@ public final class ClientQuestNetworking {
         float volume = config.questProgressSoundVolume();
         switch (tier) {
             case Payloads.QuestFeedbackPayload.PROGRESS -> client.getSoundManager().play(
-                    PositionedSoundInstance.ui(SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, 1.45f, 0.12f * volume));
+                    SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.45f, 0.12f * volume));
             case Payloads.QuestFeedbackPayload.OBJECTIVE -> client.getSoundManager().play(
-                    PositionedSoundInstance.ui(SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, 1.35f, 0.24f * volume));
+                    SimpleSoundInstance.forUI(SoundEvents.AMETHYST_BLOCK_CHIME, 1.35f, 0.24f * volume));
             case Payloads.QuestFeedbackPayload.ACCEPTED -> client.getSoundManager().play(
-                    PositionedSoundInstance.ui(SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 0.24f * volume));
+                    SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0f, 0.24f * volume));
             case Payloads.QuestFeedbackPayload.STAGE -> {
                 client.getSoundManager().play(
-                        PositionedSoundInstance.ui(SoundEvents.BLOCK_AMETHYST_BLOCK_CHIME, 1.15f, 0.30f * volume));
+                        SimpleSoundInstance.forUI(SoundEvents.AMETHYST_BLOCK_CHIME, 1.15f, 0.30f * volume));
                 client.getSoundManager().play(
-                        PositionedSoundInstance.ui(SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, 1.80f, 0.16f * volume));
+                        SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.80f, 0.16f * volume));
             }
             case Payloads.QuestFeedbackPayload.AVAILABILITY -> client.getSoundManager().play(
-                    PositionedSoundInstance.ui(SoundEvents.ENTITY_VILLAGER_YES, 1.08f, 0.28f * volume));
+                    SimpleSoundInstance.forUI(SoundEvents.VILLAGER_YES, 1.08f, 0.28f * volume));
             default -> {
             }
         }

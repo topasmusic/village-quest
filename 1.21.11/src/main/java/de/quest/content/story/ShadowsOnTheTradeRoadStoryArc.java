@@ -11,15 +11,15 @@ import de.quest.quest.story.StoryQuestService;
 import de.quest.quest.story.VillageProjectService;
 import de.quest.quest.story.VillageProjectType;
 import de.quest.reputation.ReputationService;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.passive.VillagerEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.village.VillagerProfession;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.core.Holder;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+import net.minecraft.world.entity.npc.villager.VillagerProfession;
 
 import java.util.List;
 import java.util.UUID;
@@ -40,8 +40,8 @@ public final class ShadowsOnTheTradeRoadStoryArc implements StoryArcDefinition {
     }
 
     @Override
-    public Text title() {
-        return Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.title");
+    public Component title() {
+        return Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.title");
     }
 
     @Override
@@ -58,20 +58,20 @@ public final class ShadowsOnTheTradeRoadStoryArc implements StoryArcDefinition {
     }
 
     @Override
-    public boolean isUnlocked(ServerWorld world, UUID playerId) {
+    public boolean isUnlocked(ServerLevel world, UUID playerId) {
         return ShadowsTradeRoadEncounterService.hasUnlockPrerequisites(world, playerId);
     }
 
     @Override
-    public boolean shouldShowLockedEntry(ServerWorld world, UUID playerId) {
+    public boolean shouldShowLockedEntry(ServerLevel world, UUID playerId) {
         return world != null
                 && playerId != null
                 && VillageProjectService.isUnlocked(world, playerId, VillageProjectType.WATCH_BELL);
     }
 
     @Override
-    public Text lockedEntryBody(ServerWorld world, UUID playerId) {
-        return Text.translatable(
+    public Component lockedEntryBody(ServerLevel world, UUID playerId) {
+        return Component.translatable(
                 "screen.village-quest.questmaster.story.shadows_on_the_trade_road.locked",
                 ShadowsTradeRoadEncounterService.completedRumorCount(world, playerId),
                 ShadowsTradeRoadEncounterService.RUMOR_UNLOCK_TARGET
@@ -79,67 +79,99 @@ public final class ShadowsOnTheTradeRoadStoryArc implements StoryArcDefinition {
     }
 
     private abstract static class ShadowsChapter implements StoryChapterDefinition {
-        protected void addProgress(ServerWorld world, ServerPlayerEntity player, String key, int amount, int target) {
-            StoryQuestService.addQuestIntClamped(world, player.getUuid(), key, amount, target);
+        protected int peacefulChapter() { return 0; }
+
+        private boolean peaceful(ServerLevel world, UUID id) {
+            int saved = StoryQuestService.getQuestInt(world,id,StoryQuestKeys.SHADOWS_OBJECTIVE_MODE);
+            return (saved == 0 ? de.quest.quest.DifficultyObjectiveMode.forDifficulty(world.getDifficulty())
+                    : de.quest.quest.DifficultyObjectiveMode.fromSerializedId(saved)) == de.quest.quest.DifficultyObjectiveMode.PEACEFUL;
+        }
+
+        @Override
+        public List<Component> descriptionLines(ServerLevel world, UUID id) {
+            int chapter = peacefulChapter();
+            if (chapter == 0 || !peaceful(world,id)) return descriptionLines();
+            var lines = new java.util.ArrayList<Component>();
+            lines.add(Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.peaceful.description."+chapter));
+            if (chapter != 5) lines.add(Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.peaceful.escort_help",
+                    ShadowsTradeRoadEncounterService.PEACEFUL_SUPPLY_BREAD,
+                    chapter == 6 ? ShadowsTradeRoadEncounterService.PEACEFUL_FINAL_CHECKPOINTS
+                            : ShadowsTradeRoadEncounterService.PEACEFUL_ESCORT_CHECKPOINTS));
+            return List.copyOf(lines);
+        }
+
+        @Override
+        public StoryChapterCompletion buildCompletion(ServerLevel world, UUID id) {
+            var base = buildCompletion();
+            int chapter = peacefulChapter();
+            if (chapter == 0 || !peaceful(world,id)) return base;
+            String key = "quest.village-quest.story.shadows_on_the_trade_road.peaceful.complete."+chapter+".";
+            return new StoryChapterCompletion(base.title(),Component.translatable(key+"1"),Component.translatable(key+"2"),
+                    Component.translatable(key+"3"),base.currencyReward(),base.levels(),base.reputationTrack(),
+                    base.reputationAmount(),base.unlockedProject());
+        }
+
+        protected void addProgress(ServerLevel world, ServerPlayer player, String key, int amount, int target) {
+            StoryQuestService.addQuestIntClamped(world, player.getUUID(), key, amount, target);
             StoryQuestService.completeIfEligible(world, player);
         }
 
-        protected int progress(ServerWorld world, UUID playerId, String key) {
+        protected int progress(ServerLevel world, UUID playerId, String key) {
             return StoryQuestService.getQuestInt(world, playerId, key);
         }
 
         protected boolean isAdultVillager(Entity entity) {
-            return entity instanceof VillagerEntity villager && !villager.isBaby();
+            return entity instanceof Villager villager && !villager.isBaby();
         }
 
-        protected boolean isToolsmith(VillagerEntity villager) {
+        protected boolean isToolsmith(Villager villager) {
             if (villager == null) {
                 return false;
             }
-            RegistryEntry<VillagerProfession> profession = villager.getVillagerData().profession();
-            return profession.matchesKey(VillagerProfession.TOOLSMITH);
+            Holder<VillagerProfession> profession = villager.getVillagerData().profession();
+            return profession.is(VillagerProfession.TOOLSMITH);
         }
     }
 
     private static final class WhispersBetweenBellsChapter extends ShadowsChapter {
         @Override
-        public Text title() {
-            return Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_1.title");
+        public Component title() {
+            return Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_1.title");
         }
 
         @Override
-        public Text offerParagraph1() {
-            return Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_1.offer.1").formatted(Formatting.GRAY);
+        public Component offerParagraph1() {
+            return Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_1.offer.1").withStyle(ChatFormatting.GRAY);
         }
 
         @Override
-        public Text offerParagraph2() {
-            return Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_1.offer.2").formatted(Formatting.GRAY);
+        public Component offerParagraph2() {
+            return Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_1.offer.2").withStyle(ChatFormatting.GRAY);
         }
 
         @Override
-        public List<Text> progressLines(ServerWorld world, UUID playerId) {
+        public List<Component> progressLines(ServerLevel world, UUID playerId) {
             return List.of(
-                    Text.translatable(
+                    Component.translatable(
                             "quest.village-quest.story.shadows_on_the_trade_road.chapter_1.progress.1",
                             progress(world, playerId, StoryQuestKeys.SHADOWS_HOME_VILLAGERS),
                             ShadowsTradeRoadEncounterService.HOME_VILLAGER_TARGET
-                    ).formatted(Formatting.GRAY),
-                    Text.translatable(
+                    ).withStyle(ChatFormatting.GRAY),
+                    Component.translatable(
                             "quest.village-quest.story.shadows_on_the_trade_road.chapter_1.progress.2",
                             progress(world, playerId, StoryQuestKeys.SHADOWS_REMOTE_VILLAGES),
                             ShadowsTradeRoadEncounterService.REMOTE_VILLAGE_TARGET
-                    ).formatted(Formatting.GRAY),
-                    Text.translatable(
+                    ).withStyle(ChatFormatting.GRAY),
+                    Component.translatable(
                             "quest.village-quest.story.shadows_on_the_trade_road.chapter_1.progress.3",
                             ShadowsTradeRoadEncounterService.REMOTE_VILLAGER_TARGET
-                    ).formatted(Formatting.GRAY)
+                    ).withStyle(ChatFormatting.GRAY)
             );
         }
 
         @Override
-        public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
-            UUID playerId = player.getUuid();
+        public boolean isComplete(ServerLevel world, ServerPlayer player) {
+            UUID playerId = player.getUUID();
             return progress(world, playerId, StoryQuestKeys.SHADOWS_HOME_VILLAGERS) >= ShadowsTradeRoadEncounterService.HOME_VILLAGER_TARGET
                     && progress(world, playerId, StoryQuestKeys.SHADOWS_REMOTE_VILLAGES) >= ShadowsTradeRoadEncounterService.REMOTE_VILLAGE_TARGET;
         }
@@ -148,9 +180,9 @@ public final class ShadowsOnTheTradeRoadStoryArc implements StoryArcDefinition {
         public StoryChapterCompletion buildCompletion() {
             return new StoryChapterCompletion(
                     title(),
-                    Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_1.complete.1").formatted(Formatting.GRAY),
-                    Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_1.complete.2").formatted(Formatting.GRAY),
-                    Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_1.complete.3").formatted(Formatting.GRAY),
+                    Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_1.complete.1").withStyle(ChatFormatting.GRAY),
+                    Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_1.complete.2").withStyle(ChatFormatting.GRAY),
+                    Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_1.complete.3").withStyle(ChatFormatting.GRAY),
                     CurrencyService.CROWN,
                     10,
                     ReputationService.ReputationTrack.TRADE,
@@ -160,23 +192,23 @@ public final class ShadowsOnTheTradeRoadStoryArc implements StoryArcDefinition {
         }
 
         @Override
-        public void onEntityUse(ServerWorld world, ServerPlayerEntity player, Entity entity, ItemStack inHand) {
-            if (!(entity instanceof VillagerEntity villager) || villager.isBaby()) {
+        public void onEntityUse(ServerLevel world, ServerPlayer player, Entity entity, ItemStack inInteractionHand) {
+            if (!(entity instanceof Villager villager) || villager.isBaby()) {
                 return;
             }
-            ShadowsTradeRoadEncounterService.VillageMarker village = ShadowsTradeRoadEncounterService.currentVillage(world, player.getBlockPos());
+            ShadowsTradeRoadEncounterService.VillageMarker village = ShadowsTradeRoadEncounterService.currentVillage(world, player.blockPosition());
             if (village == null) {
-                player.sendMessage(Text.translatable("message.village-quest.story.shadows_on_the_trade_road.need_village").formatted(Formatting.GRAY), true);
+                player.sendSystemMessage(Component.translatable("message.village-quest.story.shadows_on_the_trade_road.need_village").withStyle(ChatFormatting.GRAY), true);
                 return;
             }
 
-            UUID playerId = player.getUuid();
+            UUID playerId = player.getUUID();
             if (!ShadowsTradeRoadEncounterService.hasHomeVillage(world, playerId)) {
                 ShadowsTradeRoadEncounterService.bindHomeVillage(world, playerId, village);
             }
 
             if (ShadowsTradeRoadEncounterService.isHomeVillage(world, playerId, village)) {
-                String villagerFlag = StoryQuestKeys.SHADOWS_HOME_VILLAGER_PREFIX + villager.getUuidAsString();
+                String villagerFlag = StoryQuestKeys.SHADOWS_HOME_VILLAGER_PREFIX + villager.getStringUUID();
                 if (StoryQuestService.hasStoryFlag(world, playerId, villagerFlag)) {
                     return;
                 }
@@ -186,7 +218,7 @@ public final class ShadowsOnTheTradeRoadStoryArc implements StoryArcDefinition {
                 return;
             }
 
-            String villagerFlag = StoryQuestKeys.SHADOWS_REMOTE_VILLAGER_PREFIX + village.key() + "_" + villager.getUuidAsString();
+            String villagerFlag = StoryQuestKeys.SHADOWS_REMOTE_VILLAGER_PREFIX + village.key() + "_" + villager.getStringUUID();
             if (StoryQuestService.hasStoryFlag(world, playerId, villagerFlag)) {
                 return;
             }
@@ -214,53 +246,53 @@ public final class ShadowsOnTheTradeRoadStoryArc implements StoryArcDefinition {
 
     private static final class NeedleForTheNightRoadChapter extends ShadowsChapter {
         @Override
-        public Text title() {
-            return Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_2.title");
+        public Component title() {
+            return Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_2.title");
         }
 
         @Override
-        public Text offerParagraph1() {
-            return Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_2.offer.1").formatted(Formatting.GRAY);
+        public Component offerParagraph1() {
+            return Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_2.offer.1").withStyle(ChatFormatting.GRAY);
         }
 
         @Override
-        public Text offerParagraph2() {
-            return Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_2.offer.2").formatted(Formatting.GRAY);
+        public Component offerParagraph2() {
+            return Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_2.offer.2").withStyle(ChatFormatting.GRAY);
         }
 
         @Override
-        public boolean canAccept(ServerWorld world, ServerPlayerEntity player) {
+        public boolean canAccept(ServerLevel world, ServerPlayer player) {
             return ShadowsTradeRoadEncounterService.hasCompass(player);
         }
 
         @Override
-        public Text acceptBlockedMessage(ServerWorld world, ServerPlayerEntity player) {
-            return Text.translatable("message.village-quest.story.shadows_on_the_trade_road.chapter_2.compass_required").formatted(Formatting.RED);
+        public Component acceptBlockedMessage(ServerLevel world, ServerPlayer player) {
+            return Component.translatable("message.village-quest.story.shadows_on_the_trade_road.chapter_2.compass_required").withStyle(ChatFormatting.RED);
         }
 
         @Override
-        public List<Text> progressLines(ServerWorld world, UUID playerId) {
+        public List<Component> progressLines(ServerLevel world, UUID playerId) {
             return List.of(
-                    Text.translatable(
+                    Component.translatable(
                             "quest.village-quest.story.shadows_on_the_trade_road.chapter_2.progress",
                             progress(world, playerId, StoryQuestKeys.SHADOWS_TOOLSMITH_CALIBRATED),
                             1
-                    ).formatted(Formatting.GRAY)
+                    ).withStyle(ChatFormatting.GRAY)
             );
         }
 
         @Override
-        public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
-            return progress(world, player.getUuid(), StoryQuestKeys.SHADOWS_TOOLSMITH_CALIBRATED) >= 1;
+        public boolean isComplete(ServerLevel world, ServerPlayer player) {
+            return progress(world, player.getUUID(), StoryQuestKeys.SHADOWS_TOOLSMITH_CALIBRATED) >= 1;
         }
 
         @Override
         public StoryChapterCompletion buildCompletion() {
             return new StoryChapterCompletion(
                     title(),
-                    Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_2.complete.1").formatted(Formatting.GRAY),
-                    Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_2.complete.2").formatted(Formatting.GRAY),
-                    Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_2.complete.3").formatted(Formatting.GRAY),
+                    Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_2.complete.1").withStyle(ChatFormatting.GRAY),
+                    Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_2.complete.2").withStyle(ChatFormatting.GRAY),
+                    Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_2.complete.3").withStyle(ChatFormatting.GRAY),
                     CurrencyService.CROWN + (CurrencyService.SILVERMARK * 6L),
                     12,
                     ReputationService.ReputationTrack.CRAFTING,
@@ -270,63 +302,64 @@ public final class ShadowsOnTheTradeRoadStoryArc implements StoryArcDefinition {
         }
 
         @Override
-        public void onEntityUse(ServerWorld world, ServerPlayerEntity player, Entity entity, ItemStack inHand) {
-            if (!(entity instanceof VillagerEntity villager) || !isToolsmith(villager)) {
+        public void onEntityUse(ServerLevel world, ServerPlayer player, Entity entity, ItemStack inInteractionHand) {
+            if (!(entity instanceof Villager villager) || !isToolsmith(villager)) {
                 return;
             }
             if (!ShadowsTradeRoadEncounterService.hasCompass(player)) {
-                player.sendMessage(acceptBlockedMessage(world, player), false);
+                player.sendSystemMessage(acceptBlockedMessage(world, player), false);
                 return;
             }
-            VillagerDialogueService.sendDialogue(player, villager, Text.translatable("message.village-quest.story.shadows_on_the_trade_road.toolsmith"));
-            StoryQuestService.setQuestInt(world, player.getUuid(), StoryQuestKeys.SHADOWS_TOOLSMITH_CALIBRATED, 1);
+            VillagerDialogueService.sendDialogue(player, villager, Component.translatable("message.village-quest.story.shadows_on_the_trade_road.toolsmith"));
+            StoryQuestService.setQuestInt(world, player.getUUID(), StoryQuestKeys.SHADOWS_TOOLSMITH_CALIBRATED, 1);
             StoryQuestService.completeIfEligible(world, player);
         }
     }
 
     private static final class FirstSignalChapter extends ShadowsChapter {
+        @Override protected int peacefulChapter() { return 3; }
         @Override
-        public Text title() {
-            return Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_3.title");
+        public Component title() {
+            return Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_3.title");
         }
 
         @Override
-        public Text offerParagraph1() {
-            return Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_3.offer.1").formatted(Formatting.GRAY);
+        public Component offerParagraph1() {
+            return Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_3.offer.1").withStyle(ChatFormatting.GRAY);
         }
 
         @Override
-        public Text offerParagraph2() {
-            return Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_3.offer.2").formatted(Formatting.GRAY);
+        public Component offerParagraph2() {
+            return de.quest.quest.QuestRuleText.translate("quest.village-quest.story.shadows_on_the_trade_road.chapter_3.offer.2").withStyle(ChatFormatting.GRAY);
         }
 
         @Override
-        public void onAccepted(ServerWorld world, ServerPlayerEntity player) {
+        public void onAccepted(ServerLevel world, ServerPlayer player) {
             ShadowsTradeRoadEncounterService.onFirstSignalAccepted(world, player);
         }
 
         @Override
-        public void onServerTick(ServerWorld world, ServerPlayerEntity player) {
+        public void onServerTick(ServerLevel world, ServerPlayer player) {
             StoryQuestService.completeIfEligible(world, player);
         }
 
         @Override
-        public List<Text> progressLines(ServerWorld world, UUID playerId) {
+        public List<Component> progressLines(ServerLevel world, UUID playerId) {
             return ShadowsTradeRoadEncounterService.rescueProgressLines(world, playerId, StoryQuestKeys.SHADOWS_FIRST_SIGNAL_WINS, 1, false);
         }
 
         @Override
-        public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
-            return progress(world, player.getUuid(), StoryQuestKeys.SHADOWS_FIRST_SIGNAL_WINS) >= 1;
+        public boolean isComplete(ServerLevel world, ServerPlayer player) {
+            return progress(world, player.getUUID(), StoryQuestKeys.SHADOWS_FIRST_SIGNAL_WINS) >= 1;
         }
 
         @Override
         public StoryChapterCompletion buildCompletion() {
             return new StoryChapterCompletion(
                     title(),
-                    Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_3.complete.1").formatted(Formatting.GRAY),
-                    Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_3.complete.2").formatted(Formatting.GRAY),
-                    Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_3.complete.3").formatted(Formatting.GRAY),
+                    Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_3.complete.1").withStyle(ChatFormatting.GRAY),
+                    Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_3.complete.2").withStyle(ChatFormatting.GRAY),
+                    Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_3.complete.3").withStyle(ChatFormatting.GRAY),
                     CurrencyService.CROWN + (CurrencyService.SILVERMARK * 8L),
                     14,
                     ReputationService.ReputationTrack.MONSTER_HUNTING,
@@ -337,48 +370,49 @@ public final class ShadowsOnTheTradeRoadStoryArc implements StoryArcDefinition {
     }
 
     private static final class HoldingTheVergeChapter extends ShadowsChapter {
+        @Override protected int peacefulChapter() { return 4; }
         @Override
-        public Text title() {
-            return Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_4.title");
+        public Component title() {
+            return Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_4.title");
         }
 
         @Override
-        public Text offerParagraph1() {
-            return Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_4.offer.1").formatted(Formatting.GRAY);
+        public Component offerParagraph1() {
+            return Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_4.offer.1").withStyle(ChatFormatting.GRAY);
         }
 
         @Override
-        public Text offerParagraph2() {
-            return Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_4.offer.2").formatted(Formatting.GRAY);
+        public Component offerParagraph2() {
+            return de.quest.quest.QuestRuleText.translate("quest.village-quest.story.shadows_on_the_trade_road.chapter_4.offer.2").withStyle(ChatFormatting.GRAY);
         }
 
         @Override
-        public void onAccepted(ServerWorld world, ServerPlayerEntity player) {
+        public void onAccepted(ServerLevel world, ServerPlayer player) {
             ShadowsTradeRoadEncounterService.onHoldingAccepted(world, player);
         }
 
         @Override
-        public void onServerTick(ServerWorld world, ServerPlayerEntity player) {
+        public void onServerTick(ServerLevel world, ServerPlayer player) {
             StoryQuestService.completeIfEligible(world, player);
         }
 
         @Override
-        public List<Text> progressLines(ServerWorld world, UUID playerId) {
+        public List<Component> progressLines(ServerLevel world, UUID playerId) {
             return ShadowsTradeRoadEncounterService.rescueProgressLines(world, playerId, StoryQuestKeys.SHADOWS_HOLDING_WINS, ShadowsTradeRoadEncounterService.HOLDING_TARGET_WINS, false);
         }
 
         @Override
-        public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
-            return progress(world, player.getUuid(), StoryQuestKeys.SHADOWS_HOLDING_WINS) >= ShadowsTradeRoadEncounterService.HOLDING_TARGET_WINS;
+        public boolean isComplete(ServerLevel world, ServerPlayer player) {
+            return progress(world, player.getUUID(), StoryQuestKeys.SHADOWS_HOLDING_WINS) >= ShadowsTradeRoadEncounterService.HOLDING_TARGET_WINS;
         }
 
         @Override
         public StoryChapterCompletion buildCompletion() {
             return new StoryChapterCompletion(
                     title(),
-                    Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_4.complete.1").formatted(Formatting.GRAY),
-                    Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_4.complete.2").formatted(Formatting.GRAY),
-                    Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_4.complete.3").formatted(Formatting.GRAY),
+                    Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_4.complete.1").withStyle(ChatFormatting.GRAY),
+                    Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_4.complete.2").withStyle(ChatFormatting.GRAY),
+                    Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_4.complete.3").withStyle(ChatFormatting.GRAY),
                     CurrencyService.CROWN * 2L,
                     18,
                     ReputationService.ReputationTrack.MONSTER_HUNTING,
@@ -389,56 +423,57 @@ public final class ShadowsOnTheTradeRoadStoryArc implements StoryArcDefinition {
     }
 
     private static final class LetterForTheGuildChapter extends ShadowsChapter {
+        @Override protected int peacefulChapter() { return 5; }
         @Override
-        public Text title() {
-            return Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_5.title");
+        public Component title() {
+            return Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_5.title");
         }
 
         @Override
-        public Text offerParagraph1() {
-            return Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_5.offer.1").formatted(Formatting.GRAY);
+        public Component offerParagraph1() {
+            return Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_5.offer.1").withStyle(ChatFormatting.GRAY);
         }
 
         @Override
-        public Text offerParagraph2() {
-            return Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_5.offer.2").formatted(Formatting.GRAY);
+        public Component offerParagraph2() {
+            return Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_5.offer.2").withStyle(ChatFormatting.GRAY);
         }
 
         @Override
-        public void onAccepted(ServerWorld world, ServerPlayerEntity player) {
+        public void onAccepted(ServerLevel world, ServerPlayer player) {
             ShadowsTradeRoadEncounterService.onLetterAccepted(world, player);
         }
 
         @Override
-        public List<Text> progressLines(ServerWorld world, UUID playerId) {
+        public List<Component> progressLines(ServerLevel world, UUID playerId) {
             return ShadowsTradeRoadEncounterService.letterProgressLines(world, playerId);
         }
 
         @Override
-        public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
-            return progress(world, player.getUuid(), StoryQuestKeys.SHADOWS_LETTER_RECEIVED) >= 1
+        public boolean isComplete(ServerLevel world, ServerPlayer player) {
+            return progress(world, player.getUUID(), StoryQuestKeys.SHADOWS_LETTER_RECEIVED) >= 1
                     && ShadowsTradeRoadEncounterService.hasGuildWarningLetter(player);
         }
 
         @Override
-        public boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) {
+        public boolean consumeCompletionRequirements(ServerLevel world, ServerPlayer player) {
             return isComplete(world, player) && ShadowsTradeRoadEncounterService.consumeGuildWarningLetter(player);
         }
 
         @Override
-        public Text claimBlockedMessage(ServerWorld world, ServerPlayerEntity player) {
+        public Component claimBlockedMessage(ServerLevel world, ServerPlayer player) {
             return ShadowsTradeRoadEncounterService.hasGuildWarningLetter(player)
                     ? null
-                    : Text.translatable("message.village-quest.story.shadows_on_the_trade_road.chapter_5.letter_missing").formatted(Formatting.RED);
+                    : Component.translatable("message.village-quest.story.shadows_on_the_trade_road.chapter_5.letter_missing").withStyle(ChatFormatting.RED);
         }
 
         @Override
         public StoryChapterCompletion buildCompletion() {
             return new StoryChapterCompletion(
                     title(),
-                    Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_5.complete.1").formatted(Formatting.GRAY),
-                    Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_5.complete.2").formatted(Formatting.GRAY),
-                    Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_5.complete.3").formatted(Formatting.GRAY),
+                    Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_5.complete.1").withStyle(ChatFormatting.GRAY),
+                    Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_5.complete.2").withStyle(ChatFormatting.GRAY),
+                    Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_5.complete.3").withStyle(ChatFormatting.GRAY),
                     CurrencyService.CROWN + (CurrencyService.SILVERMARK * 6L),
                     12,
                     ReputationService.ReputationTrack.TRADE,
@@ -448,55 +483,56 @@ public final class ShadowsOnTheTradeRoadStoryArc implements StoryArcDefinition {
         }
 
         @Override
-        public void onEntityUse(ServerWorld world, ServerPlayerEntity player, Entity entity, ItemStack inHand) {
+        public void onEntityUse(ServerLevel world, ServerPlayer player, Entity entity, ItemStack inInteractionHand) {
             ShadowsTradeRoadEncounterService.handleCourierInteraction(world, player, entity);
             StoryQuestService.completeIfEligible(world, player);
         }
     }
 
     private static final class BellOverTheTradeRoadChapter extends ShadowsChapter {
+        @Override protected int peacefulChapter() { return 6; }
         @Override
-        public Text title() {
-            return Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_6.title");
+        public Component title() {
+            return Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_6.title");
         }
 
         @Override
-        public Text offerParagraph1() {
-            return Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_6.offer.1").formatted(Formatting.GRAY);
+        public Component offerParagraph1() {
+            return Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_6.offer.1").withStyle(ChatFormatting.GRAY);
         }
 
         @Override
-        public Text offerParagraph2() {
-            return Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_6.offer.2").formatted(Formatting.GRAY);
+        public Component offerParagraph2() {
+            return de.quest.quest.QuestRuleText.translate("quest.village-quest.story.shadows_on_the_trade_road.chapter_6.offer.2").withStyle(ChatFormatting.GRAY);
         }
 
         @Override
-        public void onAccepted(ServerWorld world, ServerPlayerEntity player) {
+        public void onAccepted(ServerLevel world, ServerPlayer player) {
             ShadowsTradeRoadEncounterService.onFinalAccepted(world, player);
         }
 
         @Override
-        public void onServerTick(ServerWorld world, ServerPlayerEntity player) {
+        public void onServerTick(ServerLevel world, ServerPlayer player) {
             StoryQuestService.completeIfEligible(world, player);
         }
 
         @Override
-        public List<Text> progressLines(ServerWorld world, UUID playerId) {
+        public List<Component> progressLines(ServerLevel world, UUID playerId) {
             return ShadowsTradeRoadEncounterService.rescueProgressLines(world, playerId, StoryQuestKeys.SHADOWS_FINAL_WON, 1, true);
         }
 
         @Override
-        public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
-            return progress(world, player.getUuid(), StoryQuestKeys.SHADOWS_FINAL_WON) >= 1;
+        public boolean isComplete(ServerLevel world, ServerPlayer player) {
+            return progress(world, player.getUUID(), StoryQuestKeys.SHADOWS_FINAL_WON) >= 1;
         }
 
         @Override
         public StoryChapterCompletion buildCompletion() {
             return new StoryChapterCompletion(
                     title(),
-                    Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_6.complete.1").formatted(Formatting.GRAY),
-                    Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_6.complete.2").formatted(Formatting.GRAY),
-                    Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_6.complete.3").formatted(Formatting.GRAY),
+                    Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_6.complete.1").withStyle(ChatFormatting.GRAY),
+                    Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_6.complete.2").withStyle(ChatFormatting.GRAY),
+                    Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_6.complete.3").withStyle(ChatFormatting.GRAY),
                     CurrencyService.CROWN * 3L,
                     24,
                     ReputationService.ReputationTrack.MONSTER_HUNTING,

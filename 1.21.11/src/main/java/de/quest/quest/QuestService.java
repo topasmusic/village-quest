@@ -1,16 +1,18 @@
 package de.quest.quest;
 
-import de.quest.content.item.PeaceArmorHandler;
+import de.quest.archive.GuildArchiveService;
 import de.quest.config.ClientPreferenceService;
 import de.quest.caravan.TradeRouteService;
 import de.quest.content.story.ShadowsTradeRoadEncounterService;
 import de.quest.content.story.EmptyCaravanStoryService;
+import de.quest.content.story.ShrinesBetweenRoadsStoryArc;
 import de.quest.data.QuestState;
 import de.quest.party.QuestPartyService;
 import de.quest.painting.PaintingNameService;
 import de.quest.pilgrim.PilgrimContractService;
 import de.quest.pilgrim.PilgrimService;
 import de.quest.quest.daily.DailyQuestService;
+import de.quest.quest.daily.FirstDailyChoiceService;
 import de.quest.quest.special.MerchantSealQuestService;
 import de.quest.quest.special.SpecialQuestService;
 import de.quest.quest.special.SurveyorCompassQuestService;
@@ -18,8 +20,11 @@ import de.quest.quest.story.StoryQuestService;
 import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.questmaster.QuestMasterUiService;
 import de.quest.reputation.ReputationService;
+import de.quest.recipe.VillageQuestRecipeBookService;
+import de.quest.village.GuildCornerPlacementService;
+import de.quest.guildtown.GuildTownService;
+import de.quest.guild.VillageGuildState;
 import net.fabricmc.fabric.api.entity.event.v1.ServerEntityCombatEvents;
-import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -27,82 +32,114 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.ActionResult;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionResult;
 
 public final class QuestService {
     private QuestService() {}
 
     public static void registerEvents() {
+        de.quest.caravan.CaravanCrewLifecycle.activate();
+        de.quest.reputation.ReputationDamageAdapter.activate(TradeRouteService::socialVictim);
+        net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> {
+            if (entity.level() instanceof ServerLevel world) {
+                EncounterEntityLifecycle.onDeath(entity);
+                TradeRouteService.onCaravanDeath(world, entity);
+            }
+        });
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             resetTransientRuntimeState();
-            TradeRouteService.despawnAll(server.getOverworld());
-            EmptyCaravanStoryService.despawnAll(server.getOverworld());
+            ShadowsTradeRoadEncounterService.despawnAll(server.overworld());
+            TradeRouteService.despawnAll(server.overworld());
+            EmptyCaravanStoryService.despawnAll(server.overworld());
             QuestState.get(server).applyToRuntime();
+            de.quest.quest.special.LutteCoastalQuest.prime(server.overworld());
+            de.quest.config.QuestSetupService.start(server);
+            de.quest.util.QuestCalendarService.start(server);
+            de.quest.reputation.ProtectedVillageIndex.primeHistorical(server);
+            de.quest.caravan.GuildConvoyService.reconcileTrust(server);
+            de.quest.reputation.ResettlementSupportService.reconcile(server);
             QuestPartyService.loadPersistentState(server);
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
-            TradeRouteService.despawnAll(server.getOverworld());
-            EmptyCaravanStoryService.despawnAll(server.getOverworld());
+            ShadowsTradeRoadEncounterService.despawnAll(server.overworld());
+            TradeRouteService.despawnAll(server.overworld());
+            EmptyCaravanStoryService.despawnAll(server.overworld());
             QuestPartyService.persistRuntimeState(server);
             QuestState state = QuestState.get(server);
             state.updateFromRuntime();
-            server.getOverworld().getPersistentStateManager().save();
+            server.overworld().getDataStorage().saveAndJoin();
             resetTransientRuntimeState();
+            PaintingNameService.clear();
         });
 
+        ServerTickEvents.END_SERVER_TICK.register(server -> de.quest.util.QuestCalendarService.currentDay());
         ServerTickEvents.END_SERVER_TICK.register(QuestPartyService::onServerTick);
+        ServerTickEvents.END_SERVER_TICK.register(server -> QuestState.get(server).advanceSocialServerTick());
         ServerTickEvents.END_SERVER_TICK.register(QuestDropTracker::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(QuestHarvestTracker::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(DailyQuestService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(WeeklyQuestService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(StoryQuestService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(QuestAvailabilityNotifier::onServerTick);
+        ServerTickEvents.END_SERVER_TICK.register(QuestMasterUiService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(TradeRouteService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(SpecialQuestService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(PilgrimContractService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(PaintingNameService::onServerTick);
+        ServerTickEvents.END_SERVER_TICK.register(de.quest.reputation.ReputationDamageAdapter::onServerTick);
+        ServerTickEvents.END_SERVER_TICK.register(de.quest.reputation.ReparationService::onServerTick);
+        ServerTickEvents.END_SERVER_TICK.register(de.quest.reputation.ReputationInteractionService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(QuestBookHelper::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(QuestTrackerService::onServerTick);
         ServerTickEvents.END_SERVER_TICK.register(PilgrimService::onServerTick);
+        ServerTickEvents.END_SERVER_TICK.register(VillageQuestRecipeBookService::onServerTick);
+        ServerTickEvents.END_SERVER_TICK.register(GuildArchiveService::onServerTick);
+        ServerTickEvents.END_SERVER_TICK.register(GuildCornerPlacementService::onServerTick);
+        ServerTickEvents.END_SERVER_TICK.register(GuildTownService::onServerTick);
+        ServerTickEvents.END_SERVER_TICK.register(VillageGuildState::onServerTick);
 
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
                 server.execute(() -> {
+                    if (!de.quest.network.ProgressionProtocol.require(handler.player)) return;
+                    if (!de.quest.shrine.VillageIntroRequestService.recoverBeforeActions(handler.player)) return;
+                    QuestState state = QuestState.get(server);
+                    if (FirstDailyChoiceService.migratePre24Progress(
+                            state.getPlayerData(handler.player.getUUID()))) {
+                        state.setDirty();
+                    }
                     QuestPartyService.handleJoin(handler.player);
-                    TradeRouteService.backfillUnlockedLedger(server.getOverworld(), handler.player);
-                    ReputationService.backfillRoadwardenHorn(server.getOverworld(), handler.player);
+                    QuestAvailabilityNotifier.handleJoin(handler.player);
+                    TradeRouteService.backfillUnlockedLedger(server.overworld(), handler.player);
+                    de.quest.caravan.TradeGuildService.deliverPendingRefund(server.overworld(), handler.player);
+                    ReputationService.backfillRoadwardenHorn(server.overworld(), handler.player);
+                    GuildArchiveService.migrateInventoryOnJoin(server.overworld(), handler.player);
+                    VillageQuestRecipeBookService.unlockEligibleRecipes(handler.player);
                 }));
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) ->
                 server.execute(() -> handleDisconnect(handler.player)));
 
-        ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
-            if (entity instanceof net.minecraft.server.network.ServerPlayerEntity player) {
-                if (PeaceArmorHandler.tryNegateAttack(player, source.getAttacker())) {
-                    return false;
-                }
-            }
-            return true;
-        });
-
         UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
-            if (world instanceof ServerWorld sw && player instanceof net.minecraft.server.network.ServerPlayerEntity sp) {
-                ActionResult specialResult = SpecialQuestService.onUseBlock(sw, sp, hit.getBlockPos());
-                if (specialResult != ActionResult.PASS) {
+            if (world instanceof ServerLevel sw && player instanceof net.minecraft.server.level.ServerPlayer sp) {
+                InteractionResult specialResult = SpecialQuestService.onUseBlock(sw, sp, hit.getBlockPos());
+                if (specialResult != InteractionResult.PASS) {
                     return specialResult;
                 }
                 var pos = hit.getBlockPos();
                 var state = world.getBlockState(pos);
-                var stack = player.getStackInHand(hand);
+                var stack = player.getItemInHand(hand);
                 QuestHarvestTracker.onUseBlock(sw, sp, pos, state);
                 StoryQuestService.onUseBlock(sw, sp, pos, state, stack);
             }
-            return ActionResult.PASS;
+            return InteractionResult.PASS;
         });
 
         PlayerBlockBreakEvents.BEFORE.register((world, player, pos, state, blockEntity) -> {
-            if (world instanceof ServerWorld sw && player instanceof net.minecraft.server.network.ServerPlayerEntity sp) {
-                boolean allowed = SpecialQuestService.allowBlockBreak(sw, sp, pos);
+            if (world instanceof ServerLevel sw && player instanceof net.minecraft.server.level.ServerPlayer sp) {
+                boolean allowed = de.quest.shrine.VillageBondService.canBreakWayshrine(sw, sp, pos, state)
+                        && ShrinesBetweenRoadsStoryArc.canBreakActiveRuinMilestone(sw, sp, pos, state)
+                        && SpecialQuestService.allowBlockBreak(sw, sp, pos);
                 if (allowed) {
                     QuestHarvestTracker.onBlockBreakStart(sw, sp, pos, state);
                     QuestDropTracker.onBlockBreakStart(sw, sp, pos, state, blockEntity);
@@ -113,14 +150,15 @@ public final class QuestService {
         });
 
         PlayerBlockBreakEvents.CANCELED.register((world, player, pos, state, blockEntity) -> {
-            if (world instanceof ServerWorld sw && player instanceof net.minecraft.server.network.ServerPlayerEntity sp) {
+            if (world instanceof ServerLevel sw && player instanceof net.minecraft.server.level.ServerPlayer sp) {
                 QuestHarvestTracker.onBlockBreakCanceled(sw, sp, pos);
                 QuestDropTracker.onBlockBreakCanceled(sw, sp, pos);
             }
         });
 
         PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, blockEntity) -> {
-            if (world instanceof ServerWorld sw && player instanceof net.minecraft.server.network.ServerPlayerEntity sp) {
+            if (world instanceof ServerLevel sw && player instanceof net.minecraft.server.level.ServerPlayer sp) {
+                QuestState.get(sw.getServer()).markTerrainModified(sw,pos);
                 DailyQuestService.onBlockBreak(sw, sp, pos, state);
                 StoryQuestService.onBlockBreak(sw, sp, pos, state);
                 SpecialQuestService.onBlockBreak(sw, sp, pos, state);
@@ -129,65 +167,103 @@ public final class QuestService {
             }
         });
 
+        ServerEntityEvents.ENTITY_LOAD.register(EncounterEntityLifecycle::onLoad);
+        ServerEntityEvents.ENTITY_UNLOAD.register(EncounterEntityLifecycle::onUnload);
         ServerEntityEvents.ENTITY_LOAD.register(QuestDropTracker::onEntityLoad);
+        ServerEntityEvents.ENTITY_LOAD.register(PaintingNameService::onEntityLoad);
+        ServerEntityEvents.ENTITY_UNLOAD.register(PaintingNameService::onEntityUnload);
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents.CHUNK_LOAD.register((world, chunk) -> {
+                de.quest.reputation.ProtectedVillageIndex.onChunkLoad(world, chunk);
+                de.quest.quest.special.LutteCoastalQuest.chunkLoaded(world,chunk);
+        });
 
         UseEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
-            if (world instanceof ServerWorld sw && player instanceof net.minecraft.server.network.ServerPlayerEntity sp) {
-                var stack = player.getStackInHand(hand);
-                ActionResult specialResult = SpecialQuestService.onUseEntity(sw, sp, hand, entity, stack);
-                if (specialResult != ActionResult.PASS) {
+            // Preserve Vanilla interactions, but never turn a baby into a quest contact or speaker.
+            if (entity instanceof net.minecraft.world.entity.npc.villager.Villager villager && villager.isBaby())
+                return InteractionResult.PASS;
+            if (world instanceof ServerLevel sw && player instanceof net.minecraft.server.level.ServerPlayer sp) {
+                var stack = player.getItemInHand(hand);
+                if (hand == net.minecraft.world.InteractionHand.MAIN_HAND && entity instanceof net.minecraft.world.entity.npc.villager.Villager
+                        && entity.isAlive() && sp.hasLineOfSight(entity) && sp.distanceToSqr(entity)<=64 && !sp.isSpectator())
+                    de.quest.quest.special.FriendsQuestService.villagerContact(sw,sp,entity.blockPosition());
+
+                InteractionResult specialResult = SpecialQuestService.onUseEntity(sw, sp, hand, entity, stack);
+                if (specialResult != InteractionResult.PASS) {
                     return specialResult;
                 }
                 QuestDropTracker.onEntityUse(sw, sp, entity, stack);
-                ActionResult routeResult = TradeRouteService.onEntityUse(sw, sp, entity);
-                if (routeResult != ActionResult.PASS) {
+                InteractionResult routeResult = TradeRouteService.onEntityUse(sw, sp, entity);
+                if (routeResult != InteractionResult.PASS) {
                     return routeResult;
                 }
                 DailyQuestService.onEntityUse(sw, sp, entity, stack);
                 StoryQuestService.onEntityUse(sw, sp, entity, stack);
                 PilgrimContractService.onEntityUse(sw, sp, entity, stack);
+                de.quest.guildtown.GuildTownService.onUseEntity(sw, sp, entity, stack);
+                if (entity instanceof net.minecraft.world.entity.npc.villager.Villager villager) {
+                    de.quest.shrine.VillageWelcomeService.onVillagerContact(sw, sp, villager);
+                    de.quest.shrine.VillageBondService.onVillagerContact(sw, sp, villager);
+                }
             }
-            return ActionResult.PASS;
+            return InteractionResult.PASS;
         });
 
         ServerEntityCombatEvents.AFTER_KILLED_OTHER_ENTITY.register((world, entity, killedEntity, damageSource) -> {
-            if (world instanceof ServerWorld sw && entity instanceof net.minecraft.server.network.ServerPlayerEntity sp) {
+            if (world instanceof ServerLevel sw && entity instanceof net.minecraft.server.level.ServerPlayer sp) {
                 QuestDropTracker.onKilledOtherEntity(sw, sp, killedEntity);
+                de.quest.quest.special.MariusQuestService.killed(sw,sp,killedEntity);
                 DailyQuestService.onMonsterKill(sw, sp, killedEntity);
                 StoryQuestService.onMonsterKill(sw, sp, killedEntity);
                 TradeRouteService.onMonsterKill(sw, sp, killedEntity);
-                SpecialQuestService.onMonsterKill(sw, sp, killedEntity);
                 PilgrimContractService.onMonsterKill(sw, sp, killedEntity);
             }
         });
     }
 
-    private static void handleDisconnect(ServerPlayerEntity player) {
+    private static void handleDisconnect(ServerPlayer player) {
+        de.quest.kingdom.ArtifactJourneyService.disconnected(player.getUUID());
         if (player == null) {
             return;
         }
-        var playerId = player.getUuid();
+        var playerId = player.getUUID();
+        QuestAvailabilityNotifier.handleDisconnect(playerId);
         QuestBookHelper.handleDisconnect(playerId);
+        de.quest.config.QuestSetupService.disconnect(playerId);
         QuestTrackerService.handleDisconnect(playerId);
         QuestMasterUiService.handleDisconnect(player);
         MerchantSealQuestService.handleDisconnect(playerId);
         SurveyorCompassQuestService.handleDisconnect(playerId);
         TradeRouteService.handleDisconnect(playerId);
         ClientPreferenceService.handleDisconnect(playerId);
+        GuildCornerPlacementService.handleDisconnect(playerId);
+        GuildTownService.handleDisconnect((ServerLevel) player.level(), playerId);
+        QuestSoundFeedback.handleDisconnect(playerId);
         QuestPartyService.handleDisconnect(player);
     }
 
     private static void resetTransientRuntimeState() {
+        de.quest.util.QuestCalendarService.stop();
+        de.quest.config.QuestSetupService.stop();
+        de.quest.kingdom.ArtifactJourneyService.reset();
         QuestDropTracker.clear();
         QuestHarvestTracker.clear();
+        QuestSoundFeedback.resetRuntimeState();
+        QuestAvailabilityNotifier.resetRuntimeState();
         QuestBookHelper.resetAllSessions();
         QuestTrackerService.resetAllRuntimeState();
         QuestMasterUiService.resetAllSessions();
         MerchantSealQuestService.resetRuntimeState();
+        EncounterEntityLifecycle.reset();
         SurveyorCompassQuestService.resetRuntimeState();
         ShadowsTradeRoadEncounterService.resetRuntimeState();
         EmptyCaravanStoryService.resetRuntimeState();
         TradeRouteService.resetRuntimeState();
+        GuildArchiveService.resetTransientState();
         ClientPreferenceService.reset();
+        GuildCornerPlacementService.resetRuntimeState();
+        de.quest.caravan.VillageLifeService.resetRuntimeState();
+        de.quest.caravan.CaravanProtectionService.resetRuntime();
+        de.quest.reputation.ReputationDamageAdapter.resetRuntime();
+        de.quest.reputation.ReputationInteractionService.resetRuntime();
     }
 }

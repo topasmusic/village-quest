@@ -6,7 +6,9 @@ import de.quest.quest.special.RelicQuestStage;
 import de.quest.quest.special.ShardRelicQuestStage;
 import de.quest.quest.special.SpecialQuestKind;
 import de.quest.quest.story.StoryArcType;
+import de.quest.quest.story.StoryLane;
 import de.quest.quest.weekly.WeeklyQuestService;
+import de.quest.reputation.SocialReputationData;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -15,7 +17,93 @@ import java.util.Map;
 import java.util.Set;
 
 public final class PlayerQuestData {
+    private de.quest.kingdom.MarketWalletJournal marketWallet=new de.quest.kingdom.MarketWalletJournal();
+    public de.quest.kingdom.MarketWalletJournal marketWallet() { return marketWallet; }
+    void loadMarketWallet(net.minecraft.nbt.Tag payload) { marketWallet=de.quest.kingdom.MarketWalletJournal.fromNbt(payload); }
+    private de.quest.reward.PlayerRewardState vanillaRewards = new de.quest.reward.PlayerRewardState();
+    public de.quest.reward.PlayerRewardState vanillaRewards() { return vanillaRewards; }
+    void loadVanillaRewards(net.minecraft.nbt.CompoundTag tag) {
+        vanillaRewards = de.quest.reward.PlayerRewardState.fromNbt(tag);
+    }
+    private SocialReputationData socialReputation = new SocialReputationData();
+
+    public SocialReputationData socialReputation() { return socialReputation; }
+
+    void loadSocialReputation(net.minecraft.nbt.CompoundTag tag) {
+        socialReputation = SocialReputationData.fromNbt(tag);
+    }
+
     public static final long UNSET_DAY = -1L;
+    public static final String PROGRESS_GENERATION = "personal_reset.progress_generation";
+    private boolean introProgressReadOnly;
+    private java.util.function.BooleanSupplier introRestartAllowed = () -> true;
+    void bindIntroRestartGuard(java.util.function.BooleanSupplier guard) { introRestartAllowed = guard; }
+    void preserveInvalidIntroProgress() { introProgressReadOnly = true; }
+    public int progressGeneration() { return Math.max(1, getTradeRouteInt(PROGRESS_GENERATION)); }
+
+    /** Absent is the legacy first generation; explicit invalid/foreign forms must not become generation one. */
+    public boolean validProgressGeneration() {
+        return !introProgressReadOnly && (!tradeRouteIntState.containsKey(PROGRESS_GENERATION) || getTradeRouteInt(PROGRESS_GENERATION) > 0)
+                && !tradeRouteStringState.containsKey(PROGRESS_GENERATION) && !tradeRouteFlags.contains(PROGRESS_GENERATION);
+    }
+
+    /** Full, SELF-only restart, called only after the expiring second command is confirmed. */
+    public PlayerQuestData personalRestart() {
+        if (!storyLanesWritable()) throw new IllegalStateException("Unknown story lanes are preserved");
+        if (!introRestartAllowed.getAsBoolean()) throw new IllegalStateException("Intro delivery is not acknowledged");
+        if (!validProgressGeneration()) throw new IllegalStateException("Unknown personal progress generation");
+        if (progressGeneration() == Integer.MAX_VALUE) throw new IllegalStateException("Personal progress generation exhausted");
+        if (!socialReputation.writable()) throw new IllegalStateException("Unknown reputation data is preserved");
+        // Consumed cargo is an outstanding delivery/refund claim, not disposable quest progress.
+        if (hasTradeRouteFlag("guild_contract_supplied")
+                || tradeRouteIntState.keySet().stream().anyMatch(key -> key.startsWith("guild_contract_refund_"))
+                || tradeRouteStringState.keySet().stream().anyMatch(key -> key.startsWith("guild_contract_refund_"))
+                || tradeRouteFlags.stream().anyMatch(key -> key.startsWith("guild_contract_refund_")))
+            throw new IllegalStateException("Settle supplied freight and refunds before restarting");
+        if (!vanillaRewards.writable() || marketWallet.readOnly()) throw new IllegalStateException("Unknown financial state");
+        if (marketWallet.marker().filter(marker -> marker.stage() == de.quest.kingdom.MarketTransferMarker.Stage.BEFORE
+                || marker.stage() == de.quest.kingdom.MarketTransferMarker.Stage.AFTER).isPresent())
+            throw new IllegalStateException("Market transfer in progress");
+        for (var item : de.quest.archive.GuildArchiveService.ArchiveItem.values())
+            if (getTradeRouteInt("archive.gen." + item.id()) == Integer.MAX_VALUE) throw new IllegalStateException("Archive generation exhausted");
+        if (getTradeRouteInt("friends.lutte.generation") == Integer.MAX_VALUE || getTradeRouteInt("friends.marius.generation") == Integer.MAX_VALUE)
+            throw new IllegalStateException("Personal item generation exhausted");
+        var rewards = vanillaRewards.personalRestart();
+        var fresh = new PlayerQuestData();
+        fresh.setTradeRouteInt(PROGRESS_GENERATION, progressGeneration() + 1);
+        fresh.loadVanillaRewards(rewards);
+        // Transfer protocol receipts protect external counterparties even after the personal balance is discarded.
+        fresh.marketWallet = de.quest.kingdom.MarketWalletJournal.fromNbt(marketWallet.toNbt());
+        fresh.lastRewardDay = lastRewardDay;
+        fresh.bonusRewardDay = bonusRewardDay;
+        fresh.weeklyRewardCycle = weeklyRewardCycle;
+        fresh.starterShardGranted = starterShardGranted;
+        tradeRouteIntState.forEach((key, value) -> { if (key.startsWith(PersonalResetReceipts.PREFIX)) fresh.setTradeRouteInt(key, value); });
+        tradeRouteFlags.forEach(key -> { if (key.startsWith(PersonalResetReceipts.PREFIX)) fresh.setTradeRouteFlag(key, true); });
+        PersonalResetReceipts.captureLegacy(this, fresh);
+        // Never reset a generation to 1: copies stored anywhere must remain invalid after a new issue.
+        for (var item : de.quest.archive.GuildArchiveService.ArchiveItem.values()) {
+            String key = "archive.gen." + item.id();
+            int old = Math.max(1, getTradeRouteInt(key));
+            if (old == Integer.MAX_VALUE) throw new IllegalStateException("Archive generation exhausted");
+            fresh.setTradeRouteInt(key, old + 1);
+        }
+        int mapGeneration = Math.max(1, getTradeRouteInt("friends.lutte.generation"));
+        if (mapGeneration == Integer.MAX_VALUE) throw new IllegalStateException("Map generation exhausted");
+        fresh.setTradeRouteInt("friends.lutte.generation", mapGeneration + 1);
+        int sealGeneration = Math.max(1, getTradeRouteInt("friends.marius.generation"));
+        if (sealGeneration == Integer.MAX_VALUE) throw new IllegalStateException("Seal generation exhausted");
+        fresh.setTradeRouteInt("friends.marius.generation", sealGeneration + 1);
+        fresh.setTradeRouteFlag("personal_reset.fresh_intro", true);
+        // Fresh restart is already current-format onboarding. Do not add migration evidence only after its first save/reload.
+        de.quest.quest.daily.FirstDailyChoiceService.migratePre24Progress(fresh);
+        return fresh;
+    }
+
+    private static final String GUILD_TOWN_PREFIX = "guild_town.";
+    private static final String PILGRIM_CONTRACT_PROGRESS_PREFIX = "pilgrim_";
+    private static final String PILGRIM_READY = "pilgrim_contract_ready";
+    private static final String PILGRIM_SUPPRESS_OFFER = "pilgrim_contract_suppress_offer";
 
     private long currencyBalance;
     private long lastRewardDay = UNSET_DAY;
@@ -102,10 +190,15 @@ public final class PlayerQuestData {
     private int surveyorCompassPickaxeReadyProgress;
     private int surveyorCompassPickaxeBaseline;
     private int surveyorCompassModeIndex;
+    private long surveyorCompassSearchCooldownUntil;
     private long surveyorCompassHomeCooldownUntil;
     private long surveyorCompassHomeConfirmUntil;
     private long questMasterSummonBlockedUntil;
     private StoryArcType activeStoryArc;
+    private boolean kingdomStoryActive;
+    private boolean storyLanesReadOnly;
+    public boolean storyLanesWritable() { return !storyLanesReadOnly; }
+    void preserveUnknownStoryLanes() { storyLanesReadOnly = true; }
     private long storyCooldownUntil;
     private String activePilgrimContractId;
     private int activePilgrimTargetProfile = RepeatableTargetProfile.NORMAL.id();
@@ -276,6 +369,22 @@ public final class PlayerQuestData {
         return Collections.unmodifiableMap(tradeRouteStringState);
     }
 
+    /** Restore the original personal NPC ledger when loading a retired temporary tour. */
+    boolean restoreRetiredNpcTest() {
+        String prefix="temp.npctest.", backup=prefix+"backup.";
+        int step=getTradeRouteInt(prefix+"step");
+        if(step<1 || step>7)return false;
+        var ints=new HashMap<>(tradeRouteIntState);
+        var strings=new HashMap<>(tradeRouteStringState);
+        tradeRouteIntState.keySet().removeIf(key->key.startsWith("friends.") || key.startsWith(prefix));
+        tradeRouteStringState.keySet().removeIf(key->key.startsWith("friends.") || key.startsWith(prefix));
+        for(var entry:ints.entrySet())if(entry.getKey().startsWith(backup+"friends."))
+            setTradeRouteInt(entry.getKey().substring(backup.length()),entry.getValue());
+        for(var entry:strings.entrySet())if(entry.getKey().startsWith(backup+"friends."))
+            setTradeRouteString(entry.getKey().substring(backup.length()),entry.getValue());
+        return true;
+    }
+
     public int getPilgrimInt(String key) {
         if (key == null || key.isEmpty()) {
             return 0;
@@ -391,9 +500,9 @@ public final class PlayerQuestData {
     }
 
     public void clearTradeRoutes() {
-        tradeRouteIntState.clear();
-        tradeRouteStringState.clear();
-        tradeRouteFlags.clear();
+        tradeRouteIntState.keySet().removeIf(PlayerQuestData::isTradeRouteOwnedKey);
+        tradeRouteStringState.keySet().removeIf(PlayerQuestData::isTradeRouteOwnedKey);
+        tradeRouteFlags.removeIf(PlayerQuestData::isTradeRouteOwnedKey);
     }
 
     public boolean hasPilgrimFlag(String key) {
@@ -480,13 +589,41 @@ public final class PlayerQuestData {
     }
 
     public void clearStoryProgress() {
-        storyIntState.clear();
-        storyFlags.clear();
+        storyIntState.keySet().removeIf(key -> !key.startsWith(GUILD_TOWN_PREFIX));
+        storyFlags.removeIf(key -> !key.startsWith(GUILD_TOWN_PREFIX)
+                && !key.startsWith("shared_story_turn_in_consumed.living_kingdoms."));
     }
 
     public void clearPilgrimProgress() {
-        pilgrimIntState.clear();
-        pilgrimFlags.clear();
+        pilgrimIntState.keySet().removeIf(key -> key.startsWith(PILGRIM_CONTRACT_PROGRESS_PREFIX));
+        pilgrimFlags.remove(PILGRIM_READY);
+        pilgrimFlags.remove(PILGRIM_SUPPRESS_OFFER);
+    }
+
+    private static boolean isTradeRouteOwnedKey(String key) {
+        if (key == null || key.isEmpty()) {
+            return false;
+        }
+        return key.equals("home_x")
+                || key.equals("home_z")
+                || key.equals("home_bound")
+                || key.equals("home_player_yard")
+                || key.equals("route_count")
+                || key.startsWith("route_")
+                || key.equals("survey_route")
+                || key.equals("survey_point_count")
+                || key.startsWith("survey_point_")
+                || key.equals("survey_was_stopped")
+                || key.equals("network_income_day")
+                || key.equals("network_income_today")
+                || key.equals("network_escrow")
+                || key.equals("network_tutorial_event_seen")
+                || key.equals("network_warden_charges")
+                || key.equals("network_warden_use_day")
+                || key.equals("guild_contract_type")
+                || key.equals("guild_contract_route")
+                || key.equals("guild_contract_due_day")
+                || key.equals("guild_contract_supplied");
     }
 
     public long getProgressDay() {
@@ -499,6 +636,24 @@ public final class PlayerQuestData {
 
     public long getAcceptedDay() {
         return acceptedDay;
+    }
+
+    /** Acceptance belongs to an instance; calendar rollover only rotates unaccepted offers. */
+    public boolean hasActiveDaily() {
+        return dailyChoice != null && acceptedDay != UNSET_DAY && (lastRewardDay < acceptedDay
+                || de.quest.quest.daily.FirstDailyChoiceService.isRestartIntroduction(this));
+    }
+
+    public boolean hasActiveBonusDaily() {
+        return bonusChoice != null && bonusAcceptedDay != UNSET_DAY && bonusRewardDay < bonusAcceptedDay;
+    }
+
+    public boolean hasActiveDailySlot() {
+        return hasActiveDaily() || hasActiveBonusDaily();
+    }
+
+    public boolean hasActiveWeekly() {
+        return weeklyChoice != null && weeklyAcceptedCycle != UNSET_DAY && weeklyRewardCycle < weeklyAcceptedCycle;
     }
 
     public void setAcceptedDay(long acceptedDay) {
@@ -1108,6 +1263,9 @@ public final class PlayerQuestData {
         this.surveyorCompassModeIndex = Math.max(0, surveyorCompassModeIndex);
     }
 
+    public long getSurveyorCompassSearchCooldownUntil() { return surveyorCompassSearchCooldownUntil; }
+    public void setSurveyorCompassSearchCooldownUntil(long until) { surveyorCompassSearchCooldownUntil = Math.max(0L, until); }
+
     public long getSurveyorCompassHomeCooldownUntil() {
         return surveyorCompassHomeCooldownUntil;
     }
@@ -1138,6 +1296,41 @@ public final class PlayerQuestData {
 
     public void setActiveStoryArc(StoryArcType activeStoryArc) {
         this.activeStoryArc = activeStoryArc;
+    }
+
+    public boolean isKingdomStoryActive() { return kingdomStoryActive; }
+
+    public void setKingdomStoryActive(boolean active) { kingdomStoryActive = active; }
+
+    public StoryArcType getActiveStoryArc(StoryLane lane) {
+        java.util.Objects.requireNonNull(lane);
+        return lane == StoryLane.KINGDOM
+                ? (kingdomStoryActive ? StoryArcType.LIVING_KINGDOMS : null) : activeStoryArc;
+    }
+
+    public void setActiveStoryArc(StoryLane lane, StoryArcType arc) {
+        java.util.Objects.requireNonNull(lane);
+        if (arc != null && StoryLane.forArc(arc) != lane)
+            throw new IllegalArgumentException("Story arc belongs to another lane");
+        if (lane == StoryLane.KINGDOM) kingdomStoryActive = arc != null;
+        else activeStoryArc = arc;
+    }
+
+    /** Load-only conversion, after reading every map; never invokes quest or reward callbacks. */
+    public boolean migrateLegacyStoryLane() {
+        boolean changed = false;
+        if (activeStoryArc == StoryArcType.LIVING_KINGDOMS) {
+            activeStoryArc = null;
+            kingdomStoryActive = !hasStoryCompleted(StoryArcType.LIVING_KINGDOMS.id());
+            changed = true;
+        }
+        for (int chapter = 0; chapter < StoryArcType.LIVING_KINGDOMS.chapterCount(); chapter++) {
+            if (storyFlags.remove("story_ready_living_kingdoms_" + chapter)) {
+                setTradeRouteFlag("kingdoms.story.ready." + chapter, true);
+                changed = true;
+            }
+        }
+        return changed;
     }
 
     public long getStoryCooldownUntil() {
@@ -1211,16 +1404,25 @@ public final class PlayerQuestData {
     }
 
     public void resetStoryState() {
+        if (!storyLanesWritable()) throw new IllegalStateException("Unknown story lanes are preserved");
+        vanillaRewards.forget("story");
+        vanillaRewards.forget("kingdom_story");
         clearStoryProgress();
         storyDiscovered.clear();
+        storyFlags.removeIf(key -> key.startsWith("shared_story_turn_in_consumed."));
         storyCompleted.clear();
         storyChapterProgressState.clear();
         activeStoryArc = null;
+        kingdomStoryActive = false;
+        for (int chapter = 0; chapter < StoryArcType.LIVING_KINGDOMS.chapterCount(); chapter++)
+            setTradeRouteFlag("kingdoms.story.ready." + chapter, false);
+        setTradeRouteString("kingdoms.story.offer_notice", "");
         storyCooldownUntil = 0L;
         storyOfferNoticeKey = null;
     }
 
     public void resetPilgrimContractState() {
+        vanillaRewards.forget("pilgrim");
         clearPilgrimProgress();
         this.activePilgrimContractId = null;
         this.activePilgrimTargetProfile = RepeatableTargetProfile.NORMAL.id();
@@ -1296,6 +1498,7 @@ public final class PlayerQuestData {
         this.surveyorCompassPickaxeReadyProgress = 0;
         this.surveyorCompassPickaxeBaseline = 0;
         this.surveyorCompassModeIndex = 0;
+        this.surveyorCompassSearchCooldownUntil = 0L;
         this.surveyorCompassHomeCooldownUntil = 0L;
         this.surveyorCompassHomeConfirmUntil = 0L;
     }
@@ -1354,6 +1557,7 @@ public final class PlayerQuestData {
                 || this.surveyorCompassPickaxeReadyProgress > 0
                 || this.surveyorCompassPickaxeBaseline > 0
                 || this.surveyorCompassModeIndex > 0
+                || this.surveyorCompassSearchCooldownUntil > 0L
                 || this.surveyorCompassHomeCooldownUntil > 0L
                 || this.surveyorCompassHomeConfirmUntil > 0L;
     }

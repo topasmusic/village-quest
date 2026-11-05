@@ -1,39 +1,43 @@
 package de.quest.content.item;
 
+import de.quest.archive.GuildArchiveService;
+import de.quest.archive.GuildArchiveService.ArchiveItem;
 import de.quest.quest.special.ShepherdFluteQuestService;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.Hand;
-import net.minecraft.world.World;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 
 public final class ShepherdFluteItem extends Item {
-    public ShepherdFluteItem(Settings settings) {
+    public ShepherdFluteItem(Properties settings) {
         super(settings);
     }
 
     @Override
-    public Text getName(ItemStack stack) {
-        return Text.translatable(this.getTranslationKey()).formatted(Formatting.GOLD);
+    public Component getName(ItemStack stack) {
+        return Component.translatable(this.getDescriptionId()).withStyle(ChatFormatting.GOLD);
     }
 
     @Override
-    public boolean hasGlint(ItemStack stack) {
-        return true;
+    public boolean isFoil(ItemStack stack) {
+        return !GuildArchiveService.isSuperseded(stack);
     }
 
     @Override
-    public ActionResult use(World world, PlayerEntity user, Hand hand) {
-        if (!(world instanceof ServerWorld serverWorld) || !(user instanceof ServerPlayerEntity serverPlayer)) {
-            return ActionResult.SUCCESS;
+    public InteractionResult use(Level world, Player user, InteractionHand hand) {
+        if (!(world instanceof ServerLevel serverWorld) || !(user instanceof ServerPlayer serverPlayer)) {
+            return InteractionResult.SUCCESS;
         }
+        if (!GuildArchiveService.validateUse(serverWorld, serverPlayer,
+                user.getItemInHand(hand), ArchiveItem.SHEPHERD_FLUTE)) return InteractionResult.FAIL;
         return ShepherdFluteQuestService.useFlute(serverWorld, serverPlayer)
-                ? ActionResult.SUCCESS
-                : ActionResult.PASS;
+                ? InteractionResult.SUCCESS
+                : InteractionResult.PASS;
     }
 }

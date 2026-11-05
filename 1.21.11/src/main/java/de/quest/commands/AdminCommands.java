@@ -1,6 +1,6 @@
 package de.quest.commands;
 
-import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.commands.CommandSourceStack;
 
 public final class AdminCommands {
     private AdminCommands() {}
@@ -8,11 +8,11 @@ public final class AdminCommands {
     public static void register() {
     }
 
-    public static boolean canManageRespawn(ServerCommandSource source) {
+    public static boolean canManageRespawn(CommandSourceStack source) {
         var player = source.getPlayer();
         if (player == null) {
             return true;
         }
-        return source.getServer().getPlayerManager().isOperator(player.getPlayerConfigEntry());
+        return source.getServer().getPlayerList().isOp(player.nameAndId());
     }
 }

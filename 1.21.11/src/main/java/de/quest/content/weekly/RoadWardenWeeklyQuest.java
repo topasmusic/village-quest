@@ -4,17 +4,17 @@ import de.quest.quest.weekly.WeeklyQuestCompletion;
 import de.quest.quest.weekly.WeeklyQuestDefinition;
 import de.quest.quest.weekly.WeeklyQuestKeys;
 import de.quest.quest.weekly.WeeklyQuestService;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.mob.CreeperEntity;
-import net.minecraft.entity.mob.Monster;
-import net.minecraft.item.ItemStack;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-
 import java.util.List;
 import java.util.UUID;
+import de.quest.quest.PeacefulRepeatableSupplies;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.monster.Creeper;
+import net.minecraft.world.entity.monster.Enemy;
+import net.minecraft.world.item.ItemStack;
 
 public final class RoadWardenWeeklyQuest implements WeeklyQuestDefinition {
     @Override
@@ -23,39 +23,41 @@ public final class RoadWardenWeeklyQuest implements WeeklyQuestDefinition {
     }
 
     @Override
-    public Text title() {
-        return Text.translatable("quest.village-quest.weekly.roadwarden.title");
+    public Component title() {
+        return Component.translatable("quest.village-quest.weekly.roadwarden.title");
     }
 
     @Override
-    public Text offerParagraph1() {
-        return Text.translatable("quest.village-quest.weekly.roadwarden.offer.1").formatted(Formatting.GRAY);
+    public Component offerParagraph1() {
+        return Component.translatable("quest.village-quest.weekly.roadwarden.offer.1").withStyle(ChatFormatting.GRAY);
     }
 
     @Override
-    public Text offerParagraph2() {
-        return Text.translatable("quest.village-quest.weekly.roadwarden.offer.2").formatted(Formatting.GRAY);
+    public Component offerParagraph2() {
+        return Component.translatable("quest.village-quest.weekly.roadwarden.offer.2").withStyle(ChatFormatting.GRAY);
     }
 
     @Override
-    public List<Text> progressLines(ServerWorld world, UUID playerId) {
+    public List<Component> progressLines(ServerLevel world, UUID playerId) {
+        if (PeacefulRepeatableSupplies.weekly(world,type())) return PeacefulRepeatableSupplies.weeklyProgress(world,playerId,type());
         return List.of(
-                Text.translatable(
+                Component.translatable(
                         "quest.village-quest.weekly.roadwarden.progress.1",
                         WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.ROADWARDEN_HOSTILES),
                         WeeklyQuestService.roadWardenHostileTarget()
-                ).formatted(Formatting.GRAY),
-                Text.translatable(
+                ).withStyle(ChatFormatting.GRAY),
+                Component.translatable(
                         "quest.village-quest.weekly.roadwarden.progress.2",
                         WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.ROADWARDEN_CREEPERS),
                         WeeklyQuestService.roadWardenCreeperTarget()
-                ).formatted(Formatting.GRAY)
+                ).withStyle(ChatFormatting.GRAY)
         );
     }
 
     @Override
-    public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
-        UUID playerId = player.getUuid();
+    public boolean isComplete(ServerLevel world, ServerPlayer player) {
+        if (PeacefulRepeatableSupplies.weekly(world,type())) return PeacefulRepeatableSupplies.weeklyComplete(world,player,type());
+        UUID playerId = player.getUUID();
         return WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.ROADWARDEN_HOSTILES) >= WeeklyQuestService.roadWardenHostileTarget()
                 && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.ROADWARDEN_CREEPERS) >= WeeklyQuestService.roadWardenCreeperTarget();
     }
@@ -64,9 +66,9 @@ public final class RoadWardenWeeklyQuest implements WeeklyQuestDefinition {
     public WeeklyQuestCompletion buildCompletion() {
         return WeeklyQuestService.buildCompletion(
                 title(),
-                Text.translatable("quest.village-quest.weekly.roadwarden.completion.1").formatted(Formatting.GRAY),
-                Text.translatable("quest.village-quest.weekly.roadwarden.completion.2").formatted(Formatting.GRAY),
-                Text.translatable("quest.village-quest.weekly.roadwarden.completion.3").formatted(Formatting.GRAY),
+                Component.translatable("quest.village-quest.weekly.roadwarden.completion.1").withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.weekly.roadwarden.completion.2").withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.weekly.roadwarden.completion.3").withStyle(ChatFormatting.GRAY),
                 WeeklyQuestService.reward(2, 0),
                 WeeklyQuestService.magicShardReward(2),
                 ItemStack.EMPTY,
@@ -77,18 +79,19 @@ public final class RoadWardenWeeklyQuest implements WeeklyQuestDefinition {
     }
 
     @Override
-    public void onMonsterKill(ServerWorld world, ServerPlayerEntity player, Entity killedEntity) {
-        if (!WeeklyQuestService.isAcceptedThisWeek(world, player.getUuid()) || WeeklyQuestService.hasCompletedThisWeek(world, player.getUuid()) || killedEntity == null) {
+    public void onMonsterKill(ServerLevel world, ServerPlayer player, Entity killedEntity) {
+        if (PeacefulRepeatableSupplies.weekly(world,type())) return;
+        if (!WeeklyQuestService.isAcceptedThisWeek(world, player.getUUID()) || WeeklyQuestService.hasCompletedThisWeek(world, player.getUUID()) || killedEntity == null) {
             return;
         }
 
-        UUID playerId = player.getUuid();
+        UUID playerId = player.getUUID();
         boolean changed = false;
-        if (killedEntity instanceof Monster) {
+        if (killedEntity instanceof Enemy) {
             WeeklyQuestService.addQuestIntClamped(world, playerId, WeeklyQuestKeys.ROADWARDEN_HOSTILES, 1, WeeklyQuestService.roadWardenHostileTarget());
             changed = true;
         }
-        if (killedEntity instanceof CreeperEntity) {
+        if (killedEntity instanceof Creeper) {
             WeeklyQuestService.addQuestIntClamped(world, playerId, WeeklyQuestKeys.ROADWARDEN_CREEPERS, 1, WeeklyQuestService.roadWardenCreeperTarget());
             changed = true;
         }

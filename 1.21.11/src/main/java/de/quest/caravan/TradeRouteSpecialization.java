@@ -1,6 +1,6 @@
 package de.quest.caravan;
 
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.Component;
 
 public enum TradeRouteSpecialization {
     GENERAL(0, "general"),
@@ -20,7 +20,7 @@ public enum TradeRouteSpecialization {
 
     public int id() { return id; }
     public String key() { return key; }
-    public Text label() { return Text.translatable("text.village-quest.trade_guild.specialization." + key); }
+    public Component label() { return Component.translatable("text.village-quest.trade_guild.specialization." + key); }
 
     public static TradeRouteSpecialization fromId(int id) {
         for (TradeRouteSpecialization value : values()) {

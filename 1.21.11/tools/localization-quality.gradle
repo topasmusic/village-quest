@@ -1,0 +1,59 @@
+import groovy.json.JsonSlurper
+import org.gradle.process.ExecOperations
+import javax.inject.Inject
+
+abstract class LocalizationProcessRunner {
+    @Inject abstract ExecOperations getExecOperations()
+}
+def processes = objects.newInstance(LocalizationProcessRunner)
+
+// The shared Topas starter builds locally but validates the actual shared inputs.
+def sourceProject = providers.gradleProperty('topasSourceProjectDir')
+        .map { file(it) }.getOrElse(projectDir)
+def sourceRepository = sourceProject.parentFile
+def pythonCommand = providers.gradleProperty('qualityPython').orElse(provider {
+    if (providers.gradleProperty('topasSourceProjectDir').isPresent()) {
+        def pointer = new File(System.getenv('USERPROFILE'), '.topas-mods-runtime.json')
+        if (!pointer.isFile()) throw new GradleException('Missing Topas runtime pointer; run Setup-TopasLocalTools.ps1.')
+        def config = new JsonSlurper().parseText(pointer.getText('UTF-8').replace('\uFEFF',''))
+        def executable = new File(config.local_root.toString(), 'tools/python-3.12/python.exe')
+        if (!executable.isFile()) throw new GradleException('Missing configured local Python; run Setup-TopasLocalTools.ps1.')
+        return executable.absolutePath
+    }
+    return 'python3' // CI / standalone source checkout; local Topas builds use the configured executable above.
+})
+
+tasks.register('validateLocalization') {
+    group = 'verification'
+    description = 'Offline locale/context/glossary checks and validator regressions; never opens a game or UI.'
+    doLast {
+        def centralGate = new File(sourceRepository, 'tools/quality_gate.py')
+        if (centralGate.isFile()) {
+            processes.execOperations.exec {
+                workingDir sourceRepository
+                commandLine pythonCommand.get(), '-B', centralGate.absolutePath, '--line', sourceProject.name
+            }
+        } else {
+            // An intentional single-line audit checkout carries its own reviewed contract.
+            processes.execOperations.exec {
+                workingDir sourceProject
+                commandLine pythonCommand.get(), '-B', 'tools/validate_resources.py'
+            }
+            processes.execOperations.exec {
+                workingDir sourceProject
+                commandLine pythonCommand.get(), '-B', 'tools/localization_quality.py'
+            }
+        }
+    }
+}
+tasks.named('test').configure { dependsOn tasks.named('validateLocalization') }
+tasks.named('check').configure { dependsOn tasks.named('validateLocalization') }
+// When both tasks are requested, reject stale language context before compilation.
+tasks.named('compileJava').configure { mustRunAfter tasks.named('validateLocalization') }
+tasks.named('compileClientJava').configure { mustRunAfter tasks.named('validateLocalization') }
+tasks.named('compileTestJava').configure { mustRunAfter tasks.named('validateLocalization') }
+tasks.register('verifyQuality') {
+    group = 'verification'
+    description = 'Offline language/context gate plus all native unit, layout and navigation regressions.'
+    dependsOn tasks.named('test'), tasks.named('validateLocalization')
+}

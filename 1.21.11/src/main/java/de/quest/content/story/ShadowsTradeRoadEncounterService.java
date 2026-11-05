@@ -1,12 +1,21 @@
 package de.quest.content.story;
 
+import de.quest.quest.EncounterEntityLifecycle;
+
+import de.quest.archive.GuildArchiveService;
+import de.quest.archive.GuildArchiveService.ArchiveItem;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
+import de.quest.config.VillageQuestServerConfig;
 import de.quest.entity.CaravanMerchantEntity;
 import de.quest.entity.TraitorEntity;
 import de.quest.pilgrim.PilgrimContractService;
+import de.quest.party.QuestPartyService;
 import de.quest.quest.QuestBookHelper;
 import de.quest.quest.QuestTrackerService;
+import de.quest.quest.DifficultyObjectiveMode;
+import de.quest.quest.DifficultyObjectiveState;
+import de.quest.quest.daily.DailyQuestService;
 import de.quest.quest.special.SurveyorCompassQuestService;
 import de.quest.quest.story.StoryArcType;
 import de.quest.quest.story.StoryQuestKeys;
@@ -16,41 +25,44 @@ import de.quest.quest.story.VillageProjectType;
 import de.quest.questmaster.QuestMasterUiService;
 import de.quest.registry.ModEntities;
 import de.quest.registry.ModItems;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.LoreComponent;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.boss.BossBar;
-import net.minecraft.entity.boss.ServerBossBar;
-import net.minecraft.entity.effect.StatusEffectInstance;
-import net.minecraft.entity.effect.StatusEffects;
-import net.minecraft.entity.mob.MobEntity;
-import net.minecraft.entity.mob.SkeletonEntity;
-import net.minecraft.entity.mob.SpiderEntity;
-import net.minecraft.entity.mob.ZombieEntity;
-import net.minecraft.entity.passive.VillagerEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.registry.RegistryKeys;
-import net.minecraft.registry.tag.TagKey;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.Registry;
+import net.minecraft.world.item.component.ItemLore;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.BossEvent;
+import net.minecraft.server.level.ServerBossEvent;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.monster.skeleton.Skeleton;
+import net.minecraft.world.entity.monster.spider.Spider;
+import net.minecraft.world.entity.monster.zombie.Zombie;
+import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.tags.TagKey;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.structure.StructureStart;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockBox;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.block.BlockState;
-import net.minecraft.world.Heightmap;
-import net.minecraft.world.World;
-import net.minecraft.world.gen.structure.Structure;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.world.level.levelgen.structure.StructureStart;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.level.levelgen.structure.BoundingBox;
+import net.minecraft.core.BlockPos;
+import net.minecraft.util.Mth;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.Difficulty;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.levelgen.structure.Structure;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -71,11 +83,12 @@ public final class ShadowsTradeRoadEncounterService {
     public static final int HOLDING_TARGET_WINS = 2;
 
     private static final TagKey<Structure> ROADMARK_VILLAGES =
-            TagKey.of(RegistryKeys.STRUCTURE, Identifier.of("village-quest", "roadmark_villages"));
+            TagKey.create(Registries.STRUCTURE, Identifier.fromNamespaceAndPath("village-quest", "roadmark_villages"));
+    private static final int VILLAGE_DETECTION_MARGIN = 16;
 
-    private static final int MIN_RESCUE_DISTANCE = 500;
-    private static final int MAX_RESCUE_DISTANCE = 1000;
-    private static final int MAX_SPAWN_ATTEMPTS = 24;
+    private static final int MIN_RESCUE_DISTANCE = 320;
+    private static final int MAX_RESCUE_DISTANCE = 500;
+    private static final int MAX_SPAWN_ATTEMPTS = 48;
     private static final int TRIGGER_RADIUS = 24;
     private static final int HOSTILE_SPAWN_MIN_RADIUS = 16;
     private static final int HOSTILE_SPAWN_MAX_RADIUS = 26;
@@ -96,6 +109,10 @@ public final class ShadowsTradeRoadEncounterService {
     private static final int ENCOUNTER_MAX_VERTICAL_DELTA = 3;
     private static final int ENCOUNTER_FOOTPRINT_RADIUS = 8;
     private static final int ENCOUNTER_MIN_LEVEL_SAMPLES = 50;
+    private static final int[] MERCHANT_SPAWN_RADII = {3, 5, 7, 9, 12, 16, 20};
+    private static final int MERCHANT_SPAWN_ANGLE_STEPS = 16;
+    private static final int FAILED_SITE_RELOCATION_MIN_RADIUS = 12;
+    private static final int FAILED_SITE_RELOCATION_MAX_RADIUS = 48;
     private static final double MERCHANT_RETREAT_SPEED = 1.0D;
     private static final double MERCHANT_RETURN_SPEED = 0.78D;
     private static final int AGGRO_TICKS = 20 * 7;
@@ -104,18 +121,36 @@ public final class ShadowsTradeRoadEncounterService {
     private static final int WAVE_PULSE_SIZE = 2;
     private static final int COURIER_DESPAWN_TICKS = 20 * 60 * 5;
     private static final int SURVIVOR_DESPAWN_TICKS = 20 * 45;
+    static final int PEACEFUL_SUPPLY_BREAD = 8;
+    static final int PEACEFUL_ESCORT_CHECKPOINTS = 3;
+    static final int PEACEFUL_FINAL_CHECKPOINTS = 4;
     private static final String TAG_CARAVAN = "vq_trade_road_caravan";
     private static final String TAG_TRAITOR = "vq_trade_road_traitor";
     private static final String TAG_HOSTILE = "vq_trade_road_hostile";
 
     private static final ConcurrentMap<UUID, ActiveEncounter> ACTIVE = new ConcurrentHashMap<>();
     private static final ConcurrentMap<UUID, UUID> LETTER_COURIERS = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<UUID, Long> COURIER_MISSING_SINCE = new ConcurrentHashMap<>();
 
     private ShadowsTradeRoadEncounterService() {}
 
     public record VillageMarker(String key, int centerX, int centerZ,
-                                int minX, int maxX, int minZ, int maxZ) {}
-    public record DistressTarget(BlockPos pos, Text label) {}
+                                int minX, int maxX, int minZ, int maxZ,
+                                List<de.quest.village.GuildCornerCandidateSearch.StructureFootprint> pieces,
+                                List<de.quest.village.GuildCornerCandidateSearch.StructureFootprint> buildings) {
+        public VillageMarker {
+            pieces = pieces == null ? List.of() : List.copyOf(pieces);
+            buildings = buildings == null ? List.of() : List.copyOf(buildings);
+        }
+        public VillageMarker(String key, int centerX, int centerZ, int minX, int maxX, int minZ, int maxZ,
+                             List<de.quest.village.GuildCornerCandidateSearch.StructureFootprint> pieces) {
+            this(key, centerX, centerZ, minX, maxX, minZ, maxZ, pieces, pieces);
+        }
+        public VillageMarker(String key, int centerX, int centerZ, int minX, int maxX, int minZ, int maxZ) {
+            this(key, centerX, centerZ, minX, maxX, minZ, maxZ, List.of());
+        }
+    }
+    public record DistressTarget(BlockPos pos, Component label) {}
 
     private record WaveSpec(int zombies, int skeletons, int spiders, int traitors) {}
     private enum HostileSpawnType {
@@ -124,36 +159,44 @@ public final class ShadowsTradeRoadEncounterService {
         SPIDER,
         TRAITOR
     }
-    private record EncounterSpec(int kind, int merchants, Text bossBarTitle, boolean finalConvoy, List<WaveSpec> waves) {}
+    private record EncounterSpec(int kind, int merchants, Component bossBarTitle, boolean finalConvoy, List<WaveSpec> waves) {}
 
     private static final class ActiveEncounter {
         private final UUID playerId;
         private final EncounterSpec spec;
         private final BlockPos anchorPos;
-        private final ServerBossBar bossBar;
+        private final ServerBossEvent bossBar;
         private final List<UUID> merchantIds = new ArrayList<>();
         private final List<UUID> guardMerchantIds = new ArrayList<>();
         private final List<UUID> hostileIds = new ArrayList<>();
         private final List<HostileSpawnType> pendingSpawns = new ArrayList<>();
         private final Map<UUID, Integer> aggroTicks = new HashMap<>();
+        private final List<BlockPos> peacefulCheckpoints = new ArrayList<>();
         private int waveIndex;
         private int nextWaveDelayTicks;
         private int wavePulseDelayTicks;
         private int lastHostileMarkDelayTicks = LAST_HOSTILE_MARK_DELAY_TICKS;
+        private int peacefulCheckpointIndex;
+        private boolean peacefulSuppliesDelivered;
 
         private ActiveEncounter(UUID playerId, EncounterSpec spec, BlockPos anchorPos) {
             this.playerId = playerId;
             this.spec = spec;
             this.anchorPos = anchorPos;
-            this.bossBar = new ServerBossBar(spec.bossBarTitle(), BossBar.Color.RED, BossBar.Style.PROGRESS);
-            this.bossBar.setPercent(1.0f);
+            this.bossBar = new ServerBossEvent( spec.bossBarTitle(), BossEvent.BossBarColor.RED, BossEvent.BossBarOverlay.PROGRESS);
+            this.bossBar.setProgress(1.0f);
         }
+    }
+
+    /** Read-only active combat anchors; never creates a village, encounter or chunk. */
+    public static boolean ambientConflict(BlockPos position) {
+        return ACTIVE.values().stream().anyMatch(e -> !e.spec.waves().isEmpty() && e.anchorPos.distSqr(position)<=64*64);
     }
 
     private static final EncounterSpec FIRST_SIGNAL_SPEC = new EncounterSpec(
             RESCUE_KIND_FIRST_SIGNAL,
             3,
-            Text.translatable("bossbar.village-quest.shadows.first_signal"),
+            Component.translatable("bossbar.village-quest.shadows.first_signal"),
             false,
             List.of(
                     new WaveSpec(4, 1, 1, 0),
@@ -163,7 +206,7 @@ public final class ShadowsTradeRoadEncounterService {
     private static final EncounterSpec HOLDING_SPEC = new EncounterSpec(
             RESCUE_KIND_HOLDING,
             3,
-            Text.translatable("bossbar.village-quest.shadows.holding"),
+            Component.translatable("bossbar.village-quest.shadows.holding"),
             false,
             List.of(
                     new WaveSpec(4, 2, 2, 0),
@@ -174,7 +217,7 @@ public final class ShadowsTradeRoadEncounterService {
     private static final EncounterSpec FINAL_SPEC = new EncounterSpec(
             RESCUE_KIND_FINAL,
             6,
-            Text.translatable("bossbar.village-quest.shadows.final_convoy"),
+            Component.translatable("bossbar.village-quest.shadows.final_convoy"),
             true,
             List.of(
                     new WaveSpec(5, 3, 2, 0),
@@ -184,25 +227,36 @@ public final class ShadowsTradeRoadEncounterService {
             )
     );
 
-    public static void resetRuntimeState() {
-        ACTIVE.values().forEach(encounter -> encounter.bossBar.clearPlayers());
-        ACTIVE.clear();
-        LETTER_COURIERS.clear();
+    private static EncounterSpec encounterSpec(int kind) {
+        return switch (kind) {
+            case RESCUE_KIND_FIRST_SIGNAL -> FIRST_SIGNAL_SPEC;
+            case RESCUE_KIND_HOLDING -> HOLDING_SPEC;
+            case RESCUE_KIND_FINAL -> FINAL_SPEC;
+            default -> null;
+        };
     }
 
-    public static int despawnAll(ServerWorld world) {
+    public static void resetRuntimeState() {
+        ACTIVE.values().forEach(encounter -> encounter.bossBar.removeAllPlayers());
+        ACTIVE.clear();
+        LETTER_COURIERS.values().forEach(EncounterEntityLifecycle::forget);
+        LETTER_COURIERS.clear();
+        COURIER_MISSING_SINCE.clear();
+    }
+
+    public static int despawnAll(ServerLevel world) {
         if (world == null) {
             return 0;
         }
         int removed = 0;
         List<Entity> targets = new ArrayList<>();
-        for (Entity entity : world.iterateEntities()) {
+        for (Entity entity : world.getAllEntities()) {
             if (!entity.isAlive()) {
                 continue;
             }
-            if (entity instanceof CaravanMerchantEntity
-                    || entity instanceof TraitorEntity
-                    || entity.getCommandTags().contains(TAG_HOSTILE)) {
+            if (entity.getTags().contains(TAG_CARAVAN)
+                    || entity.getTags().contains(TAG_TRAITOR)
+                    || entity.getTags().contains(TAG_HOSTILE)) {
                 targets.add(entity);
             }
         }
@@ -214,51 +268,127 @@ public final class ShadowsTradeRoadEncounterService {
         return removed;
     }
 
-    public static boolean hasUnlockPrerequisites(ServerWorld world, UUID playerId) {
+    public static boolean hasUnlockPrerequisites(ServerLevel world, UUID playerId) {
         return world != null
                 && playerId != null
                 && VillageProjectService.isUnlocked(world, playerId, VillageProjectType.WATCH_BELL)
                 && PilgrimContractService.completedCombatContractCount(world, playerId) >= RUMOR_UNLOCK_TARGET;
     }
 
-    public static int completedRumorCount(ServerWorld world, UUID playerId) {
+    public static int completedRumorCount(ServerLevel world, UUID playerId) {
         return PilgrimContractService.completedCombatContractCount(world, playerId);
     }
 
-    public static boolean hasCompass(ServerPlayerEntity player) {
+    public static boolean hasCompass(ServerPlayer player) {
         if (player == null || ModItems.SURVEYORS_COMPASS == null) {
             return false;
         }
-        for (int slot = 0; slot < player.getInventory().size(); slot++) {
-            if (player.getInventory().getStack(slot).isOf(ModItems.SURVEYORS_COMPASS)) {
+        ServerLevel world = (ServerLevel) player.level();
+        for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
+            if (GuildArchiveService.isValidOwnedStack(world, player,
+                    player.getInventory().getItem(slot), ArchiveItem.SURVEYORS_COMPASS)) {
                 return true;
             }
         }
-        return player.getOffHandStack().isOf(ModItems.SURVEYORS_COMPASS);
+        return GuildArchiveService.isValidOwnedStack(world, player,
+                player.getOffhandItem(), ArchiveItem.SURVEYORS_COMPASS);
     }
 
-    public static VillageMarker currentVillage(ServerWorld world, BlockPos pos) {
-        if (world == null || pos == null || world.getRegistryKey() != World.OVERWORLD) {
+    public static VillageMarker currentVillage(ServerLevel world, BlockPos pos) {
+        if (world == null || pos == null || world.dimension() != Level.OVERWORLD) {
             return null;
         }
-        StructureStart start = world.getStructureAccessor().getStructureContaining(pos, ROADMARK_VILLAGES);
-        if (start == null || !start.hasChildren()) {
-            return null;
+        var kingdoms = de.quest.kingdom.LivingKingdomsState.get(world.getServer());
+        String dimension = world.dimension().identifier().toString();
+        if (kingdoms.isAmbiguousAt(dimension, pos)) return null;
+        VillageMarker registered = de.quest.kingdom.KingdomVillageService.current(kingdoms, dimension, pos);
+        if (registered != null && kingdoms.byLegacy(new de.quest.village.VillageLifeState.VillageKey(
+                dimension, registered.centerX(), registered.centerZ())).orElseThrow().origin()
+                == de.quest.kingdom.LivingKingdomsState.Origin.CUSTOM) return registered;
+        StructureStart start = world.structureManager().getStructureWithPieceAt(pos, ROADMARK_VILLAGES);
+        if (start != null && start.isValid()) {
+            return villageMarker(start);
         }
-        BlockBox box = start.getBoundingBox();
-        int centerX = (box.getMinX() + box.getMaxX()) / 2;
-        int centerZ = (box.getMinZ() + box.getMaxZ()) / 2;
+
+        // A village is usually much less solid than its structure footprint: paths,
+        // squares, and large CTOV districts can all sit between individual pieces.
+        // Search only already-loaded neighboring chunks for a referenced village whose
+        // full horizontal bounds are close to the player. This broadens interaction
+        // without accepting arbitrary villager groups or loading remote terrain.
+        Registry<Structure> structures = world.registryAccess().lookupOrThrow(Registries.STRUCTURE);
+        ChunkPos playerChunk = new ChunkPos(pos);
+        int chunkRadius = (VILLAGE_DETECTION_MARGIN + 15) / 16;
+        StructureStart nearest = null;
+        long nearestDistanceSqr = Long.MAX_VALUE;
+        for (int chunkX = playerChunk.x - chunkRadius; chunkX <= playerChunk.x + chunkRadius; chunkX++) {
+            for (int chunkZ = playerChunk.z - chunkRadius; chunkZ <= playerChunk.z + chunkRadius; chunkZ++) {
+                if (!world.hasChunk(chunkX, chunkZ)) {
+                    continue;
+                }
+                for (StructureStart candidate : world.structureManager().startsForStructure(
+                        new ChunkPos(chunkX, chunkZ),
+                        structure -> structures.wrapAsHolder(structure).is(ROADMARK_VILLAGES))) {
+                    if (candidate == null || !candidate.isValid()) {
+                        continue;
+                    }
+                    BoundingBox box = candidate.getBoundingBox();
+                    long dx = distanceToRange(pos.getX(), box.minX(), box.maxX());
+                    long dz = distanceToRange(pos.getZ(), box.minZ(), box.maxZ());
+                    long distanceSqr = dx * dx + dz * dz;
+                    if (distanceSqr <= (long) VILLAGE_DETECTION_MARGIN * VILLAGE_DETECTION_MARGIN
+                            && distanceSqr < nearestDistanceSqr) {
+                        nearest = candidate;
+                        nearestDistanceSqr = distanceSqr;
+                    }
+                }
+            }
+        }
+        return nearest == null ? registered : villageMarker(nearest);
+    }
+
+    private static VillageMarker villageMarker(StructureStart start) {
+        BoundingBox box = start.getBoundingBox();
+        int centerX = (box.minX() + box.maxX()) / 2;
+        int centerZ = (box.minZ() + box.maxZ()) / 2;
         return new VillageMarker(centerX + "_" + centerZ, centerX, centerZ,
-                box.getMinX(), box.getMaxX(), box.getMinZ(), box.getMaxZ());
+                box.minX(), box.maxX(), box.minZ(), box.maxZ(), start.getPieces().stream().map(piece -> {
+                    BoundingBox footprint = piece.getBoundingBox();
+                    return new de.quest.village.GuildCornerCandidateSearch.StructureFootprint(
+                            footprint.minX(), footprint.maxX(), footprint.minZ(), footprint.maxZ());
+                }).toList(), start.getPieces().stream()
+                        .filter(piece -> piece instanceof net.minecraft.world.level.levelgen.structure.PoolElementStructurePiece pool
+                                && isVillageBuilding(pool.getElement()))
+                        .map(piece -> {
+                            BoundingBox footprint = piece.getBoundingBox();
+                            return new de.quest.village.GuildCornerCandidateSearch.StructureFootprint(
+                                    footprint.minX(), footprint.maxX(), footprint.minZ(), footprint.maxZ());
+                        }).toList());
     }
 
-    public static boolean hasHomeVillage(ServerWorld world, UUID playerId) {
+    static boolean isVillageBuilding(net.minecraft.world.level.levelgen.structure.pools.StructurePoolElement element) {
+        if (element instanceof net.minecraft.world.level.levelgen.structure.pools.ListPoolElement list)
+            return list.getElements().stream().anyMatch(ShadowsTradeRoadEncounterService::isVillageBuilding);
+        if (!(element instanceof net.minecraft.world.level.levelgen.structure.pools.SinglePoolElement single)) return false;
+        Identifier location = single.getTemplateLocation();
+        if (location == null) return false;
+        String path = location.getPath();
+        return path.contains("/houses/") || path.contains("/house/") || path.contains("/jobsite/");
+    }
+
+    private static int distanceToRange(int value, int min, int max) {
+        if (value < min) {
+            return min - value;
+        }
+        return value > max ? value - max : 0;
+    }
+
+    public static boolean hasHomeVillage(ServerLevel world, UUID playerId) {
         return playerId != null && (StoryQuestService.getQuestInt(world, playerId, StoryQuestKeys.SHADOWS_HOME_VILLAGERS) > 0
                 || StoryQuestService.getQuestInt(world, playerId, StoryQuestKeys.SHADOWS_HOME_VILLAGE_X) != 0
                 || StoryQuestService.getQuestInt(world, playerId, StoryQuestKeys.SHADOWS_HOME_VILLAGE_Z) != 0);
     }
 
-    public static void bindHomeVillage(ServerWorld world, UUID playerId, VillageMarker village) {
+    public static void bindHomeVillage(ServerLevel world, UUID playerId, VillageMarker village) {
         if (world == null || playerId == null || village == null) {
             return;
         }
@@ -266,7 +396,7 @@ public final class ShadowsTradeRoadEncounterService {
         StoryQuestService.setQuestInt(world, playerId, StoryQuestKeys.SHADOWS_HOME_VILLAGE_Z, village.centerZ());
     }
 
-    public static boolean isHomeVillage(ServerWorld world, UUID playerId, VillageMarker village) {
+    public static boolean isHomeVillage(ServerLevel world, UUID playerId, VillageMarker village) {
         if (world == null || playerId == null || village == null || !hasHomeVillage(world, playerId)) {
             return false;
         }
@@ -274,7 +404,7 @@ public final class ShadowsTradeRoadEncounterService {
                 && StoryQuestService.getQuestInt(world, playerId, StoryQuestKeys.SHADOWS_HOME_VILLAGE_Z) == village.centerZ();
     }
 
-    public static boolean isDistressModeAvailable(ServerWorld world, UUID playerId) {
+    public static boolean isDistressModeAvailable(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
             return false;
         }
@@ -291,7 +421,7 @@ public final class ShadowsTradeRoadEncounterService {
                 || kind == RESCUE_KIND_FINAL;
     }
 
-    public static DistressTarget currentDistressTarget(ServerWorld world, UUID playerId) {
+    public static DistressTarget currentDistressTarget(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
             return null;
         }
@@ -305,11 +435,11 @@ public final class ShadowsTradeRoadEncounterService {
         if (kind == 0) {
             return null;
         }
-        int y = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
+        int y = world.hasChunk(x >> 4, z >> 4) ? world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z) : world.getSeaLevel();
         return new DistressTarget(new BlockPos(x, y, z), distressLabel(kind));
     }
 
-    public static int currentDistressKind(ServerWorld world, UUID playerId) {
+    public static int currentDistressKind(ServerLevel world, UUID playerId) {
         if (playerId == null) {
             return 0;
         }
@@ -324,15 +454,16 @@ public final class ShadowsTradeRoadEncounterService {
         if (server == null) {
             return;
         }
-        ServerWorld world = server.getOverworld();
-        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-            StoryArcType activeArc = StoryQuestService.activeArcType(world, player.getUuid());
+        ServerLevel world = server.overworld();
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            StoryArcType activeArc = StoryQuestService.activeArcType(world, player.getUUID());
             if (activeArc != StoryArcType.SHADOWS_ON_THE_TRADE_ROAD) {
-                cleanupPlayerRuntime(world, player.getUuid(), false);
+                cleanupPlayerRuntime(world, player.getUUID(), false);
+                clearCourier(world, player.getUUID());
                 continue;
             }
 
-            int chapterIndex = StoryQuestService.chapterIndex(world, player.getUuid(), StoryArcType.SHADOWS_ON_THE_TRADE_ROAD);
+            int chapterIndex = StoryQuestService.chapterIndex(world, player.getUUID(), StoryArcType.SHADOWS_ON_THE_TRADE_ROAD);
             if (chapterIndex == 2) {
                 tickRescueChapter(world, player, StoryQuestKeys.SHADOWS_FIRST_SIGNAL_WINS, 1, RESCUE_KIND_FIRST_SIGNAL, 0);
             } else if (chapterIndex == 3) {
@@ -342,161 +473,192 @@ public final class ShadowsTradeRoadEncounterService {
             } else if (chapterIndex == 5) {
                 tickRescueChapter(world, player, StoryQuestKeys.SHADOWS_FINAL_WON, 1, RESCUE_KIND_FINAL, 2);
             } else {
-                cleanupPlayerRuntime(world, player.getUuid(), false);
-                clearCourier(world, player.getUuid());
+                cleanupPlayerRuntime(world, player.getUUID(), false);
+                clearCourier(world, player.getUUID());
             }
         }
     }
 
-    public static void onFirstSignalAccepted(ServerWorld world, ServerPlayerEntity player) {
+    public static void onFirstSignalAccepted(ServerLevel world, ServerPlayer player) {
+        initializeObjectiveMode(world, player);
         scheduleEncounter(world, player, RESCUE_KIND_FIRST_SIGNAL, 0);
     }
 
-    public static void onHoldingAccepted(ServerWorld world, ServerPlayerEntity player) {
+    public static void onHoldingAccepted(ServerLevel world, ServerPlayer player) {
+        initializeObjectiveMode(world, player);
         scheduleEncounter(world, player, RESCUE_KIND_HOLDING, 0);
     }
 
-    public static void onLetterAccepted(ServerWorld world, ServerPlayerEntity player) {
+    public static void onLetterAccepted(ServerLevel world, ServerPlayer player) {
         ensureCourier(world, player);
     }
 
-    public static void onFinalAccepted(ServerWorld world, ServerPlayerEntity player) {
+    public static void onFinalAccepted(ServerLevel world, ServerPlayer player) {
+        initializeObjectiveMode(world, player);
         scheduleEncounter(world, player, RESCUE_KIND_FINAL, 2);
     }
 
-    public static List<Text> rescueProgressLines(ServerWorld world, UUID playerId, String winsKey, int targetWins, boolean finalConvoy) {
-        List<Text> lines = new ArrayList<>();
+    public static List<Component> rescueProgressLines(ServerLevel world, UUID playerId, String winsKey, int targetWins, boolean finalConvoy) {
+        List<Component> lines = new ArrayList<>();
         if (world == null || playerId == null) {
             return lines;
         }
-        lines.add(Text.translatable(
+        lines.add(Component.translatable(
                 finalConvoy
                         ? "quest.village-quest.story.shadows_on_the_trade_road.chapter_6.progress.1"
                         : "quest.village-quest.story.shadows_on_the_trade_road.rescue.progress.count",
                 StoryQuestService.getQuestInt(world, playerId, winsKey),
                 targetWins
-        ).formatted(Formatting.GRAY));
+        ).withStyle(ChatFormatting.GRAY));
 
+        if (StoryQuestService.getQuestInt(world,playerId,winsKey)>=targetWins) return List.copyOf(lines);
         ActiveEncounter encounter = ACTIVE.get(playerId);
         if (encounter != null) {
-            List<MobEntity> hostiles = livingHostiles(world, encounter);
+            if (encounter.spec.waves().isEmpty()) {
+                var player=world.getServer().getPlayerList().getPlayer(playerId);
+                int bread=encounter.peacefulSuppliesDelivered?PEACEFUL_SUPPLY_BREAD:
+                        player==null?0:DailyQuestService.countInventoryItem(player,Items.BREAD);
+                lines.add(Component.translatable("screen.village-quest.ui_review.objective_row",
+                        Component.translatable(Items.BREAD.getDescriptionId()),Math.min(bread,PEACEFUL_SUPPLY_BREAD),PEACEFUL_SUPPLY_BREAD));
+                lines.add(Component.translatable(
+                        "quest.village-quest.story.shadows_on_the_trade_road.peaceful.progress.checkpoints",
+                        encounter.peacefulCheckpointIndex,
+                        encounter.peacefulCheckpoints.size()
+                ).withStyle(ChatFormatting.GRAY));
+                if (!encounter.peacefulCheckpoints.isEmpty()) {
+                    BlockPos next=encounter.peacefulCheckpoints.get(Math.min(encounter.peacefulCheckpointIndex,encounter.peacefulCheckpoints.size()-1));
+                    lines.add(Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.peaceful.next_checkpoint",
+                            next.getX(),next.getY(),next.getZ()));
+                }
+                return List.copyOf(lines);
+            }
+            List<Mob> hostiles = livingHostiles(world, encounter);
             int remainingHostiles = hostiles.size() + encounter.pendingSpawns.size();
-            lines.add(Text.translatable(
-                    "quest.village-quest.story.shadows_on_the_trade_road.rescue.progress.wave",
-                    Math.max(1, encounter.waveIndex),
-                    encounter.spec.waves().size()
-            ).formatted(Formatting.GRAY));
-            lines.add(Text.translatable(
-                    "quest.village-quest.story.shadows_on_the_trade_road.rescue.progress.hostiles",
-                    remainingHostiles
-            ).formatted(Formatting.GRAY));
-            lines.add(Text.translatable(
+            if (!encounter.spec.waves().isEmpty()) {
+                lines.add(Component.translatable(
+                        "quest.village-quest.story.shadows_on_the_trade_road.rescue.progress.wave",
+                        Math.max(1, encounter.waveIndex),
+                        encounter.spec.waves().size()
+                ).withStyle(ChatFormatting.GRAY));
+                lines.add(Component.translatable(
+                        "quest.village-quest.story.shadows_on_the_trade_road.rescue.progress.hostiles",
+                        remainingHostiles
+                ).withStyle(ChatFormatting.GRAY));
+            }
+            lines.add(Component.translatable(
                     "quest.village-quest.story.shadows_on_the_trade_road.rescue.progress.survivors",
                     livingMerchants(world, encounter).size(),
                     encounter.spec.merchants()
-            ).formatted(Formatting.GRAY));
+            ).withStyle(ChatFormatting.GRAY));
             return List.copyOf(lines);
         }
 
         int targetDay = targetDay(world, playerId, finalConvoy);
         if (targetDay <= 0) {
-            lines.add(Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.rescue.progress.scouting").formatted(Formatting.GRAY));
+            lines.add(Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.rescue.progress.scouting").withStyle(ChatFormatting.GRAY));
             return List.copyOf(lines);
         }
 
         int nightsRemaining = Math.max(0, targetDay - currentWorldDay(world));
         if (nightsRemaining > 0) {
-            lines.add(Text.translatable(
+            lines.add(Component.translatable(
                     "quest.village-quest.story.shadows_on_the_trade_road.chapter_6.progress.2",
                     nightsRemaining
-            ).formatted(Formatting.GRAY));
-        } else if (!world.isNight()) {
-            lines.add(Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.rescue.progress.wait_night").formatted(Formatting.GRAY));
+            ).withStyle(ChatFormatting.GRAY));
+        } else if (!isNight(world)) {
+            lines.add(Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.rescue.progress.wait_night").withStyle(ChatFormatting.GRAY));
         } else {
-            lines.add(Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.rescue.progress.compass").formatted(Formatting.GRAY));
+            lines.add(Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.rescue.progress.compass").withStyle(ChatFormatting.GRAY));
         }
         return List.copyOf(lines);
     }
 
-    public static List<Text> letterProgressLines(ServerWorld world, UUID playerId) {
+    public static List<Component> letterProgressLines(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
             return List.of();
         }
-        ServerPlayerEntity player = world.getServer().getPlayerManager().getPlayer(playerId);
+        ServerPlayer player = world.getServer().getPlayerList().getPlayer(playerId);
         if (StoryQuestService.getQuestInt(world, playerId, StoryQuestKeys.SHADOWS_LETTER_RECEIVED) <= 0) {
-            return List.of(Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_5.progress.1").formatted(Formatting.GRAY));
+            return List.of(Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_5.progress.1").withStyle(ChatFormatting.GRAY));
         }
         return List.of(
-                Text.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_5.progress.2").formatted(Formatting.GRAY),
-                Text.translatable(
+                Component.translatable("quest.village-quest.story.shadows_on_the_trade_road.chapter_5.progress.2").withStyle(ChatFormatting.GRAY),
+                Component.translatable(
                         "quest.village-quest.story.shadows_on_the_trade_road.chapter_5.progress.3",
                         player != null && hasGuildWarningLetter(player) ? 1 : 0,
                         1
-                ).formatted(Formatting.GRAY)
+                ).withStyle(ChatFormatting.GRAY)
         );
     }
 
-    public static boolean handleCourierInteraction(ServerWorld world, ServerPlayerEntity player, Entity entity) {
+    public static boolean handleCourierInteraction(ServerLevel world, ServerPlayer player, Entity entity) {
         if (!(entity instanceof CaravanMerchantEntity merchant) || world == null || player == null) {
             return false;
         }
-        UUID expected = LETTER_COURIERS.get(player.getUuid());
-        if (expected == null || !expected.equals(merchant.getUuid())) {
+        UUID expected = LETTER_COURIERS.get(player.getUUID());
+        if (expected == null || !expected.equals(merchant.getUUID())) {
             return false;
         }
-        if (StoryQuestService.getQuestInt(world, player.getUuid(), StoryQuestKeys.SHADOWS_LETTER_RECEIVED) <= 0) {
+        if (StoryQuestService.getQuestInt(world, player.getUUID(), StoryQuestKeys.SHADOWS_LETTER_RECEIVED) <= 0) {
             giveOrDrop(player, createGuildWarningLetter());
-            StoryQuestService.setQuestInt(world, player.getUuid(), StoryQuestKeys.SHADOWS_LETTER_RECEIVED, 1);
-            player.sendMessage(Text.translatable("message.village-quest.story.shadows_on_the_trade_road.courier.1").formatted(Formatting.GOLD), false);
-            player.sendMessage(Text.translatable("message.village-quest.story.shadows_on_the_trade_road.courier.2").formatted(Formatting.GRAY), false);
+            StoryQuestService.setQuestInt(world, player.getUUID(), StoryQuestKeys.SHADOWS_LETTER_RECEIVED, 1);
+            player.sendSystemMessage(Component.translatable("message.village-quest.story.shadows_on_the_trade_road.courier.1").withStyle(ChatFormatting.GOLD), false);
+            player.sendSystemMessage(Component.translatable("message.village-quest.story.shadows_on_the_trade_road.courier.2").withStyle(ChatFormatting.GRAY), false);
             merchant.setDespawnTicks(20 * 10);
             merchant.setCourier(false);
             refreshQuestUi(world, player);
         } else {
-            VillagerDialogueService.sendDialogue(player, merchant, Text.translatable("message.village-quest.story.shadows_on_the_trade_road.courier.3"));
+            VillagerDialogueService.sendDialogue(player, merchant, Component.translatable("message.village-quest.story.shadows_on_the_trade_road.courier.3"));
         }
         return true;
     }
 
-    public static boolean hasGuildWarningLetter(ServerPlayerEntity player) {
+    public static boolean hasGuildWarningLetter(ServerPlayer player) {
         if (player == null) {
             return false;
         }
-        for (int slot = 0; slot < player.getInventory().size(); slot++) {
-            if (isGuildWarningLetter(player.getInventory().getStack(slot))) {
+        for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
+            if (isGuildWarningLetter(player.getInventory().getItem(slot))) {
                 return true;
             }
         }
-        return isGuildWarningLetter(player.getOffHandStack());
+        return isGuildWarningLetter(player.getOffhandItem());
     }
 
-    public static boolean consumeGuildWarningLetter(ServerPlayerEntity player) {
+    public static boolean consumeGuildWarningLetter(ServerPlayer player) {
         if (player == null) {
             return false;
         }
-        for (int slot = 0; slot < player.getInventory().size(); slot++) {
-            if (isGuildWarningLetter(player.getInventory().getStack(slot))) {
-                player.getInventory().getStack(slot).decrement(1);
-                player.playerScreenHandler.sendContentUpdates();
+        for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
+            if (isGuildWarningLetter(player.getInventory().getItem(slot))) {
+                player.getInventory().getItem(slot).shrink(1);
+                player.containerMenu.broadcastChanges();
                 return true;
             }
         }
-        if (isGuildWarningLetter(player.getOffHandStack())) {
-            player.getOffHandStack().decrement(1);
-            player.playerScreenHandler.sendContentUpdates();
+        if (isGuildWarningLetter(player.getOffhandItem())) {
+            player.getOffhandItem().shrink(1);
+            player.containerMenu.broadcastChanges();
             return true;
         }
         return false;
     }
 
-    public static boolean adminUnlockForTesting(ServerWorld world, ServerPlayerEntity player) {
+    /** Guild Archive recovery hook for the one-off courier document. */
+    public static boolean restoreGuildWarningLetter(ServerLevel world, ServerPlayer player) {
+        if (world == null || player == null || hasGuildWarningLetter(player)) return false;
+        giveOrDrop(player, createGuildWarningLetter());
+        return true;
+    }
+
+    public static boolean adminUnlockForTesting(ServerLevel world, ServerPlayer player) {
         if (world == null || player == null) {
             return false;
         }
         boolean changed = false;
-        PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(player.getUuid());
-        if (!VillageProjectService.isUnlocked(world, player.getUuid(), VillageProjectType.WATCH_BELL)) {
-            VillageProjectService.unlock(world, player.getUuid(), VillageProjectType.WATCH_BELL);
+        PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(player.getUUID());
+        if (!VillageProjectService.isUnlocked(world, player.getUUID(), VillageProjectType.WATCH_BELL)) {
+            VillageProjectService.unlock(world, player.getUUID(), VillageProjectType.WATCH_BELL);
             changed = true;
         }
         if (ModItems.SURVEYORS_COMPASS != null && !hasCompass(player)) {
@@ -506,41 +668,48 @@ public final class ShadowsTradeRoadEncounterService {
         if (SurveyorCompassQuestService.unlockStructureModes(world, player)) {
             changed = true;
         }
-        changed |= setCombatRumorTestFlags(world, player.getUuid());
+        changed |= setCombatRumorTestFlags(world, player.getUUID());
         if (!data.getStoryDiscovered().contains(StoryArcType.SHADOWS_ON_THE_TRADE_ROAD.id())) {
             data.setStoryDiscovered(StoryArcType.SHADOWS_ON_THE_TRADE_ROAD.id(), true);
             changed = true;
         }
-        QuestState.get(world.getServer()).markDirty();
+        QuestState.get(world.getServer()).setDirty();
         refreshQuestUi(world, player);
         return changed;
     }
 
-    public static boolean adminPrepareEncounterTest(ServerWorld world, ServerPlayerEntity player, boolean finalConvoy) {
+    public static boolean adminPrepareEncounterTest(ServerLevel world, ServerPlayer player, boolean finalConvoy) {
         if (world == null || player == null) {
             return false;
         }
         adminUnlockForTesting(world, player);
-        adminResetPlayer(world, player.getUuid());
-        StoryQuestService.adminResetStoryState(world, player.getUuid());
-        QuestState.get(world.getServer()).getPlayerData(player.getUuid()).setStoryChapterProgress(
+        adminResetPlayer(world, player.getUUID());
+        StoryQuestService.adminResetStoryState(world, player.getUUID());
+        QuestState.get(world.getServer()).getPlayerData(player.getUUID()).setStoryChapterProgress(
                 StoryArcType.SHADOWS_ON_THE_TRADE_ROAD.id(),
                 finalConvoy ? 5 : 2
         );
         boolean accepted = StoryQuestService.acceptQuest(world, player, StoryArcType.SHADOWS_ON_THE_TRADE_ROAD);
         if (accepted && finalConvoy) {
-            scheduleEncounter(world, player, RESCUE_KIND_FINAL, 0);
+            if (!scheduleEncounter(world, player, RESCUE_KIND_FINAL, 0)) {
+                return false;
+            }
             refreshQuestUi(world, player);
         }
-        return accepted;
+        if (!accepted || currentDistressTarget(world, player.getUUID()) == null) {
+            return false;
+        }
+        long currentDayStart = Math.floorDiv(world.getDayTime(), 24000L) * 24000L;
+        world.setDayTime(currentDayStart + 13000L);
+        return true;
     }
 
-    public static void adminResetPlayer(ServerWorld world, UUID playerId) {
+    public static void adminResetPlayer(ServerLevel world, UUID playerId) {
         cleanupPlayerRuntime(world, playerId, false);
         clearCourier(world, playerId);
     }
 
-    private static boolean setCombatRumorTestFlags(ServerWorld world, UUID playerId) {
+    private static boolean setCombatRumorTestFlags(ServerLevel world, UUID playerId) {
         PlayerQuestData data = QuestState.get(world.getServer()).getPlayerData(playerId);
         boolean changed = false;
         String[] ids = new String[] {
@@ -556,18 +725,40 @@ public final class ShadowsTradeRoadEncounterService {
             }
         }
         if (changed) {
-            QuestState.get(world.getServer()).markDirty();
+            QuestState.get(world.getServer()).setDirty();
         }
         return changed;
     }
 
-    private static void tickRescueChapter(ServerWorld world,
-                                          ServerPlayerEntity player,
+    private static void tickRescueChapter(ServerLevel world,
+                                          ServerPlayer player,
                                           String winsKey,
                                           int targetWins,
                                           int kind,
                                           int nightsUntilFirstRun) {
-        UUID playerId = player.getUuid();
+        if (player.level() != world) return;
+        UUID playerId = player.getUUID();
+        DifficultyObjectiveState.Transition modeTransition = DifficultyObjectiveState.transition(
+                StoryQuestService.getQuestInt(world, playerId, StoryQuestKeys.SHADOWS_OBJECTIVE_MODE),
+                world.getDifficulty());
+        if (modeTransition.initialized()) {
+            StoryQuestService.setQuestIntQuietly(world, playerId, StoryQuestKeys.SHADOWS_OBJECTIVE_MODE,
+                    modeTransition.persistedValue());
+        } else if (modeTransition.switched()) {
+            cleanupPlayerRuntime(world, playerId, true);
+            clearScheduledEncounter(world, playerId);
+            StoryQuestService.setQuestIntQuietly(world, playerId, winsKey, 0);
+            StoryQuestService.setQuestIntQuietly(world, playerId, StoryQuestKeys.SHADOWS_OBJECTIVE_MODE,
+                    modeTransition.persistedValue());
+            scheduleEncounter(world, player, kind, nightsUntilFirstRun);
+            player.sendSystemMessage(Component.translatable(
+                    "message.village-quest.difficulty_objective.switched",
+                    Component.translatable(modeTransition.mode() == DifficultyObjectiveMode.PEACEFUL
+                            ? "message.village-quest.difficulty_objective.mode.peaceful"
+                            : "message.village-quest.difficulty_objective.mode.combat")
+            ).withStyle(ChatFormatting.GOLD), false);
+            return;
+        }
         if (StoryQuestService.getQuestInt(world, playerId, winsKey) >= targetWins) {
             cleanupPlayerRuntime(world, playerId, true);
             if (kind != RESCUE_KIND_FINAL) {
@@ -589,74 +780,260 @@ public final class ShadowsTradeRoadEncounterService {
         }
 
         int targetDay = targetDay(world, playerId, kind == RESCUE_KIND_FINAL);
-        if (!world.isNight() || currentWorldDay(world) < targetDay || player.getEntityWorld() != world) {
+        if (!isNight(world) || currentWorldDay(world) < targetDay || player.level() != world) {
             return;
         }
-        if (player.getBlockPos().getSquaredDistance(distressTarget.pos()) > (double) (TRIGGER_RADIUS * TRIGGER_RADIUS)) {
+        if (player.blockPosition().distSqr(distressTarget.pos()) > (double) (TRIGGER_RADIUS * TRIGGER_RADIUS)) {
             return;
         }
 
         ActiveEncounter created = spawnEncounter(world, player, kind, distressTarget.pos());
         if (created != null) {
             ACTIVE.put(playerId, created);
-            player.sendMessage(Text.translatable(
+            player.sendSystemMessage(Component.translatable(
                     kind == RESCUE_KIND_FINAL
                             ? "message.village-quest.story.shadows_on_the_trade_road.final_found"
                             : "message.village-quest.story.shadows_on_the_trade_road.rescue_found"
-            ).formatted(Formatting.GOLD), false);
-            world.playSound(null, player.getBlockPos(), SoundEvents.EVENT_RAID_HORN.value(), SoundCategory.HOSTILE, 0.9f, 0.9f);
+            ).withStyle(ChatFormatting.GOLD), false);
+            world.playSound(null, player.blockPosition(), SoundEvents.RAID_HORN.value(), SoundSource.HOSTILE, 0.9f, 0.9f);
+        } else {
+            relocateFailedEncounter(world, player, kind, distressTarget.pos());
         }
     }
 
-    private static ActiveEncounter spawnEncounter(ServerWorld world, ServerPlayerEntity player, int kind, BlockPos anchorPos) {
-        EncounterSpec spec = switch (kind) {
-            case RESCUE_KIND_FIRST_SIGNAL -> FIRST_SIGNAL_SPEC;
-            case RESCUE_KIND_HOLDING -> HOLDING_SPEC;
-            case RESCUE_KIND_FINAL -> FINAL_SPEC;
-            default -> null;
-        };
-        if (spec == null || world == null || player == null || anchorPos == null) {
+    private static ActiveEncounter spawnEncounter(ServerLevel world, ServerPlayer player, int kind, BlockPos anchorPos) {
+        EncounterSpec baseSpec = encounterSpec(kind);
+        if (baseSpec == null || world == null || player == null || anchorPos == null) {
             return null;
         }
+        EncounterSpec spec = scaledEncounterSpec(
+                baseSpec,
+                world.getDifficulty(),
+                presentStoryParticipants(world, player, anchorPos));
 
-        ActiveEncounter encounter = new ActiveEncounter(player.getUuid(), spec, anchorPos);
+        ActiveEncounter encounter = new ActiveEncounter(player.getUUID(), spec, anchorPos);
         int guardCount = spec.merchants() / 3;
-        List<BlockPos> merchantPositions = new ArrayList<>();
+        List<BlockPos> merchantPositions = findMerchantSpawnPlan(world, anchorPos, spec.merchants());
+        if (merchantPositions.size() < spec.merchants()) {
+            return null;
+        }
         for (int i = 0; i < spec.merchants(); i++) {
-            BlockPos merchantPos = findMerchantSpawn(world, anchorPos, merchantPositions);
-            if (merchantPos == null) {
-                continue;
-            }
+            BlockPos merchantPos = merchantPositions.get(i);
             CaravanMerchantEntity merchant = new CaravanMerchantEntity(ModEntities.CARAVAN_MERCHANT, world);
-            merchant.refreshPositionAndAngles(merchantPos.getX() + 0.5, merchantPos.getY(), merchantPos.getZ() + 0.5, world.random.nextFloat() * 360.0f, 0.0f);
+            moveEntityTo(merchant, merchantPos.getX() + 0.5, merchantPos.getY(), merchantPos.getZ() + 0.5, world.getRandom().nextFloat() * 360.0f, 0.0f);
             merchant.setHealth(merchant.getMaxHealth());
             merchant.setDespawnTicks(SURVIVOR_DESPAWN_TICKS);
             boolean guard = i < guardCount;
             merchant.refreshEncounterControl(guard);
-            merchant.addCommandTag(TAG_CARAVAN);
-            merchant.addCommandTag(playerTag(player.getUuid()));
-            if (!world.isSpaceEmpty(merchant) || !world.spawnEntity(merchant)) {
+            merchant.addTag(TAG_CARAVAN);
+            merchant.addTag(playerTag(player.getUUID()));
+            if (!EncounterEntityLifecycle.spawn(world, merchant)) {
                 continue;
             }
-            encounter.merchantIds.add(merchant.getUuid());
-            merchantPositions.add(merchantPos);
+            encounter.merchantIds.add(merchant.getUUID());
             if (guard) {
-                encounter.guardMerchantIds.add(merchant.getUuid());
+                encounter.guardMerchantIds.add(merchant.getUUID());
             }
         }
         if (encounter.merchantIds.size() < spec.merchants()) {
             cleanupEncounterEntities(world, encounter, true);
             return null;
         }
-        startNextWave(world, encounter);
+        if (spec.waves().isEmpty()) {
+            int required = spec.finalConvoy() ? PEACEFUL_FINAL_CHECKPOINTS : PEACEFUL_ESCORT_CHECKPOINTS;
+            encounter.peacefulCheckpoints.addAll(findPeacefulCheckpointPlan(world, anchorPos, required));
+            if (encounter.peacefulCheckpoints.size() < required) {
+                cleanupEncounterEntities(world, encounter, true);
+                return null;
+            }
+        }
+        if (!spec.waves().isEmpty()) {
+            startNextWave(world, encounter);
+        }
         return encounter;
     }
 
-    private static void tickActiveEncounter(ServerWorld world,
-                                            ServerPlayerEntity player,
+    private static EncounterSpec scaledEncounterSpec(EncounterSpec base,
+                                                      Difficulty difficulty,
+                                                      int participants) {
+        if (!usesCombatWaves(difficulty)) {
+            return new EncounterSpec(
+                    base.kind(), base.merchants(), base.bossBarTitle(), base.finalConvoy(), List.of());
+        }
+        List<WaveSpec> waves = base.waves().stream()
+                .map(wave -> new WaveSpec(
+                        scaledHostileCount(wave.zombies(), difficulty, participants,
+                                VillageQuestServerConfig.get().adventureProfile()),
+                        scaledHostileCount(wave.skeletons(), difficulty, participants,
+                                VillageQuestServerConfig.get().adventureProfile()),
+                        scaledHostileCount(wave.spiders(), difficulty, participants,
+                                VillageQuestServerConfig.get().adventureProfile()),
+                        scaledHostileCount(wave.traitors(), difficulty, participants,
+                                VillageQuestServerConfig.get().adventureProfile())))
+                .toList();
+        return new EncounterSpec(base.kind(), base.merchants(), base.bossBarTitle(), base.finalConvoy(), waves);
+    }
+
+    static boolean usesCombatWaves(Difficulty difficulty) {
+        return difficulty != Difficulty.PEACEFUL;
+    }
+
+    static int minimumRescueDistance() {
+        return MIN_RESCUE_DISTANCE;
+    }
+
+    static int maximumRescueDistance() {
+        return MAX_RESCUE_DISTANCE;
+    }
+
+    static int merchantCountForKind(int kind) {
+        EncounterSpec spec = encounterSpec(kind);
+        return spec == null ? 0 : spec.merchants();
+    }
+
+    static int scaledHostileCount(int baseCount, Difficulty difficulty, int participants) {
+        return scaledHostileCount(baseCount, difficulty, participants,
+                VillageQuestServerConfig.AdventureProfile.STANDARD);
+    }
+
+    static int scaledHostileCount(int baseCount, Difficulty difficulty, int participants,
+                                  VillageQuestServerConfig.AdventureProfile profile) {
+        if (baseCount <= 0 || difficulty == Difficulty.PEACEFUL) {
+            return 0;
+        }
+        double difficultyMultiplier = switch (difficulty == null ? Difficulty.NORMAL : difficulty) {
+            case PEACEFUL -> 0.0D;
+            case EASY -> 0.70D;
+            case NORMAL -> 1.0D;
+            case HARD -> 1.20D;
+        };
+        int partySize = Math.max(1, Math.min(4, participants));
+        double partyMultiplier = 1.0D + (partySize - 1) * 0.25D;
+        int scaled = Math.max(1, (int) Math.round(baseCount * difficultyMultiplier * partyMultiplier));
+        VillageQuestServerConfig.AdventureProfile safeProfile = profile == null
+                ? VillageQuestServerConfig.AdventureProfile.STANDARD : profile;
+        return safeProfile.scaleHostileCount(scaled);
+    }
+
+    private static int presentStoryParticipants(ServerLevel world,
+                                                ServerPlayer owner,
+                                                BlockPos anchorPos) {
+        int chapter = StoryQuestService.chapterIndex(
+                world, owner.getUUID(), StoryArcType.SHADOWS_ON_THE_TRADE_ROAD);
+        int present = 0;
+        for (UUID memberId : QuestPartyService.activeStoryMembers(
+                world, owner.getUUID(), StoryArcType.SHADOWS_ON_THE_TRADE_ROAD, chapter)) {
+            ServerPlayer member = world.getServer().getPlayerList().getPlayer(memberId);
+            if (member != null && member.level() == world
+                    && member.blockPosition().distSqr(anchorPos) <= 64.0D * 64.0D) {
+                present++;
+            }
+        }
+        return Math.max(1, present);
+    }
+
+    private static void initializeObjectiveMode(ServerLevel world, ServerPlayer player) {
+        if (world == null || player == null) {
+            return;
+        }
+        StoryQuestService.setQuestIntQuietly(
+                world,
+                player.getUUID(),
+                StoryQuestKeys.SHADOWS_OBJECTIVE_MODE,
+                DifficultyObjectiveMode.forDifficulty(world.getDifficulty()).serializedId()
+        );
+    }
+
+    private static List<BlockPos> findPeacefulCheckpointPlan(ServerLevel world,
+                                                              BlockPos anchor,
+                                                              int required) {
+        if (world == null || anchor == null || required <= 0) {
+            return List.of();
+        }
+        int[][] offsets = {
+                {16, 0}, {16, 16}, {0, 16}, {-16, 16},
+                {-16, 0}, {-16, -16}, {0, -16}, {16, -16}
+        };
+        List<BlockPos> plan = new ArrayList<>();
+        for (int[] offset : offsets) {
+            BlockPos checkpoint = safeSurface(world, anchor.getX() + offset[0], anchor.getZ() + offset[1]);
+            if (checkpoint != null && plan.stream().noneMatch(existing -> existing.distSqr(checkpoint) < 64.0D)) {
+                plan.add(checkpoint);
+                if (plan.size() >= required) {
+                    break;
+                }
+            }
+        }
+        return plan;
+    }
+
+    private static void tickPeacefulEscort(ServerLevel world,
+                                           ServerPlayer player,
+                                           ActiveEncounter encounter,
+                                           List<CaravanMerchantEntity> merchants,
+                                           String winsKey,
+                                           int targetWins) {
+        int required = encounter.peacefulCheckpoints.size();
+        if (required <= 0) {
+            failEncounter(world, player, encounter, winsKey, targetWins);
+            return;
+        }
+        if (!encounter.peacefulSuppliesDelivered
+                && player.blockPosition().distSqr(encounter.anchorPos) <= 10.0D * 10.0D
+                && DailyQuestService.countInventoryItem(player, Items.BREAD) >= PEACEFUL_SUPPLY_BREAD
+                && DailyQuestService.consumeInventoryItem(player, Items.BREAD, PEACEFUL_SUPPLY_BREAD)) {
+            encounter.peacefulSuppliesDelivered = true;
+            player.sendSystemMessage(Component.translatable(
+                    "message.village-quest.story.shadows_on_the_trade_road.peaceful.supplies",
+                    PEACEFUL_SUPPLY_BREAD
+            ).withStyle(ChatFormatting.GREEN), false);
+        }
+
+        if (PeacefulEscortProgress.complete(
+                encounter.peacefulCheckpointIndex, required, encounter.peacefulSuppliesDelivered)) {
+            succeedEncounter(world, player, encounter, winsKey, targetWins);
+            return;
+        }
+
+        BlockPos target = encounter.peacefulCheckpoints.get(
+                Math.min(encounter.peacefulCheckpointIndex, required - 1));
+        int arrived = 0;
+        for (CaravanMerchantEntity merchant : merchants) {
+            moveMerchantTo(merchant, target, MERCHANT_RETURN_SPEED);
+            if (merchant.blockPosition().distSqr(target) <= 8.0D * 8.0D) {
+                arrived++;
+            }
+        }
+        encounter.bossBar.setProgress((float) encounter.peacefulCheckpointIndex / (float) required);
+        if (player.blockPosition().distSqr(target) <= 10.0D * 10.0D
+                && arrived >= Math.max(1, (merchants.size() + 1) / 2)) {
+            encounter.peacefulCheckpointIndex++;
+            player.sendSystemMessage(Component.translatable(
+                    "message.village-quest.story.shadows_on_the_trade_road.peaceful.checkpoint",
+                    encounter.peacefulCheckpointIndex,
+                    required
+            ).withStyle(ChatFormatting.GOLD), true);
+        }
+    }
+
+    private static void tickActiveEncounter(ServerLevel world,
+                                            ServerPlayer player,
                                             ActiveEncounter encounter,
                                             String winsKey,
                                             int targetWins) {
+        if (player.level() != world) return;
+        encounter.hostileIds.removeIf(id -> {
+            boolean dead = EncounterEntityLifecycle.defeated(id, findEntity(world, id));
+            if (dead) EncounterEntityLifecycle.forget(id);
+            return dead;
+        });
+        if (encounter.hostileIds.stream().anyMatch(EncounterEntityLifecycle::terminated)) {
+            failEncounter(world, player, encounter, winsKey, targetWins);
+            return;
+        }
+        if (encounter.hostileIds.stream().anyMatch(id -> findEntity(world, id) == null)
+                || encounter.merchantIds.stream().anyMatch(id -> findEntity(world, id) == null
+                    && !EncounterEntityLifecycle.terminated(id) && !EncounterEntityLifecycle.defeated(id, null))) return;
         List<CaravanMerchantEntity> merchants = livingMerchants(world, encounter);
         if (merchants.isEmpty()) {
             failEncounter(world, player, encounter, winsKey, targetWins);
@@ -665,7 +1042,11 @@ public final class ShadowsTradeRoadEncounterService {
 
         refreshEncounterMerchants(merchants);
         updateBossBar(world, player, encounter, merchants);
-        List<MobEntity> hostiles = livingHostiles(world, encounter);
+        if (encounter.spec.waves().isEmpty()) {
+            tickPeacefulEscort(world, player, encounter, merchants, winsKey, targetWins);
+            return;
+        }
+        List<Mob> hostiles = livingHostiles(world, encounter);
         if (!encounter.pendingSpawns.isEmpty()) {
             if (encounter.wavePulseDelayTicks > 0) {
                 encounter.wavePulseDelayTicks--;
@@ -689,23 +1070,23 @@ public final class ShadowsTradeRoadEncounterService {
                 return;
             }
             startNextWave(world, encounter);
-            player.sendMessage(Text.translatable(
+            player.sendSystemMessage(Component.translatable(
                     "message.village-quest.story.shadows_on_the_trade_road.wave",
                     encounter.waveIndex,
                     encounter.spec.waves().size()
-            ).formatted(Formatting.GOLD), true);
+            ).withStyle(ChatFormatting.GOLD), true);
             return;
         }
 
         succeedEncounter(world, player, encounter, winsKey, targetWins);
     }
 
-    private static List<MobEntity> maintainHostileSafety(ServerWorld world,
-                                                        ServerPlayerEntity player,
+    private static List<Mob> maintainHostileSafety(ServerLevel world,
+                                                        ServerPlayer player,
                                                         ActiveEncounter encounter,
-                                                        List<MobEntity> hostiles) {
+                                                        List<Mob> hostiles) {
         boolean relocated = false;
-        for (MobEntity hostile : hostiles) {
+        for (Mob hostile : hostiles) {
             if (shouldLeashHostile(encounter, hostile)) {
                 relocateHostileToEncounter(world, encounter, hostile);
                 relocated = true;
@@ -728,61 +1109,61 @@ public final class ShadowsTradeRoadEncounterService {
             return hostiles;
         }
 
-        for (MobEntity hostile : hostiles) {
-            hostile.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, LAST_HOSTILE_MARK_DURATION_TICKS, 0), player);
+        for (Mob hostile : hostiles) {
+            hostile.addEffect(new MobEffectInstance(MobEffects.GLOWING, LAST_HOSTILE_MARK_DURATION_TICKS, 0), player);
         }
         encounter.lastHostileMarkDelayTicks = LAST_HOSTILE_MARK_REPEAT_TICKS;
         return hostiles;
     }
 
-    private static boolean shouldLeashHostile(ActiveEncounter encounter, MobEntity hostile) {
+    private static boolean shouldLeashHostile(ActiveEncounter encounter, Mob hostile) {
         if (encounter == null || hostile == null) {
             return false;
         }
-        BlockPos hostilePos = hostile.getBlockPos();
-        return hostilePos.getSquaredDistance(encounter.anchorPos) > (double) (HOSTILE_LEASH_RADIUS * HOSTILE_LEASH_RADIUS)
+        BlockPos hostilePos = hostile.blockPosition();
+        return hostilePos.distSqr(encounter.anchorPos) > (double) (HOSTILE_LEASH_RADIUS * HOSTILE_LEASH_RADIUS)
                 || Math.abs(hostilePos.getY() - encounter.anchorPos.getY()) > HOSTILE_MAX_Y_DELTA;
     }
 
-    private static void relocateHostileToEncounter(ServerWorld world, ActiveEncounter encounter, MobEntity hostile) {
+    private static void relocateHostileToEncounter(ServerLevel world, ActiveEncounter encounter, Mob hostile) {
         if (world == null || encounter == null || hostile == null) {
             return;
         }
         BlockPos spawnPos = findRingSpawn(world, encounter.anchorPos, HOSTILE_SPAWN_MIN_RADIUS, HOSTILE_SPAWN_MAX_RADIUS);
-        hostile.refreshPositionAndAngles(spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5, world.random.nextFloat() * 360.0f, 0.0f);
-        hostile.setVelocity(0.0, 0.0, 0.0);
+        moveEntityTo(hostile, spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5, world.getRandom().nextFloat() * 360.0f, 0.0f);
+        hostile.setDeltaMovement(0.0, 0.0, 0.0);
         hostile.getNavigation().stop();
-        encounter.aggroTicks.remove(hostile.getUuid());
+        encounter.aggroTicks.remove(hostile.getUUID());
     }
 
-    private static void tickCaravanBehavior(ServerWorld world,
+    private static void tickCaravanBehavior(ServerLevel world,
                                             ActiveEncounter encounter,
                                             List<CaravanMerchantEntity> merchants,
-                                            List<MobEntity> hostiles) {
+                                            List<Mob> hostiles) {
         if (world == null || encounter == null || merchants == null) {
             return;
         }
         for (CaravanMerchantEntity merchant : merchants) {
-            boolean guard = encounter.guardMerchantIds.contains(merchant.getUuid());
+            boolean guard = encounter.guardMerchantIds.contains(merchant.getUUID());
             merchant.refreshEncounterControl(guard);
 
-            BlockPos merchantPos = merchant.getBlockPos();
+            BlockPos merchantPos = merchant.blockPosition();
             if (Math.abs(merchantPos.getY() - encounter.anchorPos.getY()) > ENCOUNTER_MAX_VERTICAL_DELTA * 2) {
                 if (!recoverEncounterMerchant(world, encounter, merchant, merchants)) {
                     moveMerchantTo(merchant, encounter.anchorPos, MERCHANT_RETURN_SPEED);
                 }
                 continue;
             }
-            if (merchantPos.getSquaredDistance(encounter.anchorPos) > (double) (MERCHANT_MAX_RADIUS * MERCHANT_MAX_RADIUS)) {
+            if (merchantPos.distSqr(encounter.anchorPos) > (double) (MERCHANT_MAX_RADIUS * MERCHANT_MAX_RADIUS)) {
                 if (!recoverEncounterMerchant(world, encounter, merchant, merchants)) {
                     moveMerchantTo(merchant, encounter.anchorPos, MERCHANT_RETURN_SPEED);
                 }
                 continue;
             }
 
-            MobEntity threat = nearestHostile(merchant, hostiles);
+            Mob threat = nearestHostile(merchant, hostiles);
             if (threat != null) {
-                double threatDistance = merchant.squaredDistanceTo(threat);
+                double threatDistance = merchant.distanceToSqr(threat);
                 if (guard) {
                     merchant.tryDefendAgainst(world, threat);
                 }
@@ -792,7 +1173,7 @@ public final class ShadowsTradeRoadEncounterService {
                 }
             }
 
-            if (merchant.getBlockPos().getSquaredDistance(encounter.anchorPos) > (double) (MERCHANT_RETURN_RADIUS * MERCHANT_RETURN_RADIUS)) {
+            if (merchant.blockPosition().distSqr(encounter.anchorPos) > (double) (MERCHANT_RETURN_RADIUS * MERCHANT_RETURN_RADIUS)) {
                 moveMerchantTo(merchant, encounter.anchorPos, MERCHANT_RETURN_SPEED);
             } else {
                 merchant.getNavigation().stop();
@@ -804,10 +1185,10 @@ public final class ShadowsTradeRoadEncounterService {
         if (merchant == null || pos == null) {
             return;
         }
-        merchant.getNavigation().startMovingTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, speed);
+        merchant.getNavigation().moveTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, speed);
     }
 
-    private static boolean recoverEncounterMerchant(ServerWorld world,
+    private static boolean recoverEncounterMerchant(ServerLevel world,
                                                       ActiveEncounter encounter,
                                                       CaravanMerchantEntity merchant,
                                                       List<CaravanMerchantEntity> merchants) {
@@ -815,7 +1196,7 @@ public final class ShadowsTradeRoadEncounterService {
         for (CaravanMerchantEntity other : merchants) {
             if (other != null && other != merchant && other.isAlive() && !other.isRemoved()
                     && Math.abs(other.getY() - encounter.anchorPos.getY()) <= ENCOUNTER_MAX_VERTICAL_DELTA) {
-                occupied.add(other.getBlockPos());
+                occupied.add(other.blockPosition());
             }
         }
         BlockPos recovery = findMerchantSpawn(world, encounter.anchorPos, occupied);
@@ -823,36 +1204,36 @@ public final class ShadowsTradeRoadEncounterService {
             return false;
         }
         merchant.getNavigation().stop();
-        merchant.setVelocity(0.0, 0.0, 0.0);
+        merchant.setDeltaMovement(0.0, 0.0, 0.0);
         moveEntityTo(merchant, recovery.getX() + 0.5, recovery.getY(), recovery.getZ() + 0.5,
-                merchant.getYaw(), merchant.getPitch());
+                merchant.getYRot(), merchant.getXRot());
         return true;
     }
 
-    private static BlockPos findMerchantRetreatPos(ServerWorld world, ActiveEncounter encounter, MobEntity threat) {
+    private static BlockPos findMerchantRetreatPos(ServerLevel world, ActiveEncounter encounter, Mob threat) {
         if (world == null || encounter == null || threat == null) {
-            return encounter == null ? BlockPos.ORIGIN : encounter.anchorPos;
+            return encounter == null ? BlockPos.ZERO : encounter.anchorPos;
         }
         double dx = encounter.anchorPos.getX() + 0.5 - threat.getX();
         double dz = encounter.anchorPos.getZ() + 0.5 - threat.getZ();
         double length = Math.sqrt(dx * dx + dz * dz);
         if (length < 0.1D) {
-            double angle = world.random.nextDouble() * Math.PI * 2.0D;
+            double angle = world.getRandom().nextDouble() * Math.PI * 2.0D;
             dx = Math.cos(angle);
             dz = Math.sin(angle);
             length = 1.0D;
         }
-        int x = encounter.anchorPos.getX() + MathHelper.floor((dx / length) * MERCHANT_RETREAT_DISTANCE);
-        int z = encounter.anchorPos.getZ() + MathHelper.floor((dz / length) * MERCHANT_RETREAT_DISTANCE);
+        int x = encounter.anchorPos.getX() + Mth.floor((dx / length) * MERCHANT_RETREAT_DISTANCE);
+        int z = encounter.anchorPos.getZ() + Mth.floor((dz / length) * MERCHANT_RETREAT_DISTANCE);
         BlockPos retreatPos = safeSurface(world, x, z);
-        if (retreatPos != null && retreatPos.getSquaredDistance(encounter.anchorPos) <= (double) (MERCHANT_MAX_RADIUS * MERCHANT_MAX_RADIUS)) {
+        if (retreatPos != null && retreatPos.distSqr(encounter.anchorPos) <= (double) (MERCHANT_MAX_RADIUS * MERCHANT_MAX_RADIUS)) {
             return retreatPos;
         }
         return encounter.anchorPos;
     }
 
-    private static void updateBossBar(ServerWorld world,
-                                      ServerPlayerEntity player,
+    private static void updateBossBar(ServerLevel world,
+                                      ServerPlayer player,
                                       ActiveEncounter encounter,
                                       List<CaravanMerchantEntity> merchants) {
         float current = 0.0f;
@@ -861,8 +1242,8 @@ public final class ShadowsTradeRoadEncounterService {
             current += merchant.getHealth();
             max += merchant.getMaxHealth();
         }
-        encounter.bossBar.setPercent(max <= 0.0f ? 0.0f : MathHelper.clamp(current / max, 0.0f, 1.0f));
-        if (player != null && player.getEntityWorld() == world) {
+        encounter.bossBar.setProgress(max <= 0.0f ? 0.0f : Mth.clamp(current / max, 0.0f, 1.0f));
+        if (player != null && player.level() == world) {
             encounter.bossBar.addPlayer(player);
         }
     }
@@ -878,14 +1259,14 @@ public final class ShadowsTradeRoadEncounterService {
         }
     }
 
-    private static void retargetHostiles(ServerWorld world,
-                                         ServerPlayerEntity player,
+    private static void retargetHostiles(ServerLevel world,
+                                         ServerPlayer player,
                                          ActiveEncounter encounter,
                                          List<CaravanMerchantEntity> merchants,
-                                         List<MobEntity> hostiles) {
-        for (MobEntity hostile : hostiles) {
-            UUID hostileId = hostile.getUuid();
-            if (hostile.getAttacker() instanceof ServerPlayerEntity attacker && attacker.getUuid().equals(encounter.playerId)) {
+                                         List<Mob> hostiles) {
+        for (Mob hostile : hostiles) {
+            UUID hostileId = hostile.getUUID();
+            if (hostile.getLastHurtByMob() instanceof ServerPlayer attacker && attacker.getUUID().equals(encounter.playerId)) {
                 encounter.aggroTicks.put(hostileId, AGGRO_TICKS);
             }
 
@@ -896,7 +1277,7 @@ public final class ShadowsTradeRoadEncounterService {
                 encounter.aggroTicks.remove(hostileId);
             }
 
-            if (ticks > 0 && player != null && player.isAlive() && player.getEntityWorld() == world) {
+            if (ticks > 0 && player != null && player.isAlive() && player.level() == world) {
                 hostile.setTarget(player);
                 continue;
             }
@@ -908,7 +1289,7 @@ public final class ShadowsTradeRoadEncounterService {
         }
     }
 
-    private static void startNextWave(ServerWorld world, ActiveEncounter encounter) {
+    private static void startNextWave(ServerLevel world, ActiveEncounter encounter) {
         WaveSpec wave = encounter.spec.waves().get(encounter.waveIndex);
         encounter.waveIndex++;
         encounter.nextWaveDelayTicks = NEXT_WAVE_DELAY_TICKS;
@@ -928,19 +1309,19 @@ public final class ShadowsTradeRoadEncounterService {
         }
     }
 
-    private static void shufflePendingSpawns(ServerWorld world, List<HostileSpawnType> pendingSpawns) {
+    private static void shufflePendingSpawns(ServerLevel world, List<HostileSpawnType> pendingSpawns) {
         if (world == null || pendingSpawns.size() < 2) {
             return;
         }
         for (int i = pendingSpawns.size() - 1; i > 0; i--) {
-            int swapIndex = world.random.nextInt(i + 1);
+            int swapIndex = world.getRandom().nextInt(i + 1);
             HostileSpawnType current = pendingSpawns.get(i);
             pendingSpawns.set(i, pendingSpawns.get(swapIndex));
             pendingSpawns.set(swapIndex, current);
         }
     }
 
-    private static void spawnWavePulse(ServerWorld world, ActiveEncounter encounter) {
+    private static void spawnWavePulse(ServerLevel world, ActiveEncounter encounter) {
         if (world == null || encounter == null || encounter.pendingSpawns.isEmpty()) {
             return;
         }
@@ -952,91 +1333,91 @@ public final class ShadowsTradeRoadEncounterService {
         encounter.wavePulseDelayTicks = encounter.pendingSpawns.isEmpty() ? 0 : WAVE_PULSE_DELAY_TICKS;
     }
 
-    private static void spawnHostile(ServerWorld world, ActiveEncounter encounter, HostileSpawnType type) {
+    private static void spawnHostile(ServerLevel world, ActiveEncounter encounter, HostileSpawnType type) {
         switch (type) {
-            case ZOMBIE -> spawnZombieEntitys(world, encounter, 1);
-            case SKELETON -> spawnSkeletonEntitys(world, encounter, 1);
-            case SPIDER -> spawnSpiderEntitys(world, encounter, 1);
+            case ZOMBIE -> spawnZombies(world, encounter, 1);
+            case SKELETON -> spawnSkeletons(world, encounter, 1);
+            case SPIDER -> spawnSpiders(world, encounter, 1);
             case TRAITOR -> spawnTraitors(world, encounter, 1);
         }
     }
 
-    private static void spawnZombieEntitys(ServerWorld world, ActiveEncounter encounter, int count) {
+    private static void spawnZombies(ServerLevel world, ActiveEncounter encounter, int count) {
         for (int i = 0; i < count; i++) {
-            ZombieEntity zombie = new ZombieEntity(EntityType.ZOMBIE, world);
+            Zombie zombie = new Zombie(EntityType.ZOMBIE, world);
             prepareHostile(world, encounter, zombie, false);
         }
     }
 
-    private static void spawnSkeletonEntitys(ServerWorld world, ActiveEncounter encounter, int count) {
+    private static void spawnSkeletons(ServerLevel world, ActiveEncounter encounter, int count) {
         for (int i = 0; i < count; i++) {
-            SkeletonEntity skeleton = new SkeletonEntity(EntityType.SKELETON, world);
-            skeleton.equipStack(EquipmentSlot.MAINHAND, new ItemStack(Items.BOW));
+            Skeleton skeleton = new Skeleton(EntityType.SKELETON, world);
+            skeleton.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.BOW));
             prepareHostile(world, encounter, skeleton, false);
         }
     }
 
-    private static void spawnSpiderEntitys(ServerWorld world, ActiveEncounter encounter, int count) {
+    private static void spawnSpiders(ServerLevel world, ActiveEncounter encounter, int count) {
         for (int i = 0; i < count; i++) {
-            SpiderEntity spider = new SpiderEntity(EntityType.SPIDER, world);
+            Spider spider = new Spider(EntityType.SPIDER, world);
             prepareHostile(world, encounter, spider, false);
         }
     }
 
-    private static void spawnTraitors(ServerWorld world, ActiveEncounter encounter, int count) {
+    private static void spawnTraitors(ServerLevel world, ActiveEncounter encounter, int count) {
         for (int i = 0; i < count; i++) {
             TraitorEntity traitor = new TraitorEntity(ModEntities.TRAITOR, world);
-            traitor.addCommandTag(TAG_TRAITOR);
+            traitor.addTag(TAG_TRAITOR);
             prepareHostile(world, encounter, traitor, true);
         }
     }
 
-    private static void prepareHostile(ServerWorld world, ActiveEncounter encounter, MobEntity hostile, boolean elite) {
+    private static void prepareHostile(ServerLevel world, ActiveEncounter encounter, Mob hostile, boolean elite) {
         if (world == null || encounter == null || hostile == null) {
             return;
         }
         BlockPos spawnPos = findRingSpawn(world, encounter.anchorPos, HOSTILE_SPAWN_MIN_RADIUS, HOSTILE_SPAWN_MAX_RADIUS);
-        hostile.refreshPositionAndAngles(spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5, world.random.nextFloat() * 360.0f, 0.0f);
-        hostile.setPersistent();
-        hostile.addCommandTag(TAG_HOSTILE);
-        hostile.addCommandTag(playerTag(encounter.playerId));
+        moveEntityTo(hostile, spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5, world.getRandom().nextFloat() * 360.0f, 0.0f);
+        hostile.setPersistenceRequired();
+        hostile.addTag(TAG_HOSTILE);
+        hostile.addTag(playerTag(encounter.playerId));
         if (elite) {
-            hostile.equipStack(EquipmentSlot.MAINHAND, new ItemStack(Items.DIAMOND_SWORD));
+            hostile.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.DIAMOND_SWORD));
         }
-        hostile.addStatusEffect(new StatusEffectInstance(StatusEffects.GLOWING, HOSTILE_SPAWN_GLOW_TICKS, 0));
-        if (!world.isSpaceEmpty(hostile) || !world.spawnEntity(hostile)) {
+        hostile.addEffect(new MobEffectInstance(MobEffects.GLOWING, HOSTILE_SPAWN_GLOW_TICKS, 0));
+        if (!EncounterEntityLifecycle.spawn(world, hostile)) {
             return;
         }
-        encounter.hostileIds.add(hostile.getUuid());
+        encounter.hostileIds.add(hostile.getUUID());
     }
 
-    private static void failEncounter(ServerWorld world,
-                                      ServerPlayerEntity player,
+    private static void failEncounter(ServerLevel world,
+                                      ServerPlayer player,
                                       ActiveEncounter encounter,
                                       String winsKey,
                                       int targetWins) {
         cleanupEncounterEntities(world, encounter, true);
         ACTIVE.remove(encounter.playerId);
-        encounter.bossBar.clearPlayers();
+        encounter.bossBar.removeAllPlayers();
         scheduleEncounter(world, player, encounter.spec.kind(), encounter.spec.finalConvoy() ? 1 : 1);
         if (player != null) {
-            player.sendMessage(Text.translatable(
+            player.sendSystemMessage(Component.translatable(
                     encounter.spec.finalConvoy()
                             ? "message.village-quest.story.shadows_on_the_trade_road.final_failed"
                             : "message.village-quest.story.shadows_on_the_trade_road.rescue_failed"
-            ).formatted(Formatting.RED), false);
+            ).withStyle(ChatFormatting.RED), false);
             refreshQuestUi(world, player);
         }
     }
 
-    private static void succeedEncounter(ServerWorld world,
-                                         ServerPlayerEntity player,
+    private static void succeedEncounter(ServerLevel world,
+                                         ServerPlayer player,
                                          ActiveEncounter encounter,
                                          String winsKey,
                                          int targetWins) {
         cleanupEncounterEntities(world, encounter, false);
         ACTIVE.remove(encounter.playerId);
-        encounter.bossBar.clearPlayers();
+        encounter.bossBar.removeAllPlayers();
         UUID playerId = encounter.playerId;
         int nextWins = Math.min(targetWins, StoryQuestService.getQuestInt(world, playerId, winsKey) + 1);
         StoryQuestService.setQuestInt(world, playerId, winsKey, nextWins);
@@ -1045,24 +1426,25 @@ public final class ShadowsTradeRoadEncounterService {
             scheduleEncounter(world, player, encounter.spec.kind(), 1);
         }
         if (player != null) {
-            player.sendMessage(Text.translatable(
+            player.sendSystemMessage(Component.translatable(
                     encounter.spec.finalConvoy()
                             ? "message.village-quest.story.shadows_on_the_trade_road.final_saved"
                             : "message.village-quest.story.shadows_on_the_trade_road.rescue_saved"
-            ).formatted(Formatting.GOLD), false);
+            ).withStyle(ChatFormatting.GOLD), false);
             if (!encounter.spec.finalConvoy() && encounter.spec.kind() == RESCUE_KIND_HOLDING && nextWins >= targetWins) {
-                player.sendMessage(Text.translatable("message.village-quest.story.shadows_on_the_trade_road.survivor_waiting").formatted(Formatting.GRAY), false);
+                player.sendSystemMessage(Component.translatable("message.village-quest.story.shadows_on_the_trade_road.survivor_waiting").withStyle(ChatFormatting.GRAY), false);
             }
             StoryQuestService.completeIfEligible(world, player);
             refreshQuestUi(world, player);
         }
     }
 
-    private static void cleanupEncounterEntities(ServerWorld world, ActiveEncounter encounter, boolean discardMerchants) {
+    private static void cleanupEncounterEntities(ServerLevel world, ActiveEncounter encounter, boolean discardMerchants) {
         if (world == null || encounter == null) {
             return;
         }
         for (UUID hostileId : encounter.hostileIds) {
+            EncounterEntityLifecycle.forget(hostileId);
             Entity entity = findEntity(world, hostileId);
             if (entity != null) {
                 entity.discard();
@@ -1070,6 +1452,7 @@ public final class ShadowsTradeRoadEncounterService {
         }
         if (discardMerchants) {
             for (UUID merchantId : encounter.merchantIds) {
+                EncounterEntityLifecycle.forget(merchantId);
                 Entity entity = findEntity(world, merchantId);
                 if (entity != null) {
                     entity.discard();
@@ -1080,13 +1463,14 @@ public final class ShadowsTradeRoadEncounterService {
         for (UUID merchantId : encounter.merchantIds) {
             Entity entity = findEntity(world, merchantId);
             if (entity instanceof CaravanMerchantEntity merchant) {
+                EncounterEntityLifecycle.release(merchant);
                 merchant.clearEncounterControl();
                 merchant.setDespawnTicks(SURVIVOR_DESPAWN_TICKS);
             }
         }
     }
 
-    private static List<CaravanMerchantEntity> livingMerchants(ServerWorld world, ActiveEncounter encounter) {
+    private static List<CaravanMerchantEntity> livingMerchants(ServerLevel world, ActiveEncounter encounter) {
         List<CaravanMerchantEntity> living = new ArrayList<>();
         for (UUID merchantId : encounter.merchantIds) {
             Entity entity = findEntity(world, merchantId);
@@ -1097,11 +1481,11 @@ public final class ShadowsTradeRoadEncounterService {
         return living;
     }
 
-    private static List<MobEntity> livingHostiles(ServerWorld world, ActiveEncounter encounter) {
-        List<MobEntity> living = new ArrayList<>();
+    private static List<Mob> livingHostiles(ServerLevel world, ActiveEncounter encounter) {
+        List<Mob> living = new ArrayList<>();
         for (UUID hostileId : encounter.hostileIds) {
             Entity entity = findEntity(world, hostileId);
-            if (entity instanceof MobEntity hostile && hostile.isAlive() && !hostile.isRemoved()) {
+            if (entity instanceof Mob hostile && hostile.isAlive() && !hostile.isRemoved()) {
                 living.add(hostile);
             }
         }
@@ -1112,7 +1496,7 @@ public final class ShadowsTradeRoadEncounterService {
         CaravanMerchantEntity nearest = null;
         double bestDistance = Double.MAX_VALUE;
         for (CaravanMerchantEntity merchant : merchants) {
-            double distance = hostile.squaredDistanceTo(merchant);
+            double distance = hostile.distanceToSqr(merchant);
             if (distance < bestDistance) {
                 bestDistance = distance;
                 nearest = merchant;
@@ -1121,17 +1505,17 @@ public final class ShadowsTradeRoadEncounterService {
         return nearest;
     }
 
-    private static MobEntity nearestHostile(Entity source, List<MobEntity> hostiles) {
+    private static Mob nearestHostile(Entity source, List<Mob> hostiles) {
         if (source == null || hostiles == null || hostiles.isEmpty()) {
             return null;
         }
-        MobEntity nearest = null;
+        Mob nearest = null;
         double bestDistance = Double.MAX_VALUE;
-        for (MobEntity hostile : hostiles) {
+        for (Mob hostile : hostiles) {
             if (hostile == null || !hostile.isAlive() || hostile.isRemoved()) {
                 continue;
             }
-            double distance = source.squaredDistanceTo(hostile);
+            double distance = source.distanceToSqr(hostile);
             if (distance < bestDistance) {
                 bestDistance = distance;
                 nearest = hostile;
@@ -1140,32 +1524,66 @@ public final class ShadowsTradeRoadEncounterService {
         return nearest;
     }
 
-    private static void scheduleEncounter(ServerWorld world, ServerPlayerEntity player, int kind, int nightsUntilStart) {
-        if (world == null || player == null) {
-            return;
+    private static boolean scheduleEncounter(ServerLevel world, ServerPlayer player, int kind, int nightsUntilStart) {
+        if (world == null || player == null || player.level() != world || world != world.getServer().overworld()) {
+            return false;
         }
-        BlockPos anchor = findEncounterAnchor(world, player.getBlockPos());
+        EncounterSpec spec = encounterSpec(kind);
+        if (spec == null) {
+            return false;
+        }
+        BlockPos anchor = findEncounterAnchor(world, player.blockPosition(), spec.merchants());
         if (anchor == null) {
-            return;
+            return false;
         }
         int targetDay = currentWorldDay(world) + Math.max(0, nightsUntilStart);
-        StoryQuestService.setQuestInt(world, player.getUuid(), StoryQuestKeys.SHADOWS_RESCUE_TARGET_X, anchor.getX());
-        StoryQuestService.setQuestInt(world, player.getUuid(), StoryQuestKeys.SHADOWS_RESCUE_TARGET_Z, anchor.getZ());
+        storeScheduledEncounter(world, player.getUUID(), kind, anchor, targetDay);
+        return true;
+    }
+
+    private static void storeScheduledEncounter(ServerLevel world, UUID playerId, int kind,
+                                                BlockPos anchor, int targetDay) {
+        StoryQuestService.setQuestInt(world, playerId, StoryQuestKeys.SHADOWS_RESCUE_TARGET_X, anchor.getX());
+        StoryQuestService.setQuestInt(world, playerId, StoryQuestKeys.SHADOWS_RESCUE_TARGET_Z, anchor.getZ());
         StoryQuestService.setQuestInt(
                 world,
-                player.getUuid(),
+                playerId,
                 kind == RESCUE_KIND_FINAL ? StoryQuestKeys.SHADOWS_FINAL_TARGET_DAY : StoryQuestKeys.SHADOWS_RESCUE_TARGET_DAY,
                 targetDay
         );
-        StoryQuestService.setQuestInt(world, player.getUuid(), StoryQuestKeys.SHADOWS_RESCUE_KIND, kind);
+        StoryQuestService.setQuestInt(world, playerId, StoryQuestKeys.SHADOWS_RESCUE_KIND, kind);
         if (kind == RESCUE_KIND_FINAL) {
-            StoryQuestService.setQuestInt(world, player.getUuid(), StoryQuestKeys.SHADOWS_RESCUE_TARGET_DAY, 0);
+            StoryQuestService.setQuestInt(world, playerId, StoryQuestKeys.SHADOWS_RESCUE_TARGET_DAY, 0);
         } else {
-            StoryQuestService.setQuestInt(world, player.getUuid(), StoryQuestKeys.SHADOWS_FINAL_TARGET_DAY, 0);
+            StoryQuestService.setQuestInt(world, playerId, StoryQuestKeys.SHADOWS_FINAL_TARGET_DAY, 0);
         }
     }
 
-    private static void clearScheduledEncounter(ServerWorld world, UUID playerId) {
+    private static void relocateFailedEncounter(ServerLevel world, ServerPlayer player, int kind,
+                                                BlockPos failedAnchor) {
+        EncounterSpec spec = encounterSpec(kind);
+        if (world == null || player == null || failedAnchor == null || spec == null) {
+            return;
+        }
+        BlockPos replacement = findNearbyEncounterAnchor(world, failedAnchor, spec.merchants());
+        if (replacement == null) {
+            clearScheduledEncounter(world, player.getUUID());
+            if (!scheduleEncounter(world, player, kind, 0)) {
+                player.sendSystemMessage(Component.translatable(
+                        "message.village-quest.story.shadows_on_the_trade_road.rescue_site_failed"
+                ).withStyle(ChatFormatting.RED), false);
+                return;
+            }
+        } else {
+            storeScheduledEncounter(world, player.getUUID(), kind, replacement, currentWorldDay(world));
+        }
+        player.sendSystemMessage(Component.translatable(
+                "message.village-quest.story.shadows_on_the_trade_road.rescue_relocated"
+        ).withStyle(ChatFormatting.YELLOW), false);
+        refreshQuestUi(world, player);
+    }
+
+    private static void clearScheduledEncounter(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
             return;
         }
@@ -1176,19 +1594,30 @@ public final class ShadowsTradeRoadEncounterService {
         StoryQuestService.setQuestInt(world, playerId, StoryQuestKeys.SHADOWS_RESCUE_KIND, 0);
     }
 
-    private static void ensureCourier(ServerWorld world, ServerPlayerEntity player) {
-        if (world == null || player == null) {
+    private static void ensureCourier(ServerLevel world, ServerPlayer player) {
+        if (world == null || player == null || player.level() != world || world != world.getServer().overworld()
+                || StoryQuestService.getQuestInt(world, player.getUUID(), StoryQuestKeys.SHADOWS_LETTER_RECEIVED) > 0) {
             return;
         }
-        UUID existing = LETTER_COURIERS.get(player.getUuid());
+        UUID existing = LETTER_COURIERS.get(player.getUUID());
         if (existing != null) {
             Entity entity = findEntity(world, existing);
             if (entity instanceof CaravanMerchantEntity merchant && merchant.isAlive() && !merchant.isRemoved()) {
+                COURIER_MISSING_SINCE.remove(player.getUUID());
                 return;
             }
+            if (entity == null && !EncounterEntityLifecycle.terminated(existing)) {
+                long now = world.getGameTime();
+                long missingSince = COURIER_MISSING_SINCE.computeIfAbsent(player.getUUID(), id -> now);
+                if (now - missingSince < COURIER_DESPAWN_TICKS) return;
+            }
+            // Retire before replacement: a late chunk load must discard the old body.
+            EncounterEntityLifecycle.forget(existing);
+            LETTER_COURIERS.remove(player.getUUID());
         }
+        COURIER_MISSING_SINCE.remove(player.getUUID());
 
-        BlockPos spawnPos = safeSurface(world, MathHelper.floor(player.getX() + 2.0), MathHelper.floor(player.getZ() + 2.0));
+        BlockPos spawnPos = safeSurface(world, Mth.floor(player.getX() + 2.0), Mth.floor(player.getZ() + 2.0));
         if (spawnPos == null) {
             return;
         }
@@ -1197,33 +1626,35 @@ public final class ShadowsTradeRoadEncounterService {
                 world.getRandom().nextFloat() * 360.0f, 0.0f);
         courier.setCourier(true);
         courier.setDespawnTicks(COURIER_DESPAWN_TICKS);
-        courier.addCommandTag(TAG_CARAVAN);
-        courier.addCommandTag(playerTag(player.getUuid()));
-        courier.setCustomName(Text.translatable("entity.village-quest.caravan_courier"));
-        if (world.spawnEntity(courier)) {
-            LETTER_COURIERS.put(player.getUuid(), courier.getUuid());
+        courier.addTag(TAG_CARAVAN);
+        courier.addTag(playerTag(player.getUUID()));
+        courier.setCustomName(Component.translatable("entity.village-quest.caravan_courier"));
+        if (EncounterEntityLifecycle.spawn(world, courier)) {
+            LETTER_COURIERS.put(player.getUUID(), courier.getUUID());
         }
     }
 
-    private static void clearCourier(ServerWorld world, UUID playerId) {
+    private static void clearCourier(ServerLevel world, UUID playerId) {
         if (playerId == null) {
             return;
         }
+        COURIER_MISSING_SINCE.remove(playerId);
         UUID courierId = LETTER_COURIERS.remove(playerId);
         if (world == null || courierId == null) {
             return;
         }
+        EncounterEntityLifecycle.forget(courierId);
         Entity entity = findEntity(world, courierId);
         if (entity != null) {
             entity.discard();
         }
     }
 
-    private static void cleanupPlayerRuntime(ServerWorld world, UUID playerId, boolean preserveScheduledTarget) {
+    private static void cleanupPlayerRuntime(ServerLevel world, UUID playerId, boolean preserveScheduledTarget) {
         ActiveEncounter encounter = ACTIVE.remove(playerId);
         if (encounter != null) {
             cleanupEncounterEntities(world, encounter, true);
-            encounter.bossBar.clearPlayers();
+            encounter.bossBar.removeAllPlayers();
         }
         if (!preserveScheduledTarget) {
             clearScheduledEncounter(world, playerId);
@@ -1232,37 +1663,37 @@ public final class ShadowsTradeRoadEncounterService {
 
     private static ItemStack createGuildWarningLetter() {
         ItemStack stack = new ItemStack(Items.PAPER);
-        stack.set(DataComponentTypes.ITEM_NAME, Text.translatable("item.village-quest.guild_warning_letter").formatted(Formatting.GOLD));
-        stack.set(DataComponentTypes.LORE, new LoreComponent(List.of(
-                Text.translatable("item.village-quest.guild_warning_letter.lore").formatted(Formatting.DARK_GRAY)
+        stack.set(DataComponents.ITEM_NAME, Component.translatable("item.village-quest.guild_warning_letter").withStyle(ChatFormatting.GOLD));
+        stack.set(DataComponents.LORE, new ItemLore(List.of(
+                Component.translatable("item.village-quest.guild_warning_letter.lore").withStyle(ChatFormatting.DARK_GRAY)
         )));
         return stack;
     }
 
     private static boolean isGuildWarningLetter(ItemStack stack) {
-        if (stack == null || stack.isEmpty() || !stack.isOf(Items.PAPER)) {
+        if (stack == null || stack.isEmpty() || !stack.is(Items.PAPER)) {
             return false;
         }
-        String expected = Text.translatable("item.village-quest.guild_warning_letter").getString();
-        return stack.getName().getString().equals(expected);
+        String expected = Component.translatable("item.village-quest.guild_warning_letter").getString();
+        return stack.getHoverName().getString().equals(expected);
     }
 
-    private static void giveOrDrop(ServerPlayerEntity player, ItemStack stack) {
+    private static void giveOrDrop(ServerPlayer player, ItemStack stack) {
         ItemStack remainder = stack.copy();
-        boolean inserted = player.getInventory().insertStack(remainder);
+        boolean inserted = player.getInventory().add(remainder);
         if (!inserted || !remainder.isEmpty()) {
             if (!remainder.isEmpty()) {
-                player.dropItem(remainder, false);
+                player.drop(remainder, false);
             }
-            player.sendMessage(Text.translatable("message.village-quest.daily.inventory_full.prefix").formatted(Formatting.GRAY)
-                    .append(stack.toHoverableText())
-                    .append(Text.translatable("message.village-quest.daily.inventory_full.suffix").formatted(Formatting.GRAY)), false);
+            player.sendSystemMessage(Component.translatable("message.village-quest.daily.inventory_full.prefix").withStyle(ChatFormatting.GRAY)
+                    .append(stack.getHoverName())
+                    .append(Component.translatable("message.village-quest.daily.inventory_full.suffix").withStyle(ChatFormatting.GRAY)), false);
         } else {
-            player.playerScreenHandler.sendContentUpdates();
+            player.containerMenu.broadcastChanges();
         }
     }
 
-    private static int targetDay(ServerWorld world, UUID playerId, boolean finalConvoy) {
+    private static int targetDay(ServerLevel world, UUID playerId, boolean finalConvoy) {
         return StoryQuestService.getQuestInt(
                 world,
                 playerId,
@@ -1270,12 +1701,20 @@ public final class ShadowsTradeRoadEncounterService {
         );
     }
 
-    private static int scheduledEncounterKind(ServerWorld world, UUID playerId) {
+    private static int scheduledEncounterKind(ServerLevel world, UUID playerId) {
         return StoryQuestService.getQuestInt(world, playerId, StoryQuestKeys.SHADOWS_RESCUE_KIND);
     }
 
-    private static int currentWorldDay(ServerWorld world) {
-        return world == null ? 0 : (int) (world.getTimeOfDay() / 24000L);
+    private static int currentWorldDay(ServerLevel world) {
+        return world == null ? 0 : (int) (world.getDayTime() / 24000L);
+    }
+
+    private static boolean isNight(ServerLevel world) {
+        if (world == null) {
+            return false;
+        }
+        long dayTime = Math.floorMod(world.getDayTime(), 24000L);
+        return dayTime >= 13000L && dayTime <= 23000L;
     }
 
     private static void moveEntityTo(Entity entity, double x, double y, double z, float yaw, float pitch) {
@@ -1283,40 +1722,114 @@ public final class ShadowsTradeRoadEncounterService {
             return;
         }
         entity.setPos(x, y, z);
-        entity.setYaw(yaw);
-        entity.setPitch(pitch);
-        entity.setHeadYaw(yaw);
-        entity.setBodyYaw(yaw);
+        entity.setYRot(yaw);
+        entity.setXRot(pitch);
+        entity.setYHeadRot(yaw);
+        entity.setYBodyRot(yaw);
     }
 
-    private static Text distressLabel(int kind) {
-        return Text.translatable(
+    private static Component distressLabel(int kind) {
+        return Component.translatable(
                 kind == RESCUE_KIND_FINAL
                         ? "text.village-quest.special.surveyor_compass.mode.guild_convoy"
                         : "text.village-quest.special.surveyor_compass.mode.caravan_distress"
         );
     }
 
-    private static BlockPos findEncounterAnchor(ServerWorld world, BlockPos origin) {
+    private static BlockPos findEncounterAnchor(ServerLevel world, BlockPos origin, int merchantCount) {
         for (int attempt = 0; attempt < MAX_SPAWN_ATTEMPTS; attempt++) {
-            double angle = world.random.nextDouble() * Math.PI * 2.0;
-            int distance = MathHelper.nextInt(world.random, MIN_RESCUE_DISTANCE, MAX_RESCUE_DISTANCE);
-            int x = origin.getX() + MathHelper.floor(Math.cos(angle) * distance);
-            int z = origin.getZ() + MathHelper.floor(Math.sin(angle) * distance);
+            double angle = world.getRandom().nextDouble() * Math.PI * 2.0;
+            int distance = Mth.nextInt(world.getRandom(), MIN_RESCUE_DISTANCE, MAX_RESCUE_DISTANCE);
+            int x = origin.getX() + Mth.floor(Math.cos(angle) * distance);
+            int z = origin.getZ() + Mth.floor(Math.sin(angle) * distance);
             BlockPos base = safeSurface(world, x, z);
-            if (base != null && world.getWorldBorder().contains(base) && hasDryEncounterFootprint(world, base)) {
+            if (isViableEncounterAnchor(world, base, merchantCount)) {
                 return base;
             }
         }
-        BlockPos fallback = safeSurface(world, origin.getX() + MIN_RESCUE_DISTANCE, origin.getZ());
-        if (fallback != null && hasDryEncounterFootprint(world, fallback)) {
-            return fallback;
+        for (int direction = 0; direction < 8; direction++) {
+            double angle = direction * (Math.PI / 4.0D);
+            int x = origin.getX() + Mth.floor(Math.cos(angle) * MAX_RESCUE_DISTANCE);
+            int z = origin.getZ() + Mth.floor(Math.sin(angle) * MAX_RESCUE_DISTANCE);
+            BlockPos fallback = safeSurface(world, x, z);
+            if (isViableEncounterAnchor(world, fallback, merchantCount)) {
+                return fallback;
+            }
         }
-        BlockPos localFallback = safeSurface(world, origin.getX(), origin.getZ());
-        return localFallback != null && hasDryEncounterFootprint(world, localFallback) ? localFallback : null;
+        return null;
     }
 
-    private static BlockPos findMerchantSpawn(ServerWorld world, BlockPos anchor, List<BlockPos> existingSpawns) {
+    private static BlockPos findNearbyEncounterAnchor(ServerLevel world, BlockPos origin, int merchantCount) {
+        for (int attempt = 0; attempt < MAX_SPAWN_ATTEMPTS; attempt++) {
+            double angle = world.getRandom().nextDouble() * Math.PI * 2.0D;
+            int distance = Mth.nextInt(world.getRandom(), FAILED_SITE_RELOCATION_MIN_RADIUS,
+                    FAILED_SITE_RELOCATION_MAX_RADIUS);
+            BlockPos candidate = safeSurface(world,
+                    origin.getX() + Mth.floor(Math.cos(angle) * distance),
+                    origin.getZ() + Mth.floor(Math.sin(angle) * distance));
+            if (isViableEncounterAnchor(world, candidate, merchantCount)) {
+                return candidate;
+            }
+        }
+        return null;
+    }
+
+    private static boolean isViableEncounterAnchor(ServerLevel world, BlockPos anchor, int merchantCount) {
+        return anchor != null
+                && world.getWorldBorder().isWithinBounds(anchor)
+                && hasDryEncounterFootprint(world, anchor)
+                && findMerchantSpawnPlan(world, anchor, merchantCount).size() >= merchantCount;
+    }
+
+    private static List<BlockPos> findMerchantSpawnPlan(ServerLevel world, BlockPos anchor, int merchantCount) {
+        if (world == null || anchor == null || merchantCount <= 0) {
+            return List.of();
+        }
+        List<BlockPos> safeCandidates = new ArrayList<>();
+        int phase = Math.floorMod(hashAnchor(anchor), MERCHANT_SPAWN_ANGLE_STEPS);
+        for (int radius : MERCHANT_SPAWN_RADII) {
+            for (int step = 0; step < MERCHANT_SPAWN_ANGLE_STEPS; step++) {
+                double angle = (step + phase / (double) MERCHANT_SPAWN_ANGLE_STEPS)
+                        * (Math.PI * 2.0D / MERCHANT_SPAWN_ANGLE_STEPS);
+                int x = anchor.getX() + Mth.floor(Math.cos(angle) * radius);
+                int z = anchor.getZ() + Mth.floor(Math.sin(angle) * radius);
+                BlockPos candidate = safeSurface(world, x, z);
+                if (candidate != null && world.getWorldBorder().isWithinBounds(candidate)
+                        && !safeCandidates.contains(candidate)) {
+                    safeCandidates.add(candidate);
+                }
+            }
+        }
+        return selectSpacedMerchantPositions(anchor, safeCandidates, merchantCount);
+    }
+
+    static List<BlockPos> selectSpacedMerchantPositions(BlockPos anchor,
+                                                        List<BlockPos> candidates,
+                                                        int merchantCount) {
+        if (anchor == null || candidates == null || merchantCount <= 0) {
+            return List.of();
+        }
+        List<BlockPos> selected = new ArrayList<>();
+        for (BlockPos candidate : candidates) {
+            if (candidate == null
+                    || Math.abs(candidate.getY() - anchor.getY()) > ENCOUNTER_MAX_VERTICAL_DELTA
+                    || !isMerchantSpawnFarEnough(candidate, selected)) {
+                continue;
+            }
+            selected.add(candidate);
+            if (selected.size() >= merchantCount) {
+                return List.copyOf(selected);
+            }
+        }
+        return List.of();
+    }
+
+    private static int hashAnchor(BlockPos anchor) {
+        int value = anchor.getX() * 734_287_67 ^ anchor.getZ() * 912_931;
+        return value ^ value >>> 16;
+    }
+
+    private static BlockPos findMerchantSpawn(ServerLevel world, BlockPos anchor, List<BlockPos> existingSpawns) {
         BlockPos closeSpawn = findSpacedRingSpawn(
                 world,
                 anchor,
@@ -1339,16 +1852,16 @@ public final class ShadowsTradeRoadEncounterService {
         return widerSpawn;
     }
 
-    private static BlockPos findSpacedRingSpawn(ServerWorld world,
+    private static BlockPos findSpacedRingSpawn(ServerLevel world,
                                                 BlockPos anchor,
                                                 int minRadius,
                                                 int maxRadius,
                                                 List<BlockPos> existingSpawns) {
         for (int attempt = 0; attempt < MAX_SPAWN_ATTEMPTS * 3; attempt++) {
-            double angle = world.random.nextDouble() * Math.PI * 2.0;
-            int distance = MathHelper.nextInt(world.random, minRadius, maxRadius);
-            int x = anchor.getX() + MathHelper.floor(Math.cos(angle) * distance);
-            int z = anchor.getZ() + MathHelper.floor(Math.sin(angle) * distance);
+            double angle = world.getRandom().nextDouble() * Math.PI * 2.0;
+            int distance = Mth.nextInt(world.getRandom(), minRadius, maxRadius);
+            int x = anchor.getX() + Mth.floor(Math.cos(angle) * distance);
+            int z = anchor.getZ() + Mth.floor(Math.sin(angle) * distance);
             BlockPos pos = safeSurface(world, x, z);
             if (pos != null
                     && Math.abs(pos.getY() - anchor.getY()) <= ENCOUNTER_MAX_VERTICAL_DELTA
@@ -1365,19 +1878,19 @@ public final class ShadowsTradeRoadEncounterService {
         }
         double minDistanceSquared = MERCHANT_SPAWN_MIN_DISTANCE * MERCHANT_SPAWN_MIN_DISTANCE;
         for (BlockPos existing : existingSpawns) {
-            if (existing != null && candidate.getSquaredDistance(existing) < minDistanceSquared) {
+            if (existing != null && candidate.distSqr(existing) < minDistanceSquared) {
                 return false;
             }
         }
         return true;
     }
 
-    private static BlockPos findRingSpawn(ServerWorld world, BlockPos anchor, int minRadius, int maxRadius) {
+    private static BlockPos findRingSpawn(ServerLevel world, BlockPos anchor, int minRadius, int maxRadius) {
         for (int attempt = 0; attempt < MAX_SPAWN_ATTEMPTS; attempt++) {
-            double angle = world.random.nextDouble() * Math.PI * 2.0;
-            int distance = MathHelper.nextInt(world.random, minRadius, maxRadius);
-            int x = anchor.getX() + MathHelper.floor(Math.cos(angle) * distance);
-            int z = anchor.getZ() + MathHelper.floor(Math.sin(angle) * distance);
+            double angle = world.getRandom().nextDouble() * Math.PI * 2.0;
+            int distance = Mth.nextInt(world.getRandom(), minRadius, maxRadius);
+            int x = anchor.getX() + Mth.floor(Math.cos(angle) * distance);
+            int z = anchor.getZ() + Mth.floor(Math.sin(angle) * distance);
             BlockPos pos = safeSurface(world, x, z);
             if (pos != null && Math.abs(pos.getY() - anchor.getY()) <= ENCOUNTER_MAX_VERTICAL_DELTA) {
                 return pos;
@@ -1386,26 +1899,26 @@ public final class ShadowsTradeRoadEncounterService {
         return anchor;
     }
 
-    private static BlockPos safeSurface(ServerWorld world, int x, int z) {
-        int topY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
+    private static BlockPos safeSurface(ServerLevel world, int x, int z) {
+        int topY = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
         BlockPos pos = new BlockPos(x, topY, z);
         if (!world.getBlockState(pos).isAir()) {
-            pos = pos.up();
+            pos = pos.above();
         }
-        BlockPos belowPos = pos.down();
+        BlockPos belowPos = pos.below();
         BlockState feetState = world.getBlockState(pos);
-        BlockState headState = world.getBlockState(pos.up());
+        BlockState headState = world.getBlockState(pos.above());
         BlockState belowState = world.getBlockState(belowPos);
         if (!feetState.isAir() || !headState.isAir()) {
             return null;
         }
-        if (belowState.isAir() || !belowState.getFluidState().isEmpty() || !belowState.isSolidBlock(world, belowPos)) {
+        if (belowState.isAir() || !belowState.getFluidState().isEmpty() || !belowState.isFaceSturdy(world, belowPos, net.minecraft.core.Direction.UP)) {
             return null;
         }
         return pos;
     }
 
-    private static boolean hasDryEncounterFootprint(ServerWorld world, BlockPos center) {
+    private static boolean hasDryEncounterFootprint(ServerLevel world, BlockPos center) {
         if (world == null || center == null) {
             return false;
         }
@@ -1425,23 +1938,15 @@ public final class ShadowsTradeRoadEncounterService {
         return drySpots >= ENCOUNTER_MIN_LEVEL_SAMPLES && levelSpots >= ENCOUNTER_MIN_LEVEL_SAMPLES;
     }
 
-    private static Entity findEntity(ServerWorld world, UUID entityId) {
-        if (world == null || entityId == null) {
-            return null;
-        }
-        for (Entity entity : world.iterateEntities()) {
-            if (entityId.equals(entity.getUuid())) {
-                return entity;
-            }
-        }
-        return null;
+    private static Entity findEntity(ServerLevel world, UUID entityId) {
+        return world == null || entityId == null ? null : world.getEntity(entityId);
     }
 
     private static String playerTag(UUID playerId) {
         return "vq_trade_player_" + playerId.toString();
     }
 
-    private static void refreshQuestUi(ServerWorld world, ServerPlayerEntity player) {
+    private static void refreshQuestUi(ServerLevel world, ServerPlayer player) {
         if (world == null || player == null) {
             return;
         }

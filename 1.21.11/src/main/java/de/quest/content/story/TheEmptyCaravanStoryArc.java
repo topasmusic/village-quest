@@ -2,6 +2,7 @@ package de.quest.content.story;
 
 import de.quest.caravan.TradeRouteService;
 import de.quest.economy.CurrencyService;
+import de.quest.quest.DifficultyObjectiveMode;
 import de.quest.quest.story.StoryArcDefinition;
 import de.quest.quest.story.StoryArcType;
 import de.quest.quest.story.StoryChapterCompletion;
@@ -13,17 +14,17 @@ import de.quest.reputation.ReputationService;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import net.minecraft.util.Formatting;
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.text.Text;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.passive.VillagerEntity;
-import net.minecraft.village.VillagerProfession;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.Holder;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.entity.npc.villager.VillagerProfession;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 public final class TheEmptyCaravanStoryArc implements StoryArcDefinition {
     private final List<StoryChapterDefinition> chapters = List.of(
@@ -41,8 +42,8 @@ public final class TheEmptyCaravanStoryArc implements StoryArcDefinition {
     }
 
     @Override
-    public Text title() {
-        return Text.translatable("quest.village-quest.story.the_empty_caravan.title");
+    public Component title() {
+        return Component.translatable("quest.village-quest.story.the_empty_caravan.title");
     }
 
     @Override
@@ -56,12 +57,12 @@ public final class TheEmptyCaravanStoryArc implements StoryArcDefinition {
     }
 
     @Override
-    public boolean isUnlocked(ServerWorld world, UUID playerId) {
+    public boolean isUnlocked(ServerLevel world, UUID playerId) {
         return StoryQuestService.isCompleted(world, playerId, StoryArcType.SHADOWS_ON_THE_TRADE_ROAD);
     }
 
     @Override
-    public boolean shouldShowLockedEntry(ServerWorld world, UUID playerId) {
+    public boolean shouldShowLockedEntry(ServerLevel world, UUID playerId) {
         return world != null
                 && playerId != null
                 && !isUnlocked(world, playerId)
@@ -69,12 +70,12 @@ public final class TheEmptyCaravanStoryArc implements StoryArcDefinition {
     }
 
     @Override
-    public Text lockedEntryBody(ServerWorld world, UUID playerId) {
-        return Text.translatable("screen.village-quest.questmaster.story.the_empty_caravan.locked");
+    public Component lockedEntryBody(ServerLevel world, UUID playerId) {
+        return Component.translatable("screen.village-quest.questmaster.story.the_empty_caravan.locked");
     }
 
     private abstract static class EmptyCaravanChapter implements StoryChapterDefinition {
-        protected int progress(ServerWorld world, UUID playerId, String key) {
+        protected int progress(ServerLevel world, UUID playerId, String key) {
             return StoryQuestService.getQuestInt(world, playerId, key);
         }
 
@@ -86,10 +87,10 @@ public final class TheEmptyCaravanStoryArc implements StoryArcDefinition {
                                                     VillageProjectType project) {
             String prefix = "quest.village-quest.story.the_empty_caravan.chapter_" + chapter;
             return new StoryChapterCompletion(
-                    Text.translatable(prefix + ".title"),
-                    Text.translatable(prefix + ".complete.1").formatted(Formatting.GRAY),
-                    Text.translatable(prefix + ".complete.2").formatted(Formatting.GRAY),
-                    Text.translatable(prefix + ".complete.3").formatted(Formatting.GRAY),
+                    Component.translatable(prefix + ".title"),
+                    Component.translatable(prefix + ".complete.1").withStyle(ChatFormatting.GRAY),
+                    Component.translatable(prefix + ".complete.2").withStyle(ChatFormatting.GRAY),
+                    Component.translatable(prefix + ".complete.3").withStyle(ChatFormatting.GRAY),
                     currency,
                     levels,
                     track,
@@ -98,41 +99,41 @@ public final class TheEmptyCaravanStoryArc implements StoryArcDefinition {
             );
         }
 
-        protected Text title(int chapter) {
+        protected Component title(int chapter) {
             String key = "quest.village-quest.story.the_empty_caravan.chapter_" + chapter + ".title";
-            return Text.translatable(key);
+            return Component.translatable(key);
         }
 
-        protected Text offer(int chapter, int paragraph) {
+        protected Component offer(int chapter, int paragraph) {
             String key = "quest.village-quest.story.the_empty_caravan.chapter_" + chapter + ".offer." + paragraph;
-            return Text.translatable(key).formatted(Formatting.GRAY);
+            return de.quest.quest.QuestRuleText.translate(key).withStyle(ChatFormatting.GRAY);
         }
     }
 
     private static final class CartThatReturnedAloneChapter extends EmptyCaravanChapter {
-        @Override public Text title() { return title(1); }
-        @Override public Text offerParagraph1() { return offer(1, 1); }
-        @Override public Text offerParagraph2() { return offer(1, 2); }
+        @Override public Component title() { return title(1); }
+        @Override public Component offerParagraph1() { return offer(1, 1); }
+        @Override public Component offerParagraph2() { return offer(1, 2); }
 
         @Override
-        public void onAccepted(ServerWorld world, ServerPlayerEntity player) {
+        public void onAccepted(ServerLevel world, ServerPlayer player) {
             EmptyCaravanStoryService.beginEmptySite(world, player);
         }
 
         @Override
-        public void onServerTick(ServerWorld world, ServerPlayerEntity player) {
+        public void onServerTick(ServerLevel world, ServerPlayer player) {
             StoryQuestService.completeIfEligible(world, player);
         }
 
         @Override
-        public List<Text> progressLines(ServerWorld world, UUID playerId) {
-            return List.of(Text.translatable("quest.village-quest.story.the_empty_caravan.chapter_1.progress",
-                    progress(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_SITE_FOUND), 1).formatted(Formatting.GRAY));
+        public List<Component> progressLines(ServerLevel world, UUID playerId) {
+            return List.of(Component.translatable("quest.village-quest.story.the_empty_caravan.chapter_1.progress",
+                    progress(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_SITE_FOUND), 1).withStyle(ChatFormatting.GRAY));
         }
 
         @Override
-        public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
-            return progress(world, player.getUuid(), StoryQuestKeys.EMPTY_CARAVAN_SITE_FOUND) >= 1;
+        public boolean isComplete(ServerLevel world, ServerPlayer player) {
+            return progress(world, player.getUUID(), StoryQuestKeys.EMPTY_CARAVAN_SITE_FOUND) >= 1;
         }
 
         @Override
@@ -142,30 +143,30 @@ public final class TheEmptyCaravanStoryArc implements StoryArcDefinition {
     }
 
     private static final class ThreeBrokenSignsChapter extends EmptyCaravanChapter {
-        @Override public Text title() { return title(2); }
-        @Override public Text offerParagraph1() { return offer(2, 1); }
-        @Override public Text offerParagraph2() { return offer(2, 2); }
+        @Override public Component title() { return title(2); }
+        @Override public Component offerParagraph1() { return offer(2, 1); }
+        @Override public Component offerParagraph2() { return offer(2, 2); }
 
         @Override
-        public void onAccepted(ServerWorld world, ServerPlayerEntity player) {
+        public void onAccepted(ServerLevel world, ServerPlayer player) {
             EmptyCaravanStoryService.beginClueTrail(world, player);
         }
 
         @Override
-        public void onServerTick(ServerWorld world, ServerPlayerEntity player) {
+        public void onServerTick(ServerLevel world, ServerPlayer player) {
             StoryQuestService.completeIfEligible(world, player);
         }
 
         @Override
-        public List<Text> progressLines(ServerWorld world, UUID playerId) {
-            return List.of(Text.translatable("quest.village-quest.story.the_empty_caravan.chapter_2.progress",
+        public List<Component> progressLines(ServerLevel world, UUID playerId) {
+            return List.of(Component.translatable("quest.village-quest.story.the_empty_caravan.chapter_2.progress",
                     progress(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_CLUES), EmptyCaravanStoryService.CLUE_TARGET)
-                    .formatted(Formatting.GRAY));
+                    .withStyle(ChatFormatting.GRAY));
         }
 
         @Override
-        public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
-            return progress(world, player.getUuid(), StoryQuestKeys.EMPTY_CARAVAN_CLUES) >= EmptyCaravanStoryService.CLUE_TARGET;
+        public boolean isComplete(ServerLevel world, ServerPlayer player) {
+            return progress(world, player.getUUID(), StoryQuestKeys.EMPTY_CARAVAN_CLUES) >= EmptyCaravanStoryService.CLUE_TARGET;
         }
 
         @Override
@@ -179,12 +180,12 @@ public final class TheEmptyCaravanStoryArc implements StoryArcDefinition {
         private static final int INK = 3;
         private static final int HONEYCOMB = 2;
 
-        @Override public Text title() { return title(3); }
-        @Override public Text offerParagraph1() { return offer(3, 1); }
-        @Override public Text offerParagraph2() { return offer(3, 2); }
+        @Override public Component title() { return title(3); }
+        @Override public Component offerParagraph1() { return offer(3, 1); }
+        @Override public Component offerParagraph2() { return offer(3, 2); }
 
         @Override
-        public List<Text> progressLines(ServerWorld world, UUID playerId) {
+        public List<Component> progressLines(ServerLevel world, UUID playerId) {
             return List.of(
                     itemProgress(world, playerId, Items.PAPER, PAPER, "paper"),
                     itemProgress(world, playerId, Items.INK_SAC, INK, "ink"),
@@ -192,28 +193,31 @@ public final class TheEmptyCaravanStoryArc implements StoryArcDefinition {
             );
         }
 
-        private Text itemProgress(ServerWorld world, UUID playerId, Item item, int target, String suffix) {
-            return Text.translatable("quest.village-quest.story.the_empty_caravan.chapter_3.progress." + suffix,
+        private Component itemProgress(ServerLevel world, UUID playerId, Item item, int target, String suffix) {
+            return Component.translatable("quest.village-quest.story.the_empty_caravan.chapter_3.progress." + suffix,
                     Math.min(target, StoryQuestService.countCompletionItem(world, playerId, item)), target)
-                    .formatted(Formatting.GRAY);
+                    .withStyle(ChatFormatting.GRAY);
         }
 
         @Override
-        public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
-            UUID id = player.getUuid();
+        public boolean isComplete(ServerLevel world, ServerPlayer player) {
+            UUID id = player.getUUID();
             return StoryQuestService.countCompletionItem(world, id, Items.PAPER) >= PAPER
                     && StoryQuestService.countCompletionItem(world, id, Items.INK_SAC) >= INK
                     && StoryQuestService.countCompletionItem(world, id, Items.HONEYCOMB) >= HONEYCOMB;
         }
 
         @Override
-        public boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) {
-            return isComplete(world, player)
-                    && StoryQuestService.consumeCompletionItems(world, player.getUuid(), Map.of(
-                    Items.PAPER, PAPER,
-                    Items.INK_SAC, INK,
-                    Items.HONEYCOMB, HONEYCOMB
-            ));
+        public boolean consumeCompletionRequirements(ServerLevel world, ServerPlayer player) {
+            return isComplete(world, player) && StoryQuestService.consumeCompletionItems(
+                    world,
+                    player.getUUID(),
+                    Map.of(
+                            Items.PAPER, PAPER,
+                            Items.INK_SAC, INK,
+                            Items.HONEYCOMB, HONEYCOMB
+                    )
+            );
         }
 
         @Override
@@ -223,45 +227,45 @@ public final class TheEmptyCaravanStoryArc implements StoryArcDefinition {
     }
 
     private static final class NamesBehindSealChapter extends EmptyCaravanChapter {
-        @Override public Text title() { return title(4); }
-        @Override public Text offerParagraph1() { return offer(4, 1); }
-        @Override public Text offerParagraph2() { return offer(4, 2); }
+        @Override public Component title() { return title(4); }
+        @Override public Component offerParagraph1() { return offer(4, 1); }
+        @Override public Component offerParagraph2() { return offer(4, 2); }
 
         @Override
-        public List<Text> progressLines(ServerWorld world, UUID playerId) {
-            return List.of(Text.translatable("quest.village-quest.story.the_empty_caravan.chapter_4.progress",
+        public List<Component> progressLines(ServerLevel world, UUID playerId) {
+            return List.of(Component.translatable("quest.village-quest.story.the_empty_caravan.chapter_4.progress",
                     progress(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_WITNESSES), EmptyCaravanStoryService.WITNESS_TARGET)
-                    .formatted(Formatting.GRAY));
+                    .withStyle(ChatFormatting.GRAY));
         }
 
         @Override
-        public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
-            return progress(world, player.getUuid(), StoryQuestKeys.EMPTY_CARAVAN_WITNESSES) >= EmptyCaravanStoryService.WITNESS_TARGET;
+        public boolean isComplete(ServerLevel world, ServerPlayer player) {
+            return progress(world, player.getUUID(), StoryQuestKeys.EMPTY_CARAVAN_WITNESSES) >= EmptyCaravanStoryService.WITNESS_TARGET;
         }
 
         @Override
-        public void onEntityUse(ServerWorld world, ServerPlayerEntity player, Entity entity, ItemStack inHand) {
-            if (!(entity instanceof VillagerEntity villager) || villager.isBaby()) {
+        public void onEntityUse(ServerLevel world, ServerPlayer player, Entity entity, ItemStack inHand) {
+            if (!(entity instanceof Villager villager) || villager.isBaby()) {
                 return;
             }
-            RegistryEntry<VillagerProfession> profession = villager.getVillagerData().profession();
-            String witness = profession.matchesKey(VillagerProfession.CARTOGRAPHER) ? "cartographer"
-                    : profession.matchesKey(VillagerProfession.LIBRARIAN) ? "librarian"
-                    : profession.matchesKey(VillagerProfession.CLERIC) ? "cleric" : null;
+            Holder<VillagerProfession> profession = villager.getVillagerData().profession();
+            String witness = profession.is(VillagerProfession.CARTOGRAPHER) ? "cartographer"
+                    : profession.is(VillagerProfession.LIBRARIAN) ? "librarian"
+                    : profession.is(VillagerProfession.CLERIC) ? "cleric" : null;
             if (witness == null) {
-                player.sendMessage(Text.translatable("message.village-quest.story.the_empty_caravan.witness_wrong")
-                        .formatted(Formatting.GRAY), true);
+                player.sendSystemMessage(Component.translatable("message.village-quest.story.the_empty_caravan.witness_wrong")
+                        .withStyle(ChatFormatting.GRAY), true);
                 return;
             }
             String flag = StoryQuestKeys.EMPTY_CARAVAN_WITNESS_PREFIX + witness;
-            if (StoryQuestService.hasStoryFlag(world, player.getUuid(), flag)) {
+            if (StoryQuestService.hasStoryFlag(world, player.getUUID(), flag)) {
                 return;
             }
-            StoryQuestService.setStoryFlag(world, player.getUuid(), flag, true);
-            StoryQuestService.addQuestIntClamped(world, player.getUuid(), StoryQuestKeys.EMPTY_CARAVAN_WITNESSES,
+            StoryQuestService.setStoryFlag(world, player.getUUID(), flag, true);
+            StoryQuestService.addQuestIntClamped(world, player.getUUID(), StoryQuestKeys.EMPTY_CARAVAN_WITNESSES,
                     1, EmptyCaravanStoryService.WITNESS_TARGET);
-            player.sendMessage(Text.translatable("message.village-quest.story.the_empty_caravan.witness." + witness)
-                    .formatted(Formatting.GOLD), false);
+            player.sendSystemMessage(Component.translatable("message.village-quest.story.the_empty_caravan.witness." + witness)
+                    .withStyle(ChatFormatting.GOLD), false);
             StoryQuestService.completeIfEligible(world, player);
         }
 
@@ -272,36 +276,103 @@ public final class TheEmptyCaravanStoryArc implements StoryArcDefinition {
     }
 
     private static final class CaravanMadeOfBaitChapter extends EmptyCaravanChapter {
-        @Override public Text title() { return title(5); }
-        @Override public Text offerParagraph1() { return offer(5, 1); }
-        @Override public Text offerParagraph2() { return offer(5, 2); }
+        @Override public Component title() { return title(5); }
+        @Override public Component offerParagraph1() { return offer(5, 1); }
+        @Override public Component offerParagraph2() { return offer(5, 2); }
 
-        @Override
-        public List<Text> progressLines(ServerWorld world, UUID playerId) {
-            boolean choiceMade = StoryQuestService.hasStoryFlag(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_CHOICE_AMNESTY)
-                    || StoryQuestService.hasStoryFlag(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_CHOICE_JUSTICE);
-            int bait = progress(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_BAIT_STATE);
-            return List.of(
-                    Text.translatable("quest.village-quest.story.the_empty_caravan.chapter_5.progress.choice", choiceMade ? 1 : 0, 1)
-                            .formatted(Formatting.GRAY),
-                    Text.translatable("quest.village-quest.story.the_empty_caravan.chapter_5.progress.bait",
-                            bait >= EmptyCaravanStoryService.BAIT_WON ? 1 : 0, 1).formatted(Formatting.GRAY)
-            );
+        private boolean peaceful(ServerLevel world, UUID id) {
+            int saved = progress(world,id,StoryQuestKeys.EMPTY_CARAVAN_OBJECTIVE_MODE);
+            return (saved == 0 ? DifficultyObjectiveMode.forDifficulty(world.getDifficulty())
+                    : DifficultyObjectiveMode.fromSerializedId(saved)) == DifficultyObjectiveMode.PEACEFUL;
         }
 
         @Override
-        public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
-            return progress(world, player.getUuid(), StoryQuestKeys.EMPTY_CARAVAN_BAIT_STATE)
+        public List<Component> descriptionLines(ServerLevel world, UUID id) {
+            if (!peaceful(world,id)) return descriptionLines();
+            return List.of(offerParagraph1(),Component.translatable("quest.village-quest.story.the_empty_caravan.peaceful.description.5",
+                    EmptyCaravanStoryService.PEACEFUL_SUPPLY_BREAD,EmptyCaravanStoryService.PEACEFUL_SUPPLY_PLANKS,
+                    EmptyCaravanStoryService.PEACEFUL_CHECKPOINT_TARGET));
+        }
+
+        @Override
+        public StoryChapterCompletion buildCompletion(ServerLevel world, UUID id) {
+            var base = buildCompletion();
+            if (!peaceful(world,id)) return base;
+            String key = "quest.village-quest.story.the_empty_caravan.peaceful.complete.5.";
+            return new StoryChapterCompletion(base.title(),Component.translatable(key+"1"),Component.translatable(key+"2"),
+                    Component.translatable(key+"3"),base.currencyReward(),base.levels(),base.reputationTrack(),
+                    base.reputationAmount(),base.unlockedProject());
+        }
+
+        @Override
+        public Component shortObjective(ServerLevel world, UUID id, List<Component> lines) {
+            boolean choice=StoryQuestService.hasStoryFlag(world,id,StoryQuestKeys.EMPTY_CARAVAN_CHOICE_AMNESTY)
+                    || StoryQuestService.hasStoryFlag(world,id,StoryQuestKeys.EMPTY_CARAVAN_CHOICE_JUSTICE);
+            if (!choice) return Component.translatable("quest.village-quest.tracker.bait_choice");
+            int state=progress(world,id,StoryQuestKeys.EMPTY_CARAVAN_BAIT_STATE);
+            if (state>=EmptyCaravanStoryService.BAIT_WON) return Component.translatable("quest.village-quest.guidance.claim");
+            if (peaceful(world,id)) {
+                if (!StoryQuestService.hasStoryFlag(world,id,StoryQuestKeys.EMPTY_CARAVAN_PEACEFUL_SUPPLIES)) {
+                    var player=world.getServer().getPlayerList().getPlayer(id);
+                    var materials=new java.util.ArrayList<Component>();boolean missing=false;
+                    for (var item:List.of(Items.BREAD,Items.OAK_PLANKS)) {
+                        int count=player==null?0:de.quest.quest.daily.DailyQuestService.countInventoryItem(player,item);
+                        int required=item==Items.BREAD?EmptyCaravanStoryService.PEACEFUL_SUPPLY_BREAD:EmptyCaravanStoryService.PEACEFUL_SUPPLY_PLANKS;
+                        missing|=count<required;
+                        materials.add(de.quest.quest.QuestShortObjective.material(Component.translatable(item.getDescriptionId()),count,required));
+                    }
+                    if(missing)return de.quest.quest.QuestShortObjective.group(materials);
+                }
+                return Component.translatable("quest.village-quest.tracker.bait_checkpoints",
+                        progress(world,id,StoryQuestKeys.EMPTY_CARAVAN_PEACEFUL_CHECKPOINTS),EmptyCaravanStoryService.PEACEFUL_CHECKPOINT_TARGET);
+            }
+            return Component.translatable("quest.village-quest.tracker."+(state==EmptyCaravanStoryService.BAIT_ACTIVE?"bait_defend":"bait_follow"));
+        }
+
+        @Override
+        public List<Component> progressLines(ServerLevel world, UUID playerId) {
+            boolean choiceMade = StoryQuestService.hasStoryFlag(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_CHOICE_AMNESTY)
+                    || StoryQuestService.hasStoryFlag(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_CHOICE_JUSTICE);
+            int bait = progress(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_BAIT_STATE);
+            List<Component> lines = new java.util.ArrayList<>(List.of(
+                    Component.translatable("quest.village-quest.story.the_empty_caravan.chapter_5.progress.choice", choiceMade ? 1 : 0, 1)
+                            .withStyle(ChatFormatting.GRAY),
+                    Component.translatable("quest.village-quest.story.the_empty_caravan.chapter_5.progress.bait",
+                            bait >= EmptyCaravanStoryService.BAIT_WON ? 1 : 0, 1).withStyle(ChatFormatting.GRAY)
+            ));
+            if (peaceful(world,playerId)) {
+                lines.add(Component.translatable(
+                        "quest.village-quest.story.the_empty_caravan.chapter_5.progress.peaceful",
+                        progress(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_PEACEFUL_CHECKPOINTS),
+                        EmptyCaravanStoryService.PEACEFUL_CHECKPOINT_TARGET,
+                        StoryQuestService.hasStoryFlag(world, playerId, StoryQuestKeys.EMPTY_CARAVAN_PEACEFUL_SUPPLIES) ? 1 : 0,
+                        1
+                ).withStyle(ChatFormatting.GRAY));
+                boolean supplied=StoryQuestService.hasStoryFlag(world,playerId,StoryQuestKeys.EMPTY_CARAVAN_PEACEFUL_SUPPLIES);
+                var player=world.getServer().getPlayerList().getPlayer(playerId);
+                for (var item:List.of(Items.BREAD,Items.OAK_PLANKS)) {
+                    int required=item==Items.BREAD?EmptyCaravanStoryService.PEACEFUL_SUPPLY_BREAD:EmptyCaravanStoryService.PEACEFUL_SUPPLY_PLANKS;
+                    int count=supplied?required:player==null?0:de.quest.quest.daily.DailyQuestService.countInventoryItem(player,item);
+                    lines.add(Component.translatable("screen.village-quest.ui_review.objective_row",
+                            Component.translatable(item.getDescriptionId()),Math.min(count,required),required));
+                }
+            }
+            return lines;
+        }
+
+        @Override
+        public boolean isComplete(ServerLevel world, ServerPlayer player) {
+            return progress(world, player.getUUID(), StoryQuestKeys.EMPTY_CARAVAN_BAIT_STATE)
                     >= EmptyCaravanStoryService.BAIT_WON;
         }
 
         @Override
-        public void onEntityUse(ServerWorld world, ServerPlayerEntity player, Entity entity, ItemStack inHand) {
+        public void onEntityUse(ServerLevel world, ServerPlayer player, Entity entity, ItemStack inHand) {
             EmptyCaravanStoryService.chooseApproach(world, player, entity, inHand);
         }
 
         @Override
-        public void onServerTick(ServerWorld world, ServerPlayerEntity player) {
+        public void onServerTick(ServerLevel world, ServerPlayer player) {
             StoryQuestService.completeIfEligible(world, player);
         }
 
@@ -311,17 +382,20 @@ public final class TheEmptyCaravanStoryArc implements StoryArcDefinition {
         }
 
         @Override
-        public void onClaimed(ServerWorld world, ServerPlayerEntity player) {
-            boolean amnesty = StoryQuestService.hasStoryFlag(world, player.getUuid(), StoryQuestKeys.EMPTY_CARAVAN_CHOICE_AMNESTY);
+        public void onClaimed(ServerLevel world, ServerPlayer player) {
+            boolean amnesty = StoryQuestService.hasStoryFlag(world, player.getUUID(), StoryQuestKeys.EMPTY_CARAVAN_CHOICE_AMNESTY);
             if (amnesty) {
-                ReputationService.add(world, player.getUuid(), ReputationService.ReputationTrack.TRADE, 10);
+                ReputationService.add(world, player.getUUID(), ReputationService.ReputationTrack.TRADE, 10);
             } else {
-                CurrencyService.addBalance(world, player.getUuid(), CurrencyService.CROWN);
-                ReputationService.add(world, player.getUuid(), ReputationService.ReputationTrack.MONSTER_HUNTING, 8);
+                if (!de.quest.data.PersonalResetReceipts.storyPaid(
+                        de.quest.data.QuestState.get(world.getServer()).getPlayerData(player.getUUID()),
+                        StoryArcType.THE_EMPTY_CARAVAN, 4))
+                    CurrencyService.addBalance(world, player.getUUID(), CurrencyService.CROWN);
+                ReputationService.add(world, player.getUUID(), ReputationService.ReputationTrack.MONSTER_HUNTING, 8);
             }
-            player.sendMessage(Text.translatable(amnesty
+            player.sendSystemMessage(Component.translatable(amnesty
                     ? "message.village-quest.story.the_empty_caravan.outcome.amnesty"
-                    : "message.village-quest.story.the_empty_caravan.outcome.justice").formatted(Formatting.GOLD), false);
+                    : "message.village-quest.story.the_empty_caravan.outcome.justice").withStyle(ChatFormatting.GOLD), false);
         }
     }
 
@@ -331,12 +405,12 @@ public final class TheEmptyCaravanStoryArc implements StoryArcDefinition {
         private static final int LANTERNS = 8;
         private static final int LEADS = 4;
 
-        @Override public Text title() { return title(6); }
-        @Override public Text offerParagraph1() { return offer(6, 1); }
-        @Override public Text offerParagraph2() { return offer(6, 2); }
+        @Override public Component title() { return title(6); }
+        @Override public Component offerParagraph1() { return offer(6, 1); }
+        @Override public Component offerParagraph2() { return offer(6, 2); }
 
         @Override
-        public List<Text> progressLines(ServerWorld world, UUID playerId) {
+        public List<Component> progressLines(ServerLevel world, UUID playerId) {
             return List.of(
                     progressLine(world, playerId, Items.GRAVEL, GRAVEL, "gravel"),
                     progressLine(world, playerId, Items.STONE_BRICKS, STONE_BRICKS, "stone_bricks"),
@@ -345,15 +419,15 @@ public final class TheEmptyCaravanStoryArc implements StoryArcDefinition {
             );
         }
 
-        private Text progressLine(ServerWorld world, UUID id, Item item, int target, String suffix) {
-            return Text.translatable("quest.village-quest.story.the_empty_caravan.chapter_6.progress." + suffix,
+        private Component progressLine(ServerLevel world, UUID id, Item item, int target, String suffix) {
+            return Component.translatable("quest.village-quest.story.the_empty_caravan.chapter_6.progress." + suffix,
                     Math.min(target, StoryQuestService.countCompletionItem(world, id, item)), target)
-                    .formatted(Formatting.GRAY);
+                    .withStyle(ChatFormatting.GRAY);
         }
 
         @Override
-        public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
-            UUID id = player.getUuid();
+        public boolean isComplete(ServerLevel world, ServerPlayer player) {
+            UUID id = player.getUUID();
             return StoryQuestService.countCompletionItem(world, id, Items.GRAVEL) >= GRAVEL
                     && StoryQuestService.countCompletionItem(world, id, Items.STONE_BRICKS) >= STONE_BRICKS
                     && StoryQuestService.countCompletionItem(world, id, Items.LANTERN) >= LANTERNS
@@ -361,14 +435,18 @@ public final class TheEmptyCaravanStoryArc implements StoryArcDefinition {
         }
 
         @Override
-        public boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) {
-            return isComplete(world, player)
-                    && StoryQuestService.consumeCompletionItems(world, player.getUuid(), Map.of(
-                    Items.GRAVEL, GRAVEL,
-                    Items.STONE_BRICKS, STONE_BRICKS,
-                    Items.LANTERN, LANTERNS,
-                    Items.LEAD, LEADS
-            ));
+        public boolean consumeCompletionRequirements(ServerLevel world, ServerPlayer player) {
+            UUID id = player.getUUID();
+            return isComplete(world, player) && StoryQuestService.consumeCompletionItems(
+                    world,
+                    id,
+                    Map.of(
+                            Items.GRAVEL, GRAVEL,
+                            Items.STONE_BRICKS, STONE_BRICKS,
+                            Items.LANTERN, LANTERNS,
+                            Items.LEAD, LEADS
+                    )
+            );
         }
 
         @Override
@@ -378,7 +456,7 @@ public final class TheEmptyCaravanStoryArc implements StoryArcDefinition {
         }
 
         @Override
-        public void onClaimed(ServerWorld world, ServerPlayerEntity player) {
+        public void onClaimed(ServerLevel world, ServerPlayer player) {
             TradeRouteService.initializeCaravanYard(world, player);
         }
     }

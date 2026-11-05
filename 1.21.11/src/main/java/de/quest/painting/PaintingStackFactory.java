@@ -2,21 +2,20 @@ package de.quest.painting;
 
 import de.quest.VillageQuest;
 import de.quest.registry.ModItems;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.LoreComponent;
-import net.minecraft.entity.decoration.painting.PaintingVariant;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryKeys;
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.Identifier;
-
 import java.util.List;
 import java.util.Map;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.Holder;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.decoration.painting.PaintingVariant;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.ItemLore;
 
 public final class PaintingStackFactory {
     private static final Map<String, PaintingMetadata> METADATA = Map.ofEntries(
@@ -33,61 +32,61 @@ public final class PaintingStackFactory {
 
     private PaintingStackFactory() {}
 
-    public static ItemStack create(ServerWorld world, String variantPath) {
+    public static ItemStack create(ServerLevel world, String variantPath) {
         if (world == null || variantPath == null || variantPath.isBlank()) {
             return ItemStack.EMPTY;
         }
 
-        RegistryKey<PaintingVariant> variantKey = RegistryKey.of(
-                RegistryKeys.PAINTING_VARIANT,
-                Identifier.of(VillageQuest.MOD_ID, variantPath)
+        ResourceKey<PaintingVariant> variantKey = ResourceKey.create(
+                Registries.PAINTING_VARIANT,
+                Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, variantPath)
         );
-        RegistryEntry<PaintingVariant> variantEntry = world.getRegistryManager()
-                .getOrThrow(RegistryKeys.PAINTING_VARIANT)
+        Holder<PaintingVariant> variantEntry = world.registryAccess()
+                .lookupOrThrow(Registries.PAINTING_VARIANT)
                 .getOrThrow(variantKey);
         return create(variantEntry);
     }
 
-    public static ItemStack create(RegistryEntry<PaintingVariant> variantEntry) {
+    public static ItemStack create(Holder<PaintingVariant> variantEntry) {
         if (variantEntry == null) {
             return ItemStack.EMPTY;
         }
 
-        RegistryKey<PaintingVariant> variantKey = variantEntry.getKey().orElse(null);
+        ResourceKey<PaintingVariant> variantKey = variantEntry.unwrapKey().orElse(null);
         if (isApiaryCharterPlaque(variantKey)) {
             return new ItemStack(ModItems.APIARY_CHARTER_PLAQUE);
         }
 
         ItemStack stack = new ItemStack(Items.PAINTING);
-        stack.set(DataComponentTypes.PAINTING_VARIANT, variantEntry);
-        if (variantKey == null || !VillageQuest.MOD_ID.equals(variantKey.getValue().getNamespace())) {
+        stack.set(DataComponents.PAINTING_VARIANT, variantEntry);
+        if (variantKey == null || !VillageQuest.MOD_ID.equals(variantKey.identifier().getNamespace())) {
             return stack;
         }
 
-        PaintingMetadata metadata = METADATA.get(variantKey.getValue().getPath());
+        PaintingMetadata metadata = METADATA.get(variantKey.identifier().getPath());
         if (metadata == null) {
             return stack;
         }
 
-        stack.set(DataComponentTypes.ITEM_NAME, Text.translatable(metadata.titleKey()).formatted(Formatting.GREEN));
-        stack.set(DataComponentTypes.LORE, new LoreComponent(List.of(
-                Text.translatable(metadata.loreKey()).formatted(Formatting.GRAY)
+        stack.set(DataComponents.ITEM_NAME, Component.translatable(metadata.titleKey()).withStyle(ChatFormatting.GREEN));
+        stack.set(DataComponents.LORE, new ItemLore(List.of(
+                Component.translatable(metadata.loreKey()).withStyle(ChatFormatting.GRAY)
         )));
         return stack;
     }
 
-    public static boolean isVillageQuestPainting(RegistryEntry<PaintingVariant> variantEntry) {
+    public static boolean isVillageQuestPainting(Holder<PaintingVariant> variantEntry) {
         if (variantEntry == null) {
             return false;
         }
-        RegistryKey<PaintingVariant> variantKey = variantEntry.getKey().orElse(null);
-        return variantKey != null && VillageQuest.MOD_ID.equals(variantKey.getValue().getNamespace());
+        ResourceKey<PaintingVariant> variantKey = variantEntry.unwrapKey().orElse(null);
+        return variantKey != null && VillageQuest.MOD_ID.equals(variantKey.identifier().getNamespace());
     }
 
-    private static boolean isApiaryCharterPlaque(RegistryKey<PaintingVariant> variantKey) {
+    private static boolean isApiaryCharterPlaque(ResourceKey<PaintingVariant> variantKey) {
         return variantKey != null
-                && VillageQuest.MOD_ID.equals(variantKey.getValue().getNamespace())
-                && "apiary_charter_plaque".equals(variantKey.getValue().getPath());
+                && VillageQuest.MOD_ID.equals(variantKey.identifier().getNamespace())
+                && "apiary_charter_plaque".equals(variantKey.identifier().getPath());
     }
 
     private record PaintingMetadata(String titleKey, String loreKey) {}

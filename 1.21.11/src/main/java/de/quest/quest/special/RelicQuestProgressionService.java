@@ -4,11 +4,10 @@ import de.quest.quest.story.StoryArcType;
 import de.quest.quest.story.StoryQuestService;
 import de.quest.quest.story.VillageProjectType;
 import de.quest.reputation.ReputationService;
-import net.minecraft.server.world.ServerWorld;
-
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.UUID;
+import net.minecraft.server.level.ServerLevel;
 
 public final class RelicQuestProgressionService {
     public record RelicUnlockPath(
@@ -82,26 +81,26 @@ public final class RelicQuestProgressionService {
         return track == null ? null : TRACK_PATHS.get(track);
     }
 
-    public static boolean hasStoryRequirement(ServerWorld world, UUID playerId, SpecialQuestKind kind) {
+    public static boolean hasStoryRequirement(ServerLevel world, UUID playerId, SpecialQuestKind kind) {
         RelicUnlockPath path = pathFor(kind);
         return path == null || hasStoryRequirement(world, playerId, path.track());
     }
 
-    public static boolean hasStoryRequirement(ServerWorld world, UUID playerId, ReputationService.ReputationTrack track) {
+    public static boolean hasStoryRequirement(ServerLevel world, UUID playerId, ReputationService.ReputationTrack track) {
         RelicUnlockPath path = pathFor(track);
         return path == null
                 || path.requiredStoryArc() == null
                 || StoryQuestService.isCompleted(world, playerId, path.requiredStoryArc());
     }
 
-    public static boolean hasReputationRequirement(ServerWorld world, UUID playerId, SpecialQuestKind kind) {
+    public static boolean hasReputationRequirement(ServerLevel world, UUID playerId, SpecialQuestKind kind) {
         RelicUnlockPath path = pathFor(kind);
         return path == null
                 || path.track() == null
                 || ReputationService.get(world, playerId, path.track()) >= path.requiredReputation();
     }
 
-    public static boolean isUnlocked(ServerWorld world, UUID playerId, SpecialQuestKind kind) {
+    public static boolean isUnlocked(ServerLevel world, UUID playerId, SpecialQuestKind kind) {
         RelicUnlockPath path = pathFor(kind);
         return path == null || (hasStoryRequirement(world, playerId, kind) && hasReputationRequirement(world, playerId, kind));
     }

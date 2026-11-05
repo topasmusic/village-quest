@@ -1,5 +1,7 @@
 package de.quest.quest.special;
 
+import de.quest.archive.GuildArchiveService;
+import de.quest.archive.GuildArchiveService.ArchiveItem;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.entity.PilgrimEntity;
@@ -15,24 +17,23 @@ import de.quest.registry.ModItems;
 import de.quest.shop.ShopService;
 import de.quest.util.Texts;
 import de.quest.util.TimeUtil;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.entity.passive.WanderingTraderEntity;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.text.ClickEvent;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.Formatting;
-
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.npc.wanderingtrader.WanderingTrader;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 public final class MerchantSealQuestService {
     public static final int REQUIRED_TRADE_REPUTATION = 200;
@@ -48,17 +49,17 @@ public final class MerchantSealQuestService {
         return TimeUtil.currentDay();
     }
 
-    private static PlayerQuestData data(ServerWorld world, UUID playerId) {
+    private static PlayerQuestData data(ServerLevel world, UUID playerId) {
         return QuestState.get(world.getServer()).getPlayerData(playerId);
     }
 
-    private static void markDirty(ServerWorld world) {
+    private static void markDirty(ServerLevel world) {
         if (world != null) {
-            QuestState.get(world.getServer()).markDirty();
+            QuestState.get(world.getServer()).setDirty();
         }
     }
 
-    private static void refreshQuestUi(ServerWorld world, ServerPlayerEntity player) {
+    private static void refreshQuestUi(ServerLevel world, ServerPlayer player) {
         if (world == null || player == null) {
             return;
         }
@@ -67,12 +68,12 @@ public final class MerchantSealQuestService {
         QuestMasterUiService.refreshIfOpen(world, player);
     }
 
-    public static boolean handleQuestMasterInteraction(ServerWorld world, ServerPlayerEntity player, boolean skipOffer) {
+    public static boolean handleQuestMasterInteraction(ServerLevel world, ServerPlayer player, boolean skipOffer) {
         if (world == null || player == null) {
             return false;
         }
 
-        PlayerQuestData data = data(world, player.getUuid());
+        PlayerQuestData data = data(world, player.getUUID());
         return switch (data.getMerchantSealQuestStage()) {
             case ACTIVE -> {
                 showProgress(player, data);
@@ -93,11 +94,11 @@ public final class MerchantSealQuestService {
         };
     }
 
-    public static boolean acceptQuest(ServerWorld world, ServerPlayerEntity player) {
+    public static boolean acceptQuest(ServerLevel world, ServerPlayer player) {
         if (world == null || player == null || ModItems.MERCHANT_SEAL == null) {
             return false;
         }
-        PlayerQuestData data = data(world, player.getUuid());
+        PlayerQuestData data = data(world, player.getUUID());
         data.setPendingSpecialOfferKind(null);
         if (!shouldOfferQuest(world, player, data)) {
             markDirty(world);
@@ -107,14 +108,14 @@ public final class MerchantSealQuestService {
         data.resetMerchantSealQuest();
         data.setMerchantSealQuestStage(RelicQuestStage.ACTIVE);
         markDirty(world);
-        player.sendMessage(Texts.acceptedTitle(title(), Formatting.GOLD), false);
+        player.sendSystemMessage(Texts.acceptedTitle(title(), ChatFormatting.GOLD), false);
         QuestTrackerService.enableForAcceptedQuest(world, player);
         showProgress(player, data);
         refreshQuestUi(world, player);
         return true;
     }
 
-    public static boolean isActive(ServerWorld world, UUID playerId) {
+    public static boolean isActive(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
             return false;
         }
@@ -122,11 +123,11 @@ public final class MerchantSealQuestService {
         return stage == RelicQuestStage.ACTIVE || stage == RelicQuestStage.READY;
     }
 
-    public static boolean isCompleted(ServerWorld world, UUID playerId) {
+    public static boolean isCompleted(ServerLevel world, UUID playerId) {
         return world != null && playerId != null && data(world, playerId).getMerchantSealQuestStage() == RelicQuestStage.COMPLETED;
     }
 
-    public static boolean isDiscovered(ServerWorld world, UUID playerId) {
+    public static boolean isDiscovered(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
             return false;
         }
@@ -136,7 +137,7 @@ public final class MerchantSealQuestService {
                 || data.getMerchantSealQuestStage() != RelicQuestStage.NONE;
     }
 
-    public static SpecialQuestStatus openStatus(ServerWorld world, UUID playerId) {
+    public static SpecialQuestStatus openStatus(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
             return null;
         }
@@ -148,11 +149,11 @@ public final class MerchantSealQuestService {
         return new SpecialQuestStatus(title(), progressLines(data));
     }
 
-    public static boolean claimFromQuestMaster(ServerWorld world, ServerPlayerEntity player) {
+    public static boolean claimFromQuestMaster(ServerLevel world, ServerPlayer player) {
         if (world == null || player == null) {
             return false;
         }
-        PlayerQuestData data = data(world, player.getUuid());
+        PlayerQuestData data = data(world, player.getUUID());
         if (data.getMerchantSealQuestStage() != RelicQuestStage.READY) {
             return false;
         }
@@ -170,11 +171,11 @@ public final class MerchantSealQuestService {
         }
     }
 
-    public static void onVillagerTrade(ServerWorld world, ServerPlayerEntity player, ItemStack stack) {
+    public static void onVillagerTrade(ServerLevel world, ServerPlayer player, ItemStack stack) {
         if (world == null || player == null) {
             return;
         }
-        PlayerQuestData data = data(world, player.getUuid());
+        PlayerQuestData data = data(world, player.getUUID());
         if (data.getMerchantSealQuestStage() != RelicQuestStage.ACTIVE) {
             return;
         }
@@ -184,7 +185,7 @@ public final class MerchantSealQuestService {
         int beforeVillagerPurchases = data.getMerchantSealVillagerPurchaseProgress();
         int beforePilgrim = data.getMerchantSealPilgrimPurchaseProgress();
         data.setMerchantSealTradeProgress(Math.min(TRADE_TARGET, beforeTrades + 1));
-        if (stack != null && stack.isOf(Items.EMERALD)) {
+        if (stack != null && stack.is(Items.EMERALD)) {
             data.setMerchantSealEmeraldProgress(Math.min(EMERALD_TARGET, beforeEmeralds + stack.getCount()));
         } else if (stack != null && !stack.isEmpty()) {
             data.setMerchantSealVillagerPurchaseProgress(Math.min(VILLAGER_PURCHASE_TARGET, beforeVillagerPurchases + 1));
@@ -192,11 +193,11 @@ public final class MerchantSealQuestService {
         updateProgress(world, player, data, beforeTrades, beforeEmeralds, beforeVillagerPurchases, beforePilgrim);
     }
 
-    public static void onPilgrimPurchase(ServerWorld world, ServerPlayerEntity player, String offerId) {
+    public static void onPilgrimPurchase(ServerLevel world, ServerPlayer player, String offerId) {
         if (world == null || player == null || offerId == null || offerId.isBlank()) {
             return;
         }
-        PlayerQuestData data = data(world, player.getUuid());
+        PlayerQuestData data = data(world, player.getUUID());
         if (data.getMerchantSealQuestStage() != RelicQuestStage.ACTIVE) {
             return;
         }
@@ -208,34 +209,34 @@ public final class MerchantSealQuestService {
         updateProgress(world, player, data, beforeTrades, beforeEmeralds, beforeVillagerPurchases, beforePilgrim);
     }
 
-    public static ActionResult tryUseOnPilgrim(ServerWorld world, ServerPlayerEntity player, PilgrimEntity pilgrim, ItemStack stack) {
+    public static InteractionResult tryUseOnPilgrim(ServerLevel world, ServerPlayer player, PilgrimEntity pilgrim, ItemStack stack) {
         if (world == null || player == null || pilgrim == null || stack == null || ModItems.MERCHANT_SEAL == null) {
-            return ActionResult.PASS;
+            return InteractionResult.PASS;
         }
-        if (!stack.isOf(ModItems.MERCHANT_SEAL) || !player.isSneaking()) {
-            return ActionResult.PASS;
+        if (!stack.is(ModItems.MERCHANT_SEAL) || !player.isShiftKeyDown()) {
+            return InteractionResult.PASS;
         }
 
-        ActionResult precheck = beginSealUse(world, player, stack);
+        InteractionResult precheck = beginSealUse(world, player, stack);
         if (precheck != null) {
             return precheck;
         }
         if (pilgrim.hasCustomer() && !pilgrim.isCustomer(player)) {
-            player.sendMessage(Text.translatable("message.village-quest.special.merchant.target_busy").formatted(Formatting.RED), false);
-            return ActionResult.SUCCESS;
+            player.sendSystemMessage(Component.translatable("message.village-quest.special.merchant.target_busy").withStyle(ChatFormatting.RED), false);
+            return InteractionResult.SUCCESS;
         }
 
         List<String> currentOffers = pilgrim.getOfferIds();
         List<String> rerolledOffers = currentOffers;
         for (int attempt = 0; attempt < 6; attempt++) {
-            rerolledOffers = ShopService.rollPilgrimOfferIds(world.random, world, player.getUuid(), PilgrimEntity.DEFAULT_OFFER_COUNT);
+            rerolledOffers = ShopService.rollPilgrimOfferIds(world.getRandom(), world, player.getUUID(), PilgrimEntity.DEFAULT_OFFER_COUNT);
             if (!Objects.equals(currentOffers, rerolledOffers)) {
                 break;
             }
         }
 
         if (pilgrim.hasCustomer()) {
-            ServerPlayerEntity customer = pilgrim.getCustomer();
+            ServerPlayer customer = pilgrim.getCustomer();
             if (customer != null) {
                 PilgrimService.closeTrade(customer);
             }
@@ -244,72 +245,82 @@ public final class MerchantSealQuestService {
 
         pilgrim.setOfferIds(rerolledOffers);
         boolean rerolledContract = PilgrimContractService.rerollOffer(world, player);
+        if(!Objects.equals(currentOffers,rerolledOffers) || rerolledContract)
+            de.quest.kingdom.ArtifactJourneyService.confirmed(world,player,de.quest.kingdom.ArtifactJourneyProgress.Deed.SEAL,pilgrim.blockPosition());
         return finalizeSealUse(world, player, rerolledContract);
     }
 
-    public static ActionResult tryUseOnWanderingTrader(ServerWorld world, ServerPlayerEntity player, WanderingTraderEntity trader, ItemStack stack) {
+    public static InteractionResult tryUseOnWanderingTrader(ServerLevel world, ServerPlayer player, WanderingTrader trader, ItemStack stack) {
         if (world == null || player == null || trader == null || stack == null || ModItems.MERCHANT_SEAL == null) {
-            return ActionResult.PASS;
+            return InteractionResult.PASS;
         }
-        if (!stack.isOf(ModItems.MERCHANT_SEAL) || !player.isSneaking()) {
-            return ActionResult.PASS;
+        if (!stack.is(ModItems.MERCHANT_SEAL) || !player.isShiftKeyDown()) {
+            return InteractionResult.PASS;
         }
 
-        ActionResult precheck = beginSealUse(world, player, stack);
+        InteractionResult precheck = beginSealUse(world, player, stack);
         if (precheck != null) {
             return precheck;
         }
-        if (trader.hasCustomer() && trader.getCustomer() != player) {
-            player.sendMessage(Text.translatable("message.village-quest.special.merchant.target_busy").formatted(Formatting.RED), false);
-            return ActionResult.SUCCESS;
+        if (trader.isTrading() && trader.getTradingPlayer() != player) {
+            player.sendSystemMessage(Component.translatable("message.village-quest.special.merchant.target_busy").withStyle(ChatFormatting.RED), false);
+            return InteractionResult.SUCCESS;
         }
 
+        var oldOffers=trader.getOffers().stream().map(o -> List.of(o.getResult().copy(),o.getCostA().copy(),o.getCostB().copy())).toList();
         ((MerchantEntityAccessor) trader).villageQuest$setOffers(null);
         ((WanderingTraderEntityInvoker) trader).villageQuest$invokeFillRecipes(world);
+        var newOffers=trader.getOffers().stream().map(o -> List.of(o.getResult().copy(),o.getCostA().copy(),o.getCostB().copy())).toList();
+        boolean changed=oldOffers.size()!=newOffers.size();
+        for(int i=0;i<Math.min(oldOffers.size(),newOffers.size());i++) for(int part=0;part<3;part++)
+            if(!ItemStack.matches(oldOffers.get(i).get(part),newOffers.get(i).get(part))) changed=true;
+        if(changed) de.quest.kingdom.ArtifactJourneyService.confirmed(world,player,de.quest.kingdom.ArtifactJourneyProgress.Deed.SEAL,trader.blockPosition());
         return finalizeSealUse(world, player, false);
     }
 
-    private static boolean shouldOfferQuest(ServerWorld world, ServerPlayerEntity player, PlayerQuestData data) {
+    private static boolean shouldOfferQuest(ServerLevel world, ServerPlayer player, PlayerQuestData data) {
         return data.getMerchantSealQuestStage() == RelicQuestStage.NONE
                 && !data.isPendingSpecialOffer()
                 && ModItems.MERCHANT_SEAL != null
-                && DailyQuestService.openQuestStatus(world, player.getUuid()) == null
-                && RelicQuestProgressionService.isUnlocked(world, player.getUuid(), SpecialQuestKind.MERCHANT_SEAL);
+                && DailyQuestService.openQuestStatus(world, player.getUUID()) == null
+                && RelicQuestProgressionService.isUnlocked(world, player.getUUID(), SpecialQuestKind.MERCHANT_SEAL);
     }
 
-    private static void showOffer(ServerWorld world, ServerPlayerEntity player) {
-        PlayerQuestData data = data(world, player.getUuid());
+    private static void showOffer(ServerLevel world, ServerPlayer player) {
+        PlayerQuestData data = data(world, player.getUUID());
         data.setPendingSpecialOfferKind(SpecialQuestKind.MERCHANT_SEAL);
         markDirty(world);
 
-        Text divider = Text.literal("------------------------------").formatted(Formatting.GRAY);
-        Text accept = Text.translatable("text.village-quest.special.merchant.offer.accept").styled(style -> style
-                .withColor(Formatting.GRAY)
+        Component divider = Component.literal("------------------------------").withStyle(ChatFormatting.GRAY);
+        Component accept = Component.translatable("text.village-quest.special.merchant.offer.accept").withStyle(style -> style
+                .withColor(ChatFormatting.GRAY)
                 .withClickEvent(new ClickEvent.RunCommand("/vq daily accept")));
 
-        MutableText body = Text.empty()
-                .append(divider.copy()).append(Text.literal("\n"))
-                .append(Texts.dailyTitle(title(), Formatting.GOLD)).append(Text.literal("\n\n"))
-                .append(Text.translatable("quest.village-quest.special.merchant.offer.1")).append(Text.literal("\n\n"))
-                .append(Text.translatable("quest.village-quest.special.merchant.offer.2")).append(Text.literal("\n\n\n"))
-                .append(accept).append(Text.literal("\n"))
+        MutableComponent body = Component.empty()
+                .append(divider.copy()).append(Component.literal("\n"))
+                .append(Texts.dailyTitle(title(), ChatFormatting.GOLD)).append(Component.literal("\n\n"))
+                .append(Component.translatable("quest.village-quest.special.merchant.offer.1")).append(Component.literal("\n\n"))
+                .append(Component.translatable("quest.village-quest.special.merchant.offer.2")).append(Component.literal("\n\n\n"))
+                .append(accept).append(Component.literal("\n"))
                 .append(divider.copy());
-        player.sendMessage(body, false);
+        player.sendSystemMessage(body, false);
     }
 
-    private static void showProgress(ServerPlayerEntity player, PlayerQuestData data) {
-        player.sendMessage(Texts.dailyTitle(title(), Formatting.GOLD), false);
-        for (Text line : progressLines(data)) {
-            player.sendMessage(line, false);
+    private static void showProgress(ServerPlayer player, PlayerQuestData data) {
+        player.sendSystemMessage(Component.translatable("quest.village-quest.special.merchant.offer.1"),false);
+        player.sendSystemMessage(Component.translatable("quest.village-quest.special.merchant.offer.2"),false);
+        player.sendSystemMessage(Texts.dailyTitle(title(), ChatFormatting.GOLD), false);
+        for (Component line : progressLines(data)) {
+            player.sendSystemMessage(line, false);
         }
     }
 
-    private static List<Text> progressLines(PlayerQuestData data) {
+    private static List<Component> progressLines(PlayerQuestData data) {
         return List.of(
-                Text.translatable("quest.village-quest.special.merchant.progress.trades", data.getMerchantSealTradeProgress(), TRADE_TARGET).formatted(Formatting.GRAY),
-                Text.translatable("quest.village-quest.special.merchant.progress.emeralds", data.getMerchantSealEmeraldProgress(), EMERALD_TARGET).formatted(Formatting.GRAY),
-                Text.translatable("quest.village-quest.special.merchant.progress.villager_purchases", data.getMerchantSealVillagerPurchaseProgress(), VILLAGER_PURCHASE_TARGET).formatted(Formatting.GRAY),
-                Text.translatable("quest.village-quest.special.merchant.progress.pilgrim", data.getMerchantSealPilgrimPurchaseProgress(), PILGRIM_PURCHASE_TARGET).formatted(Formatting.GRAY)
+                Component.translatable("quest.village-quest.special.merchant.progress.trades", data.getMerchantSealTradeProgress(), TRADE_TARGET).withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.special.merchant.progress.emeralds", data.getMerchantSealEmeraldProgress(), EMERALD_TARGET).withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.special.merchant.progress.villager_purchases", data.getMerchantSealVillagerPurchaseProgress(), VILLAGER_PURCHASE_TARGET).withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.special.merchant.progress.pilgrim", data.getMerchantSealPilgrimPurchaseProgress(), PILGRIM_PURCHASE_TARGET).withStyle(ChatFormatting.GRAY)
         );
     }
 
@@ -320,65 +331,66 @@ public final class MerchantSealQuestService {
                 && data.getMerchantSealPilgrimPurchaseProgress() >= PILGRIM_PURCHASE_TARGET;
     }
 
-    private static void updateProgress(ServerWorld world,
-                                       ServerPlayerEntity player,
+    private static void updateProgress(ServerLevel world,
+                                       ServerPlayer player,
                                        PlayerQuestData data,
                                        int beforeTrades,
                                        int beforeEmeralds,
                                        int beforeVillagerPurchases,
                                        int beforePilgrim) {
-        Text actionbar = null;
+        Component actionbar = null;
         boolean completedStep = false;
         if (beforeTrades != data.getMerchantSealTradeProgress()) {
-            actionbar = Text.translatable("quest.village-quest.special.merchant.progress.trades", data.getMerchantSealTradeProgress(), TRADE_TARGET).formatted(Formatting.GOLD);
+            actionbar = Component.translatable("quest.village-quest.special.merchant.progress.trades", data.getMerchantSealTradeProgress(), TRADE_TARGET).withStyle(ChatFormatting.GOLD);
             if (beforeTrades < TRADE_TARGET && data.getMerchantSealTradeProgress() >= TRADE_TARGET) {
-                player.sendMessage(Text.translatable("message.village-quest.quest.progress.step_complete", actionbar.copy()).formatted(Formatting.GOLD), false);
+                player.sendSystemMessage(Component.translatable("message.village-quest.quest.progress.step_complete", actionbar.copy()).withStyle(ChatFormatting.GOLD), false);
                 completedStep = true;
             }
         }
         if (beforeEmeralds != data.getMerchantSealEmeraldProgress()) {
-            actionbar = Text.translatable("quest.village-quest.special.merchant.progress.emeralds", data.getMerchantSealEmeraldProgress(), EMERALD_TARGET).formatted(Formatting.GOLD);
+            actionbar = Component.translatable("quest.village-quest.special.merchant.progress.emeralds", data.getMerchantSealEmeraldProgress(), EMERALD_TARGET).withStyle(ChatFormatting.GOLD);
             if (beforeEmeralds < EMERALD_TARGET && data.getMerchantSealEmeraldProgress() >= EMERALD_TARGET) {
-                player.sendMessage(Text.translatable("message.village-quest.quest.progress.step_complete", actionbar.copy()).formatted(Formatting.GOLD), false);
+                player.sendSystemMessage(Component.translatable("message.village-quest.quest.progress.step_complete", actionbar.copy()).withStyle(ChatFormatting.GOLD), false);
                 completedStep = true;
             }
         }
         if (beforeVillagerPurchases != data.getMerchantSealVillagerPurchaseProgress()) {
-            actionbar = Text.translatable(
+            actionbar = Component.translatable(
                     "quest.village-quest.special.merchant.progress.villager_purchases",
                     data.getMerchantSealVillagerPurchaseProgress(),
                     VILLAGER_PURCHASE_TARGET
-            ).formatted(Formatting.GOLD);
+            ).withStyle(ChatFormatting.GOLD);
             if (beforeVillagerPurchases < VILLAGER_PURCHASE_TARGET
                     && data.getMerchantSealVillagerPurchaseProgress() >= VILLAGER_PURCHASE_TARGET) {
-                player.sendMessage(Text.translatable("message.village-quest.quest.progress.step_complete", actionbar.copy()).formatted(Formatting.GOLD), false);
+                player.sendSystemMessage(Component.translatable("message.village-quest.quest.progress.step_complete", actionbar.copy()).withStyle(ChatFormatting.GOLD), false);
                 completedStep = true;
             }
         }
         if (beforePilgrim != data.getMerchantSealPilgrimPurchaseProgress()) {
-            actionbar = Text.translatable("quest.village-quest.special.merchant.progress.pilgrim", data.getMerchantSealPilgrimPurchaseProgress(), PILGRIM_PURCHASE_TARGET).formatted(Formatting.GOLD);
+            actionbar = Component.translatable("quest.village-quest.special.merchant.progress.pilgrim", data.getMerchantSealPilgrimPurchaseProgress(), PILGRIM_PURCHASE_TARGET).withStyle(ChatFormatting.GOLD);
             if (beforePilgrim < PILGRIM_PURCHASE_TARGET && data.getMerchantSealPilgrimPurchaseProgress() >= PILGRIM_PURCHASE_TARGET) {
-                player.sendMessage(Text.translatable("message.village-quest.quest.progress.step_complete", actionbar.copy()).formatted(Formatting.GOLD), false);
+                player.sendSystemMessage(Component.translatable("message.village-quest.quest.progress.step_complete", actionbar.copy()).withStyle(ChatFormatting.GOLD), false);
                 completedStep = true;
             }
         }
 
         if (data.getMerchantSealQuestStage() == RelicQuestStage.ACTIVE && isComplete(data)) {
             data.setMerchantSealQuestStage(RelicQuestStage.READY);
-            player.sendMessage(Text.translatable("message.village-quest.special.merchant.ready").formatted(Formatting.GOLD), false);
+            player.sendSystemMessage(Component.translatable("message.village-quest.special.merchant.ready").withStyle(ChatFormatting.GOLD), false);
             completedStep = true;
         }
 
         markDirty(world);
         if (actionbar != null) {
-            player.sendMessage(actionbar, true);
+            player.sendSystemMessage(actionbar, true);
         }
-        world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, SoundCategory.PLAYERS, completedStep ? 0.28f : 0.18f, completedStep ? 1.7f : 1.35f);
+        world.playSound(null, player.blockPosition(), SoundEvents.EXPERIENCE_ORB_PICKUP, SoundSource.PLAYERS, completedStep ? 0.28f : 0.18f, completedStep ? 1.7f : 1.35f);
         refreshQuestUi(world, player);
     }
 
-    private static void completeQuest(ServerWorld world, ServerPlayerEntity player, PlayerQuestData data) {
-        giveOrDrop(player, new ItemStack(ModItems.MERCHANT_SEAL));
+    private static void completeQuest(ServerLevel world, ServerPlayer player, PlayerQuestData data) {
+        giveOrDrop(player, GuildArchiveService.issueInitial(world, player, ArchiveItem.MERCHANT_SEAL,
+                new ItemStack(ModItems.MERCHANT_SEAL)));
         data.setPendingSpecialOfferKind(null);
         data.setMerchantSealQuestStage(RelicQuestStage.COMPLETED);
         data.setMerchantSealTradeProgress(TRADE_TARGET);
@@ -387,60 +399,60 @@ public final class MerchantSealQuestService {
         data.setMerchantSealPilgrimPurchaseProgress(PILGRIM_PURCHASE_TARGET);
         markDirty(world);
 
-        Text divider = Text.literal("------------------------------").formatted(Formatting.GRAY);
-        MutableText body = Text.empty()
-                .append(divider.copy()).append(Text.literal("\n"))
-                .append(Texts.completedTitle(title(), Formatting.GOLD)).append(Text.literal("\n\n"))
-                .append(Text.translatable("quest.village-quest.special.merchant.completed.1")).append(Text.literal("\n\n"))
-                .append(Text.translatable("quest.village-quest.special.merchant.completed.2")).append(Text.literal("\n"))
+        Component divider = Component.literal("------------------------------").withStyle(ChatFormatting.GRAY);
+        MutableComponent body = Component.empty()
+                .append(divider.copy()).append(Component.literal("\n"))
+                .append(Texts.completedTitle(title(), ChatFormatting.GOLD)).append(Component.literal("\n\n"))
+                .append(Component.translatable("quest.village-quest.special.merchant.completed.1")).append(Component.literal("\n\n"))
+                .append(Component.translatable("quest.village-quest.special.merchant.completed.2")).append(Component.literal("\n"))
                 .append(divider.copy());
-        player.sendMessage(body, false);
-        world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 0.8f, 1.05f);
+        player.sendSystemMessage(body, false);
+        world.playSound(null, player.blockPosition(), SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 0.8f, 1.05f);
         refreshQuestUi(world, player);
     }
 
-    private static void giveOrDrop(ServerPlayerEntity player, ItemStack stack) {
+    private static void giveOrDrop(ServerPlayer player, ItemStack stack) {
         ItemStack remainder = stack.copy();
-        boolean inserted = player.getInventory().insertStack(remainder);
+        boolean inserted = player.getInventory().add(remainder);
         if (!inserted || !remainder.isEmpty()) {
             if (!remainder.isEmpty()) {
-                player.dropItem(remainder, false);
+                player.drop(remainder, false);
             }
-            player.sendMessage(Text.translatable("message.village-quest.daily.inventory_full.prefix").formatted(Formatting.GRAY)
-                    .append(stack.toHoverableText())
-                    .append(Text.translatable("message.village-quest.daily.inventory_full.suffix").formatted(Formatting.GRAY)), false);
+            player.sendSystemMessage(Component.translatable("message.village-quest.daily.inventory_full.prefix").withStyle(ChatFormatting.GRAY)
+                    .append(stack.getDisplayName())
+                    .append(Component.translatable("message.village-quest.daily.inventory_full.suffix").withStyle(ChatFormatting.GRAY)), false);
         } else {
-            player.playerScreenHandler.sendContentUpdates();
+            player.inventoryMenu.broadcastChanges();
         }
     }
 
-    private static Text title() {
-        return Text.translatable("quest.village-quest.special.merchant.title");
+    private static Component title() {
+        return Component.translatable("quest.village-quest.special.merchant.title");
     }
 
-    private static ActionResult beginSealUse(ServerWorld world, ServerPlayerEntity player, ItemStack stack) {
-        PlayerQuestData data = data(world, player.getUuid());
-        Long previousTick = LAST_PILGRIM_SEAL_USE_TICK.put(player.getUuid(), world.getTime());
-        if (previousTick != null && previousTick == world.getTime()) {
-            return ActionResult.SUCCESS;
+    private static InteractionResult beginSealUse(ServerLevel world, ServerPlayer player, ItemStack stack) {
+        PlayerQuestData data = data(world, player.getUUID());
+        Long previousTick = LAST_PILGRIM_SEAL_USE_TICK.put(player.getUUID(), world.getGameTime());
+        if (previousTick != null && previousTick == world.getGameTime()) {
+            return InteractionResult.SUCCESS;
         }
         if (data.getMerchantSealLastUseDay() == currentDay()) {
-            player.sendMessage(Text.translatable("message.village-quest.special.merchant.used_today").formatted(Formatting.RED), false);
-            return ActionResult.SUCCESS;
+            player.sendSystemMessage(Component.translatable("message.village-quest.special.merchant.used_today").withStyle(ChatFormatting.RED), false);
+            return InteractionResult.SUCCESS;
         }
         return null;
     }
 
-    private static ActionResult finalizeSealUse(ServerWorld world, ServerPlayerEntity player, boolean rerolledContract) {
-        PlayerQuestData data = data(world, player.getUuid());
+    private static InteractionResult finalizeSealUse(ServerLevel world, ServerPlayer player, boolean rerolledContract) {
+        PlayerQuestData data = data(world, player.getUUID());
         data.setMerchantSealLastUseDay(currentDay());
         markDirty(world);
-        world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_VILLAGER_WORK_CARTOGRAPHER, SoundCategory.PLAYERS, 0.9f, 1.1f);
-        player.sendMessage(Text.translatable(
+        world.playSound(null, player.blockPosition(), SoundEvents.VILLAGER_WORK_CARTOGRAPHER, SoundSource.PLAYERS, 0.9f, 1.1f);
+        player.sendSystemMessage(Component.translatable(
                 rerolledContract
                         ? "message.village-quest.special.merchant.rerolled_rumor"
                         : "message.village-quest.special.merchant.rerolled"
-        ).formatted(Formatting.GOLD), false);
-        return ActionResult.SUCCESS;
+        ).withStyle(ChatFormatting.GOLD), false);
+        return InteractionResult.SUCCESS;
     }
 }

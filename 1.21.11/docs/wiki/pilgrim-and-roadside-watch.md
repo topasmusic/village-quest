@@ -21,6 +21,8 @@ The pilgrim exists for:
 
 The pilgrim uses the wallet system.
 
+In the trader UI, the Rumor tab opens a contained contract selector. When several contracts are available, use its left/right arrows or scroll over the selector to switch contracts; scroll over the description separately to read its details. The countdown and exit hint sit in the lower wooden rail.
+
 The current shop mix includes:
 
 - travel and utility bundles such as `Provisions Satchel`, `Road Camp Kit`, and `Village Ledger Desk`
@@ -29,12 +31,25 @@ The current shop mix includes:
 
 Current shop rules:
 
-- all multi-item bundles now share the same price as the `Provisions Satchel`
+| Fixed bundle | Price (Silvermarks) | Personal unlock |
+| --- | --- | --- |
+| Provisions: 24 golden carrots | 12 | 25 Farming reputation |
+| Healing: golden apple + 2 Healing II potions | 14 | 25 Monster Hunting reputation |
+| Nether: 2 eight-minute Fire Resistance potions + 16 golden carrots | 20 | Watch Bell village project |
+| Light: 64 glass + 16 lanterns | 30 | 25 Crafting reputation |
+| Rails: 64 rails + 8 powered rails | 32 | Forge Charter village project |
+| Leather: 48 leather | 32 | Pasture Charter village project |
+
+Both the visible shop list and server purchases enforce these unlocks. Newly unlocked wares enter subsequent trader rotations; an existing trader retains its rolled stock. Previously paid delivery claims retain their saved contents.
+
+- Other camp/building bundles retain their individual prices.
 - plaque and reliquary wares cost `3 Crowns 5 Silvermarks`
 - decorative custom heads cost `5 Crowns`
 - each pilgrim can roll at most `1` custom-head decor offer at a time
 - plaque and reliquary wares appear only after their matching village-project progress is complete
 - `Skeleton Plushie`, `Zombie Plushie`, and `Creeper Plushie` appear only after their matching pilgrim combat contract has been completed once
+
+The upper wood header keeps the interface controls predictable: `Rumor` sits on the left, the centered plaque names the trader, and Crown/Silvermark item icons with compact amounts show the wallet on the right. Scrollable goods and rumor details use the same medieval double-arrow handle as the Journal, Quest Board, and Prosperity board.
 
 ## Rumor Lane Rules
 
@@ -42,15 +57,14 @@ Current shop rules:
 
 `Roadmarks for the Compass` is a one-time special contract.
 
-If it is available:
-- the pilgrim shows only this contract
-- it replaces the normal combat rumor for that day
+If it is available, Roadmarks takes priority in the selector. A second eligible combat rumor can accompany it.
 
 ### Watch Bell combat lane
 
 After `Watch Bell` is unlocked:
-- the pilgrim offers exactly `1` dangerous combat rumor per day
-- this is a random rumor from the unlocked roadside pool
+- the pilgrim offers up to `2` eligible rumors per daily rotation
+- one is chosen from the Overworld pool when available; the second differs from the first
+- the pool depends on personal village progress; an admin unlock can bypass project requirements for tests
 
 After `3` completed `Pilgrim` combat rumors:
 
@@ -155,7 +169,9 @@ Rewards are intentionally tiered by danger:
 
 ## Pilgrim Commissions
 
-Market `Foundation` unlocks prepaid commissions for currently unlocked Pilgrim goods. The item uses its active Prosperity discount plus a `3/2/1 Crown` fee based on Market rank and arrives on the first Pilgrim visit after the next dawn. Only one order can wait at a time, so the traveling Pilgrim still has to be found and visited. See [Prosperity and the Village Economy](./prosperity-and-economy.md).
+In `2.1.0`, Market `Foundation` unlocks prepaid commissions for currently unlocked Pilgrim goods. The item uses its active Prosperity discount plus a `3/2/1 Crown` fee based on Market rank, and arrives on the first Pilgrim visit after the next dawn. Only one order can wait at a time.
+
+This does not turn the board into a remote shop: the traveling Pilgrim still has to be found and visited for delivery. See [Prosperity and the Village Economy](./prosperity-and-economy.md) for the full economy.
 
 ## Roadside Watch
 
@@ -175,3 +191,18 @@ The late `Shadows on the Trade Road` arc builds directly on the pilgrim rumor la
 - rescue chapters spawn living caravan survivors in the world at night
 - regular mobs focus the caravan first, so the encounter remains a defense check instead of a simple player duel
 - the final convoy fight adds elite `Traitor` bandits as the last wave
+
+Village Quest 2.5 adds [chosen Vanilla reward packages and saved collection](vanilla-rewards.md), including `/vq rewards claim`. Existing accepted contracts and prepaid orders retain their original conditions.
+
+
+## Miniatures and Road Camp Kit
+
+Decorative head variants are explicitly named **Miniature** in the offer and the delivered item's name and lore. They are decorative miniature models for placement. Full-size utility supplies remain separately listed in kits.
+
+The Road Camp Kit contains **1 bed, 2 campfires, 16 lanterns, 4 chests, 64 torches, 32 bread and 24 cooked beef** at its existing price. The description and actual delivery use these quantities.
+
+Notice Post story progress is recorded during play. An already open story page can be refreshed with **Update progress**; it currently does not receive periodic automatic snapshots. The refresh control does not complete or deliver an objective.
+
+### Safe shop deliveries
+
+Shop goods are prepared and checked before payment. A successful payment creates a pending reward claim before items are moved into your inventory. If your inventory is full, free space and use `/vq rewards claim`; do not buy the same offer again merely to recover pending goods. Unavailable or empty goods are rejected without payment. Existing prepaid commissions remain prepaid.

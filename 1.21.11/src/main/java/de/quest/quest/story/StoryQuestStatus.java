@@ -1,8 +1,7 @@
 package de.quest.quest.story;
 
-import net.minecraft.text.Text;
-
 import java.util.List;
+import net.minecraft.network.chat.Component;
 
-public record StoryQuestStatus(Text title, List<Text> lines) {
+public record StoryQuestStatus(Component title, List<Component> lines) {
 }

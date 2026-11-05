@@ -1,0 +1,292 @@
+{
+  "count": 19,
+  "allWideBaseFacesOpaque": true,
+  "onlyBinaryAlpha": true,
+  "leaderBaseHeadsIdentical": true,
+  "questmasterSha256": "0bd041d368157bedc584eeeab7fe1c14280fad3b58bd3a462e3c3f9e8a2a6925",
+  "files": [
+    {
+      "file": "warehouse_keeper_f.png",
+      "size": [
+        64,
+        64
+      ],
+      "mode": "RGBA",
+      "uv": "java_wide",
+      "sha256": "680e1aa62418f63e2c6ddb6eeec245da0cfad29ca07888d764c9283b56bdc10d",
+      "generatedSha256": "de108b86d4661456550e725821e3d27202cc5db6a7ec2a8a571d89d154e15779",
+      "source": "built-in image_gen; explicitly authorized deterministic UV/raster finish",
+      "quality": "offline native UV and face comparison; Ingame NOT RUN",
+      "previousSha256": "84a19a07df1355c1f1cd3458f435ffa31ae8adbfd660f9236899c60e64572cc4",
+      "revisionNote": "2026-10-23 .54: open premium strand alpha; four guest heads reworked with saved built-in Imagegen sheets and deterministic UV finish; clothing/existing base identities and protected rank hat texels retained. Native visual acceptance NOT RUN."
+    },
+    {
+      "file": "tavern_keeper_f.png",
+      "size": [
+        64,
+        64
+      ],
+      "mode": "RGBA",
+      "uv": "java_wide",
+      "sha256": "932ef3453eae437f9b7b491e4a15aa50021800ee634d90acde3a9d0d88e2efc5",
+      "generatedSha256": "044696560405c4fb5e52679a4c97a8e11bcc1f7ca2517634aec97a78f726a5bc",
+      "source": "built-in image_gen; explicitly authorized deterministic UV/raster finish",
+      "quality": "offline native UV and face comparison; Ingame NOT RUN",
+      "previousSha256": "f59925d84283486a90655840ab426367194ff4fb923f6e445e5d15cb8c87087b",
+      "revisionNote": "2026-10-23 .54: open premium strand alpha; four guest heads reworked with saved built-in Imagegen sheets and deterministic UV finish; clothing/existing base identities and protected rank hat texels retained. Native visual acceptance NOT RUN."
+    },
+    {
+      "file": "tavern_keeper_m.png",
+      "size": [
+        64,
+        64
+      ],
+      "mode": "RGBA",
+      "uv": "java_wide",
+      "sha256": "690a37d5cbe808bb6efdac545d14309d3c7d3b35007c629f61b367dd9a084996",
+      "generatedSha256": "5eb0cb8e1ba97753d2ba36807bff8e204d0e7a9431c50aeb61a4b7649ff2cdd6",
+      "source": "built-in image_gen; explicitly authorized deterministic UV/raster finish",
+      "quality": "offline native UV and face comparison; Ingame NOT RUN",
+      "previousSha256": "92607319aac376eb1bddb6048e8efcf195c0c03de3a59da8bfb7ae26da6f524e",
+      "revisionNote": "2026-10-23 .54: open premium strand alpha; four guest heads reworked with saved built-in Imagegen sheets and deterministic UV finish; clothing/existing base identities and protected rank hat texels retained. Native visual acceptance NOT RUN."
+    },
+    {
+      "file": "leader_speaker_m.png",
+      "size": [
+        64,
+        64
+      ],
+      "mode": "RGBA",
+      "uv": "java_wide",
+      "sha256": "9ea2d688f71002dd8bae39ab4516b2cbd17bfcee74cd6898022e16e36ed131d2",
+      "generatedSha256": "254a541f7dda83333d5a6f9bc292bbcb8fce746b837ceefe1db6e37494e69e5a",
+      "source": "built-in image_gen; explicitly authorized deterministic UV/raster finish",
+      "quality": "offline native UV and face comparison; Ingame NOT RUN",
+      "previousSha256": "cdd7279cf928683ab93e2ce23d5ed059c3fcc25e16e4a2985fb958054e01e030",
+      "revisionNote": "2026-10-23 .54: open premium strand alpha; four guest heads reworked with saved built-in Imagegen sheets and deterministic UV finish; clothing/existing base identities and protected rank hat texels retained. Native visual acceptance NOT RUN."
+    },
+    {
+      "file": "leader_speaker_f.png",
+      "size": [
+        64,
+        64
+      ],
+      "mode": "RGBA",
+      "uv": "java_wide",
+      "sha256": "3667676b3dd58b4ac9c1aeef94354194100f17b3aba8c933c882e0a2924685bd",
+      "generatedSha256": "2d91c2853a47df2f98dc2424835da881a8cf1873f865e8c601dd2e337beb33e2",
+      "source": "built-in image_gen; explicitly authorized deterministic UV/raster finish",
+      "quality": "offline native UV and face comparison; Ingame NOT RUN",
+      "previousSha256": "3b3a90a5e784c5fa6912169e59b6f14efeb71f86b7ce66bcd2fdce5f66b8c6e4",
+      "revisionNote": "2026-10-23 .54: open premium strand alpha; four guest heads reworked with saved built-in Imagegen sheets and deterministic UV finish; clothing/existing base identities and protected rank hat texels retained. Native visual acceptance NOT RUN."
+    },
+    {
+      "file": "warehouse_keeper_m.png",
+      "size": [
+        64,
+        64
+      ],
+      "mode": "RGBA",
+      "uv": "java_wide",
+      "sha256": "fa9e9a0b6bb929819be498d7bba63dc92632b105ec2e38c5e30474cc68532713",
+      "generatedSha256": "4543e47e2774568633d380e8363f1a7734e829acd4e81bfcc0edebb1915c89c5",
+      "source": "built-in image_gen; explicitly authorized deterministic UV/raster finish",
+      "quality": "offline native UV and face comparison; Ingame NOT RUN",
+      "previousSha256": "46078d349ecd932673f5c6ce6235c2f3f54c30843082b4e2f00de40c4061b6ee",
+      "revisionNote": "2026-10-23 .54: open premium strand alpha; four guest heads reworked with saved built-in Imagegen sheets and deterministic UV finish; clothing/existing base identities and protected rank hat texels retained. Native visual acceptance NOT RUN."
+    },
+    {
+      "file": "merchant_m_01.png",
+      "size": [
+        64,
+        64
+      ],
+      "mode": "RGBA",
+      "uv": "java_wide",
+      "sha256": "cfcb863d7a578d1917c4986ed9ad3d1ee0f79c633f3466bbe36176847479a300",
+      "generatedSha256": "f77139f87592038201e3713e63d9d5bfe0371ffce2d0e1638e086d6a8515b78f",
+      "source": "built-in image_gen; explicitly authorized deterministic UV/raster finish",
+      "quality": "offline native UV and face comparison; Ingame NOT RUN",
+      "previousSha256": "843e0cc280348bbc9a541c47497247fa2ef13a06dd794cd7458729d47d0fe8fa",
+      "revisionNote": "2026-10-23 .54: open premium strand alpha; four guest heads reworked with saved built-in Imagegen sheets and deterministic UV finish; clothing/existing base identities and protected rank hat texels retained. Native visual acceptance NOT RUN."
+    },
+    {
+      "file": "merchant_m_02.png",
+      "size": [
+        64,
+        64
+      ],
+      "mode": "RGBA",
+      "uv": "java_wide",
+      "sha256": "a9b8a48c2384a684a92eaacd7f4ccf9fa4a827b153f0e8359d6dd4e22325ef90",
+      "generatedSha256": "202a862dea53ef5b7645572915d6cf1435e79db9268d960b49bb26742e293d94",
+      "source": "built-in image_gen; explicitly authorized deterministic UV/raster finish",
+      "quality": "offline native UV and face comparison; Ingame NOT RUN",
+      "previousSha256": "bccc91eabba45e69f27ade53a7b8f02132a0ce8540d4c99d802a082689fd307b",
+      "revisionNote": "2026-10-23 .54: open premium strand alpha; four guest heads reworked with saved built-in Imagegen sheets and deterministic UV finish; clothing/existing base identities and protected rank hat texels retained. Native visual acceptance NOT RUN."
+    },
+    {
+      "file": "merchant_m_03.png",
+      "size": [
+        64,
+        64
+      ],
+      "mode": "RGBA",
+      "uv": "java_wide",
+      "sha256": "352d6c7e7d5e5e7b5868f7ffbbc92af392c84d9718cc4cf244ffd868403585ed",
+      "generatedSha256": "f6effd1fcd9e8b5d082037a669e0dc0805381243be073939aed122cc88f018e2",
+      "source": "built-in image_gen; explicitly authorized deterministic UV/raster finish",
+      "quality": "offline native UV and face comparison; Ingame NOT RUN",
+      "previousSha256": "2fb38665d550a650237555399ef5e1fbedd6f2a640f57c59e9294d4246e2cbd6",
+      "revisionNote": "2026-10-23 .54: open premium strand alpha; four guest heads reworked with saved built-in Imagegen sheets and deterministic UV finish; clothing/existing base identities and protected rank hat texels retained. Native visual acceptance NOT RUN."
+    },
+    {
+      "file": "merchant_f_01.png",
+      "size": [
+        64,
+        64
+      ],
+      "mode": "RGBA",
+      "uv": "java_wide",
+      "sha256": "107ac742d6774bcf14a8ac695d9c7ed5dfe70d0c28ac5f366b04d14d61aa5750",
+      "generatedSha256": "f9cd6d3dd2d290e5ede57b7acaed3d70d002b57a44372ca35ad027104800e4eb",
+      "source": "built-in image_gen; explicitly authorized deterministic UV/raster finish",
+      "quality": "offline native UV and face comparison; Ingame NOT RUN",
+      "previousSha256": "cbed4236f7eeb812e64903f5f2e40bac667e41a7e3843bb96b4a9f5d91b48c29",
+      "revisionNote": "2026-10-23 .54: open premium strand alpha; four guest heads reworked with saved built-in Imagegen sheets and deterministic UV finish; clothing/existing base identities and protected rank hat texels retained. Native visual acceptance NOT RUN."
+    },
+    {
+      "file": "merchant_f_02.png",
+      "size": [
+        64,
+        64
+      ],
+      "mode": "RGBA",
+      "uv": "java_wide",
+      "sha256": "97709386fc1ef056ab11bc91e805a1a75c241aeec5b7a69dca13960c0ee386b4",
+      "generatedSha256": "f308add0d5c5361f702e4359a777060bece7a195768e8877bb149a7e1fe61215",
+      "source": "built-in image_gen; explicitly authorized deterministic UV/raster finish",
+      "quality": "offline native UV and face comparison; Ingame NOT RUN",
+      "previousSha256": "5158e9a61d20031812d8c3b42ce270f90c13b839c2dd21051653ddd73b74ff6e",
+      "revisionNote": "2026-10-23 .54: open premium strand alpha; four guest heads reworked with saved built-in Imagegen sheets and deterministic UV finish; clothing/existing base identities and protected rank hat texels retained. Native visual acceptance NOT RUN."
+    },
+    {
+      "file": "merchant_f_03.png",
+      "size": [
+        64,
+        64
+      ],
+      "mode": "RGBA",
+      "uv": "java_wide",
+      "sha256": "7e142dde8ba948e93e36bd954da28ac909c18b595ef16d318654038a9d9ab5a1",
+      "generatedSha256": "7debf693182576165f8bc6e8d1fb085a4812830401266068162e3afa8300a9b5",
+      "source": "built-in image_gen; explicitly authorized deterministic UV/raster finish",
+      "quality": "offline native UV and face comparison; Ingame NOT RUN",
+      "previousSha256": "c41df5d74d3f9e29417848cb2f3fad6e25141fd667cc21771714a28bff75de18",
+      "revisionNote": "2026-10-23 .54: open premium strand alpha; four guest heads reworked with saved built-in Imagegen sheets and deterministic UV finish; clothing/existing base identities and protected rank hat texels retained. Native visual acceptance NOT RUN."
+    },
+    {
+      "file": "leader_mayor_m.png",
+      "size": [
+        64,
+        64
+      ],
+      "mode": "RGBA",
+      "uv": "java_wide",
+      "sha256": "7e999e43a72700ed1eaea54849ef8136e141085f5dd8cecb62357799cf79024a",
+      "generatedSha256": "fcb58ff90a9adb9cbcbf6d865caa695b4246013ee6b839269fb8656a81d32b9c",
+      "source": "built-in image_gen; explicitly authorized deterministic UV/raster finish",
+      "quality": "offline native UV and face comparison; Ingame NOT RUN",
+      "previousSha256": "66a0b748ca4e2b7b3e3aef50dec1d4e06978ed90644a8b3f949d456256a99930",
+      "revisionNote": "2026-10-23 .54: open premium strand alpha; four guest heads reworked with saved built-in Imagegen sheets and deterministic UV finish; clothing/existing base identities and protected rank hat texels retained. Native visual acceptance NOT RUN."
+    },
+    {
+      "file": "leader_mayor_f.png",
+      "size": [
+        64,
+        64
+      ],
+      "mode": "RGBA",
+      "uv": "java_wide",
+      "sha256": "c2113970dab80750d07ba791c42735ec7ae918291bc18e2d9e32e506c1df5edc",
+      "generatedSha256": "b2a559c909bf02ad9e3be0cd6a2573dacda308b22aa5fe4d98bb57caa2ec9621",
+      "source": "built-in image_gen; explicitly authorized deterministic UV/raster finish",
+      "quality": "offline native UV and face comparison; Ingame NOT RUN",
+      "previousSha256": "e929f32b6a9992a5aeb5e755831bb2eba268174370d8e64228bb87ba8173d3fc",
+      "revisionNote": "2026-10-23 .54: open premium strand alpha; four guest heads reworked with saved built-in Imagegen sheets and deterministic UV finish; clothing/existing base identities and protected rank hat texels retained. Native visual acceptance NOT RUN."
+    },
+    {
+      "file": "caravan_f_01.png",
+      "size": [
+        64,
+        64
+      ],
+      "mode": "RGBA",
+      "uv": "java_wide",
+      "sha256": "651715c0fe14437e3817e499576e64726db9b79698111a2e432ce1c8a2598f8c",
+      "generatedSha256": "c9f82f6ddfc91e8568483f286c78d8631a5b442f9a837f5b9c712b7f5a049405",
+      "source": "built-in image_gen; explicitly authorized deterministic UV/raster finish",
+      "quality": "offline native UV and face comparison; Ingame NOT RUN",
+      "previousSha256": "558c47105c2480ff613a56bea365ac3c9167659e83c49c21aceb207100a3b05e",
+      "revisionNote": "2026-10-23 .54: open premium strand alpha; four guest heads reworked with saved built-in Imagegen sheets and deterministic UV finish; clothing/existing base identities and protected rank hat texels retained. Native visual acceptance NOT RUN."
+    },
+    {
+      "file": "guest_lutren.png",
+      "size": [
+        64,
+        64
+      ],
+      "mode": "RGBA",
+      "uv": "java_wide",
+      "sha256": "0ca2d2d55ce1986577ae6555a195df66e22a2a46f7cdf6096a6713a59ae35cd4",
+      "source": "built-in image_gen concepts/refinements; deterministic UV packing and final texel finishing",
+      "quality": "offline UV/alpha checks; Ingame NOT RUN",
+      "previousSha256": "ac7490fc2a80e25cc5947dac3afb93d51edc03e0749168ba3278802cea8289b4",
+      "revisionNote": "2026-10-23 .54: open premium strand alpha; four guest heads reworked with saved built-in Imagegen sheets and deterministic UV finish; clothing/existing base identities and protected rank hat texels retained. Native visual acceptance NOT RUN."
+    },
+    {
+      "file": "guest_siven.png",
+      "size": [
+        64,
+        64
+      ],
+      "mode": "RGBA",
+      "uv": "java_wide",
+      "sha256": "7a4608e21659fde654106e1520d7f5ab6e593ed521a2158002d13f8296da0c07",
+      "source": "built-in image_gen concepts/refinements; deterministic UV packing and final texel finishing",
+      "quality": "offline UV/alpha checks; Ingame NOT RUN",
+      "previousSha256": "5ac16bfef1711bdfa3afafec51ec9f6e108431483c6e4b3241eae942721f4cfb",
+      "revisionNote": "2026-10-23 .54: open premium strand alpha; four guest heads reworked with saved built-in Imagegen sheets and deterministic UV finish; clothing/existing base identities and protected rank hat texels retained. Native visual acceptance NOT RUN."
+    },
+    {
+      "file": "guest_marven.png",
+      "size": [
+        64,
+        64
+      ],
+      "mode": "RGBA",
+      "uv": "java_wide",
+      "sha256": "84014cc8bca40171b6a2d922fc6ee548efbdd8d8e7bed80cd6ac4180d134b2e2",
+      "source": "built-in image_gen concepts/refinements; deterministic UV packing and final texel finishing",
+      "quality": "offline UV/alpha checks; Ingame NOT RUN",
+      "previousSha256": "0b74c4a67a7c7e1e4cdb48a21fda56407f8c36dc85c228e3477d510d6074fb7f",
+      "revisionNote": "2026-10-23 .54: open premium strand alpha; four guest heads reworked with saved built-in Imagegen sheets and deterministic UV finish; clothing/existing base identities and protected rank hat texels retained. Native visual acceptance NOT RUN."
+    },
+    {
+      "file": "guest_ravel.png",
+      "size": [
+        64,
+        64
+      ],
+      "mode": "RGBA",
+      "uv": "java_wide",
+      "sha256": "bcfef9205b4edbda2ac671f64aa628f19a6eaa24e14c36e35183d453526fe146",
+      "source": "built-in image_gen concepts/refinements; deterministic UV packing and final texel finishing",
+      "quality": "offline UV/alpha checks; Ingame NOT RUN",
+      "previousSha256": "8522cd7baf040139f0bacb680e39b156235992211ea70596334ca9c533962cd7",
+      "revisionNote": "2026-10-23 source-only after62: removed isolated two brown mid-side base texels per side (5,11/12 and18,11/12), using neighboring skin. All other visible texels and18other skins unchanged. No new JAR/ZIP; Ingame NOT RUN."
+    }
+  ],
+  "ingame": "NOT RUN; user performs manual acceptance",
+  "headRework": ".54"
+}

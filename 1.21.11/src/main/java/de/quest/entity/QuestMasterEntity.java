@@ -3,36 +3,35 @@ package de.quest.entity;
 import de.quest.quest.daily.DailyQuestService;
 import de.quest.questmaster.QuestMasterService;
 import de.quest.questmaster.QuestMasterUiService;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.entity.ai.goal.EscapeDangerGoal;
-import net.minecraft.entity.ai.goal.LookAroundGoal;
-import net.minecraft.entity.ai.goal.LookAtEntityGoal;
-import net.minecraft.entity.ai.goal.MeleeAttackGoal;
-import net.minecraft.entity.ai.goal.SwimGoal;
-import net.minecraft.entity.ai.goal.WanderAroundFarGoal;
-import net.minecraft.entity.attribute.DefaultAttributeContainer;
-import net.minecraft.entity.attribute.EntityAttributes;
-import net.minecraft.entity.damage.DamageSource;
-import net.minecraft.entity.mob.MobEntity;
-import net.minecraft.entity.mob.PathAwareEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.storage.ReadView;
-import net.minecraft.storage.WriteView;
-import net.minecraft.text.Text;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.Hand;
-import net.minecraft.world.World;
-
 import java.util.UUID;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.PathfinderMob;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.goal.FloatGoal;
+import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
+import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
+import net.minecraft.world.entity.ai.goal.PanicGoal;
+import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
+import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 
-public final class QuestMasterEntity extends PathAwareEntity {
+public final class QuestMasterEntity extends PathfinderMob {
     public static final int DEFAULT_DESPAWN_TICKS = 600;
     private static final int CUSTOMER_HOLD_TICKS = 60;
     private static final int ARRIVAL_TRACK_TICKS = 20 * 5;
@@ -67,34 +66,34 @@ public final class QuestMasterEntity extends PathAwareEntity {
     private UUID arrivalTargetUuid;
     private int arrivalTrackTicks;
 
-    public QuestMasterEntity(EntityType<? extends PathAwareEntity> entityType, World world) {
+    public QuestMasterEntity(EntityType<? extends PathfinderMob> entityType, Level world) {
         super(entityType, world);
-        this.setPersistent();
-        this.setEquipmentDropChance(EquipmentSlot.MAINHAND, 0.0f);
+        this.setPersistenceRequired();
+        this.setDropChance(EquipmentSlot.MAINHAND, 0.0f);
     }
 
     @Override
-    protected void initGoals() {
-        this.goalSelector.add(0, new SwimGoal(this));
-        this.goalSelector.add(1, new MeleeAttackGoal(this, DEFENSE_CHASE_SPEED, false));
-        this.goalSelector.add(2, new EscapeDangerGoal(this, 1.1));
-        this.goalSelector.add(3, new WanderAroundFarGoal(this, 0.8));
-        this.goalSelector.add(4, new LookAtEntityGoal(this, PlayerEntity.class, 8.0f));
-        this.goalSelector.add(5, new LookAroundGoal(this));
+    protected void registerGoals() {
+        this.goalSelector.addGoal(0, new FloatGoal(this));
+        this.goalSelector.addGoal(1, new MeleeAttackGoal(this, DEFENSE_CHASE_SPEED, false));
+        this.goalSelector.addGoal(2, new PanicGoal(this, 1.1));
+        this.goalSelector.addGoal(3, new WaterAvoidingRandomStrollGoal(this, 0.8));
+        this.goalSelector.addGoal(4, new LookAtPlayerGoal(this, Player.class, 8.0f));
+        this.goalSelector.addGoal(5, new RandomLookAroundGoal(this));
     }
 
-    public static DefaultAttributeContainer.Builder createAttributes() {
-        return MobEntity.createMobAttributes()
-                .add(EntityAttributes.MAX_HEALTH, 20.0)
-                .add(EntityAttributes.ATTACK_DAMAGE, 2.0)
-                .add(EntityAttributes.FOLLOW_RANGE, 24.0)
-                .add(EntityAttributes.MOVEMENT_SPEED, 0.32);
+    public static AttributeSupplier.Builder createAttributes() {
+        return Mob.createMobAttributes()
+                .add(Attributes.MAX_HEALTH, 20.0)
+                .add(Attributes.ATTACK_DAMAGE, 2.0)
+                .add(Attributes.FOLLOW_RANGE, 24.0)
+                .add(Attributes.MOVEMENT_SPEED, 0.32);
     }
 
     @Override
     public void tick() {
         super.tick();
-        if (this.getEntityWorld().isClient()) {
+        if (this.level().isClientSide()) {
             return;
         }
         if (this.speechCooldownTicks > 0) {
@@ -106,8 +105,8 @@ public final class QuestMasterEntity extends PathAwareEntity {
         tickDefenseState();
         tickArrivalTracking();
 
-        ServerPlayerEntity customer = getCustomer();
-        boolean uiSessionOpen = customer != null && QuestMasterUiService.isOpen(customer.getUuid());
+        ServerPlayer customer = getCustomer();
+        boolean uiSessionOpen = customer != null && QuestMasterUiService.isOpen(customer.getUUID());
         if (customer != null) {
             if (!canKeepCustomer(customer)) {
                 QuestMasterUiService.close(customer);
@@ -115,9 +114,9 @@ public final class QuestMasterEntity extends PathAwareEntity {
                 uiSessionOpen = false;
             } else {
                 this.getNavigation().stop();
-                this.getLookControl().lookAt(customer.getX(), customer.getEyeY(), customer.getZ());
+                this.getLookControl().setLookAt(customer.getX(), customer.getEyeY(), customer.getZ());
                 if (uiSessionOpen
-                        || DailyQuestService.hasPendingQuestMasterOffer((ServerWorld) this.getEntityWorld(), customer.getUuid())) {
+                        || DailyQuestService.hasPendingQuestMasterOffer((ServerLevel) this.level(), customer.getUUID())) {
                     this.customerHoldTicks = CUSTOMER_HOLD_TICKS;
                 } else if (this.customerHoldTicks > 0) {
                     this.customerHoldTicks--;
@@ -148,14 +147,14 @@ public final class QuestMasterEntity extends PathAwareEntity {
     }
 
     @Override
-    public void tickMovement() {
-        super.tickMovement();
+    public void aiStep() {
+        super.aiStep();
         if (hasCustomer()) {
             this.getNavigation().stop();
-            this.setVelocity(0.0, this.getVelocity().y, 0.0);
-            this.sidewaysSpeed = 0.0f;
-            this.forwardSpeed = 0.0f;
-            this.limbAnimator.updateLimbs(0.05f, 0.15f, 0.0f);
+            this.setDeltaMovement(0.0, this.getDeltaMovement().y, 0.0);
+            this.xxa = 0.0f;
+            this.zza = 0.0f;
+            this.walkAnimation.update(0.05f, 0.15f, 0.0f);
         }
     }
 
@@ -165,18 +164,18 @@ public final class QuestMasterEntity extends PathAwareEntity {
     }
 
     @Override
-    public boolean damage(ServerWorld world, DamageSource source, float amount) {
-        boolean damaged = super.damage(world, source, amount);
+    public boolean hurtServer(ServerLevel world, DamageSource source, float amount) {
+        boolean damaged = super.hurtServer(world, source, amount);
         if (!damaged) {
             return damaged;
         }
 
-        ServerPlayerEntity attacker = resolvePlayerAttacker(source);
+        ServerPlayer attacker = resolvePlayerAttacker(source);
         if (attacker == null) {
             return damaged;
         }
 
-        this.lastAggressorUuid = attacker.getUuid();
+        this.lastAggressorUuid = attacker.getUUID();
         if (!this.isAlive()) {
             return true;
         }
@@ -189,58 +188,58 @@ public final class QuestMasterEntity extends PathAwareEntity {
         if (this.getHealth() <= this.getMaxHealth() * DEFENSE_TRIGGER_HEALTH_FRACTION) {
             enterDefense(world, attacker);
         } else {
-            speak(attacker, WARNING_KEYS, Formatting.YELLOW);
+            speak(attacker, WARNING_KEYS, ChatFormatting.YELLOW);
         }
         return true;
     }
 
     @Override
-    public void onDeath(DamageSource source) {
-        ServerPlayerEntity customer = getCustomer();
+    public void die(DamageSource source) {
+        ServerPlayer customer = getCustomer();
         if (customer != null) {
             QuestMasterUiService.close(customer);
         }
         clearCustomer();
-        super.onDeath(source);
+        super.die(source);
 
-        if (!(this.getEntityWorld() instanceof ServerWorld world)) {
+        if (!(this.level() instanceof ServerLevel world)) {
             return;
         }
-        ServerPlayerEntity attacker = resolvePlayerAttacker(source);
+        ServerPlayer attacker = resolvePlayerAttacker(source);
         if (attacker == null) {
             return;
         }
-        QuestMasterService.applyPlayerSummonCooldown(world, attacker.getUuid());
-        attacker.sendMessage(Text.translatable(
+        QuestMasterService.applyPlayerSummonCooldown(world, attacker.getUUID());
+        attacker.sendSystemMessage(Component.translatable(
                 "message.village-quest.questmaster.death_cooldown",
                 QuestMasterService.formatDuration(QuestMasterService.getPlayerSummonCooldownTicks())
-        ).formatted(Formatting.RED), false);
+        ).withStyle(ChatFormatting.RED), false);
     }
 
     @Override
-    protected ActionResult interactMob(PlayerEntity player, Hand hand) {
-        if (!(player instanceof ServerPlayerEntity serverPlayer)) {
-            return ActionResult.SUCCESS;
+    protected InteractionResult mobInteract(Player player, InteractionHand hand) {
+        if (!(player instanceof ServerPlayer serverPlayer)) {
+            return InteractionResult.SUCCESS;
         }
-        if (hand != Hand.MAIN_HAND) {
-            return ActionResult.PASS;
+        if (hand != InteractionHand.MAIN_HAND) {
+            return InteractionResult.PASS;
         }
         if (isDefending()) {
-            serverPlayer.sendMessage(Text.translatable("message.village-quest.questmaster.defending").formatted(Formatting.RED), false);
-            return ActionResult.SUCCESS;
+            serverPlayer.sendSystemMessage(Component.translatable("message.village-quest.questmaster.defending").withStyle(ChatFormatting.RED), false);
+            return InteractionResult.SUCCESS;
         }
         if (hasCustomer() && !isCustomer(serverPlayer)) {
-            serverPlayer.sendMessage(net.minecraft.text.Text.translatable("message.village-quest.questmaster.busy").formatted(net.minecraft.util.Formatting.RED), false);
-            return ActionResult.SUCCESS;
+            serverPlayer.sendSystemMessage(net.minecraft.network.chat.Component.translatable("message.village-quest.questmaster.busy").withStyle(net.minecraft.ChatFormatting.RED), false);
+            return InteractionResult.SUCCESS;
         }
 
-        QuestMasterService.interact((ServerWorld) serverPlayer.getEntityWorld(), serverPlayer, this);
-        return ActionResult.SUCCESS;
+        QuestMasterService.interact((ServerLevel) serverPlayer.level(), serverPlayer, this);
+        return InteractionResult.SUCCESS;
     }
 
     @Override
-    protected void writeCustomData(WriteView data) {
-        super.writeCustomData(data);
+    protected void addAdditionalSaveData(ValueOutput data) {
+        super.addAdditionalSaveData(data);
         data.putInt("DespawnTicks", this.despawnTicks);
         data.putInt("CustomerHoldTicks", this.customerHoldTicks);
         data.putInt("ArrivalTrackTicks", this.arrivalTrackTicks);
@@ -248,13 +247,13 @@ public final class QuestMasterEntity extends PathAwareEntity {
     }
 
     @Override
-    protected void readCustomData(ReadView data) {
-        super.readCustomData(data);
-        this.despawnTicks = Math.max(0, data.getInt("DespawnTicks", DEFAULT_DESPAWN_TICKS));
-        this.customerHoldTicks = Math.max(0, data.getInt("CustomerHoldTicks", 0));
+    protected void readAdditionalSaveData(ValueInput data) {
+        super.readAdditionalSaveData(data);
+        this.despawnTicks = Math.max(0, data.getIntOr("DespawnTicks", DEFAULT_DESPAWN_TICKS));
+        this.customerHoldTicks = Math.max(0, data.getIntOr("CustomerHoldTicks", 0));
         this.customerUuid = null;
-        this.arrivalTrackTicks = Math.max(0, data.getInt("ArrivalTrackTicks", 0));
-        String encodedArrivalTarget = data.getString("ArrivalTarget", "");
+        this.arrivalTrackTicks = Math.max(0, data.getIntOr("ArrivalTrackTicks", 0));
+        String encodedArrivalTarget = data.getStringOr("ArrivalTarget", "");
         if (encodedArrivalTarget.isBlank()) {
             this.arrivalTargetUuid = null;
         } else {
@@ -266,19 +265,19 @@ public final class QuestMasterEntity extends PathAwareEntity {
         }
     }
 
-    public void beginInteraction(ServerPlayerEntity customer) {
-        this.customerUuid = customer == null ? null : customer.getUuid();
+    public void beginInteraction(ServerPlayer customer) {
+        this.customerUuid = customer == null ? null : customer.getUUID();
         this.customerHoldTicks = CUSTOMER_HOLD_TICKS;
         this.despawnTicks = DEFAULT_DESPAWN_TICKS;
     }
 
-    public void beginArrivalTracking(ServerPlayerEntity player) {
+    public void beginArrivalTracking(ServerPlayer player) {
         if (player == null) {
             this.arrivalTargetUuid = null;
             this.arrivalTrackTicks = 0;
             return;
         }
-        this.arrivalTargetUuid = player.getUuid();
+        this.arrivalTargetUuid = player.getUUID();
         this.arrivalTrackTicks = ARRIVAL_TRACK_TICKS;
     }
 
@@ -286,8 +285,8 @@ public final class QuestMasterEntity extends PathAwareEntity {
         return this.customerUuid != null;
     }
 
-    public boolean isCustomer(ServerPlayerEntity player) {
-        return player != null && this.customerUuid != null && this.customerUuid.equals(player.getUuid());
+    public boolean isCustomer(ServerPlayer player) {
+        return player != null && this.customerUuid != null && this.customerUuid.equals(player.getUUID());
     }
 
     public void clearCustomer() {
@@ -295,19 +294,19 @@ public final class QuestMasterEntity extends PathAwareEntity {
         this.customerHoldTicks = 0;
     }
 
-    public ServerPlayerEntity getCustomer() {
-        if (this.customerUuid == null || !(this.getEntityWorld() instanceof ServerWorld serverWorld)) {
+    public ServerPlayer getCustomer() {
+        if (this.customerUuid == null || !(this.level() instanceof ServerLevel serverWorld)) {
             return null;
         }
-        return serverWorld.getServer().getPlayerManager().getPlayer(this.customerUuid);
+        return serverWorld.getServer().getPlayerList().getPlayer(this.customerUuid);
     }
 
-    private boolean canKeepCustomer(ServerPlayerEntity customer) {
+    private boolean canKeepCustomer(ServerPlayer customer) {
         return customer != null
                 && customer.isAlive()
                 && !customer.isRemoved()
-                && customer.getEntityWorld() == this.getEntityWorld()
-                && customer.squaredDistanceTo(this) <= QuestMasterService.getMaxInteractDistanceSquared();
+                && customer.level() == this.level()
+                && customer.distanceToSqr(this) <= QuestMasterService.getMaxInteractDistanceSquared();
     }
 
     private void tickArrivalTracking() {
@@ -322,18 +321,18 @@ public final class QuestMasterEntity extends PathAwareEntity {
             return;
         }
 
-        ServerPlayerEntity target = getArrivalTarget();
-        if (!QuestMasterService.isEligibleSpawnTarget(target) || target.getEntityWorld() != this.getEntityWorld()) {
+        ServerPlayer target = getArrivalTarget();
+        if (!QuestMasterService.isEligibleSpawnTarget(target) || target.level() != this.level()) {
             clearArrivalTracking();
             return;
         }
 
-        if (this.squaredDistanceTo(target) > ARRIVAL_STOP_DISTANCE_SQUARED) {
-            this.getNavigation().startMovingTo(target, ARRIVAL_TRACK_SPEED);
+        if (this.distanceToSqr(target) > ARRIVAL_STOP_DISTANCE_SQUARED) {
+            this.getNavigation().moveTo(target, ARRIVAL_TRACK_SPEED);
         } else {
             this.getNavigation().stop();
         }
-        this.getLookControl().lookAt(target.getX(), target.getEyeY(), target.getZ());
+        this.getLookControl().setLookAt(target.getX(), target.getEyeY(), target.getZ());
 
         if (this.arrivalTrackTicks <= 0) {
             clearArrivalTracking();
@@ -345,15 +344,15 @@ public final class QuestMasterEntity extends PathAwareEntity {
             return;
         }
 
-        ServerPlayerEntity target = getAggressor();
+        ServerPlayer target = getAggressor();
         if (!canKeepDefenseTarget(target)) {
             calmDown();
             return;
         }
 
         this.setTarget(target);
-        this.getNavigation().startMovingTo(target, DEFENSE_CHASE_SPEED);
-        this.getLookControl().lookAt(target.getX(), target.getEyeY(), target.getZ());
+        this.getNavigation().moveTo(target, DEFENSE_CHASE_SPEED);
+        this.getLookControl().setLookAt(target.getX(), target.getEyeY(), target.getZ());
         attemptDefenseAttack(target);
         if (this.defenseTicks > 0) {
             this.defenseTicks--;
@@ -363,19 +362,19 @@ public final class QuestMasterEntity extends PathAwareEntity {
         }
     }
 
-    private void enterDefense(ServerWorld world, ServerPlayerEntity attacker) {
-        ServerPlayerEntity customer = getCustomer();
+    private void enterDefense(ServerLevel world, ServerPlayer attacker) {
+        ServerPlayer customer = getCustomer();
         if (customer != null) {
             QuestMasterUiService.close(customer);
         }
         clearCustomer();
         refreshDefense(attacker);
-        speak(attacker, RETALIATION_KEYS, Formatting.RED);
-        world.playSound(null, this.getBlockPos(), net.minecraft.sound.SoundEvents.ENTITY_VINDICATOR_AMBIENT, net.minecraft.sound.SoundCategory.NEUTRAL, 0.7f, 0.9f);
+        speak(attacker, RETALIATION_KEYS, ChatFormatting.RED);
+        world.playSound(null, this.blockPosition(), net.minecraft.sounds.SoundEvents.VINDICATOR_AMBIENT, net.minecraft.sounds.SoundSource.NEUTRAL, 0.7f, 0.9f);
     }
 
-    private void refreshDefense(ServerPlayerEntity attacker) {
-        this.lastAggressorUuid = attacker.getUuid();
+    private void refreshDefense(ServerPlayer attacker) {
+        this.lastAggressorUuid = attacker.getUUID();
         this.defenseTicks = DEFENSE_DURATION_TICKS;
         this.setTarget(attacker);
         equipSword(true);
@@ -391,7 +390,7 @@ public final class QuestMasterEntity extends PathAwareEntity {
     }
 
     private boolean isDefending() {
-        return this.defenseTicks > 0 || this.getMainHandStack().isOf(Items.IRON_SWORD);
+        return this.defenseTicks > 0 || this.getMainHandItem().is(Items.IRON_SWORD);
     }
 
     private void equipSword(boolean enabled) {
@@ -402,26 +401,26 @@ public final class QuestMasterEntity extends PathAwareEntity {
         }
     }
 
-    private ServerPlayerEntity getAggressor() {
-        if (this.lastAggressorUuid == null || !(this.getEntityWorld() instanceof ServerWorld world)) {
+    private ServerPlayer getAggressor() {
+        if (this.lastAggressorUuid == null || !(this.level() instanceof ServerLevel world)) {
             return null;
         }
-        return world.getServer().getPlayerManager().getPlayer(this.lastAggressorUuid);
+        return world.getServer().getPlayerList().getPlayer(this.lastAggressorUuid);
     }
 
-    private boolean canKeepDefenseTarget(ServerPlayerEntity target) {
+    private boolean canKeepDefenseTarget(ServerPlayer target) {
         return target != null
                 && target.isAlive()
                 && !target.isRemoved()
-                && target.getEntityWorld() == this.getEntityWorld()
-                && target.squaredDistanceTo(this) <= MAX_DEFENSE_DISTANCE_SQUARED;
+                && target.level() == this.level()
+                && target.distanceToSqr(this) <= MAX_DEFENSE_DISTANCE_SQUARED;
     }
 
-    private ServerPlayerEntity getArrivalTarget() {
-        if (this.arrivalTargetUuid == null || !(this.getEntityWorld() instanceof ServerWorld world)) {
+    private ServerPlayer getArrivalTarget() {
+        if (this.arrivalTargetUuid == null || !(this.level() instanceof ServerLevel world)) {
             return null;
         }
-        return world.getServer().getPlayerManager().getPlayer(this.arrivalTargetUuid);
+        return world.getServer().getPlayerList().getPlayer(this.arrivalTargetUuid);
     }
 
     private void clearArrivalTracking() {
@@ -430,29 +429,29 @@ public final class QuestMasterEntity extends PathAwareEntity {
         this.getNavigation().stop();
     }
 
-    private ServerPlayerEntity resolvePlayerAttacker(DamageSource source) {
-        return source.getAttacker() instanceof ServerPlayerEntity player ? player : null;
+    private ServerPlayer resolvePlayerAttacker(DamageSource source) {
+        return source.getEntity() instanceof ServerPlayer player ? player : null;
     }
 
-    private void attemptDefenseAttack(ServerPlayerEntity target) {
-        if (target == null || this.meleeCooldownTicks > 0 || !(this.getEntityWorld() instanceof ServerWorld world)) {
+    private void attemptDefenseAttack(ServerPlayer target) {
+        if (target == null || this.meleeCooldownTicks > 0 || !(this.level() instanceof ServerLevel world)) {
             return;
         }
         if (!isInDefenseStrikeRange(target)) {
             return;
         }
         this.getNavigation().stop();
-        this.swingHand(Hand.MAIN_HAND);
-        net.minecraft.entity.damage.DamageSource damageSource = this.getDamageSources().mobAttack(this);
-        boolean hit = this.tryAttack(world, target);
+        this.swing(InteractionHand.MAIN_HAND);
+        net.minecraft.world.damagesource.DamageSource damageSource = this.damageSources().mobAttack(this);
+        boolean hit = this.doHurtTarget(world, target);
         if (!hit) {
-            float damage = (float) this.getAttributeValue(EntityAttributes.ATTACK_DAMAGE);
-            hit = target.damage(world, damageSource, damage);
+            float damage = (float) this.getAttributeValue(Attributes.ATTACK_DAMAGE);
+            hit = target.hurtServer(world, damageSource, damage);
             if (!hit && !target.isCreative() && !target.isSpectator()) {
                 hit = applyGuaranteedDefenseDamage(world, target, damageSource, damage);
             }
             if (hit) {
-                target.takeKnockback(0.35, this.getX() - target.getX(), this.getZ() - target.getZ());
+                target.knockback(0.35, this.getX() - target.getX(), this.getZ() - target.getZ());
             }
         }
         if (hit) {
@@ -460,11 +459,11 @@ public final class QuestMasterEntity extends PathAwareEntity {
         }
     }
 
-    private boolean isInDefenseStrikeRange(ServerPlayerEntity target) {
+    private boolean isInDefenseStrikeRange(ServerPlayer target) {
         if (target == null) {
             return false;
         }
-        if (this.getBoundingBox().expand(0.45).intersects(target.getBoundingBox())) {
+        if (this.getBoundingBox().inflate(0.45).intersects(target.getBoundingBox())) {
             return true;
         }
         double dx = this.getX() - target.getX();
@@ -472,13 +471,13 @@ public final class QuestMasterEntity extends PathAwareEntity {
         return (dx * dx) + (dz * dz) <= 4.0;
     }
 
-    private boolean applyGuaranteedDefenseDamage(ServerWorld world, ServerPlayerEntity target, net.minecraft.entity.damage.DamageSource damageSource, float damage) {
+    private boolean applyGuaranteedDefenseDamage(ServerLevel world, ServerPlayer target, net.minecraft.world.damagesource.DamageSource damageSource, float damage) {
         float previousHealth = target.getHealth();
         float nextHealth = Math.max(0.0f, previousHealth - damage);
         if (nextHealth >= previousHealth) {
             return false;
         }
-        target.serverDamage(damageSource, damage);
+        target.hurt(damageSource, damage);
         target.setHealth(nextHealth);
         if (nextHealth <= 0.0f) {
             target.kill(world);
@@ -486,17 +485,12 @@ public final class QuestMasterEntity extends PathAwareEntity {
         return true;
     }
 
-    private void speak(ServerPlayerEntity player, String[] keys, Formatting textColor) {
+    private void speak(ServerPlayer player, String[] keys, ChatFormatting textColor) {
         if (player == null || keys == null || keys.length == 0 || this.speechCooldownTicks > 0) {
             return;
         }
         String key = keys[this.getRandom().nextInt(keys.length)];
-        player.sendMessage(
-                this.getDisplayName().copy().formatted(Formatting.GOLD)
-                        .append(Text.literal(": ").formatted(Formatting.DARK_GRAY))
-                        .append(Text.translatable(key).formatted(textColor)),
-                false
-        );
+        de.quest.kingdom.NpcSpeechService.privateLine(player,this,Component.translatable(key).withStyle(textColor));
         this.speechCooldownTicks = SPEECH_COOLDOWN_TICKS;
     }
 
@@ -513,20 +507,20 @@ public final class QuestMasterEntity extends PathAwareEntity {
     }
 
     private boolean shouldCarryTorch() {
-        return this.isAlive() && this.getEntityWorld() != null && this.getEntityWorld().isNight();
+        return this.isAlive() && this.level() != null && this.level().isDarkOutside();
     }
 
     private void setHeldItem(Item item) {
-        ItemStack current = this.getMainHandStack();
+        ItemStack current = this.getMainHandItem();
         if (item == null) {
             if (!current.isEmpty()) {
-                this.setStackInHand(Hand.MAIN_HAND, ItemStack.EMPTY);
+                this.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
             }
             return;
         }
-        if (current.isOf(item) && current.getCount() == 1) {
+        if (current.is(item) && current.getCount() == 1) {
             return;
         }
-        this.setStackInHand(Hand.MAIN_HAND, new ItemStack(item));
+        this.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(item));
     }
 }

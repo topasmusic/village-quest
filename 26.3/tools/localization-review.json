@@ -94972,11 +94972,11 @@
     "screen.village-quest.notice_journey.instruction.ink_between_villages.rules": {
       "context": "screen",
       "subject": "screen.village-quest.notice_journey.instruction.ink_between_villages.rules",
-      "note": "29.10.2026 implemented text review: Der jetzige Haupttext bündelt Erzählung, Schritte und sämtliche Abstandsregeln. Vorschlag trennt lesbaren Auftrag von präzisen Bedingungen und benennt den automatischen Verbrauch. Konkrete Schlussmengen aus storyDelivery geprüft. Nutzerpräzisierung: Story/Dialog von Ziel und Detailregel konsequent trennen, technische Dorfbindung nur in den Regeln erklären. Evidence: 26.3/src/main/java/de/quest/guildtown/GuildTownService.java:674-800,889-948,1309-1321; 26.3/src/client/java/de/quest/client/screen/NoticeJourneyScreen.java:64-80,135-158; 26.3/src/main/java/de/quest/guildtown/GuildTownService.java:889-909,957-976; 26.3/src/client/java/de/quest/client/screen/JournalScreen.java:1161-1260 Connected by GuildTownStory.instructionLines in NoticeJourney AVAILABLE/ACTIVE/CHOOSE/READY and GuildTownService journal/tracker; full scroll body and keyboard.",
+      "note": "2.6.4 EN/DE/ES source review: explain Paper crafting and personally killed Squid/Chicken pickups; exclude player rethrows. Existing 128 horizontal blocks, 3 trades, 12 supplies and automatic 2/3 Book and Quill hand-in checked against GuildTownService; no reward/unlock changes.",
       "translations": {
-        "en_us": "7a6e5554804ad2cabdeb643bc1dc68376d754f067662f320c46ff99596552105",
-        "de_de": "30a0a19ab7427e44e913af4ac01d9684180c42b3a26eb9ef1832eb8433c9e3e7",
-        "es_es": "8763a60b1556b06b9604f9f698fe6cc496f8ac035ca02642dba245f2305ae188"
+        "en_us": "95369c9e970e89b92ac72ca15aa34b9058ec3e6f8100af4f6498baba18d447bc",
+        "de_de": "4050ff8410163eb83a2b5b9bc3e180483a55425d15318f4e9e5a5c1e437b17b5",
+        "es_es": "033e1bc77e58067ed34462b7324f20bd1a1af6d697e87bbd37fae913cd269adb"
       },
       "uses": [
         {
@@ -94984,7 +94984,7 @@
           "match": "dynamic-prefix"
         }
       ],
-      "trace": "Targeted implementation review from proposals.jsonl; full source evidence in note."
+      "trace": "Targeted source/context review; see note and source contracts."
     },
     "quest.village-quest.guild_town.commission.reinforced_ploughs.rules": {
       "context": "quest",
@@ -99563,8 +99563,8 @@
       "note": "2026-10-12: Context-audit source snapshot; review affected texts whenever this source changes. This is not a whole-code approval."
     },
     "src/main/java/de/quest/mixin/ItemEntityMixin.java": {
-      "sha256": "febf8704294d6466b0e121b068e0abc2d8337a26f12c008a6ff6997430640e35",
-      "note": "2026-10-12: Context-audit source snapshot; review affected texts whenever this source changes. This is not a whole-code approval."
+      "sha256": "85219cb9a1194c31c13d997c28e93c6f8ae8de837617bf88e1d455d8b5fd92b7",
+      "note": "Native pickup uses the original item and actual inserted count. Before attribution, natural Ink Sac and Feather drops cannot merge with discarded stacks, keeping their provenance separate. No localization or objective change."
     },
     "src/main/java/de/quest/mixin/LivingEntityReputationMixin.java": {
       "sha256": "edaaf6b30a36294256a544644c787c13a6a32ead6c0256d28dab15b1b8be9f54",
@@ -99739,8 +99739,8 @@
       "note": "2026-10-12: Context-audit source snapshot; review affected texts whenever this source changes. This is not a whole-code approval."
     },
     "src/main/java/de/quest/quest/QuestDropTracker.java": {
-      "sha256": "f5fcb2a0576264840bd234983c98f22e4fc91287826e82ac3c11b34f8c04bfd5",
-      "note": "27 Oct SELF restart integration: UUID/server-bound two-minute once confirmation, copied inventory/Ender/crafting/container plan with vanilla rescue and preflight; only selected data replaced, party/guild survivors kept, archive/map/seal generations advance; retained payout and cycle receipts prevent replay. Warning EN/DE/ES states irreversible scope, old anonymous-item limit, placed blocks retained and blockers. Command deliberately unregistered pending tests."
+      "sha256": "e39cdcb0632511611e98ab149e9c036b9092d63f9ec57511d4d7625c9ecf5a0e",
+      "note": "2.6.4 source review: native Chicken/Squid attribution for feathers/ink sacs, persistent thrower exclusion, item-preserving actual pickup quantity. Existing 12-supply target, village radius and active owner gates unchanged."
     },
     "src/main/java/de/quest/quest/QuestHarvestTracker.java": {
       "sha256": "dd62c4d985bfd3ddae16bed47fbc9b01b433922b283e0f2d8fa2401b4e402df7",
@@ -99851,8 +99851,8 @@
       "note": "2026-10-12: Context-audit source snapshot; review affected texts whenever this source changes. This is not a whole-code approval."
     },
     "src/main/java/de/quest/quest/TrackedQuestDrop.java": {
-      "sha256": "e974ce72313f3e52cf2fb892fbf00e2b32e9c5e9fc895dadbff9ab4c15d1e940",
-      "note": "2026-10-12: Context-audit source snapshot; review affected texts whenever this source changes. This is not a whole-code approval."
+      "sha256": "c83c9f8cc0dcf3009126d71eb85b76b806aea50a29374a4bf33f9d6d4c1f8903",
+      "note": "2.6.4: tracked natural Chicken/Squid supply drops exclude persisted throwers; pickup preserves item identity and actual inserted count. Paper onCraftedBy uses native quantity once; existing active-story/128-block/owner/save gates and 12 supplies + 3 trades remain. Honey success hooks remain before smoke split."
     },
     "src/main/java/de/quest/quest/weekly/WeeklyQuestCompletion.java": {
       "sha256": "a02210f426228ceb427fc8cf5801358c2b4068297c03230c174a279ef762406c",
@@ -101425,6 +101425,10 @@
     "src/client/java/de/quest/client/screen/EncounterQuestScreen.java": {
       "sha256": "dfdfb2eeecfd4fd71c102ab9fbdf035fc99b50138a23ebec9a6b3e6347336482",
       "note": "Stable encounter review: natural 1/5 eligible offer roll only; no operator bypass. Accept without supplies; full 2 bread or 3 baked potatoes / 1 iron auto-delivery; 4 emeralds +2 levels; two buttons and icons; existing receipt/pending lifecycle retained. Questmaster completion formatting and native item hover checked. EN/DE/ES rules and material counts read together."
+    },
+    "src/main/java/de/quest/mixin/ItemStackCraftMixin.java": {
+      "sha256": "945f50d6dd4fcb950764bfd0db0d66f5872cbecbd507120b53cd5a2fdfcd30cd",
+      "note": "2.6.4: tracked natural Chicken/Squid supply drops exclude persisted throwers; pickup preserves item identity and actual inserted count. Paper onCraftedBy uses native quantity once; existing active-story/128-block/owner/save gates and 12 supplies + 3 trades remain. Honey success hooks remain before smoke split."
     }
   }
 }

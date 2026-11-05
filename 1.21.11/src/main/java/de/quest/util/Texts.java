@@ -2,59 +2,70 @@ package de.quest.util;
 
 import java.util.ArrayList;
 import java.util.List;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
 
 public final class Texts {
-    private static final Text OPEN = Text.literal("[").formatted(Formatting.WHITE);
-    private static final Text CLOSE = Text.literal("]").formatted(Formatting.WHITE);
+    private static final Component OPEN = Component.literal("[").withStyle(ChatFormatting.WHITE);
+    private static final Component CLOSE = Component.literal("]").withStyle(ChatFormatting.WHITE);
 
     private Texts() {}
 
-    public static Text tr(String key, Object... args) {
-        return Text.translatable(key, args);
+    public static Component tr(String key, Object... args) {
+        return Component.translatable(key, args);
     }
 
-    public static Text dailyTitle(Text questName, Formatting questColor) {
-        return Text.empty()
-                .append(Text.translatable("text.village-quest.quest.daily_prefix").formatted(Formatting.GRAY))
-                .append(questName.copy().formatted(questColor));
+    public static Component dailyTitle(Component questName, ChatFormatting questColor) {
+        return Component.empty()
+                .append(Component.translatable("text.village-quest.quest.daily_prefix").withStyle(ChatFormatting.GRAY))
+                .append(questName.copy().withStyle(questColor));
     }
 
-    public static Text completedTitle(Text questName, Formatting questColor) {
-        return Text.empty()
-                .append(Text.translatable("text.village-quest.quest.completed_prefix").formatted(Formatting.GRAY))
-                .append(questName.copy().formatted(questColor));
+    public static Component completedTitle(Component questName, ChatFormatting questColor) {
+        return Component.empty()
+                .append(Component.translatable("text.village-quest.quest.completed_prefix").withStyle(ChatFormatting.GRAY))
+                .append(questName.copy().withStyle(questColor));
     }
 
-    public static Text acceptedTitle(Text questName, Formatting questColor) {
-        return Text.empty()
-                .append(Text.translatable("text.village-quest.quest.accepted_prefix").formatted(Formatting.GRAY))
-                .append(questName.copy().formatted(questColor));
+    public static Component acceptedTitle(Component questName, ChatFormatting questColor) {
+        return Component.empty()
+                .append(Component.translatable("text.village-quest.quest.accepted_prefix").withStyle(ChatFormatting.GRAY))
+                .append(questName.copy().withStyle(questColor));
     }
 
-    public static Text bracket(Text inner) {
-        return Text.empty()
+    public static Component bracket(Component inner) {
+        return Component.empty()
                 .append(OPEN.copy())
                 .append(inner)
                 .append(CLOSE.copy());
     }
 
-    public static Text turnInMissing(Text label, int current, int target) {
+    public static Component turnInMissing(Component label, int current, int target) {
         return turnInMissing(new TurnInRequirement(label, current, target));
     }
 
-    public static Text turnInMissing(Text labelA, int currentA, int targetA,
-                                     Text labelB, int currentB, int targetB) {
+    /** Full tracker snapshot uses the same producer-owned quantities as the error message. */
+    public static Component turnInMissing(boolean allRequirements, Object... triples) {
+        if(triples.length%3!=0) throw new IllegalArgumentException("Invalid turn-in requirements");
+        var requirements=new TurnInRequirement[triples.length/3];
+        for(int i=0;i<requirements.length;i++) requirements[i]=new TurnInRequirement(
+                (Component)triples[i*3],(Integer)triples[i*3+1],(Integer)triples[i*3+2]);
+        if(!allRequirements) return turnInMissing(requirements);
+        return de.quest.quest.QuestShortObjective.group(java.util.Arrays.stream(requirements)
+                .map(r->de.quest.quest.QuestShortObjective.material(r.label(),r.current(),r.target())).toList());
+    }
+
+    public static Component turnInMissing(Component labelA, int currentA, int targetA,
+                                          Component labelB, int currentB, int targetB) {
         return turnInMissing(
                 new TurnInRequirement(labelA, currentA, targetA),
                 new TurnInRequirement(labelB, currentB, targetB)
         );
     }
 
-    public static Text turnInMissing(Text labelA, int currentA, int targetA,
-                                     Text labelB, int currentB, int targetB,
-                                     Text labelC, int currentC, int targetC) {
+    public static Component turnInMissing(Component labelA, int currentA, int targetA,
+                                          Component labelB, int currentB, int targetB,
+                                          Component labelC, int currentC, int targetC) {
         return turnInMissing(
                 new TurnInRequirement(labelA, currentA, targetA),
                 new TurnInRequirement(labelB, currentB, targetB),
@@ -62,10 +73,10 @@ public final class Texts {
         );
     }
 
-    public static Text turnInMissing(Text labelA, int currentA, int targetA,
-                                     Text labelB, int currentB, int targetB,
-                                     Text labelC, int currentC, int targetC,
-                                     Text labelD, int currentD, int targetD) {
+    public static Component turnInMissing(Component labelA, int currentA, int targetA,
+                                          Component labelB, int currentB, int targetB,
+                                          Component labelC, int currentC, int targetC,
+                                          Component labelD, int currentD, int targetD) {
         return turnInMissing(
                 new TurnInRequirement(labelA, currentA, targetA),
                 new TurnInRequirement(labelB, currentB, targetB),
@@ -74,11 +85,11 @@ public final class Texts {
         );
     }
 
-    public static Text turnInMissing(Text labelA, int currentA, int targetA,
-                                     Text labelB, int currentB, int targetB,
-                                     Text labelC, int currentC, int targetC,
-                                     Text labelD, int currentD, int targetD,
-                                     Text labelE, int currentE, int targetE) {
+    public static Component turnInMissing(Component labelA, int currentA, int targetA,
+                                          Component labelB, int currentB, int targetB,
+                                          Component labelC, int currentC, int targetC,
+                                          Component labelD, int currentD, int targetD,
+                                          Component labelE, int currentE, int targetE) {
         return turnInMissing(
                 new TurnInRequirement(labelA, currentA, targetA),
                 new TurnInRequirement(labelB, currentB, targetB),
@@ -88,7 +99,7 @@ public final class Texts {
         );
     }
 
-    private static Text turnInMissing(TurnInRequirement... requirements) {
+    private static Component turnInMissing(TurnInRequirement... requirements) {
         List<TurnInRequirement> missing = new ArrayList<>();
         for (TurnInRequirement requirement : requirements) {
             if (requirement != null && requirement.current() < requirement.target()) {
@@ -96,21 +107,21 @@ public final class Texts {
             }
         }
         if (missing.isEmpty()) {
-            return Text.empty();
+            return Component.empty();
         }
 
         Object[] arguments = new Object[missing.size() * 3];
         for (int index = 0; index < missing.size(); index++) {
             TurnInRequirement requirement = missing.get(index);
-            arguments[index * 3] = requirement.label().copy().formatted(Formatting.RED);
+            arguments[index * 3] = requirement.label().copy().withStyle(ChatFormatting.RED);
             arguments[index * 3 + 1] = requirement.current();
             arguments[index * 3 + 2] = requirement.target();
         }
-        return Text.translatable(
+        return Component.translatable(
                 "text.village-quest.turnin_missing." + missing.size(),
                 arguments
-        ).formatted(Formatting.RED);
+        ).withStyle(ChatFormatting.RED);
     }
 
-    private record TurnInRequirement(Text label, int current, int target) {}
+    private record TurnInRequirement(Component label, int current, int target) {}
 }

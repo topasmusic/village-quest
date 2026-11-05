@@ -5,15 +5,14 @@ import de.quest.quest.weekly.WeeklyQuestDefinition;
 import de.quest.quest.weekly.WeeklyQuestKeys;
 import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.reputation.ReputationService;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-
 import java.util.List;
 import java.util.UUID;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 public final class MarketWeekWeeklyQuest implements WeeklyQuestDefinition {
     @Override
@@ -22,41 +21,41 @@ public final class MarketWeekWeeklyQuest implements WeeklyQuestDefinition {
     }
 
     @Override
-    public Text title() {
-        return Text.translatable("quest.village-quest.weekly.market.title");
+    public Component title() {
+        return Component.translatable("quest.village-quest.weekly.market.title");
     }
 
     @Override
-    public Text offerParagraph1() {
-        return Text.translatable("quest.village-quest.weekly.market.offer.1").formatted(Formatting.GRAY);
+    public Component offerParagraph1() {
+        return Component.translatable("quest.village-quest.weekly.market.offer.1").withStyle(ChatFormatting.GRAY);
     }
 
     @Override
-    public Text offerParagraph2() {
-        return Text.translatable("quest.village-quest.weekly.market.offer.2").formatted(Formatting.GRAY);
+    public Component offerParagraph2() {
+        return Component.translatable("quest.village-quest.weekly.market.offer.2").withStyle(ChatFormatting.GRAY);
     }
 
     @Override
-    public List<Text> progressLines(ServerWorld world, UUID playerId) {
+    public List<Component> progressLines(ServerLevel world, UUID playerId) {
         return List.of(
-                Text.translatable(
+                Component.translatable(
                         "quest.village-quest.weekly.market.progress.1",
                         WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.MARKET_TRADES),
                         WeeklyQuestService.marketTradeTarget(),
                         WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.MARKET_EMERALDS),
                         WeeklyQuestService.marketEmeraldTarget()
-                ).formatted(Formatting.GRAY),
-                Text.translatable(
+                ).withStyle(ChatFormatting.GRAY),
+                Component.translatable(
                         "quest.village-quest.weekly.market.progress.2",
                         WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.MARKET_PILGRIM_PURCHASES),
                         WeeklyQuestService.marketPilgrimPurchaseTarget()
-                ).formatted(Formatting.GRAY)
+                ).withStyle(ChatFormatting.GRAY)
         );
     }
 
     @Override
-    public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
-        UUID playerId = player.getUuid();
+    public boolean isComplete(ServerLevel world, ServerPlayer player) {
+        UUID playerId = player.getUUID();
         return WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.MARKET_TRADES) >= WeeklyQuestService.marketTradeTarget()
                 && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.MARKET_EMERALDS) >= WeeklyQuestService.marketEmeraldTarget()
                 && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.MARKET_PILGRIM_PURCHASES) >= WeeklyQuestService.marketPilgrimPurchaseTarget();
@@ -66,9 +65,9 @@ public final class MarketWeekWeeklyQuest implements WeeklyQuestDefinition {
     public WeeklyQuestCompletion buildCompletion() {
         return WeeklyQuestService.buildCompletion(
                 title(),
-                Text.translatable("quest.village-quest.weekly.market.completion.1").formatted(Formatting.GRAY),
-                Text.translatable("quest.village-quest.weekly.market.completion.2").formatted(Formatting.GRAY),
-                Text.translatable("quest.village-quest.weekly.market.completion.3").formatted(Formatting.GRAY),
+                Component.translatable("quest.village-quest.weekly.market.completion.1").withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.weekly.market.completion.2").withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.weekly.market.completion.3").withStyle(ChatFormatting.GRAY),
                 WeeklyQuestService.reward(4, 0),
                 WeeklyQuestService.magicShardReward(1),
                 ItemStack.EMPTY,
@@ -79,26 +78,26 @@ public final class MarketWeekWeeklyQuest implements WeeklyQuestDefinition {
     }
 
     @Override
-    public void onVillagerTrade(ServerWorld world, ServerPlayerEntity player, ItemStack stack) {
-        if (!WeeklyQuestService.isAcceptedThisWeek(world, player.getUuid()) || WeeklyQuestService.hasCompletedThisWeek(world, player.getUuid())) {
+    public void onVillagerTrade(ServerLevel world, ServerPlayer player, ItemStack stack) {
+        if (!WeeklyQuestService.isAcceptedThisWeek(world, player.getUUID()) || WeeklyQuestService.hasCompletedThisWeek(world, player.getUUID())) {
             return;
         }
 
-        UUID playerId = player.getUuid();
+        UUID playerId = player.getUUID();
         WeeklyQuestService.addQuestIntClamped(world, playerId, WeeklyQuestKeys.MARKET_TRADES, 1, WeeklyQuestService.marketTradeTarget());
-        if (stack.isOf(Items.EMERALD)) {
+        if (stack.is(Items.EMERALD)) {
             WeeklyQuestService.addQuestIntClamped(world, playerId, WeeklyQuestKeys.MARKET_EMERALDS, stack.getCount(), WeeklyQuestService.marketEmeraldTarget());
         }
         WeeklyQuestService.completeIfEligible(world, player);
     }
 
     @Override
-    public void onPilgrimPurchase(ServerWorld world, ServerPlayerEntity player, String offerId) {
-        if (!WeeklyQuestService.isAcceptedThisWeek(world, player.getUuid()) || WeeklyQuestService.hasCompletedThisWeek(world, player.getUuid())) {
+    public void onPilgrimPurchase(ServerLevel world, ServerPlayer player, String offerId) {
+        if (!WeeklyQuestService.isAcceptedThisWeek(world, player.getUUID()) || WeeklyQuestService.hasCompletedThisWeek(world, player.getUUID())) {
             return;
         }
 
-        WeeklyQuestService.addQuestIntClamped(world, player.getUuid(), WeeklyQuestKeys.MARKET_PILGRIM_PURCHASES, 1, WeeklyQuestService.marketPilgrimPurchaseTarget());
+        WeeklyQuestService.addQuestIntClamped(world, player.getUUID(), WeeklyQuestKeys.MARKET_PILGRIM_PURCHASES, 1, WeeklyQuestService.marketPilgrimPurchaseTarget());
         WeeklyQuestService.completeIfEligible(world, player);
     }
 }

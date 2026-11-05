@@ -1,14 +1,14 @@
 package de.quest.quest.daily;
 
 import de.quest.reputation.ReputationService;
-import net.minecraft.item.ItemStack;
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
 
 public record DailyQuestCompletion(
-        Text title,
-        Text completionLine1,
-        Text completionLine2,
-        Text completionLine3,
+        Component title,
+        Component completionLine1,
+        Component completionLine2,
+        Component completionLine3,
         long currencyReward,
         ItemStack rewardB,
         ItemStack rewardC,

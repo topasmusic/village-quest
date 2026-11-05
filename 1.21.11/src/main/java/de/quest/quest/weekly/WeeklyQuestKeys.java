@@ -14,8 +14,8 @@ public final class WeeklyQuestKeys {
     public static final String BAKEHOUSE_LAST_PIE = "weekly.bakehouse.last_pie";
 
     public static final String SMITH_ORE = "weekly.smith.ore";
-    public static final String SMITH_GOLD_ORE = "weekly.smith.gold_ore";
     public static final String SMITH_IRON = "weekly.smith.iron";
+    public static final String SMITH_GOLD_ORE = "weekly.smith.gold_ore";
     public static final String SMITH_GOLD = "weekly.smith.gold";
 
     public static final String PASTURE_BREED = "weekly.pasture.breed";
@@ -34,6 +34,8 @@ public final class WeeklyQuestKeys {
 
     public static final String ROADWARDEN_HOSTILES = "weekly.roadwarden.hostiles";
     public static final String ROADWARDEN_CREEPERS = "weekly.roadwarden.creepers";
+
+    public static final String SHARED_TURN_IN_CONSUMED = "weekly.shared_turn_in_consumed";
 
     private WeeklyQuestKeys() {}
 }

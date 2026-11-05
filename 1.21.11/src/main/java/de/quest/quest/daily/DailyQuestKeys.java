@@ -35,6 +35,7 @@ public final class DailyQuestKeys {
     public static final String EXPECTED_COMB = "daily.honeycomb.expected";
     public static final String LAST_HONEY_COUNT = "daily.honey.last_count";
     public static final String LAST_COMB_COUNT = "daily.honeycomb.last_count";
+    public static final String SHARED_TURN_IN_CONSUMED = "daily.shared_turn_in_consumed";
     public static final String LAST_BREAD_CRAFTED = "daily.bread.last_crafted";
     public static final String LAST_FISH_CAUGHT = "daily.river.last_fish_caught";
     public static final String LAST_WOOL_PICKED_UP = "daily.wool.last_picked_up";

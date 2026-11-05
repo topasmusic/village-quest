@@ -32,12 +32,12 @@ public final class ClientModCompat {
         bootstrapped = true;
         if (BENDABLE_CUBOIDS_LOADED) {
             VillageQuest.LOGGER.warn(
-                    "Detected Bendable Cuboids on 1.21.11. Village Quest is using a safer quest-NPC held-item renderer to avoid known crashes while keeping quest NPC weapons and torches visible."
+                    "Detected Bendable Cuboids. Village Quest is using a safer quest-NPC held-item renderer to avoid known crashes while keeping quest NPC weapons and torches visible."
             );
         }
         if (MTG_CARD_LOADED) {
             VillageQuest.LOGGER.warn(
-                    "Detected MTGCard on 1.21.11. Village Quest is disabling the old inventory journal overlay to avoid known inventory-screen crashes and is using a fallback inventory Journal button instead."
+                    "Detected MTGCard. Village Quest is disabling the old inventory journal overlay to avoid known inventory-screen crashes and is using a fallback inventory Journal button instead."
             );
         }
     }

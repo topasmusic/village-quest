@@ -35,17 +35,24 @@ loom {
 
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    mappings loom.officialMojangMappings()
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
     testImplementation "org.junit.jupiter:junit-jupiter:5.11.4"
+    testImplementation "org.mockito:mockito-core:5.20.0"
     testRuntimeOnly "org.junit.platform:junit-platform-launcher:1.11.4"
 }
 
 tasks.named("test").configure {
     useJUnitPlatform()
 }
+
+// Include native client classes in the layout and input regression suite.
+sourceSets.test.compileClasspath += sourceSets.client.output + sourceSets.client.compileClasspath
+sourceSets.test.runtimeClasspath += sourceSets.client.output + sourceSets.client.runtimeClasspath
+
+apply from: 'tools/localization-quality.gradle'
 
 processResources {
     inputs.property "version", project.version
@@ -73,6 +80,9 @@ tasks.named("remapJar").configure {
 
 tasks.named("remapSourcesJar").configure {
     archiveFileName = "${releaseFileStem}-sources.jar"
+    filesMatching("fabric.mod.json") {
+        filter { line -> line.replace('${version}', releaseVersion) }
+    }
 }
 
 def bundledLicenseFiles = files(

@@ -1,28 +1,27 @@
 package de.quest.quest.story;
 
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-
 import java.util.UUID;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 
 public interface StoryArcDefinition {
     StoryArcType type();
 
-    Text title();
+    Component title();
 
     int chapterCount();
 
     StoryChapterDefinition chapter(int chapterIndex);
 
-    default boolean isUnlocked(ServerWorld world, UUID playerId) {
+    default boolean isUnlocked(ServerLevel world, UUID playerId) {
         return true;
     }
 
-    default boolean shouldShowLockedEntry(ServerWorld world, UUID playerId) {
+    default boolean shouldShowLockedEntry(ServerLevel world, UUID playerId) {
         return false;
     }
 
-    default Text lockedEntryBody(ServerWorld world, UUID playerId) {
-        return Text.empty();
+    default Component lockedEntryBody(ServerLevel world, UUID playerId) {
+        return Component.empty();
     }
 }

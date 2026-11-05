@@ -1,6 +1,6 @@
 package de.quest.quest.repeatable;
 
-import net.minecraft.util.math.random.Random;
+import net.minecraft.util.RandomSource;
 
 public enum RepeatableTargetProfile {
     LIGHT(0),
@@ -17,7 +17,7 @@ public enum RepeatableTargetProfile {
         return id;
     }
 
-    public static RepeatableTargetProfile random(Random random) {
+    public static RepeatableTargetProfile random(RandomSource random) {
         if (random == null) {
             return NORMAL;
         }

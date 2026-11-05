@@ -4,14 +4,13 @@ import de.quest.quest.daily.DailyQuestCompletion;
 import de.quest.quest.daily.DailyQuestDefinition;
 import de.quest.quest.daily.DailyQuestKeys;
 import de.quest.quest.daily.DailyQuestService;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-
 import java.util.UUID;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 public final class VillageTradingDailyQuest implements DailyQuestDefinition {
     @Override
@@ -20,62 +19,62 @@ public final class VillageTradingDailyQuest implements DailyQuestDefinition {
     }
 
     @Override
-    public Text title() {
-        return Text.translatable("quest.village-quest.daily.trade.title");
+    public Component title() {
+        return Component.translatable("quest.village-quest.daily.trade.title");
     }
 
     @Override
-    public Text offerParagraph1() {
-        return Text.translatable("quest.village-quest.daily.trade.offer.1").formatted(Formatting.GRAY);
+    public Component offerParagraph1() {
+        return Component.translatable("quest.village-quest.daily.trade.offer.1").withStyle(ChatFormatting.GRAY);
     }
 
     @Override
-    public Text offerParagraph2() {
-        return Text.translatable("quest.village-quest.daily.trade.offer.2").formatted(Formatting.GRAY);
+    public Component offerParagraph2() {
+        return Component.translatable("quest.village-quest.daily.trade.offer.2").withStyle(ChatFormatting.GRAY);
     }
 
     @Override
-    public Text progressLine(ServerWorld world, UUID playerId) {
-        return Text.translatable(
+    public Component progressLine(ServerLevel world, UUID playerId) {
+        return Component.translatable(
                 "quest.village-quest.daily.trade.progress",
                 DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.TRADE_PROGRESS),
                 DailyQuestService.villageTradeTarget(),
                 DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.TRADE_EMERALD_PROGRESS),
                 DailyQuestService.villageTradeEmeraldTarget()
-        ).formatted(Formatting.GRAY);
+        ).withStyle(ChatFormatting.GRAY);
     }
 
     @Override
-    public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
-        UUID playerId = player.getUuid();
+    public boolean isComplete(ServerLevel world, ServerPlayer player) {
+        UUID playerId = player.getUUID();
         return DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.TRADE_PROGRESS) >= DailyQuestService.villageTradeTarget()
                 && DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.TRADE_EMERALD_PROGRESS) >= DailyQuestService.villageTradeEmeraldTarget();
     }
 
     @Override
-    public DailyQuestCompletion buildCompletion(ServerWorld world) {
+    public DailyQuestCompletion buildCompletion(ServerLevel world) {
         return DailyQuestService.buildCompletion(
                 type(),
                 title(),
-                Text.translatable("quest.village-quest.daily.trade.completion.1").formatted(Formatting.GRAY),
-                Text.translatable("quest.village-quest.daily.trade.completion.2").formatted(Formatting.GRAY),
-                Text.translatable("quest.village-quest.daily.trade.completion.3").formatted(Formatting.GRAY),
+                Component.translatable("quest.village-quest.daily.trade.completion.1").withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.daily.trade.completion.2").withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.daily.trade.completion.3").withStyle(ChatFormatting.GRAY),
                 ItemStack.EMPTY,
                 ItemStack.EMPTY
         );
     }
 
     @Override
-    public void onVillagerTrade(ServerWorld world, ServerPlayerEntity player, ItemStack stack) {
-        if (!DailyQuestService.isTrackingQuest(world, player.getUuid(), type())) return;
+    public void onVillagerTrade(ServerLevel world, ServerPlayer player, ItemStack stack) {
+        if (!DailyQuestService.isTrackingQuest(world, player.getUUID(), type())) return;
 
-        UUID playerId = player.getUuid();
+        UUID playerId = player.getUUID();
         int currentTrades = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.TRADE_PROGRESS);
         if (currentTrades < DailyQuestService.villageTradeTarget()) {
             DailyQuestService.setQuestInt(world, playerId, DailyQuestKeys.TRADE_PROGRESS, Math.min(DailyQuestService.villageTradeTarget(), currentTrades + 1));
         }
 
-        if (stack.isOf(Items.EMERALD)) {
+        if (stack.is(Items.EMERALD)) {
             int currentEmeralds = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.TRADE_EMERALD_PROGRESS);
             int credit = Math.min(stack.getCount(), DailyQuestService.villageTradeEmeraldTarget() - currentEmeralds);
             if (credit > 0) {

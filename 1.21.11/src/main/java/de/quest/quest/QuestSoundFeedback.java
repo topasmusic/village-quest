@@ -9,9 +9,9 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import net.minecraft.text.Text;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 
 /**
@@ -27,10 +27,20 @@ public final class QuestSoundFeedback {
     private QuestSoundFeedback() {
     }
 
-    public static void playProgressChange(ServerWorld world,
-                                          ServerPlayerEntity player,
-                                          List<Text> beforeLines,
-                                          List<Text> afterLines) {
+    public static void handleDisconnect(UUID playerId) {
+        if (playerId != null) LAST_FEEDBACK.remove(playerId);
+    }
+
+    public static void resetRuntimeState() {
+        LAST_FEEDBACK.clear();
+    }
+
+    static int trackedPlayerCount() { return LAST_FEEDBACK.size(); }
+
+    public static void playProgressChange(ServerLevel world,
+                                          ServerPlayer player,
+                                          List<Component> beforeLines,
+                                          List<Component> afterLines) {
         if (world == null || player == null || beforeLines == null || afterLines == null
                 || beforeLines.isEmpty() || afterLines.isEmpty()) {
             return;
@@ -53,39 +63,39 @@ public final class QuestSoundFeedback {
         play(world, player, tier);
     }
 
-    public static void playReady(ServerWorld world, ServerPlayerEntity player) {
+    public static void playReady(ServerLevel world, ServerPlayer player) {
         play(world, player, FeedbackTier.STAGE);
     }
 
-    public static void playAccepted(ServerWorld world, ServerPlayerEntity player) {
+    public static void playAccepted(ServerLevel world, ServerPlayer player) {
         play(world, player, FeedbackTier.ACCEPTED);
     }
 
-    public static void playNewOffer(ServerWorld world, ServerPlayerEntity player) {
+    public static void playNewOffer(ServerLevel world, ServerPlayer player) {
         play(world, player, FeedbackTier.AVAILABILITY);
     }
 
-    private static void play(ServerWorld world, ServerPlayerEntity player, FeedbackTier tier) {
+    private static void play(ServerLevel world, ServerPlayer player, FeedbackTier tier) {
         if (world == null || player == null || tier == null) {
             return;
         }
 
-        long now = world.getTime();
-        LastFeedback previous = LAST_FEEDBACK.get(player.getUuid());
+        long now = world.getGameTime();
+        LastFeedback previous = LAST_FEEDBACK.get(player.getUUID());
         if (previous != null
                 && now - previous.gameTick() < tier.cooldownTicks()
                 && tier.priority() <= previous.tier().priority()) {
             return;
         }
-        LAST_FEEDBACK.put(player.getUuid(), new LastFeedback(now, tier));
+        LAST_FEEDBACK.put(player.getUUID(), new LastFeedback(now, tier));
         if (ClientPreferenceService.questProgressSounds(player)) {
             ServerPlayNetworking.send(player, new Payloads.QuestFeedbackPayload(tier.ordinal()));
         }
     }
 
-    private static String flatten(List<Text> lines) {
+    private static String flatten(List<Component> lines) {
         StringBuilder text = new StringBuilder();
-        for (Text line : lines) {
+        for (Component line : lines) {
             if (line == null) {
                 continue;
             }

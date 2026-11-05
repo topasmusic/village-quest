@@ -1,3 +1,9 @@
+## 2.6.4 Stable — Living Kingdoms
+
+- **Ink Between Villages** now counts crafted Paper and Ink Sacs or Feathers you collect from the right mobs near the quest village.
+- Partial pickups count the amount collected. Dropping and picking up your own writing supplies adds no progress.
+- Successful honey and honeycomb harvests count with or without campfire smoke.
+
 ## 2.6.3 Stable — Living Kingdoms
 
 - Add six personal roadside quests with natural Wanderers and Nightrunners, two conversation buttons, reward icons, tracker support and automatic completion. Every quest awards 4 emeralds and 2 experience levels, at most once per quest-calendar day.

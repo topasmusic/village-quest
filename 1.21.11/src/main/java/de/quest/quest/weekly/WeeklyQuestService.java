@@ -1,13 +1,14 @@
 package de.quest.quest.weekly;
 
+import de.quest.reward.VanillaRewardService;
+import de.quest.quest.QuestCompletionMode;
+import de.quest.quest.QuestSoundFeedback;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.economy.CurrencyService;
 import de.quest.economy.ProsperityService;
 import de.quest.economy.QuestExperienceService;
 import de.quest.party.QuestPartyService;
-import de.quest.quest.QuestCompletionMode;
-import de.quest.quest.QuestSoundFeedback;
 import de.quest.quest.QuestBookHelper;
 import de.quest.quest.QuestTrackerService;
 import de.quest.quest.daily.DailyQuestService;
@@ -20,23 +21,24 @@ import de.quest.quest.story.VillageProjectService;
 import de.quest.registry.ModItems;
 import de.quest.reputation.ReputationService;
 import de.quest.util.Texts;
-import de.quest.util.TimeUtil;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.passive.AnimalEntity;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.entity.player.PlayerInventory;
+import de.quest.util.QuestCalendarService;
+import de.quest.util.WoolItems;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.stat.Stats;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.stats.Stats;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -74,13 +76,6 @@ public final class WeeklyQuestService {
         }
     }
 
-    private static final Item[] WOOL_ITEMS = new Item[] {
-            Items.WHITE_WOOL, Items.LIGHT_GRAY_WOOL, Items.GRAY_WOOL, Items.BLACK_WOOL,
-            Items.BROWN_WOOL, Items.RED_WOOL, Items.ORANGE_WOOL, Items.YELLOW_WOOL,
-            Items.LIME_WOOL, Items.GREEN_WOOL, Items.CYAN_WOOL, Items.LIGHT_BLUE_WOOL,
-            Items.BLUE_WOOL, Items.PURPLE_WOOL, Items.MAGENTA_WOOL, Items.PINK_WOOL
-    };
-
     private static final int HARVEST_WHEAT_TARGET = 64;
     private static final int HARVEST_CARROT_TARGET = 32;
     private static final int HARVEST_POTATO_TARGET = 32;
@@ -113,21 +108,21 @@ public final class WeeklyQuestService {
     private WeeklyQuestService() {}
 
     private static long currentCycle() {
-        return TimeUtil.currentWeekCycle();
+        return QuestCalendarService.currentWeekCycle();
     }
 
-    private static PlayerQuestData data(ServerWorld world, UUID playerId) {
+    private static PlayerQuestData data(ServerLevel world, UUID playerId) {
         return QuestState.get(world.getServer()).getPlayerData(playerId);
     }
 
-    private static void markDirty(ServerWorld world) {
+    private static void setDirty(ServerLevel world) {
         if (world != null) {
-            QuestState.get(world.getServer()).markDirty();
+            QuestState.get(world.getServer()).setDirty();
         }
     }
 
-    private static RepeatableTargetProfile rollTargetProfile(ServerWorld world) {
-        return world == null ? RepeatableTargetProfile.NORMAL : RepeatableTargetProfile.random(world.random);
+    private static RepeatableTargetProfile rollTargetProfile(ServerLevel world) {
+        return world == null ? RepeatableTargetProfile.NORMAL : RepeatableTargetProfile.random(world.getRandom());
     }
 
     private static <T> T withTargetProfile(PlayerQuestData data, Supplier<T> supplier) {
@@ -164,7 +159,31 @@ public final class WeeklyQuestService {
         return RepeatableRewardTuning.adjustRewardStack(reward, contextTargetProfile());
     }
 
-    public static List<Text> previewProgressLines(ServerWorld world, UUID playerId) {
+    public static List<Component> descriptionLines(ServerLevel world, UUID playerId, WeeklyQuestType type) {
+        var definition=WeeklyQuestGenerator.definition(type);if(definition==null)return List.of();
+        return withTargetProfile(data(world,playerId),() -> {
+            var lines=new java.util.ArrayList<Component>(definition.descriptionLines(world,playerId));
+            if(lines.isEmpty())return List.copyOf(lines);
+            var tail=lines.getLast().copy();
+            if(type==WeeklyQuestType.HARVEST_FOR_VILLAGE) {
+                delivery(tail,net.minecraft.world.item.Items.WHEAT,harvestWheatDeliveryTarget());
+                delivery(tail,net.minecraft.world.item.Items.CARROT,harvestCarrotTarget());
+                delivery(tail,net.minecraft.world.item.Items.POTATO,harvestPotatoTarget());
+                delivery(tail,net.minecraft.world.item.Items.BREAD,harvestBreadTarget());
+            } else if(type==WeeklyQuestType.SMITH_WEEK) {
+                delivery(tail,net.minecraft.world.item.Items.RAW_IRON,smithOreDeliveryTarget());
+                delivery(tail,net.minecraft.world.item.Items.RAW_GOLD,smithGoldOreDeliveryTarget());
+                delivery(tail,net.minecraft.world.item.Items.IRON_INGOT,smithIronTarget());
+                delivery(tail,net.minecraft.world.item.Items.GOLD_INGOT,smithGoldTarget());
+            }
+            lines.set(lines.size()-1,tail);return List.copyOf(lines);
+        });
+    }
+    private static void delivery(net.minecraft.network.chat.MutableComponent text,net.minecraft.world.item.Item item,int amount) {
+        if(amount>0)de.quest.quest.QuestRuleText.appendDelivery(text,Component.translatable("quest.village-quest.instructions.delivery",amount,Component.translatable(item.getDescriptionId())));
+    }
+
+    public static List<Component> previewProgressLines(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
             return List.of();
         }
@@ -176,19 +195,32 @@ public final class WeeklyQuestService {
         return withTargetProfile(data, () -> List.copyOf(definition.progressLines(world, playerId)));
     }
 
-    public static boolean isQuestReady(ServerWorld world, ServerPlayerEntity player) {
+    public static boolean isQuestReady(ServerLevel world, ServerPlayer player) {
         if (world == null || player == null) {
             return false;
         }
-        PlayerQuestData data = data(world, player.getUuid());
-        WeeklyQuestDefinition definition = activeDefinition(world, player.getUuid());
+        PlayerQuestData data = data(world, player.getUUID());
+        WeeklyQuestDefinition definition = activeDefinition(world, player.getUUID());
         if (definition == null) {
             return false;
         }
         return withTargetProfile(data, () -> definition.isComplete(world, player));
     }
 
+    public static Component claimBlockedMessage(ServerLevel world, ServerPlayer player) {
+        if (world == null || player == null) {
+            return null;
+        }
+        PlayerQuestData data = data(world, player.getUUID());
+        WeeklyQuestDefinition definition = activeDefinition(world, player.getUUID());
+        if (definition == null) {
+            return null;
+        }
+        return withTargetProfile(data, () -> definition.claimBlockedMessage(world, player));
+    }
+
     private static void ensureCurrentProgressCycle(PlayerQuestData data) {
+        if (data.hasActiveWeekly()) return;
         long cycle = currentCycle();
         if (data.getWeeklyProgressCycle() != cycle) {
             data.clearWeeklyProgress();
@@ -201,12 +233,13 @@ public final class WeeklyQuestService {
         data.setWeeklyProgressCycle(PlayerQuestData.UNSET_DAY);
     }
 
-    private static WeeklyQuestType ensureQuestChoice(ServerWorld world, UUID playerId) {
+    private static WeeklyQuestType ensureQuestChoice(ServerLevel world, UUID playerId) {
         PlayerQuestData data = data(world, playerId);
         return ensureQuestChoice(world, playerId, data);
     }
 
-    private static WeeklyQuestType ensureQuestChoice(ServerWorld world, UUID playerId, PlayerQuestData data) {
+    private static WeeklyQuestType ensureQuestChoice(ServerLevel world, UUID playerId, PlayerQuestData data) {
+        if (data.hasActiveWeekly()) return data.getWeeklyChoice();
         long cycle = currentCycle();
         boolean changed = false;
 
@@ -251,12 +284,12 @@ public final class WeeklyQuestService {
         }
 
         if (changed) {
-            markDirty(world);
+            setDirty(world);
         }
         return currentChoice;
     }
 
-    public static int getQuestInt(ServerWorld world, UUID playerId, String key) {
+    public static int getQuestInt(ServerLevel world, UUID playerId, String key) {
         PlayerQuestData data = data(world, playerId);
         ensureCurrentProgressCycle(data);
         WeeklyQuestType activeType = activeQuestType(world, playerId);
@@ -266,7 +299,7 @@ public final class WeeklyQuestService {
         return data.getWeeklyInt(key);
     }
 
-    public static void setQuestInt(ServerWorld world, UUID playerId, String key, int value) {
+    public static void setQuestInt(ServerLevel world, UUID playerId, String key, int value) {
         PlayerQuestData data = data(world, playerId);
         ensureCurrentProgressCycle(data);
         WeeklyQuestType activeType = activeQuestType(world, playerId);
@@ -275,7 +308,7 @@ public final class WeeklyQuestService {
                 return;
             }
             List<UUID> recipients = progressRecipients(world, playerId, activeType);
-            Map<UUID, List<Text>> before = captureProgressSnapshots(world, recipients);
+            Map<UUID, List<Component>> before = captureProgressSnapshots(world, recipients);
             QuestPartyService.setSharedWeeklyInt(world, playerId, activeType, key, value);
             notifyProgressChange(world, recipients, before);
             return;
@@ -283,14 +316,14 @@ public final class WeeklyQuestService {
         if (data.getWeeklyInt(key) == value) {
             return;
         }
-        List<Text> before = previewProgressLines(world, playerId);
+        List<Component> before = previewProgressLines(world, playerId);
         data.setWeeklyInt(key, value);
         data.setWeeklyProgressCycle(currentCycle());
-        markDirty(world);
+        setDirty(world);
         notifyProgressChange(world, playerId, before);
     }
 
-    public static void addQuestInt(ServerWorld world, UUID playerId, String key, int amount) {
+    public static void addQuestInt(ServerLevel world, UUID playerId, String key, int amount) {
         if (amount == 0) {
             return;
         }
@@ -299,19 +332,19 @@ public final class WeeklyQuestService {
         WeeklyQuestType activeType = activeQuestType(world, playerId);
         if (QuestPartyService.usesSharedWeeklyInt(world, playerId, activeType, key)) {
             List<UUID> recipients = progressRecipients(world, playerId, activeType);
-            Map<UUID, List<Text>> before = captureProgressSnapshots(world, recipients);
+            Map<UUID, List<Component>> before = captureProgressSnapshots(world, recipients);
             QuestPartyService.addSharedWeeklyInt(world, playerId, activeType, key, amount);
             notifyProgressChange(world, recipients, before);
             return;
         }
-        List<Text> before = previewProgressLines(world, playerId);
+        List<Component> before = previewProgressLines(world, playerId);
         data.addWeeklyInt(key, amount);
         data.setWeeklyProgressCycle(currentCycle());
-        markDirty(world);
+        setDirty(world);
         notifyProgressChange(world, playerId, before);
     }
 
-    public static void addQuestIntClamped(ServerWorld world, UUID playerId, String key, int amount, int target) {
+    public static void addQuestIntClamped(ServerLevel world, UUID playerId, String key, int amount, int target) {
         if (amount <= 0) {
             return;
         }
@@ -322,7 +355,7 @@ public final class WeeklyQuestService {
         setQuestInt(world, playerId, key, Math.min(target, current + amount));
     }
 
-    public static boolean hasQuestFlag(ServerWorld world, UUID playerId, String key) {
+    public static boolean hasQuestFlag(ServerLevel world, UUID playerId, String key) {
         PlayerQuestData data = data(world, playerId);
         ensureCurrentProgressCycle(data);
         WeeklyQuestType activeType = activeQuestType(world, playerId);
@@ -332,7 +365,7 @@ public final class WeeklyQuestService {
         return data.hasWeeklyFlag(key);
     }
 
-    public static void setQuestFlag(ServerWorld world, UUID playerId, String key, boolean enabled) {
+    public static void setQuestFlag(ServerLevel world, UUID playerId, String key, boolean enabled) {
         PlayerQuestData data = data(world, playerId);
         ensureCurrentProgressCycle(data);
         WeeklyQuestType activeType = activeQuestType(world, playerId);
@@ -341,7 +374,7 @@ public final class WeeklyQuestService {
                 return;
             }
             List<UUID> recipients = progressRecipients(world, playerId, activeType);
-            Map<UUID, List<Text>> before = captureProgressSnapshots(world, recipients);
+            Map<UUID, List<Component>> before = captureProgressSnapshots(world, recipients);
             QuestPartyService.setSharedWeeklyFlag(world, playerId, activeType, key, enabled);
             notifyProgressChange(world, recipients, before);
             return;
@@ -349,50 +382,52 @@ public final class WeeklyQuestService {
         if (data.hasWeeklyFlag(key) == enabled) {
             return;
         }
-        List<Text> before = previewProgressLines(world, playerId);
+        List<Component> before = previewProgressLines(world, playerId);
         data.setWeeklyFlag(key, enabled);
         data.setWeeklyProgressCycle(currentCycle());
-        markDirty(world);
+        setDirty(world);
         notifyProgressChange(world, playerId, before);
     }
 
-    public static WeeklyQuestType previewQuestChoice(ServerWorld world, UUID playerId) {
+    public static WeeklyQuestType previewQuestChoice(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
             return null;
         }
         return ensureQuestChoice(world, playerId);
     }
 
-    public static WeeklyQuestType activeQuestType(ServerWorld world, UUID playerId) {
+    public static WeeklyQuestType activeQuestType(ServerLevel world, UUID playerId) {
         if (!isAcceptedThisWeek(world, playerId) || hasCompletedThisWeek(world, playerId)) {
             return null;
         }
         return previewQuestChoice(world, playerId);
     }
 
-    public static boolean isAcceptedThisWeek(ServerWorld world, UUID playerId) {
-        return world != null && playerId != null && data(world, playerId).getWeeklyAcceptedCycle() == currentCycle();
+    public static boolean isAcceptedThisWeek(ServerLevel world, UUID playerId) {
+        if (world == null || playerId == null) return false;
+        PlayerQuestData data = data(world, playerId);
+        return data.hasActiveWeekly() || data.getWeeklyAcceptedCycle() == currentCycle();
     }
 
-    public static boolean hasCompletedThisWeek(ServerWorld world, UUID playerId) {
+    public static boolean hasCompletedThisWeek(ServerLevel world, UUID playerId) {
         return world != null && playerId != null && data(world, playerId).getWeeklyRewardCycle() == currentCycle();
     }
 
-    public static void markCompletedThisWeek(ServerWorld world, UUID playerId) {
+    public static void markCompletedThisWeek(ServerLevel world, UUID playerId) {
         PlayerQuestData data = data(world, playerId);
         data.setWeeklyRewardCycle(currentCycle());
         WeeklyQuestType type = data.getWeeklyChoice();
         if (type != null) {
             data.markWeeklyCompleted(type.name());
         }
-        markDirty(world);
+        setDirty(world);
     }
 
-    public static boolean isWeeklyActive(ServerWorld world, UUID playerId) {
+    public static boolean isWeeklyActive(ServerLevel world, UUID playerId) {
         return isAcceptedThisWeek(world, playerId) && !hasCompletedThisWeek(world, playerId);
     }
 
-    public static WeeklyQuestStatus openStatus(ServerWorld world, UUID playerId) {
+    public static WeeklyQuestStatus openStatus(ServerLevel world, UUID playerId) {
         WeeklyQuestType type = activeQuestType(world, playerId);
         WeeklyQuestDefinition definition = WeeklyQuestGenerator.definition(type);
         if (definition == null) {
@@ -401,12 +436,12 @@ public final class WeeklyQuestService {
         return new WeeklyQuestStatus(definition.title(), previewProgressLines(world, playerId));
     }
 
-    public static boolean acceptQuest(ServerWorld world, ServerPlayerEntity player) {
+    public static boolean acceptQuest(ServerLevel world, ServerPlayer player) {
         if (world == null || player == null) {
             return false;
         }
 
-        UUID playerId = player.getUuid();
+        UUID playerId = player.getUUID();
         if (isAcceptedThisWeek(world, playerId) || hasCompletedThisWeek(world, playerId)) {
             return false;
         }
@@ -419,7 +454,7 @@ public final class WeeklyQuestService {
             syncData.setWeeklyChoice(type);
             syncData.setWeeklyChoiceCycle(currentCycle());
             clearProgress(syncData);
-            markDirty(world);
+            setDirty(world);
         }
         WeeklyQuestDefinition definition = WeeklyQuestGenerator.definition(type);
         if (definition == null) {
@@ -427,32 +462,37 @@ public final class WeeklyQuestService {
         }
 
         PlayerQuestData data = data(world, playerId);
+        final WeeklyQuestType rewardType = type;
+        if (!de.quest.reward.VanillaRewardService.prepare(world, player, "weekly", QuestPartyService.rewardWeeklyKey(world, playerId, type),
+                de.quest.reward.VanillaRewardService.weeklyIdentity(rewardType.name()),
+                QuestPartyService.rewardWeeklyProfile(world, playerId, type, data.getWeeklyTargetProfile()), () -> acceptQuest(world, player))) return false;
         clearProgress(data);
         data.setWeeklyAcceptedCycle(currentCycle());
-        markDirty(world);
+        setDirty(world);
         withTargetProfile(data, () -> definition.onAccepted(world, player));
         QuestPartyService.onWeeklyQuestAccepted(world, player, type, definition);
-        player.sendMessage(Texts.acceptedTitle(definition.title(), Formatting.GOLD), false);
-        QuestSoundFeedback.playAccepted(world, player);
+        player.sendSystemMessage(Texts.acceptedTitle(definition.title(), ChatFormatting.GOLD), false);
         QuestTrackerService.enableForAcceptedQuest(world, player);
+        QuestSoundFeedback.playAccepted(world, player);
         refreshQuestUi(world, playerId);
         return true;
     }
 
-    public static boolean completeIfEligible(ServerWorld world, ServerPlayerEntity player) {
+    public static boolean completeIfEligible(ServerLevel world, ServerPlayer player) {
         return completeIfEligible(world, player, false);
     }
 
-    public static boolean claimFromQuestMaster(ServerWorld world, ServerPlayerEntity player) {
+    public static boolean claimFromQuestMaster(ServerLevel world, ServerPlayer player) {
         return completeIfEligible(world, player, true);
     }
 
-    private static boolean completeIfEligible(ServerWorld world, ServerPlayerEntity player, boolean questMasterClaim) {
+    private static boolean completeIfEligible(ServerLevel world, ServerPlayer player, boolean questMasterClaim) {
+        if (player != null && de.quest.shrine.VillageIntroRequestService.blocksActions(world,player.getUUID())) return false;
         if (world == null || player == null) {
             return false;
         }
 
-        UUID playerId = player.getUuid();
+        UUID playerId = player.getUUID();
         if (!isAcceptedThisWeek(world, playerId) || hasCompletedThisWeek(world, playerId)) {
             return false;
         }
@@ -461,41 +501,54 @@ public final class WeeklyQuestService {
         if (definition == null) {
             return false;
         }
-        if (!questMasterClaim && definition.completionMode() == QuestCompletionMode.QUESTMASTER_TURN_IN) {
+        if (!questMasterClaim && definition.completionMode(world) == QuestCompletionMode.QUESTMASTER_TURN_IN) {
             return false;
         }
         PlayerQuestData data = data(world, playerId);
-        if (!withTargetProfile(data, () -> definition.isComplete(world, player))) {
-            Text blocked = withTargetProfile(data, () -> definition.claimBlockedMessage(world, player));
+        WeeklyQuestType questType = activeQuestType(world, playerId);
+        boolean shared = isSharedWeekly(world, playerId, questType);
+        boolean requirementsConsumed = shared
+                ? QuestPartyService.weeklyTurnInRequirementsConsumed(world, playerId, questType)
+                : data.hasWeeklyFlag(WeeklyQuestKeys.SHARED_TURN_IN_CONSUMED);
+        if (!requirementsConsumed && !withTargetProfile(data, () -> definition.isComplete(world, player))) {
+            Component blocked = withTargetProfile(data, () -> definition.claimBlockedMessage(world, player));
             if (blocked != null) {
-                player.sendMessage(blocked, false);
+                player.sendSystemMessage(blocked, false);
             }
             return false;
         }
-        if (!withTargetProfile(data, () -> definition.consumeCompletionRequirements(world, player))) {
+        if (!requirementsConsumed
+                && !withTargetProfile(data, () -> definition.consumeCompletionRequirements(world, player))) {
             return false;
         }
+        if (!requirementsConsumed && shared) {
+            QuestPartyService.markWeeklyTurnInRequirementsConsumed(world, playerId, questType);
+        }
 
-        WeeklyQuestType questType = activeQuestType(world, playerId);
-        if (isSharedWeekly(world, playerId, questType)) {
-            List<ServerPlayerEntity> recipients = onlinePlayers(world, QuestPartyService.activeWeeklyMembers(world, playerId, questType, false));
-            var completion = withTargetProfile(data, definition::buildCompletion);
-            for (ServerPlayerEntity recipient : recipients) {
+        if (shared) {
+            List<ServerPlayer> recipients = onlinePlayers(world, QuestPartyService.activeWeeklyMembers(world, playerId, questType, false));
+            var completion = withTargetProfile(data, () -> definition.completionFor(world));
+            for (ServerPlayer recipient : recipients) {
+                if (de.quest.shrine.VillageIntroRequestService.blocksActions(world,recipient.getUUID())) continue;
                 deliverCompletion(world, recipient, completion);
-                markCompletedThisWeek(world, recipient.getUuid());
-                refreshQuestUi(world, recipient.getUuid());
+                markCompletedThisWeek(world, recipient.getUUID());
+                de.quest.reputation.SocialReputationService.recordQuestCompletion(world.getServer(), recipient.getUUID(),
+                        de.quest.reputation.SocialReputationRules.BenefitKind.WEEKLY, currentCycle(), "normal");
+                refreshQuestUi(world, recipient.getUUID());
             }
             QuestPartyService.clearWeeklySessionIfFinished(world, playerId, questType);
             return !recipients.isEmpty();
         }
 
-        deliverCompletion(world, player, withTargetProfile(data, definition::buildCompletion));
+        deliverCompletion(world, player, withTargetProfile(data, () -> definition.completionFor(world)));
         markCompletedThisWeek(world, playerId);
+        de.quest.reputation.SocialReputationService.recordQuestCompletion(world.getServer(), playerId,
+                de.quest.reputation.SocialReputationRules.BenefitKind.WEEKLY, currentCycle(), "normal");
         refreshQuestUi(world, playerId);
         return true;
     }
 
-    public static boolean cancelThisWeek(ServerWorld world, UUID playerId) {
+    public static boolean cancelThisWeek(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
             return false;
         }
@@ -503,20 +556,24 @@ public final class WeeklyQuestService {
             return false;
         }
 
+        WeeklyQuestType cancelledType = activeQuestType(world, playerId);
         PlayerQuestData data = data(world, playerId);
         clearProgress(data);
+        data.vanillaRewards().forget("weekly");
         data.setWeeklyAcceptedCycle(PlayerQuestData.UNSET_DAY);
-        markDirty(world);
+        setDirty(world);
+        QuestPartyService.clearWeeklySessionIfFinished(world, playerId, cancelledType);
         refreshQuestUi(world, playerId);
         return true;
     }
 
-    public static boolean adminForceCompleteWeekly(ServerWorld world, ServerPlayerEntity player) {
+    public static boolean adminForceCompleteWeekly(ServerLevel world, ServerPlayer player) {
+        if (player != null && de.quest.shrine.VillageIntroRequestService.blocksActions(world,player.getUUID())) return false;
         if (world == null || player == null) {
             return false;
         }
 
-        UUID playerId = player.getUuid();
+        UUID playerId = player.getUUID();
         if (!isAcceptedThisWeek(world, playerId) || hasCompletedThisWeek(world, playerId)) {
             return false;
         }
@@ -528,29 +585,31 @@ public final class WeeklyQuestService {
 
         WeeklyQuestType questType = activeQuestType(world, playerId);
         if (isSharedWeekly(world, playerId, questType)) {
-            List<ServerPlayerEntity> recipients = onlinePlayers(world, QuestPartyService.activeWeeklyMembers(world, playerId, questType, false));
-            var completion = withTargetProfile(data(world, playerId), definition::buildCompletion);
-            for (ServerPlayerEntity recipient : recipients) {
+            List<ServerPlayer> recipients = onlinePlayers(world, QuestPartyService.activeWeeklyMembers(world, playerId, questType, false));
+            var completion = withTargetProfile(data(world, playerId), () -> definition.completionFor(world));
+            for (ServerPlayer recipient : recipients) {
+                if (de.quest.shrine.VillageIntroRequestService.blocksActions(world,recipient.getUUID())) continue;
                 deliverCompletion(world, recipient, completion);
-                markCompletedThisWeek(world, recipient.getUuid());
-                refreshQuestUi(world, recipient.getUuid());
+                markCompletedThisWeek(world, recipient.getUUID());
+                refreshQuestUi(world, recipient.getUUID());
             }
             QuestPartyService.clearWeeklySessionIfFinished(world, playerId, questType);
             return !recipients.isEmpty();
         }
 
-        deliverCompletion(world, player, withTargetProfile(data(world, playerId), definition::buildCompletion));
+        deliverCompletion(world, player, withTargetProfile(data(world, playerId), () -> definition.completionFor(world)));
         markCompletedThisWeek(world, playerId);
         refreshQuestUi(world, playerId);
         return true;
     }
 
-    public static boolean adminResetWeeklyState(ServerWorld world, UUID playerId) {
+    public static boolean adminResetWeeklyState(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
             return false;
         }
 
         PlayerQuestData data = data(world, playerId);
+        data.vanillaRewards().forget("weekly");
         boolean changed = false;
         if (!data.getWeeklyIntState().isEmpty() || !data.getWeeklyFlags().isEmpty()) {
             clearProgress(data);
@@ -571,12 +630,12 @@ public final class WeeklyQuestService {
             changed = true;
         }
         if (changed) {
-            markDirty(world);
+            setDirty(world);
         }
         return changed;
     }
 
-    public static WeeklyQuestType adminPrepareNextWeekly(ServerWorld world, UUID playerId) {
+    public static WeeklyQuestType adminPrepareNextWeekly(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
             return null;
         }
@@ -600,7 +659,7 @@ public final class WeeklyQuestService {
         data.setWeeklyRewardCycle(PlayerQuestData.UNSET_DAY);
         clearProgress(data);
         data.markWeeklyDiscovered(rerolled.type().name());
-        markDirty(world);
+        setDirty(world);
         return previous;
     }
 
@@ -608,7 +667,7 @@ public final class WeeklyQuestService {
         return WeeklyQuestGenerator.count();
     }
 
-    public static int discoveredCount(ServerWorld world, UUID playerId) {
+    public static int discoveredCount(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
             return 0;
         }
@@ -624,7 +683,7 @@ public final class WeeklyQuestService {
         return count;
     }
 
-    public static int completedCount(ServerWorld world, UUID playerId) {
+    public static int completedCount(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
             return 0;
         }
@@ -640,14 +699,14 @@ public final class WeeklyQuestService {
         return count;
     }
 
-    public static int activeCount(ServerWorld world, UUID playerId) {
+    public static int activeCount(ServerLevel world, UUID playerId) {
         return isWeeklyActive(world, playerId) ? 1 : 0;
     }
 
     public static void onServerTick(MinecraftServer server) {
-        ServerWorld world = server.getOverworld();
-        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-            UUID playerId = player.getUuid();
+        ServerLevel world = server.overworld();
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            UUID playerId = player.getUUID();
             ensureQuestChoice(world, playerId);
             WeeklyQuestDefinition definition = activeDefinition(world, playerId);
             if (definition != null) {
@@ -656,77 +715,77 @@ public final class WeeklyQuestService {
         }
     }
 
-    public static void onBlockBreak(ServerWorld world, ServerPlayerEntity player, net.minecraft.util.math.BlockPos pos, net.minecraft.block.BlockState state) {
-        WeeklyQuestDefinition definition = activeDefinition(world, player.getUuid());
+    public static void onBlockBreak(ServerLevel world, ServerPlayer player, net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+        WeeklyQuestDefinition definition = activeDefinition(world, player.getUUID());
         if (definition != null) {
-            withTargetProfile(data(world, player.getUuid()), () -> definition.onBlockBreak(world, player, pos, state));
+            withTargetProfile(data(world, player.getUUID()), () -> definition.onBlockBreak(world, player, pos, state));
         }
     }
 
-    public static void onEntityUse(ServerWorld world, ServerPlayerEntity player, Entity entity, ItemStack inHand) {
-        WeeklyQuestDefinition definition = activeDefinition(world, player.getUuid());
+    public static void onEntityUse(ServerLevel world, ServerPlayer player, Entity entity, ItemStack inHand) {
+        WeeklyQuestDefinition definition = activeDefinition(world, player.getUUID());
         if (definition != null) {
-            withTargetProfile(data(world, player.getUuid()), () -> definition.onEntityUse(world, player, entity, inHand));
+            withTargetProfile(data(world, player.getUUID()), () -> definition.onEntityUse(world, player, entity, inHand));
         }
     }
 
-    public static void onSheepSheared(ServerWorld world, ServerPlayerEntity player, net.minecraft.entity.passive.SheepEntity sheep) {
-        WeeklyQuestDefinition definition = activeDefinition(world, player.getUuid());
+    public static void onSheepSheared(ServerLevel world, ServerPlayer player, net.minecraft.world.entity.animal.sheep.Sheep sheep) {
+        WeeklyQuestDefinition definition = activeDefinition(world, player.getUUID());
         if (definition != null) {
-            withTargetProfile(data(world, player.getUuid()), () -> definition.onSheepSheared(world, player, sheep));
+            withTargetProfile(data(world, player.getUUID()), () -> definition.onSheepSheared(world, player, sheep));
         }
     }
 
-    public static void onTrackedItemPickup(ServerWorld world, ServerPlayerEntity player, ItemStack stack, int count) {
-        WeeklyQuestDefinition definition = activeDefinition(world, player.getUuid());
+    public static void onTrackedItemPickup(ServerLevel world, ServerPlayer player, ItemStack stack, int count) {
+        WeeklyQuestDefinition definition = activeDefinition(world, player.getUUID());
         if (definition != null) {
-            withTargetProfile(data(world, player.getUuid()), () -> definition.onTrackedItemPickup(world, player, stack, count));
+            withTargetProfile(data(world, player.getUUID()), () -> definition.onTrackedItemPickup(world, player, stack, count));
         }
     }
 
-    public static void onFurnaceOutput(ServerWorld world, ServerPlayerEntity player, ItemStack stack) {
-        WeeklyQuestDefinition definition = activeDefinition(world, player.getUuid());
+    public static void onFurnaceOutput(ServerLevel world, ServerPlayer player, ItemStack stack) {
+        WeeklyQuestDefinition definition = activeDefinition(world, player.getUUID());
         if (definition != null) {
-            withTargetProfile(data(world, player.getUuid()), () -> definition.onFurnaceOutput(world, player, stack));
+            withTargetProfile(data(world, player.getUUID()), () -> definition.onFurnaceOutput(world, player, stack));
         }
     }
 
-    public static void onVillagerTrade(ServerWorld world, ServerPlayerEntity player, ItemStack stack) {
-        WeeklyQuestDefinition definition = activeDefinition(world, player.getUuid());
+    public static void onVillagerTrade(ServerLevel world, ServerPlayer player, ItemStack stack) {
+        WeeklyQuestDefinition definition = activeDefinition(world, player.getUUID());
         if (definition != null) {
-            withTargetProfile(data(world, player.getUuid()), () -> definition.onVillagerTrade(world, player, stack));
+            withTargetProfile(data(world, player.getUUID()), () -> definition.onVillagerTrade(world, player, stack));
         }
     }
 
-    public static void onAnimalLove(ServerWorld world, ServerPlayerEntity player, AnimalEntity animal) {
-        WeeklyQuestDefinition definition = activeDefinition(world, player.getUuid());
+    public static void onAnimalLove(ServerLevel world, ServerPlayer player, Animal animal) {
+        WeeklyQuestDefinition definition = activeDefinition(world, player.getUUID());
         if (definition != null) {
-            withTargetProfile(data(world, player.getUuid()), () -> definition.onAnimalLove(world, player, animal));
+            withTargetProfile(data(world, player.getUUID()), () -> definition.onAnimalLove(world, player, animal));
         }
     }
 
-    public static void onPilgrimPurchase(ServerWorld world, ServerPlayerEntity player, String offerId) {
-        WeeklyQuestDefinition definition = activeDefinition(world, player.getUuid());
+    public static void onPilgrimPurchase(ServerLevel world, ServerPlayer player, String offerId) {
+        WeeklyQuestDefinition definition = activeDefinition(world, player.getUUID());
         if (definition != null) {
-            withTargetProfile(data(world, player.getUuid()), () -> definition.onPilgrimPurchase(world, player, offerId));
+            withTargetProfile(data(world, player.getUUID()), () -> definition.onPilgrimPurchase(world, player, offerId));
         }
         StoryQuestService.onPilgrimPurchase(world, player, offerId);
     }
 
-    public static void onMonsterKill(ServerWorld world, ServerPlayerEntity player, Entity killedEntity) {
+    public static void onMonsterKill(ServerLevel world, ServerPlayer player, Entity killedEntity) {
         if (world == null || player == null || killedEntity == null) {
             return;
         }
-        WeeklyQuestDefinition definition = activeDefinition(world, player.getUuid());
+        WeeklyQuestDefinition definition = activeDefinition(world, player.getUUID());
         if (definition != null) {
-            withTargetProfile(data(world, player.getUuid()), () -> definition.onMonsterKill(world, player, killedEntity));
+            withTargetProfile(data(world, player.getUUID()), () -> definition.onMonsterKill(world, player, killedEntity));
         }
     }
 
-    public static WeeklyQuestCompletion buildCompletion(Text title,
-                                                        Text completionLine1,
-                                                        Text completionLine2,
-                                                        Text completionLine3,
+    public static WeeklyQuestCompletion buildCompletion(Component title,
+                                                        Component completionLine1,
+                                                        Component completionLine2,
+                                                        Component completionLine3,
                                                         long currencyReward,
                                                         ItemStack rewardB,
                                                         ItemStack rewardC,
@@ -761,12 +820,12 @@ public final class WeeklyQuestService {
         return new ItemStack(ModItems.MAGIC_SHARD, count);
     }
 
-    public static Text displayName(WeeklyQuestType type) {
+    public static Component displayName(WeeklyQuestType type) {
         WeeklyQuestDefinition definition = WeeklyQuestGenerator.definition(type);
-        return definition == null ? Text.empty() : definition.title();
+        return definition == null ? Component.empty() : definition.title();
     }
 
-    public static WeeklyQuestCompletion previewCompletion(ServerWorld world, UUID playerId, WeeklyQuestType type) {
+    public static WeeklyQuestCompletion previewCompletion(ServerLevel world, UUID playerId, WeeklyQuestType type) {
         if (world == null || playerId == null || type == null) {
             return null;
         }
@@ -774,18 +833,21 @@ public final class WeeklyQuestService {
         if (definition == null) {
             return null;
         }
-        return withTargetProfile(data(world, playerId), definition::buildCompletion);
+        return withTargetProfile(data(world, playerId), () -> definition.completionFor(world));
     }
 
-    public static int harvestWheatTarget() { return tunedTarget(HARVEST_WHEAT_TARGET, "weekly.harvest.wheat"); }
+    public static int harvestWheatDeliveryTarget() { return tunedTarget(HARVEST_WHEAT_TARGET, "weekly.harvest.wheat"); }
+    public static int harvestWheatTarget() { return harvestWheatDeliveryTarget() + harvestBreadTarget() * 3; }
     public static int harvestCarrotTarget() { return tunedTarget(HARVEST_CARROT_TARGET, "weekly.harvest.carrot"); }
     public static int harvestPotatoTarget() { return tunedTarget(HARVEST_POTATO_TARGET, "weekly.harvest.potato"); }
     public static int harvestBreadTarget() { return tunedTarget(HARVEST_BREAD_TARGET, "weekly.harvest.bread"); }
     public static int bakehouseBreadTarget() { return tunedTarget(BAKEHOUSE_BREAD_TARGET, "weekly.bakehouse.bread"); }
     public static int bakehousePieTarget() { return tunedTarget(BAKEHOUSE_PIE_TARGET, "weekly.bakehouse.pie"); }
     public static int bakehousePotatoTarget() { return tunedTarget(BAKEHOUSE_POTATO_TARGET, "weekly.bakehouse.potato"); }
-    public static int smithOreTarget() { return tunedTarget(SMITH_ORE_TARGET, "weekly.smith.ore"); }
-    public static int smithGoldOreTarget() { return tunedTarget(SMITH_GOLD_ORE_TARGET, "weekly.smith.gold_ore"); }
+    public static int smithOreDeliveryTarget() { return tunedTarget(SMITH_ORE_TARGET, "weekly.smith.ore"); }
+    public static int smithGoldOreDeliveryTarget() { return tunedTarget(SMITH_GOLD_ORE_TARGET, "weekly.smith.gold_ore"); }
+    public static int smithOreTarget() { return smithOreDeliveryTarget() + smithIronTarget(); }
+    public static int smithGoldOreTarget() { return smithGoldOreDeliveryTarget() + smithGoldTarget(); }
     public static int smithIronTarget() { return tunedTarget(SMITH_IRON_TARGET, "weekly.smith.iron"); }
     public static int smithGoldTarget() { return tunedTarget(SMITH_GOLD_TARGET, "weekly.smith.gold"); }
     public static int pastureBreedTarget() { return tunedTarget(PASTURE_BREED_TARGET, "weekly.pasture.breed"); }
@@ -799,31 +861,31 @@ public final class WeeklyQuestService {
     public static int roadWardenHostileTarget() { return tunedTarget(ROADWARDEN_HOSTILE_TARGET, "weekly.roadwarden.hostile"); }
     public static int roadWardenCreeperTarget() { return tunedTarget(ROADWARDEN_CREEPER_TARGET, "weekly.roadwarden.creeper"); }
 
-    public static int getCraftedStat(ServerPlayerEntity player, Item item) {
+    public static int getCraftedStat(ServerPlayer player, Item item) {
         return DailyQuestService.getCraftedStat(player, item);
     }
 
-    public static int getPickedUpStat(ServerPlayerEntity player, Item item) {
+    public static int getPickedUpStat(ServerPlayer player, Item item) {
         return DailyQuestService.getPickedUpStat(player, item);
     }
 
-    public static int countInventoryItem(PlayerEntity player, Item item) {
+    public static int countInventoryItem(Player player, Item item) {
         if (player == null || item == null) {
             return 0;
         }
 
-        PlayerInventory inventory = player.getInventory();
+        Inventory inventory = player.getInventory();
         int total = 0;
-        for (int i = 0; i < inventory.size(); i++) {
-            ItemStack stack = inventory.getStack(i);
-            if (!stack.isEmpty() && stack.isOf(item)) {
+        for (int i = 0; i < inventory.getContainerSize(); i++) {
+            ItemStack stack = inventory.getItem(i);
+            if (!stack.isEmpty() && stack.is(item)) {
                 total += stack.getCount();
             }
         }
         return total;
     }
 
-    public static boolean consumeInventoryItem(PlayerEntity player, Item item, int amount) {
+    public static boolean consumeInventoryItem(Player player, Item item, int amount) {
         if (player == null || item == null || amount <= 0) {
             return false;
         }
@@ -831,44 +893,44 @@ public final class WeeklyQuestService {
             return false;
         }
 
-        PlayerInventory inventory = player.getInventory();
+        Inventory inventory = player.getInventory();
         int remaining = amount;
-        for (int i = 0; i < inventory.size() && remaining > 0; i++) {
-            ItemStack stack = inventory.getStack(i);
-            if (stack.isEmpty() || !stack.isOf(item)) {
+        for (int i = 0; i < inventory.getContainerSize() && remaining > 0; i++) {
+            ItemStack stack = inventory.getItem(i);
+            if (stack.isEmpty() || !stack.is(item)) {
                 continue;
             }
             int removed = Math.min(remaining, stack.getCount());
-            stack.decrement(removed);
+            stack.shrink(removed);
             remaining -= removed;
         }
 
-        if (player instanceof ServerPlayerEntity serverPlayer) {
-            serverPlayer.currentScreenHandler.sendContentUpdates();
+        if (player instanceof ServerPlayer serverPlayer) {
+            serverPlayer.inventoryMenu.broadcastChanges();
         }
         return remaining <= 0;
     }
 
-    public static int totalWoolPickedUp(ServerPlayerEntity player) {
+    public static int totalWoolPickedUp(ServerPlayer player) {
         int total = 0;
-        for (Item item : WOOL_ITEMS) {
+        for (Item item : WoolItems.ALL) {
             total += getPickedUpStat(player, item);
         }
         return total;
     }
 
-    public static int countCompletionItem(ServerWorld world, ServerPlayerEntity player, Item item) {
+    public static int countCompletionItem(ServerLevel world, ServerPlayer player, Item item) {
         if (player == null) {
             return 0;
         }
-        WeeklyQuestType type = activeQuestType(world, player.getUuid());
-        if (isSharedWeekly(world, player.getUuid(), type)) {
-            return QuestPartyService.countWeeklyTurnInItem(world, player.getUuid(), type, item);
+        WeeklyQuestType type = activeQuestType(world, player.getUUID());
+        if (isSharedWeekly(world, player.getUUID(), type)) {
+            return QuestPartyService.countWeeklyTurnInItem(world, player.getUUID(), type, item);
         }
         return countInventoryItem(player, item);
     }
 
-    public static int countCompletionItems(ServerWorld world, ServerPlayerEntity player, Item... items) {
+    public static int countCompletionItems(ServerLevel world, ServerPlayer player, Item... items) {
         if (player == null || items == null || items.length == 0) {
             return 0;
         }
@@ -879,28 +941,27 @@ public final class WeeklyQuestService {
         return total;
     }
 
-    public static boolean consumeCompletionItem(ServerWorld world, ServerPlayerEntity player, Item item, int amount) {
+    public static boolean consumeCompletionItem(ServerLevel world, ServerPlayer player, Item item, int amount) {
         if (player == null) {
             return false;
         }
-        WeeklyQuestType type = activeQuestType(world, player.getUuid());
-        if (isSharedWeekly(world, player.getUuid(), type)) {
-            return QuestPartyService.consumeWeeklyTurnInItem(world, player.getUuid(), type, item, amount);
+        WeeklyQuestType type = activeQuestType(world, player.getUUID());
+        if (isSharedWeekly(world, player.getUUID(), type)) {
+            return QuestPartyService.consumeWeeklyTurnInItem(world, player.getUUID(), type, item, amount);
         }
         return consumeInventoryItem(player, item, amount);
     }
 
-    public static boolean consumeCompletionItemRequirements(ServerWorld world,
-                                                            ServerPlayerEntity player,
+    public static boolean consumeCompletionItemRequirements(ServerLevel world,
+                                                            ServerPlayer player,
                                                             Map<Item, Integer> requirements) {
         if (player == null || requirements == null || requirements.isEmpty()) {
             return false;
         }
         for (Map.Entry<Item, Integer> requirement : requirements.entrySet()) {
-            if (requirement.getKey() == null
-                    || requirement.getValue() == null
-                    || requirement.getValue() <= 0
-                    || countCompletionItem(world, player, requirement.getKey()) < requirement.getValue()) {
+            Item item = requirement.getKey();
+            int amount = requirement.getValue() == null ? 0 : requirement.getValue();
+            if (item == null || amount <= 0 || countCompletionItem(world, player, item) < amount) {
                 return false;
             }
         }
@@ -912,12 +973,12 @@ public final class WeeklyQuestService {
         return true;
     }
 
-    public static boolean consumeCompletionItems(ServerWorld world, ServerPlayerEntity player, int amount, Item... items) {
+    public static boolean consumeCompletionItems(ServerLevel world, ServerPlayer player, int amount, Item... items) {
         if (player == null || amount <= 0 || items == null || items.length == 0) {
             return false;
         }
-        WeeklyQuestType type = activeQuestType(world, player.getUuid());
-        if (!isSharedWeekly(world, player.getUuid(), type)) {
+        WeeklyQuestType type = activeQuestType(world, player.getUUID());
+        if (!isSharedWeekly(world, player.getUUID(), type)) {
             return DailyQuestService.consumeInventoryItems(player, amount, items);
         }
         if (countCompletionItems(world, player, items) < amount) {
@@ -933,7 +994,7 @@ public final class WeeklyQuestService {
                 continue;
             }
             int toConsume = Math.min(remaining, available);
-            if (!QuestPartyService.consumeWeeklyTurnInItem(world, player.getUuid(), type, item, toConsume)) {
+            if (!QuestPartyService.consumeWeeklyTurnInItem(world, player.getUUID(), type, item, toConsume)) {
                 return false;
             }
             remaining -= toConsume;
@@ -941,110 +1002,120 @@ public final class WeeklyQuestService {
         return remaining <= 0;
     }
 
-    private static WeeklyQuestDefinition activeDefinition(ServerWorld world, UUID playerId) {
+    private static WeeklyQuestDefinition activeDefinition(ServerLevel world, UUID playerId) {
         WeeklyQuestType type = activeQuestType(world, playerId);
         return WeeklyQuestGenerator.definition(type);
     }
 
-    private static void deliverCompletion(ServerWorld world, ServerPlayerEntity player, WeeklyQuestCompletion completion) {
-        long actualCurrencyReward = ProsperityService.applyFestivalBonus(world, player.getUuid(),
-                completion.currencyReward() + VillageProjectService.bonusCurrency(world, player.getUuid(), completion.reputationTrack()));
+    private static void deliverCompletion(ServerLevel world, ServerPlayer player, WeeklyQuestCompletion completion) {
+        var rewardType = data(world, player.getUUID()).getWeeklyChoice();
+        if (rewardType != null) de.quest.reward.VanillaRewardService.complete(world, player, "weekly",
+                rewardType.name() + ":" + data(world, player.getUUID()).getWeeklyAcceptedCycle());
+        long actualCurrencyReward = ProsperityService.applyFestivalBonus(world, player.getUUID(),
+                completion.currencyReward() + VillageProjectService.bonusCurrency(world, player.getUUID(), completion.reputationTrack()));
         if (actualCurrencyReward > 0L) {
-            CurrencyService.addBalance(world, player.getUuid(), actualCurrencyReward);
+            CurrencyService.addBalance(world, player.getUUID(), actualCurrencyReward);
         }
         int actualReputationReward = 0;
         if (completion.reputationTrack() != null && completion.reputationAmount() > 0) {
-            actualReputationReward = VillageProjectService.applyReputationReward(world, player.getUuid(), completion.reputationTrack(), completion.reputationAmount());
+            actualReputationReward = VillageProjectService.applyReputationReward(world, player.getUUID(), completion.reputationTrack(), completion.reputationAmount());
         }
         giveReward(player, completion.rewardB());
         giveReward(player, completion.rewardC());
-        int projectExperienceBonus = VillageProjectService.bonusLevels(world, player.getUuid(), completion.reputationTrack());
-        QuestExperienceService.grant(player, completion.levels(), projectExperienceBonus,
-                QuestExperienceService.RewardType.WEEKLY);
+        int projectExperienceBonus = VillageProjectService.bonusLevels(world, player.getUUID(), completion.reputationTrack());
+        QuestExperienceService.grant(
+                player,
+                completion.levels(),
+                projectExperienceBonus,
+                QuestExperienceService.RewardType.WEEKLY
+        );
 
-        Text divider = Text.literal("------------------------------").formatted(Formatting.GRAY);
-        Text rewardsTitle = Text.translatable("text.village-quest.daily.rewards").formatted(Formatting.GRAY);
-        Text levelLine = Text.empty().append(Text.literal("    "))
-                .append(QuestExperienceService.rewardLine(completion.levels(), projectExperienceBonus,
-                        QuestExperienceService.RewardType.WEEKLY));
+        Component divider = Component.literal("------------------------------").withStyle(ChatFormatting.GRAY);
+        Component rewardsTitle = Component.translatable("text.village-quest.daily.rewards").withStyle(ChatFormatting.GRAY);
+        Component levelLine = Component.empty().append(Component.literal("    "))
+                .append(QuestExperienceService.rewardLine(
+                        completion.levels(),
+                        projectExperienceBonus,
+                        QuestExperienceService.RewardType.WEEKLY
+                ));
 
-        MutableText rewardBody = Text.empty()
-                .append(divider.copy()).append(Text.literal("\n"))
-                .append(Texts.completedTitle(completion.title(), Formatting.GOLD)).append(Text.literal("\n\n"))
-                .append(completion.completionLine1()).append(Text.literal("\n"))
-                .append(completion.completionLine2()).append(Text.literal("\n\n"))
-                .append(completion.completionLine3()).append(Text.literal("\n\n"))
-                .append(rewardsTitle).append(Text.literal(":\n\n"));
+        MutableComponent rewardBody = Component.empty()
+                .append(divider.copy()).append(Component.literal("\n"))
+                .append(Texts.completedTitle(completion.title(), ChatFormatting.GOLD)).append(Component.literal("\n\n"))
+                .append(completion.completionLine1()).append(Component.literal("\n"))
+                .append(completion.completionLine2()).append(Component.literal("\n\n"))
+                .append(completion.completionLine3()).append(Component.literal("\n\n"))
+                .append(rewardsTitle).append(Component.literal(":\n\n"));
 
         appendCurrencyRewardLine(rewardBody, actualCurrencyReward);
         if (completion.reputationTrack() != null && actualReputationReward > 0) {
             appendTextRewardLine(rewardBody, ReputationService.formatRewardLine(completion.reputationTrack(), actualReputationReward));
         }
-        appendTextRewardLine(rewardBody, VillageProjectService.formatBonusRewardLine(world, player.getUuid(), completion.reputationTrack()));
-        appendTextRewardLine(rewardBody, VillageProjectService.formatRewardEchoLine(world, player.getUuid(), completion.reputationTrack()));
+        appendTextRewardLine(rewardBody, VillageProjectService.formatBonusRewardLine(world, player.getUUID(), completion.reputationTrack()));
+        appendTextRewardLine(rewardBody, VillageProjectService.formatRewardEchoLine(world, player.getUUID(), completion.reputationTrack()));
         appendRewardLine(rewardBody, completion.rewardB());
         appendRewardLine(rewardBody, completion.rewardC());
-        rewardBody.append(levelLine).append(Text.literal("\n")).append(divider.copy());
+        rewardBody.append(levelLine).append(Component.literal("\n")).append(divider.copy());
 
-        player.sendMessage(rewardBody, false);
-        world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 0.9f, 1.0f);
+        player.sendSystemMessage(rewardBody, false);
+        world.playSound(null, player.blockPosition(), SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 0.9f, 1.0f);
     }
 
-    private static void appendRewardLine(MutableText body, ItemStack stack) {
+    private static void appendRewardLine(MutableComponent body, ItemStack stack) {
         if (stack.isEmpty()) {
             return;
         }
-        body.append(Text.empty().append(Text.literal("    ")).append(formatRewardLine(stack))).append(Text.literal("\n"));
+        body.append(Component.empty().append(Component.literal("    ")).append(formatRewardLine(stack))).append(Component.literal("\n"));
     }
 
-    private static void appendCurrencyRewardLine(MutableText body, long amount) {
+    private static void appendCurrencyRewardLine(MutableComponent body, long amount) {
         if (amount <= 0L) {
             return;
         }
-        body.append(Text.empty().append(Text.literal("    ")).append(CurrencyService.formatDelta(amount))).append(Text.literal("\n"));
+        body.append(Component.empty().append(Component.literal("    ")).append(CurrencyService.formatDelta(amount))).append(Component.literal("\n"));
     }
 
-    private static void appendTextRewardLine(MutableText body, Text line) {
+    private static void appendTextRewardLine(MutableComponent body, Component line) {
         if (line == null || line.getString().isEmpty()) {
             return;
         }
-        body.append(Text.empty().append(Text.literal("    ")).append(line)).append(Text.literal("\n"));
+        body.append(Component.empty().append(Component.literal("    ")).append(line)).append(Component.literal("\n"));
     }
 
-    private static Text formatRewardLine(ItemStack stack) {
-        Text base = stack.getName().copy();
+    private static Component formatRewardLine(ItemStack stack) {
+        Component base = stack.getDisplayName().copy();
         if (stack.getCount() > 1) {
-            base = Text.empty().append(base).append(Text.literal(" x" + stack.getCount()).formatted(Formatting.GRAY));
+            base = Component.empty().append(base).append(Component.literal(" x" + stack.getCount()).withStyle(ChatFormatting.GRAY));
         }
         return base;
     }
 
-    private static void giveReward(ServerPlayerEntity player, ItemStack stack) {
+    private static void giveReward(ServerPlayer player, ItemStack stack) {
         if (!stack.isEmpty()) {
             giveOrDrop(player, stack.copy());
         }
     }
 
-    private static void giveOrDrop(ServerPlayerEntity player, ItemStack stack) {
+    private static void giveOrDrop(ServerPlayer player, ItemStack stack) {
         ItemStack remainder = stack.copy();
-        boolean inserted = player.getInventory().insertStack(remainder);
+        boolean inserted = player.getInventory().add(remainder);
         if (!inserted || !remainder.isEmpty()) {
             if (!remainder.isEmpty()) {
-                player.dropItem(remainder, false);
+                player.drop(remainder, false);
             }
-            player.sendMessage(Text.translatable("message.village-quest.daily.inventory_full.prefix").formatted(Formatting.GRAY)
-                    .append(stack.toHoverableText())
-                    .append(Text.translatable("message.village-quest.daily.inventory_full.suffix").formatted(Formatting.GRAY)), false);
+            player.sendSystemMessage(Component.translatable("message.village-quest.daily.inventory_full.prefix").withStyle(ChatFormatting.GRAY)
+                    .append(stack.getDisplayName())
+                    .append(Component.translatable("message.village-quest.daily.inventory_full.suffix").withStyle(ChatFormatting.GRAY)), false);
         } else {
-            player.playerScreenHandler.sendContentUpdates();
+            player.inventoryMenu.broadcastChanges();
         }
     }
 
-    private static void refreshQuestUi(ServerWorld world, UUID playerId) {
+    private static void refreshQuestUi(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
             return;
         }
-        ServerPlayerEntity player = world.getServer().getPlayerManager().getPlayer(playerId);
+        ServerPlayer player = world.getServer().getPlayerList().getPlayer(playerId);
         if (player == null) {
             return;
         }
@@ -1053,19 +1124,19 @@ public final class WeeklyQuestService {
         QuestMasterUiService.refreshIfOpen(world, player);
     }
 
-    private static boolean isSharedWeekly(ServerWorld world, UUID playerId, WeeklyQuestType type) {
+    private static boolean isSharedWeekly(ServerLevel world, UUID playerId, WeeklyQuestType type) {
         return type != null
                 && QuestPartyService.isSharedWeeklyMember(world, playerId, type);
     }
 
-    private static List<UUID> progressRecipients(ServerWorld world, UUID playerId, WeeklyQuestType type) {
+    private static List<UUID> progressRecipients(ServerLevel world, UUID playerId, WeeklyQuestType type) {
         if (isSharedWeekly(world, playerId, type)) {
             return QuestPartyService.activeWeeklyMembers(world, playerId, type, false);
         }
         return List.of(playerId);
     }
 
-    private static void refreshRecipients(ServerWorld world, List<UUID> playerIds) {
+    private static void refreshRecipients(ServerLevel world, List<UUID> playerIds) {
         if (playerIds == null) {
             return;
         }
@@ -1074,8 +1145,8 @@ public final class WeeklyQuestService {
         }
     }
 
-    private static Map<UUID, List<Text>> captureProgressSnapshots(ServerWorld world, List<UUID> playerIds) {
-        Map<UUID, List<Text>> snapshots = new LinkedHashMap<>();
+    private static Map<UUID, List<Component>> captureProgressSnapshots(ServerLevel world, List<UUID> playerIds) {
+        Map<UUID, List<Component>> snapshots = new LinkedHashMap<>();
         if (playerIds == null) {
             return snapshots;
         }
@@ -1085,20 +1156,20 @@ public final class WeeklyQuestService {
         return snapshots;
     }
 
-    private static void notifyProgressChange(ServerWorld world, UUID playerId, List<Text> before) {
+    private static void notifyProgressChange(ServerLevel world, UUID playerId, List<Component> before) {
         notifyProgressChange(world, List.of(playerId), Map.of(playerId, before == null ? List.of() : before));
     }
 
-    private static void notifyProgressChange(ServerWorld world,
+    private static void notifyProgressChange(ServerLevel world,
                                              List<UUID> playerIds,
-                                             Map<UUID, List<Text>> beforeSnapshots) {
+                                             Map<UUID, List<Component>> beforeSnapshots) {
         if (world == null || playerIds == null) {
             return;
         }
         for (UUID playerId : playerIds) {
-            List<Text> after = previewProgressLines(world, playerId);
+            List<Component> after = previewProgressLines(world, playerId);
             refreshQuestUi(world, playerId);
-            ServerPlayerEntity player = world.getServer().getPlayerManager().getPlayer(playerId);
+            ServerPlayer player = world.getServer().getPlayerList().getPlayer(playerId);
             if (player != null) {
                 QuestSoundFeedback.playProgressChange(
                         world,
@@ -1110,13 +1181,13 @@ public final class WeeklyQuestService {
         }
     }
 
-    private static List<ServerPlayerEntity> onlinePlayers(ServerWorld world, List<UUID> playerIds) {
-        List<ServerPlayerEntity> players = new ArrayList<>();
+    private static List<ServerPlayer> onlinePlayers(ServerLevel world, List<UUID> playerIds) {
+        List<ServerPlayer> players = new ArrayList<>();
         if (world == null || playerIds == null) {
             return players;
         }
         for (UUID playerId : playerIds) {
-            ServerPlayerEntity member = world.getServer().getPlayerManager().getPlayer(playerId);
+            ServerPlayer member = world.getServer().getPlayerList().getPlayer(playerId);
             if (member != null) {
                 players.add(member);
             }

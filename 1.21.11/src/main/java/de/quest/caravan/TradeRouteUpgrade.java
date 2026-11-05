@@ -1,6 +1,6 @@
 package de.quest.caravan;
 
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.Component;
 
 public enum TradeRouteUpgrade {
     REINFORCED_WHEELS(1, "wheels", 25, 1),
@@ -26,7 +26,7 @@ public enum TradeRouteUpgrade {
     public String key() { return key; }
     public int cost() { return cost; }
     public int requiredGuildRank() { return requiredGuildRank; }
-    public Text label() { return Text.translatable("text.village-quest.trade_guild.upgrade." + key); }
+    public Component label() { return Component.translatable("text.village-quest.trade_guild.upgrade." + key); }
 
     public static TradeRouteUpgrade fromName(String name) {
         if (name == null) return null;

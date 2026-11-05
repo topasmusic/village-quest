@@ -1,21 +1,21 @@
 package de.quest.content.item;
 
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 
 public class GroschenItem extends Item {
-    private final Formatting nameColor;
+    private final ChatFormatting nameColor;
 
-    public GroschenItem(Settings settings, Formatting nameColor) {
+    public GroschenItem(Properties settings, ChatFormatting nameColor) {
         super(settings);
         this.nameColor = nameColor;
     }
 
     @Override
-    public Text getName(ItemStack stack) {
-        return Text.translatable(this.getTranslationKey()).formatted(nameColor);
+    public Component getName(ItemStack stack) {
+        return Component.translatable(this.getDescriptionId()).withStyle(nameColor);
     }
 }
 

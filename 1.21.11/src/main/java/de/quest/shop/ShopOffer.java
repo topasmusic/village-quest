@@ -1,51 +1,54 @@
 package de.quest.shop;
 
-import net.minecraft.item.ItemStack;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
 
 public record ShopOffer(
         String id,
         String categoryId,
-        Text title,
-        Text description,
+        Component title,
+        Component description,
         long price,
         PreviewStackFactory previewStackFactory,
         PurchaseHandler purchaseHandler
 ) {
     public ShopOffer {
-        title = title == null ? Text.empty() : title;
-        description = description == null ? Text.empty() : description;
+        title = title == null ? Component.empty() : title;
+        description = description == null ? Component.empty() : description;
         price = Math.max(0L, price);
         previewStackFactory = previewStackFactory == null ? world -> ItemStack.EMPTY : previewStackFactory;
     }
 
     @FunctionalInterface
     public interface PurchaseHandler {
-        PurchaseResult purchase(ServerWorld world, ServerPlayerEntity player);
+        PurchaseResult purchase(ServerLevel world, ServerPlayer player);
+
+        /** Side-effect-free stock preparation; unsupported handlers fail closed for paid purchases. */
+        default java.util.List<ItemStack> prepareGoods(ServerLevel world) { return java.util.List.of(); }
     }
 
     @FunctionalInterface
     public interface PreviewStackFactory {
-        ItemStack createPreview(ServerWorld world);
+        ItemStack createPreview(ServerLevel world);
     }
 
-    public ItemStack previewStack(ServerWorld world) {
+    public ItemStack previewStack(ServerLevel world) {
         ItemStack preview = previewStackFactory.createPreview(world);
         return preview == null ? ItemStack.EMPTY : preview.copy();
     }
 
-    public record PurchaseResult(boolean success, Text message) {
+    public record PurchaseResult(boolean success, Component message) {
         public PurchaseResult {
-            message = message == null ? Text.empty() : message;
+            message = message == null ? Component.empty() : message;
         }
 
-        public static PurchaseResult success(Text message) {
+        public static PurchaseResult success(Component message) {
             return new PurchaseResult(true, message);
         }
 
-        public static PurchaseResult fail(Text message) {
+        public static PurchaseResult fail(Component message) {
             return new PurchaseResult(false, message);
         }
     }

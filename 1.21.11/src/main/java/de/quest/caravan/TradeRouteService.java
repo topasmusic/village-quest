@@ -1,5 +1,17 @@
 package de.quest.caravan;
 
+import de.quest.quest.EncounterEntityLifecycle;
+
+import static de.quest.caravan.TradeRouteData.*;
+import static de.quest.caravan.TradeRouteSurveyData.*;
+import static de.quest.caravan.TradeRouteSurfaceResolver.*;
+
+import de.quest.caravan.TradeRouteGeometry.FerryBoarding;
+import de.quest.caravan.TradeRouteGeometry.FerryState;
+import de.quest.caravan.TradeRouteGeometry.RoutePoint;
+import de.quest.caravan.TradeRouteGeometry.RouteSurveyPoint;
+import de.quest.archive.GuildArchiveService;
+import de.quest.archive.GuildArchiveService.ArchiveItem;
 import de.quest.content.story.ShadowsTradeRoadEncounterService;
 import de.quest.config.VillageQuestServerConfig;
 import de.quest.config.ClientPreferenceService;
@@ -8,10 +20,17 @@ import de.quest.data.QuestState;
 import de.quest.economy.CurrencyService;
 import de.quest.economy.ProsperityService;
 import de.quest.entity.CaravanMerchantEntity;
+import de.quest.entity.CaravanPackMuleEntity;
 import de.quest.entity.TraitorEntity;
 import de.quest.network.Payloads;
+import de.quest.network.VillageNetworkPayloads;
 import de.quest.quest.QuestBookHelper;
 import de.quest.quest.QuestTrackerService;
+import de.quest.quest.DifficultyObjectiveMode;
+import de.quest.quest.DifficultyObjectiveState;
+import de.quest.quest.story.StoryArcType;
+import de.quest.quest.story.StoryQuestKeys;
+import de.quest.quest.story.StoryQuestService;
 import de.quest.quest.story.VillageProjectService;
 import de.quest.quest.story.VillageProjectType;
 import de.quest.quest.special.SurveyorCompassQuestService;
@@ -19,6 +38,10 @@ import de.quest.questmaster.QuestMasterUiService;
 import de.quest.registry.ModEntities;
 import de.quest.registry.ModItems;
 import de.quest.reputation.ReputationService;
+import de.quest.shrine.VillageBondService;
+import de.quest.shrine.VillageContactService;
+import de.quest.shrine.VillageBondType;
+import de.quest.village.VillageLifeState;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -26,33 +49,33 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Predicate;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.text.Text;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.util.ActionResult;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.entity.passive.VillagerEntity;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.entity.vehicle.AbstractBoatEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.world.World;
-import net.minecraft.world.LightType;
-import net.minecraft.block.Blocks;
-import net.minecraft.block.BlockState;
-import net.minecraft.world.Heightmap;
-import net.minecraft.registry.tag.BlockTags;
-import net.minecraft.registry.tag.BiomeTags;
-import net.minecraft.registry.tag.FluidTags;
-import net.minecraft.util.math.Box;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.entity.vehicle.boat.AbstractBoat;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LightLayer;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.pathfinder.Path;
+import net.minecraft.tags.BlockTags;
+import net.minecraft.tags.BiomeTags;
+import net.minecraft.tags.FluidTags;
+import net.minecraft.world.phys.AABB;
 
 /**
  * Persistent trade-route simulation for the Caravan Yard.
@@ -77,17 +100,157 @@ public final class TradeRouteService {
     private static final String SURVEY_POINT_COUNT = "survey_point_count";
     private static final String SURVEY_POINT_PREFIX = "survey_point_";
     private static final String SURVEY_WAS_STOPPED = "survey_was_stopped";
-    private static final String INCOME_DAY = "network_income_day";
-    private static final String INCOME_TODAY = "network_income_today";
     private static final String ESCROW = "network_escrow";
     private static final String TUTORIAL_EVENT_SEEN = "network_tutorial_event_seen";
     private static final String WARDEN_CHARGES = "network_warden_charges";
     private static final String WARDEN_USE_DAY = "network_warden_use_day";
     private static final String LEDGER_GRANT_RECORDED = "migration.1_23_0.caravan_ledger_granted";
     private static final String TAG_ROUTE_CARAVAN = "vq_trade_route_caravan";
+    private static final String TAG_ROUTE_PACK_MULE = "vq_trade_route_pack_mule";
     private static final String TAG_ROUTE_ATTACKER = "vq_trade_route_attacker";
     private static final String TAG_ROUTE_OWNER_PREFIX = "vq_trade_route_owner_";
     private static final String TAG_ROUTE_INDEX_PREFIX = "vq_trade_route_index_";
+    private static final String TAG_LOGICAL_MEMBER_PREFIX = "vq_crew_member_";
+
+    public static de.quest.reputation.ReputationDamageAdapter.ProtectedVictim socialVictim(ServerLevel world, net.minecraft.world.entity.LivingEntity entity) {
+        RouteKey key = ENTITY_ROUTES.get(entity.getUUID());
+        if (key == null || !entity.getTags().contains(TAG_ROUTE_CARAVAN)) return null;
+        boolean mule = entity instanceof CaravanPackMuleEntity;
+        if (!mule && !(entity instanceof CaravanMerchantEntity)) return null;
+        CaravanRole role = mule ? null : ((CaravanMerchantEntity) entity).getCrewRole();
+        var ownerData = data(world, key.ownerId());
+        if (key.routeIndex() < 0 || key.routeIndex() >= Math.min(MAX_ROUTES, ownerData.getTradeRouteInt(ROUTE_COUNT))) return null;
+        var member = CaravanCrewLifecycle.resolve(ownerData, key.routeIndex(), role);
+        if (member.dead() || !entity.getTags().contains(TAG_LOGICAL_MEMBER_PREFIX + member.id())) return null;
+        // A caravan serves its saved destination even on the road or at its owner's yard.
+        var village = de.quest.village.VillageLifeState.VillageKey.overworld(
+                routeInt(ownerData, key.routeIndex(), "x"), routeInt(ownerData, key.routeIndex(), "z"));
+        return new de.quest.reputation.ReputationDamageAdapter.ProtectedVictim(member.id(), mule
+                ? de.quest.reputation.ReputationDamageAdapter.VictimKind.MULE : de.quest.reputation.ReputationDamageAdapter.VictimKind.CREW,
+                village, key.ownerId(), TradeRouteData.connectionId(ownerData, key.routeIndex()));
+    }
+
+    public static void reactToAggression(ServerLevel world, de.quest.reputation.ReputationDamageAdapter.ProtectedVictim victim,
+                                         de.quest.reputation.ReputationIncidentService.IncidentResult incident) {
+        if (victim.owner() == null || victim.connection() == null || incident.attacker() == null) return;
+        PlayerQuestData ownerData = data(world, victim.owner());
+        int count = Math.min(MAX_ROUTES, ownerData.getTradeRouteInt(ROUTE_COUNT));
+        for (int route = 0; route < count; route++) if (victim.connection().equals(TradeRouteData.connectionId(ownerData, route))) {
+            CaravanRuntime runtime = ACTIVE_CARAVANS.get(new RouteKey(victim.owner(), route));
+            if (runtime == null) return;
+            BlockPos anchor = resolveRouteSurface(world, ownerData, route, runtime.lastActual == null ? runtime.lastExpected : runtime.lastActual, 2);
+            if (anchor != null) {
+                long tick = QuestState.get(world.getServer()).socialServerTick();
+                if (incident.outcome() == de.quest.reputation.ReputationIncidentService.Outcome.WARN)
+                    CaravanProtectionService.warn(victim.connection(), incident.attacker(), anchor, tick);
+                else CaravanProtectionService.react(victim.connection(), incident.attacker(), anchor, tick);
+            }
+            return;
+        }
+    }
+
+    private static boolean defendCaravan(ServerLevel world, RouteKey key, PlayerQuestData data, CaravanRuntime runtime,
+                                        List<CaravanMerchantEntity> merchants) {
+        long tick = QuestState.get(world.getServer()).socialServerTick();
+        var response = CaravanProtectionService.response(TradeRouteData.connectionId(data, key.routeIndex()), tick);
+        if (response == null) return false;
+        List<RouteSurveyPoint> path = hasV2Geometry(data, key.routeIndex()) ? routePathWithModes(data, key.routeIndex()) : List.of();
+        for (CaravanMerchantEntity merchant : merchants) {
+            ServerPlayer attacker = response.attackers().keySet().stream().sorted().map(id -> world.getServer().getPlayerList().getPlayer(id))
+                    .filter(player -> player != null && player.isAlive() && !player.isSpectator() && player.level() == world)
+                    .filter(player -> CaravanProtectionService.mayChase(response, player.getUUID(), merchant.blockPosition(), player.blockPosition(), tick,
+                            path.isEmpty() || TradeRouteNavigationPolicy.withinSurveyCorridor(path,
+                                    new RoutePoint(player.getBlockX(), player.getBlockY(), player.getBlockZ()))))
+                    .min(java.util.Comparator.comparingDouble(merchant::distanceToSqr)).orElse(null);
+            if (merchant.getCrewRole() == CaravanRole.GUARD && attacker != null) {
+                merchant.refreshEncounterControl(true);
+                merchant.tryDefendAgainst(world, attacker);
+                BlockPos target = resolveRouteSurface(world, data, key.routeIndex(), attacker.blockPosition(), 2);
+                if (target != null && response.anchor().distSqr(target) <= 24 * 24)
+                    responseMove(world, merchant, target, .85, response.anchor(), path);
+                else merchant.getNavigation().stop();
+            } else {
+                merchant.refreshEncounterControl(false);
+                ServerPlayer threat = CaravanProtectionService.threats(response, tick).stream().map(id -> world.getServer().getPlayerList().getPlayer(id))
+                        .filter(player -> player != null && player.level() == world && player.isAlive())
+                        .min(java.util.Comparator.comparingDouble(merchant::distanceToSqr)).orElse(null);
+                BlockPos retreat = response.anchor();
+                if (threat != null) {
+                    double dx = response.anchor().getX() - threat.getX(), dz = response.anchor().getZ() - threat.getZ(), length = Math.hypot(dx, dz);
+                    if (length > .1) {
+                        BlockPos candidate = response.anchor().offset((int) Math.round(dx / length * 8), 0, (int) Math.round(dz / length * 8));
+                        BlockPos safe = resolveRouteSurface(world, data, key.routeIndex(), candidate, 2);
+                        if (safe != null && response.anchor().distSqr(safe) <= 24 * 24) retreat = safe;
+                    }
+                }
+                if (world.hasChunkAt(retreat)) responseMove(world, merchant, retreat, .8, response.anchor(), path);
+                else merchant.getNavigation().stop();
+            }
+        }
+        if (runtime.packMuleId != null && findEntity(world, runtime.packMuleId) instanceof CaravanPackMuleEntity mule) {
+            if (world.hasChunkAt(response.anchor())) responseMove(world, mule, response.anchor(), .75, response.anchor(), path);
+            else mule.getNavigation().stop();
+        }
+        return true;
+    }
+
+    private static void responseMove(ServerLevel world, net.minecraft.world.entity.PathfinderMob mob, BlockPos target,
+                                     double speed, BlockPos anchor, List<RouteSurveyPoint> survey) {
+        if (anchor.distSqr(mob.blockPosition()) > 24 * 24 || anchor.distSqr(target) > 24 * 24) { mob.getNavigation().stop(); return; }
+        // Keep Vanilla's navigation region entirely within already loaded chunks as well.
+        int minX = (Math.min(mob.getBlockX(), target.getX()) - 32) >> 4, maxX = (Math.max(mob.getBlockX(), target.getX()) + 32) >> 4;
+        int minZ = (Math.min(mob.getBlockZ(), target.getZ()) - 32) >> 4, maxZ = (Math.max(mob.getBlockZ(), target.getZ()) + 32) >> 4;
+        for (int x = minX; x <= maxX; x++) for (int z = minZ; z <= maxZ; z++) if (!world.hasChunk(x, z)) { mob.getNavigation().stop(); return; }
+        boolean requested = mob.getNavigation().moveTo(target.getX() + .5, target.getY(), target.getZ() + .5, speed);
+        Path path = mob.getNavigation().getPath();
+        if (!requested || path == null || !survey.isEmpty() && !navigationPathFollowsSurvey(world, path, survey)) { mob.getNavigation().stop(); return; }
+        for (int i = 0; i < path.getNodeCount(); i++) {
+            var node = path.getNode(i);
+            if (anchor.distSqr(new BlockPos(node.x, node.y, node.z)) > 24 * 24) { mob.getNavigation().stop(); return; }
+        }
+    }
+
+    public static void onCaravanDeath(ServerLevel world, net.minecraft.world.entity.LivingEntity entity) {
+        if (!CaravanCrewLifecycle.mortalityEnabled()) return;
+        RouteKey key = ENTITY_ROUTES.get(entity.getUUID());
+        var victim = socialVictim(world, entity); if (key == null || victim == null) return;
+        PlayerQuestData ownerData = data(world, key.ownerId());
+        CaravanRole role = entity instanceof CaravanMerchantEntity merchant ? merchant.getCrewRole() : null;
+        if (!CaravanCrewLifecycle.recordDeath(ownerData, key.routeIndex(), role, victim.logicalId())) return;
+        if (event(ownerData, key.routeIndex()) != null) clearEventForMapOnlyMode(world, key, ownerData);
+        UUID connection = TradeRouteData.connectionId(ownerData, key.routeIndex());
+        TradeGuildService.onCrewJourneyLost(world, key.ownerId(), key.routeIndex());
+        var dispatch = RegionalDispatchLedger.read(ownerData);
+        if (dispatch != null) {
+            boolean currentSource = connection.equals(dispatch.sourceConnection()) && (dispatch.stage() == RegionalDispatchLedger.Stage.WAITING_AT_SOURCE
+                    || dispatch.stage() == RegionalDispatchLedger.Stage.LEG_ONE);
+            boolean currentTarget = connection.equals(dispatch.targetConnection()) && (dispatch.stage() == RegionalDispatchLedger.Stage.WAITING_AT_HUB
+                    || dispatch.stage() == RegionalDispatchLedger.Stage.LEG_TWO);
+            if ((currentSource || currentTarget) && RegionalDispatchLedger.cancelForRemovedRoute(ownerData, connection))
+                RegionalDispatchService.onCancelled(world, key.ownerId(), ownerData, RegionalDispatchLedger.read(ownerData));
+        }
+        if (GuildConvoyService.currentLeg(world, key.ownerId(), connection)) GuildConvoyService.onRouteRemoved(world, key.ownerId(), connection);
+        ServerPlayer owner = world.getServer().getPlayerList().getPlayer(key.ownerId());
+        if (owner != null && ClientPreferenceService.caravanEventNotifications(owner))
+            owner.sendSystemMessage(Component.translatable("message.village-quest.caravan_crew.life_lost", entity.getDisplayName()), false);
+        ENTITY_ROUTES.remove(entity.getUUID()); QuestState.get(world.getServer()).setDirty();
+    }
+
+    private static List<CaravanRole> desiredRoles(ServerLevel world, RouteKey key, PlayerQuestData data) {
+        int count = desiredMerchantCount(world, key.ownerId()); List<CaravanRole> roles = new ArrayList<>();
+        if (count > 0) roles.add(CaravanRole.MASTER);
+        if (count > 1) roles.add(CaravanRole.TRADER);
+        if (count > 2) roles.add(CaravanRole.GUARD);
+        if (!roles.isEmpty() && event(data, key.routeIndex()) == TradeRouteEventType.MISSING_COURIER) roles.set(roles.size() - 1, CaravanRole.COURIER);
+        roles.removeIf(role -> CaravanCrewLifecycle.resolve(data, key.routeIndex(), role).dead()); return roles;
+    }
+
+    private static void safeCrewDeparture(ServerLevel world, UUID owner, PlayerQuestData data, int routeIndex) {
+        if (CaravanCrewLifecycle.onSafeDeparture(data, routeIndex,
+                settlementAvailable(world, data, routeIndex) && !isStopped(data, routeIndex) && activeSurveyIndex(data) != routeIndex)) {
+            removeRuntime(world, new RouteKey(owner, routeIndex)); QuestState.get(world.getServer()).setDirty();
+        }
+    }
     private static final int MATERIALIZE_RADIUS = 104;
     private static final int DESPAWN_RADIUS = 136;
     private static final int EVENT_INTERACTION_RADIUS = 24;
@@ -108,18 +271,24 @@ public final class TradeRouteService {
     private static final double CARAVAN_TARGET_DISTANCE_SQR = 6.0 * 6.0;
     private static final int NPC_DESPAWN_TICKS = 20 * 60 * 60;
     private static final int MAP_UPDATE_TICKS = 20;
+    private static final int ORPHAN_SWEEP_INTERVAL_TICKS = 20 * 30;
+    private static final int OFFLINE_OWNER_BUDGET = 8;
+    private static final int MAX_OFFLINE_CATCH_UP_SECONDS = 300;
+    private static final String LAST_SIMULATION_SECOND = "network_last_simulation_second";
     private static final int STORM_CAMP_SECONDS = 30;
     private static final int YARD_CONFIRM_TICKS = 20 * 30;
     private static final int YARD_CONFIRM_DISTANCE_SQR = 4 * 4;
-    private static final String[] CARAVAN_NAMES = {"alda", "bram", "cira", "doran", "esme", "fenn"};
 
     private static final Map<RouteKey, CaravanRuntime> ACTIVE_CARAVANS = new HashMap<>();
     private static final Map<RouteKey, Long> MATERIALIZATION_RETRY_AT = new HashMap<>();
     private static final Map<UUID, RouteKey> ENTITY_ROUTES = new HashMap<>();
     private static final Map<UUID, RouteKey> ATTACKER_ROUTES = new HashMap<>();
     private static final Set<UUID> MAP_VIEWERS = new HashSet<>();
+    private static final RouteMapActionGate MAP_ACTION_GATE = new RouteMapActionGate();
     private static final Set<UUID> MINIMAP_VIEWERS = new HashSet<>();
     private static final Map<UUID, YardConfirmation> YARD_CONFIRMATIONS = new HashMap<>();
+    private static final Map<UUID, TraderSelection> TRADER_SELECTIONS = new HashMap<>();
+    private static int offlineOwnerCursor;
 
     private TradeRouteService() {}
 
@@ -127,23 +296,39 @@ public final class TradeRouteService {
         if (server == null) {
             return;
         }
-        ServerWorld world = server.getOverworld();
-        long gameTime = world.getTime();
+        ServerLevel world = server.overworld();
+        long gameTime = world.getGameTime();
         if (gameTime % 20L != 0L) {
             return;
         }
 
         QuestState state = QuestState.get(server);
+        int currentSecond = (int) Math.min(Integer.MAX_VALUE, gameTime / 20L);
+        List<Map.Entry<UUID, PlayerQuestData>> offlineOwners = new ArrayList<>();
         for (Map.Entry<UUID, PlayerQuestData> entry : state.getPlayersView().entrySet()) {
             UUID ownerId = entry.getKey();
             PlayerQuestData data = entry.getValue();
             if (ownerId == null || data == null || !hasHome(data) || !hasRouteAccess(world, ownerId)) {
                 continue;
             }
-            int routeCount = Math.min(MAX_ROUTES, data.getTradeRouteInt(ROUTE_COUNT));
-            for (int routeIndex = 0; routeIndex < routeCount; routeIndex++) {
-                tickRoute(world, ownerId, data, routeIndex);
+            if (server.getPlayerList().getPlayer(ownerId) != null) {
+                tickOwnerRoutes(world, ownerId, data, currentSecond, true);
+            } else {
+                offlineOwners.add(entry);
             }
+        }
+        offlineOwners.sort(Map.Entry.comparingByKey());
+        int offlineCount = offlineOwners.size();
+        int budget = Math.min(OFFLINE_OWNER_BUDGET, offlineCount);
+        for (int offset = 0; offset < budget; offset++) {
+            int selected = Math.floorMod(offlineOwnerCursor + offset, offlineCount);
+            Map.Entry<UUID, PlayerQuestData> entry = offlineOwners.get(selected);
+            tickOwnerRoutes(world, entry.getKey(), entry.getValue(), currentSecond, false);
+        }
+        if (offlineCount > 0) {
+            offlineOwnerCursor = Math.floorMod(offlineOwnerCursor + budget, offlineCount);
+        } else {
+            offlineOwnerCursor = 0;
         }
 
         cleanupInactiveCaravans(world);
@@ -156,18 +341,72 @@ public final class TradeRouteService {
         ENTITY_ROUTES.clear();
         ATTACKER_ROUTES.clear();
         MAP_VIEWERS.clear();
+        MAP_ACTION_GATE.clear();
         MINIMAP_VIEWERS.clear();
         YARD_CONFIRMATIONS.clear();
+        TRADER_SELECTIONS.clear();
+        offlineOwnerCursor = 0;
     }
 
-    public static void despawnAll(ServerWorld world) {
+    private static void tickOwnerRoutes(ServerLevel world,
+                                        UUID ownerId,
+                                        PlayerQuestData data,
+                                        int currentSecond,
+                                        boolean ownerOnline) {
+        if (de.quest.shrine.VillageIntroRequestService.blocksActions(world,ownerId)) return;
+        int lastSecond = data.getTradeRouteInt(LAST_SIMULATION_SECOND);
+        int catchUp = TradeRouteSchedulingPolicy.catchUpSeconds(
+                lastSecond, currentSecond, MAX_OFFLINE_CATCH_UP_SECONDS);
+        int routeCount = Math.min(MAX_ROUTES, data.getTradeRouteInt(ROUTE_COUNT));
+        if (ownerOnline && routeCount > 0) {
+            de.quest.economy.CaravanIncomeLedger.onlineSecond(data);
+            QuestState.get(world.getServer()).setDirty();
+        }
+        for (int routeIndex = 0; routeIndex < routeCount; routeIndex++) {
+            if (!CaravanCrewData.isComplete(data, routeIndex)
+                    || data.getTradeRouteString(routeKey(routeIndex, "connection_id")).isBlank()) {
+                CaravanCrewData.ensure(data, routeIndex);
+                QuestState.get(world.getServer()).setDirty();
+            }
+            if (routeInt(data, routeIndex, "village_index") == 0) {
+                int villageIndex = VillageBondService.historicalVillageIndex(data,
+                        "minecraft:overworld", routeInt(data, routeIndex, "x"),
+                        routeInt(data, routeIndex, "z"));
+                if (villageIndex >= 0) {
+                    setRouteInt(data, routeIndex, "village_index", villageIndex + 1);
+                    QuestState.get(world.getServer()).setDirty();
+                }
+            }
+        }
+        if (catchUp > 0) {
+            for (int routeIndex = 0; routeIndex < routeCount; routeIndex++) {
+                advanceOfflineRoute(world, ownerId, data, routeIndex, catchUp);
+            }
+        }
+        if (ownerOnline) {
+            for (int routeIndex = 0; routeIndex < routeCount; routeIndex++) {
+                tickRoute(world, ownerId, data, routeIndex);
+            }
+        }
+        RegionalDispatchService.onOwnerTick(world, ownerId, data);
+        GuildConvoyService.onOwnerTick(world, ownerId, data);
+        int nextSecond = ownerOnline || lastSecond <= 0 || catchUp == 0
+                ? currentSecond
+                : Math.min(currentSecond, lastSecond + catchUp);
+        if (lastSecond != nextSecond) {
+            data.setTradeRouteInt(LAST_SIMULATION_SECOND, nextSecond);
+            QuestState.get(world.getServer()).setDirty();
+        }
+    }
+
+    public static void despawnAll(ServerLevel world) {
         if (world != null) {
             for (CaravanRuntime runtime : ACTIVE_CARAVANS.values()) {
                 discardRuntimeEntities(world, runtime);
             }
             for (Entity entity : allEntities(world)) {
-                if (entity.getCommandTags().contains(TAG_ROUTE_CARAVAN)
-                        || entity.getCommandTags().contains(TAG_ROUTE_ATTACKER)) {
+                if (entity.getTags().contains(TAG_ROUTE_CARAVAN)
+                        || entity.getTags().contains(TAG_ROUTE_ATTACKER)) {
                     entity.discard();
                 }
             }
@@ -178,101 +417,111 @@ public final class TradeRouteService {
     public static void handleDisconnect(UUID playerId) {
         if (playerId != null) {
             MAP_VIEWERS.remove(playerId);
+            MAP_ACTION_GATE.disconnect(playerId);
             MINIMAP_VIEWERS.remove(playerId);
             YARD_CONFIRMATIONS.remove(playerId);
+            TRADER_SELECTIONS.remove(playerId);
         }
     }
 
-    public static boolean hasCaravanYard(ServerWorld world, UUID playerId) {
+    public static boolean hasCaravanYard(ServerLevel world, UUID playerId) {
         return world != null
                 && playerId != null
                 && VillageProjectService.isUnlocked(world, playerId, VillageProjectType.CARAVAN_YARD);
     }
 
-    public static boolean hasRouteAccess(ServerWorld world, UUID playerId) {
+    public static boolean hasRouteAccess(ServerLevel world, UUID playerId) {
         return world != null && playerId != null
                 && (hasCaravanYard(world, playerId)
-                || VillageProjectService.isUnlocked(world, playerId, VillageProjectType.MARKET_CHARTER));
+                || VillageProjectService.isUnlocked(world, playerId, VillageProjectType.MARKET_CHARTER)
+                || de.quest.kingdom.KingdomStoryProgress.hasLocalRoutePermit(data(world,playerId)));
     }
 
-    public static int routeCapacity(ServerWorld world, UUID playerId) {
+    public static int routeCapacity(ServerLevel world, UUID playerId) {
         return hasCaravanYard(world, playerId) ? MAX_ROUTES : hasRouteAccess(world, playerId) ? 1 : 0;
     }
 
+    static boolean dispatchReady(ServerLevel world, PlayerQuestData data, int routeIndex) {
+        return world != null && data != null && routeIndex >= 0
+                && routeIndex < Math.min(MAX_ROUTES, data.getTradeRouteInt(ROUTE_COUNT))
+                && routeAvailability(world, data, routeIndex) == TradeRouteAvailability.Reason.ACTIVE;
+    }
+
     /** Read-only support report for players and maintainers. */
-    public static List<Text> diagnostics(ServerWorld world, ServerPlayerEntity player) {
+    public static List<Component> diagnostics(ServerLevel world, ServerPlayer player) {
         if (world == null || player == null) {
-            return List.of(Text.translatable("command.village-quest.diagnose.unavailable")
-                     .formatted(Formatting.RED));
+            return List.of(Component.translatable("command.village-quest.diagnose.unavailable")
+                    .withStyle(ChatFormatting.RED));
         }
-        UUID ownerId = player.getUuid();
+        UUID ownerId = player.getUUID();
         PlayerQuestData data = data(world, ownerId);
         VillageQuestServerConfig config = VillageQuestServerConfig.get();
-        List<Text> report = new ArrayList<>();
-        report.add(Text.translatable("command.village-quest.diagnose.header", player.getDisplayName())
-                 .formatted(Formatting.GOLD));
-        report.add(Text.translatable("command.village-quest.diagnose.reset",
+        List<Component> report = new ArrayList<>();
+        report.add(Component.translatable("command.village-quest.diagnose.header", player.getDisplayName())
+                .withStyle(ChatFormatting.GOLD));
+        report.add(Component.translatable("command.village-quest.diagnose.reset",
                         config.resetZone().getId(),
                         String.format(java.util.Locale.ROOT, "%02d:00", config.dailyResetHour()),
                         config.weeklyResetDay().name(),
                         String.format(java.util.Locale.ROOT, "%02d:00", config.weeklyResetHour()))
-                 .formatted(Formatting.GRAY));
-        report.add(Text.translatable("command.village-quest.diagnose.config",
+                .withStyle(ChatFormatting.GRAY));
+        report.add(Component.translatable("command.village-quest.diagnose.config",
                         config.caravanVisualMode().name(), config.allowPlayerCaravanYards())
-                 .formatted(Formatting.GRAY));
+                .withStyle(ChatFormatting.GRAY));
 
         if (!hasHome(data)) {
-            report.add(Text.translatable("command.village-quest.diagnose.home_missing")
-                     .formatted(Formatting.YELLOW));
+            report.add(Component.translatable("command.village-quest.diagnose.home_missing")
+                    .withStyle(ChatFormatting.YELLOW));
         } else {
-            report.add(Text.translatable("command.village-quest.diagnose.home",
-                            Text.translatable(isPlayerYard(data)
+            report.add(Component.translatable("command.village-quest.diagnose.home",
+                            Component.translatable(isPlayerYard(data)
                                     ? "text.village-quest.trade_route.node.homestead"
                                     : "text.village-quest.trade_route.node.caravan_yard"),
                             data.getTradeRouteInt(HOME_X), data.getTradeRouteInt(HOME_Z))
-                     .formatted(Formatting.GREEN));
+                    .withStyle(ChatFormatting.GREEN));
         }
 
         int count = Math.min(MAX_ROUTES, Math.max(0, data.getTradeRouteInt(ROUTE_COUNT)));
-        report.add(Text.translatable("command.village-quest.diagnose.routes",
+        report.add(Component.translatable("command.village-quest.diagnose.routes",
                         count, routeCapacity(world, ownerId), incomeToday(world, ownerId), escrow(world, ownerId))
-                 .formatted(count > routeCapacity(world, ownerId) ? Formatting.RED : Formatting.GRAY));
+                .withStyle(count > routeCapacity(world, ownerId) ? ChatFormatting.RED : ChatFormatting.GRAY));
         for (int routeIndex = 0; routeIndex < count; routeIndex++) {
             RouteKey key = new RouteKey(ownerId, routeIndex);
             CaravanRuntime runtime = ACTIVE_CARAVANS.get(key);
             int physical = livingMerchantCount(world, runtime);
             TradeRouteEventType routeEvent = event(data, routeIndex);
-            report.add(Text.translatable("command.village-quest.diagnose.route",
+            report.add(Component.translatable("command.village-quest.diagnose.route",
                             routeName(data, routeIndex),
                             isStopped(data, routeIndex)
-                                    ? Text.translatable("text.village-quest.trade_route.paused")
+                                    ? Component.translatable("text.village-quest.trade_route.paused")
                                     : status(data, routeIndex).label(),
                             clampProgress(routeInt(data, routeIndex, "progress")) / 100,
                             quality(data, routeIndex),
                             routeWaypoints(data, routeIndex).size(),
                             physical,
                             routeEvent == null
-                                    ? Text.translatable("text.village-quest.trade_route.event.none")
+                                    ? Component.translatable("text.village-quest.trade_route.event.none")
                                     : routeEvent.label())
-                     .formatted(runtime != null && runtime.stuckSeconds >= CARAVAN_STUCK_SECONDS / 2
-                            ? Formatting.YELLOW : Formatting.GRAY));
+                    .withStyle(runtime != null && runtime.stuckSeconds >= CARAVAN_STUCK_SECONDS / 2
+                            ? ChatFormatting.YELLOW : ChatFormatting.GRAY));
         }
 
         int tagged = 0;
         int orphaned = 0;
         int stuck = 0;
         for (Entity entity : allEntities(world)) {
-            if (!entity.getCommandTags().contains(ownerTag(ownerId))
-                    || (!entity.getCommandTags().contains(TAG_ROUTE_CARAVAN)
-                    && !entity.getCommandTags().contains(TAG_ROUTE_ATTACKER))) {
+            if (!entity.getTags().contains(ownerTag(ownerId))
+                    || (!entity.getTags().contains(TAG_ROUTE_CARAVAN)
+                    && !entity.getTags().contains(TAG_ROUTE_ATTACKER))) {
                 continue;
             }
             tagged++;
-            RouteKey key = ENTITY_ROUTES.get(entity.getUuid());
-            if (key == null) key = ATTACKER_ROUTES.get(entity.getUuid());
+            RouteKey key = ENTITY_ROUTES.get(entity.getUUID());
+            if (key == null) key = ATTACKER_ROUTES.get(entity.getUUID());
             CaravanRuntime runtime = key == null ? null : ACTIVE_CARAVANS.get(key);
-            if (runtime == null || (!runtime.merchantIds.contains(entity.getUuid())
-                    && !runtime.attackerIds.contains(entity.getUuid()))) {
+            if (runtime == null || (!runtime.merchantIds.contains(entity.getUUID())
+                    && !runtime.attackerIds.contains(entity.getUUID())
+                    && !entity.getUUID().equals(runtime.packMuleId))) {
                 orphaned++;
             }
         }
@@ -282,57 +531,59 @@ public final class TradeRouteService {
                 stuck++;
             }
         }
-        report.add(Text.translatable("command.village-quest.diagnose.entities", tagged, orphaned, stuck)
-                 .formatted(orphaned > 0 ? Formatting.RED : stuck > 0 ? Formatting.YELLOW : Formatting.GREEN));
-        report.add(Text.translatable("command.village-quest.diagnose.cache")
-                 .formatted(Formatting.DARK_GRAY));
+        report.add(Component.translatable("command.village-quest.diagnose.entities", tagged, orphaned, stuck)
+                .withStyle(orphaned > 0 ? ChatFormatting.RED : stuck > 0 ? ChatFormatting.YELLOW : ChatFormatting.GREEN));
+        report.add(Component.translatable("command.village-quest.diagnose.cache")
+                .withStyle(ChatFormatting.DARK_GRAY));
         return List.copyOf(report);
     }
 
-    public static void initializeProvisionalNetwork(ServerWorld world, ServerPlayerEntity player) {
-        if (world == null || player == null || !hasRouteAccess(world, player.getUuid())) {
+    public static void initializeProvisionalNetwork(ServerLevel world, ServerPlayer player) {
+        if (world == null || player == null || !hasRouteAccess(world, player.getUUID())) {
             return;
         }
-        PlayerQuestData data = data(world, player.getUuid());
+        PlayerQuestData data = data(world, player.getUUID());
         ShadowsTradeRoadEncounterService.VillageMarker village =
-                ShadowsTradeRoadEncounterService.currentVillage(world, player.getBlockPos());
-        if (!hasHome(data) && village != null && isInhabitedVillage(world, village)) {
+                ShadowsTradeRoadEncounterService.currentVillage(world, player.blockPosition());
+        if (!hasHome(data) && village != null
+                && villageInhabitantStatus(world, village) == VillageInhabitantPolicy.Status.INHABITED) {
             bindVillageHome(data, village.centerX(), village.centerZ());
         }
         grantLedger(world, player);
-        QuestState.get(world.getServer()).setDirty(true);
-        player.sendMessage(Text.translatable("message.village-quest.trade_route.provisional_unlocked")
-                .formatted(Formatting.GOLD), false);
+        QuestState.get(world.getServer()).setDirty();
+        player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.provisional_unlocked")
+                .withStyle(ChatFormatting.GOLD), false);
     }
 
-    public static void initializeCaravanYard(ServerWorld world, ServerPlayerEntity player) {
+    public static void initializeCaravanYard(ServerLevel world, ServerPlayer player) {
         if (world == null || player == null) {
             return;
         }
-        PlayerQuestData data = data(world, player.getUuid());
+        PlayerQuestData data = data(world, player.getUUID());
         ShadowsTradeRoadEncounterService.VillageMarker village =
-                ShadowsTradeRoadEncounterService.currentVillage(world, player.getBlockPos());
-        if (!hasHome(data) && village != null && isInhabitedVillage(world, village)) {
+                ShadowsTradeRoadEncounterService.currentVillage(world, player.blockPosition());
+        if (!hasHome(data) && village != null
+                && villageInhabitantStatus(world, village) == VillageInhabitantPolicy.Status.INHABITED) {
             bindVillageHome(data, village.centerX(), village.centerZ());
         }
         grantLedger(world, player);
-        QuestState.get(world.getServer()).setDirty(true);
-        player.sendMessage(Text.translatable("message.village-quest.trade_route.yard_unlocked")
-                .formatted(Formatting.GOLD), false);
+        QuestState.get(world.getServer()).setDirty();
+        player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.yard_unlocked")
+                .withStyle(ChatFormatting.GOLD), false);
     }
 
-    public static ActionResult useLedger(ServerWorld world, ServerPlayerEntity player) {
+    public static InteractionResult useLedger(ServerLevel world, ServerPlayer player) {
         if (world == null || player == null) {
-            return ActionResult.PASS;
+            return InteractionResult.PASS;
         }
-        if (!hasRouteAccess(world, player.getUuid())) {
-            player.sendMessage(Text.translatable("message.village-quest.trade_route.locked")
-                    .formatted(Formatting.RED), false);
-            return ActionResult.FAIL;
+        if (!hasRouteAccess(world, player.getUUID())) {
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.locked")
+                    .withStyle(ChatFormatting.GRAY), false);
+            return InteractionResult.FAIL;
         }
         collectEscrow(world, player);
-        if (player.isSneaking()) {
-            PlayerQuestData data = data(world, player.getUuid());
+        if (player.isShiftKeyDown()) {
+            PlayerQuestData data = data(world, player.getUUID());
             if (activeSurveyIndex(data) >= 0) {
                 markSurveyWaypoint(world, player);
             } else {
@@ -341,52 +592,70 @@ public final class TradeRouteService {
         } else {
             openMap(world, player);
         }
-        return ActionResult.SUCCESS;
+        return InteractionResult.SUCCESS;
     }
 
-    public static boolean registerCurrentVillage(ServerWorld world, ServerPlayerEntity player) {
-        if (world == null || player == null || !hasRouteAccess(world, player.getUuid())) {
+    public static boolean registerCurrentVillage(ServerLevel world, ServerPlayer player) {
+        if (!canMutateRoute(world, player)) return false;
+        if (!hasRouteAccess(world, player.getUUID())) {
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.locked")
+                    .withStyle(ChatFormatting.GRAY), false);
             return false;
         }
         ShadowsTradeRoadEncounterService.VillageMarker village =
-                ShadowsTradeRoadEncounterService.currentVillage(world, player.getBlockPos());
+                ShadowsTradeRoadEncounterService.currentVillage(world, player.blockPosition());
         if (village == null) {
+            if (de.quest.kingdom.LivingKingdomsState.get(world.getServer()).isAmbiguousAt(
+                    world.dimension().identifier().toString(), player.blockPosition())) {
+                player.sendSystemMessage(Component.translatable("message.village-quest.kingdom.ambiguous")
+                        .withStyle(ChatFormatting.GOLD), false);
+                return false;
+            }
             return registerPlayerYard(world, player);
         }
-        if (!isInhabitedVillage(world, village)) {
-            player.sendMessage(Text.translatable("message.village-quest.trade_route.register.abandoned")
-                    .formatted(Formatting.RED), false);
+        VillageInhabitantPolicy.Status inhabitants = villageInhabitantStatus(world, village);
+        if (inhabitants != VillageInhabitantPolicy.Status.INHABITED) {
+            String key = inhabitants == VillageInhabitantPolicy.Status.UNKNOWN
+                    ? "message.village-quest.trade_route.register.inhabitants_unknown"
+                    : "message.village-quest.trade_route.register.abandoned";
+            player.sendSystemMessage(Component.translatable(key)
+                    .withStyle(ChatFormatting.RED), false);
             return false;
         }
 
-        PlayerQuestData data = data(world, player.getUuid());
+        PlayerQuestData data = data(world, player.getUUID());
         if (!hasHome(data)) {
+            if (!VillageContactService.establish(world, player.getUUID(), village).accepted()) return false;
             bindVillageHome(data, village.centerX(), village.centerZ());
-            QuestState.get(world.getServer()).markDirty();
-            player.sendMessage(Text.translatable("message.village-quest.trade_route.register.home_bound")
-                     .formatted(Formatting.GOLD), false);
+            QuestState.get(world.getServer()).setDirty();
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.register.home_bound")
+                    .withStyle(ChatFormatting.GOLD), false);
             return true;
         }
         if (data.getTradeRouteInt(HOME_X) == village.centerX() && data.getTradeRouteInt(HOME_Z) == village.centerZ()) {
-            player.sendMessage(Text.translatable("message.village-quest.trade_route.register.home_same")
-                    .formatted(Formatting.GRAY), false);
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.register.home_same")
+                    .withStyle(ChatFormatting.GRAY), false);
             return false;
         }
 
-        int capacity = routeCapacity(world, player.getUuid());
+        int capacity = routeCapacity(world, player.getUUID());
         int count = Math.min(capacity, data.getTradeRouteInt(ROUTE_COUNT));
         for (int i = 0; i < count; i++) {
             if (routeInt(data, i, "x") == village.centerX() && routeInt(data, i, "z") == village.centerZ()) {
-                player.sendMessage(Text.translatable("message.village-quest.trade_route.register.duplicate")
-                        .formatted(Formatting.GRAY), false);
+                player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.register.duplicate")
+                        .withStyle(ChatFormatting.GRAY), false);
                 return false;
             }
         }
         if (count >= capacity) {
-            player.sendMessage(Text.translatable("message.village-quest.trade_route.register.full", capacity)
-                    .formatted(Formatting.RED), false);
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.register.full", capacity)
+                    .withStyle(ChatFormatting.RED), false);
             return false;
         }
+
+        VillageContactService.ContactResult contact = VillageContactService.establish(world,
+                player.getUUID(), village);
+        if (!contact.accepted()) return false;
 
         setRouteInt(data, count, "x", village.centerX());
         setRouteInt(data, count, "z", village.centerZ());
@@ -394,11 +663,14 @@ public final class TradeRouteService {
         setRouteInt(data, count, "direction", 1);
         setRouteInt(data, count, "quality", 20);
         setRouteInt(data, count, "status", TradeRouteStatus.DANGEROUS.id());
+        setRouteInt(data, count, "village_index", contact.contact().villageIndex() + 1);
         data.setTradeRouteInt(ROUTE_COUNT, count + 1);
-        QuestState.get(world.getServer()).setDirty(true);
-        player.sendMessage(Text.translatable("message.village-quest.trade_route.register.success", count + 1)
-                .formatted(Formatting.GREEN), false);
-        world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_VILLAGER_YES, SoundCategory.PLAYERS, 0.7f, 1.1f);
+        TradeRouteData.ensureConnectionId(data, count);
+        CaravanCrewData.ensure(data, count);
+        QuestState.get(world.getServer()).setDirty();
+        player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.register.success", count + 1)
+                .withStyle(ChatFormatting.GREEN), false);
+        world.playSound(null, player.blockPosition(), SoundEvents.VILLAGER_YES, SoundSource.PLAYERS, 0.7f, 1.1f);
         refreshUi(world, player);
         return true;
     }
@@ -408,111 +680,170 @@ public final class TradeRouteService {
      * within thirty seconds confirms the exact position so an accidental
      * sneak-click can never relocate an established network.
      */
-    public static boolean registerPlayerYard(ServerWorld world, ServerPlayerEntity player) {
-        if (world == null || player == null || !hasRouteAccess(world, player.getUuid())) {
+    public static boolean registerPlayerYard(ServerLevel world, ServerPlayer player) {
+        if (world == null || player == null || !hasRouteAccess(world, player.getUUID())) {
             return false;
         }
         if (!VillageQuestServerConfig.get().allowPlayerCaravanYards()) {
-            player.sendMessage(Text.translatable("message.village-quest.trade_route.yard.disabled")
-                     .formatted(Formatting.RED), false);
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.yard.disabled")
+                    .withStyle(ChatFormatting.RED), false);
             return false;
         }
-        if (world != world.getServer().getOverworld() || player.getEntityWorld() != world) {
-            player.sendMessage(Text.translatable("message.village-quest.trade_route.yard.wrong_dimension")
-                     .formatted(Formatting.RED), false);
+        if (world != world.getServer().overworld() || player.level() != world) {
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.yard.wrong_dimension")
+                    .withStyle(ChatFormatting.RED), false);
             return false;
         }
 
-        PlayerQuestData data = data(world, player.getUuid());
+        PlayerQuestData data = data(world, player.getUUID());
         int routeCount = Math.min(MAX_ROUTES, Math.max(0, data.getTradeRouteInt(ROUTE_COUNT)));
         if (routeCount > 0) {
-            player.sendMessage(Text.translatable("message.village-quest.trade_route.yard.routes_exist")
-                     .formatted(Formatting.RED), false);
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.yard.routes_exist")
+                    .withStyle(ChatFormatting.RED), false);
             return false;
         }
 
-        BlockPos yard = player.getBlockPos();
+        BlockPos yard = player.blockPosition();
         if (!isSafePlayerYard(world, yard)) {
-            player.sendMessage(Text.translatable("message.village-quest.trade_route.yard.unsafe")
-                     .formatted(Formatting.RED), false);
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.yard.unsafe")
+                    .withStyle(ChatFormatting.RED), false);
             return false;
         }
 
-        long now = world.getTime();
-        YardConfirmation confirmation = YARD_CONFIRMATIONS.get(player.getUuid());
+        long now = world.getGameTime();
+        YardConfirmation confirmation = YARD_CONFIRMATIONS.get(player.getUUID());
         if (confirmation == null || now > confirmation.expiresAt()
-                || confirmation.position() .getSquaredDistance(yard) > YARD_CONFIRM_DISTANCE_SQR) {
-            YARD_CONFIRMATIONS.put(player.getUuid(), new YardConfirmation(yard.toImmutable(), now + YARD_CONFIRM_TICKS));
-            player.sendMessage(Text.translatable("message.village-quest.trade_route.yard.confirm")
-                     .formatted(Formatting.GOLD), false);
+                || confirmation.position().distSqr(yard) > YARD_CONFIRM_DISTANCE_SQR) {
+            YARD_CONFIRMATIONS.put(player.getUUID(), new YardConfirmation(yard.immutable(), now + YARD_CONFIRM_TICKS));
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.yard.confirm")
+                    .withStyle(ChatFormatting.GOLD), false);
             return false;
         }
 
-        YARD_CONFIRMATIONS.remove(player.getUuid());
-        bindPlayerYard(data, yard.getX(), yard.getZ());
-        QuestState.get(world.getServer()).markDirty();
-        player.sendMessage(Text.translatable("message.village-quest.trade_route.yard.bound",
+        YARD_CONFIRMATIONS.remove(player.getUUID());
+        bindPlayerYard(data, yard.getX(), yard.getY(), yard.getZ());
+        QuestState.get(world.getServer()).setDirty();
+        player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.yard.bound",
                         yard.getX(), yard.getY(), yard.getZ())
-                 .formatted(Formatting.GREEN), false);
-        world.playSound(null, yard, SoundEvents.ENTITY_VILLAGER_YES, SoundCategory.PLAYERS, 0.7f, 1.05f);
+                .withStyle(ChatFormatting.GREEN), false);
+        world.playSound(null, yard, SoundEvents.VILLAGER_YES, SoundSource.PLAYERS, 0.7f, 1.05f);
         refreshUi(world, player);
         return true;
     }
 
-    private static boolean isSafePlayerYard(ServerWorld world, BlockPos position) {
-        if (world == null || position == null || !world.getWorldBorder() .contains(position)) {
+    private static boolean isSafePlayerYard(ServerLevel world, BlockPos position) {
+        if (world == null || position == null || !world.getWorldBorder().isWithinBounds(position)) {
             return false;
         }
-        BlockPos ground = position.down();
+        BlockPos ground = position.below();
         BlockState groundState = world.getBlockState(ground);
         BlockState feetState = world.getBlockState(position);
-        BlockState headState = world.getBlockState(position.up());
-        return groundState.isSolidBlock(world, ground)
+        BlockState headState = world.getBlockState(position.above());
+        return groundState.isCollisionShapeFullBlock(world, ground)
                 && feetState.getCollisionShape(world, position).isEmpty()
-                && headState.getCollisionShape(world, position.up()).isEmpty()
+                && headState.getCollisionShape(world, position.above()).isEmpty()
                 && world.getFluidState(position).isEmpty()
-                && world.getFluidState(position.up()).isEmpty();
+                && world.getFluidState(position.above()).isEmpty();
     }
 
-    private static boolean isInhabitedVillage(ServerWorld world,
-                                               ShadowsTradeRoadEncounterService.VillageMarker village) {
+    static VillageInhabitantPolicy.Status villageInhabitantStatus(ServerLevel world,
+            ShadowsTradeRoadEncounterService.VillageMarker village) {
         if (world == null || village == null) {
-            return false;
+            return VillageInhabitantPolicy.Status.UNKNOWN;
         }
         // Use the real structure footprint instead of a fixed center radius. Large CTOV
         // settlements can place their surviving villagers well beyond a vanilla-sized core.
-        Box villageArea = new Box(
-                village.minX() - 16.0, world.getBottomY(), village.minZ() - 16.0,
-                village.maxX() + 17.0, world.getTopYInclusive(), village.maxZ() + 17.0);
-        return !world.getEntitiesByClass(VillagerEntity.class, villageArea,
-                villager -> villager.isAlive() && !villager.isRemoved()).isEmpty();
+        var zones = de.quest.kingdom.KingdomVillageService.confirmedZones(world, village);
+        AABB villageArea = de.quest.kingdom.KingdomVillageService.observationArea(world, village, zones);
+        var registry=world.getServer()==null?null:de.quest.kingdom.LivingKingdomsState.get(world.getServer());
+        String dimension=world.dimension().identifier().toString();
+        var target=registry==null?null:registry.byLegacy(new de.quest.village.VillageLifeState.VillageKey(dimension,village.centerX(),village.centerZ()))
+                .map(de.quest.kingdom.LivingKingdomsState.VillageView::id).orElse(null);
+        boolean hasLivingVillager=false, uncertain=registry!=null && (registry.readOnly() || registry.founding().readOnly());
+        int checked=0;
+        for(var villager:world.getEntitiesOfClass(Villager.class,villageArea,value -> value.isAlive() && !value.isRemoved()
+                && de.quest.kingdom.KingdomVillageService.withinConfirmedArea(zones,value.blockPosition()))) {
+            if (checked++>=128) { uncertain=true; break; }
+            if (!villager.isAlive() || villager.isRemoved() || !de.quest.kingdom.KingdomVillageService.withinConfirmedArea(zones,villager.blockPosition())) continue;
+            var membership=de.quest.kingdom.VillagePopulationPolicy.classify(registry,target,dimension,villager.getUUID(),villager.blockPosition());
+            if (membership==de.quest.kingdom.VillagePopulationPolicy.Membership.INCLUDED) { hasLivingVillager=true; break; }
+            if (membership==de.quest.kingdom.VillagePopulationPolicy.Membership.UNKNOWN) uncertain=true;
+        }
+        if (!hasLivingVillager && uncertain) return VillageInhabitantPolicy.Status.UNKNOWN;
+        return VillageInhabitantPolicy.classify(hasLivingVillager,
+                ((int) Math.floor(villageArea.minX)) >> 4, ((int) Math.floor(villageArea.maxX - 1)) >> 4,
+                ((int) Math.floor(villageArea.minZ)) >> 4, ((int) Math.floor(villageArea.maxZ - 1)) >> 4,
+                world::hasChunk);
     }
 
-    public static void openMap(ServerWorld world, ServerPlayerEntity player) {
-        if (world == null || player == null || !hasRouteAccess(world, player.getUuid())) {
+    public static void openMap(ServerLevel world, ServerPlayer player) {
+        if (!canMutateRoute(world, player)) {
             return;
         }
-        collectEscrow(world, player);
-        MAP_VIEWERS.add(player.getUuid());
-        ServerPlayNetworking.send(player, buildMapPayload(world, player.getUuid(), Payloads.TradeRouteMapPayload.ACTION_OPEN));
+        boolean routeAccess=hasRouteAccess(world,player.getUUID());
+        if(routeAccess) collectEscrow(world, player);
+        MAP_VIEWERS.add(player.getUUID());
+        if(routeAccess) MAP_ACTION_GATE.open(player.getUUID(), world.getGameTime());
+        else MAP_ACTION_GATE.close(player.getUUID());
+        ServerPlayNetworking.send(player, buildMapPayload(world, player.getUUID(), Payloads.TradeRouteMapPayload.ACTION_OPEN));
+    }
+    private static boolean canMutateRoute(ServerLevel world, ServerPlayer player) {
+        if (world == null || player == null) {
+            return false;
+        }
+        boolean allowed = TradeRouteWorldPolicy.canMutate(
+                world == world.getServer().overworld(), player.level() == world);
+        if (!allowed) {
+            player.sendSystemMessage(Component.translatable(
+                    "message.village-quest.trade_route.survey.wrong_dimension")
+                    .withStyle(ChatFormatting.RED), false);
+        }
+        return allowed;
     }
 
-    public static void handleMapAction(ServerPlayerEntity player, Payloads.TradeRouteActionPayload payload) {
-        if (player == null || payload == null || !(player.getEntityWorld() instanceof ServerWorld world)) {
+    public static void handleMapAction(ServerPlayer player, Payloads.TradeRouteActionPayload payload) {
+        if (player == null || payload == null || !(player.level() instanceof ServerLevel playerWorld)) {
             return;
         }
         if (payload.action() == Payloads.TradeRouteActionPayload.ACTION_CLOSE) {
-            MAP_VIEWERS.remove(player.getUuid());
+            MAP_VIEWERS.remove(player.getUUID());
+            MAP_ACTION_GATE.close(player.getUUID());
+            return;
+        }
+        if (payload.action() == Payloads.TradeRouteActionPayload.ACTION_MAP_HEARTBEAT) {
+            if (!MAP_ACTION_GATE.heartbeat(player.getUUID(), playerWorld.getGameTime())) {
+                MAP_VIEWERS.remove(player.getUUID());
+            }
+            return;
+        }
+        ServerLevel world = playerWorld.getServer().overworld();
+        if (payload.action() == Payloads.TradeRouteActionPayload.ACTION_MINIMAP_RESTORE) {
+            if (MAP_ACTION_GATE.acceptMinimapToggle(player.getUUID(), world.getGameTime())) {
+                setMinimapEnabled(world, player, true);
+            }
             return;
         }
         if (payload.action() == Payloads.TradeRouteActionPayload.ACTION_MINIMAP_TOGGLE) {
-            toggleMinimap(world, player);
+            if (MAP_ACTION_GATE.acceptMinimapToggle(player.getUUID(), world.getGameTime())) {
+                toggleMinimap(world, player);
+            }
             return;
         }
-        if (!hasRouteAccess(world, player.getUuid())) {
+        if (!canMutateRoute(world, player)) {
             return;
         }
-        PlayerQuestData data = data(world, player.getUuid());
+        if (!MAP_VIEWERS.contains(player.getUUID())
+                || !MAP_ACTION_GATE.hasActiveSession(player.getUUID(), world.getGameTime())) {
+            MAP_VIEWERS.remove(player.getUUID());
+            return;
+        }
+        if (!MAP_ACTION_GATE.accept(player.getUUID(), world.getGameTime())) {
+            return;
+        }
+        if (!hasRouteAccess(world, player.getUUID())) {
+            return;
+        }
+        PlayerQuestData data = data(world, player.getUUID());
         int routeIndex = payload.routeIndex();
         int count = Math.min(MAX_ROUTES, data.getTradeRouteInt(ROUTE_COUNT));
         if (routeIndex < 0 || routeIndex >= count) {
@@ -528,67 +859,77 @@ public final class TradeRouteService {
                 return;
             }
         }
-        if (MAP_VIEWERS.contains(player.getUuid())) {
-            ServerPlayNetworking.send(player, buildMapPayload(world, player.getUuid(), Payloads.TradeRouteMapPayload.ACTION_UPDATE));
+        if (MAP_VIEWERS.contains(player.getUUID())) {
+            ServerPlayNetworking.send(player, buildMapPayload(world, player.getUUID(), Payloads.TradeRouteMapPayload.ACTION_UPDATE));
         }
     }
 
-    public static boolean toggleMinimap(ServerWorld world, ServerPlayerEntity player) {
+    public static boolean isMinimapEnabled(UUID player) { return MINIMAP_VIEWERS.contains(player); }
+    /** Applies presentation preference through the existing access checks; never grants route access. */
+    public static void setMinimapEnabled(ServerLevel world, ServerPlayer player, boolean enabled) {
+        applyMinimap(world, player, enabled, false);
+    }
+    public static boolean toggleMinimap(ServerLevel world, ServerPlayer player) {
+        return applyMinimap(world, player, player != null && !MINIMAP_VIEWERS.contains(player.getUUID()), true);
+    }
+    private static boolean applyMinimap(ServerLevel world, ServerPlayer player, boolean enabled, boolean feedback) {
         if (world == null || player == null) {
             return false;
         }
-        UUID playerId = player.getUuid();
-        if (MINIMAP_VIEWERS.remove(playerId)) {
+        UUID playerId = player.getUUID();
+        if (MINIMAP_VIEWERS.contains(playerId) == enabled) return enabled;
+        if (!enabled) {
+            MINIMAP_VIEWERS.remove(playerId);
             ServerPlayNetworking.send(player, buildMapPayload(world, playerId,
                     Payloads.TradeRouteMapPayload.ACTION_MINIMAP_DISABLE));
-            player.sendMessage(Text.translatable("message.village-quest.trade_route.minimap.disabled")
-                    .formatted(Formatting.GRAY), true);
+            if (feedback) player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.minimap.disabled")
+                    .withStyle(ChatFormatting.GRAY), true);
             return false;
         }
         if (!hasRouteAccess(world, playerId)) {
-            player.sendMessage(Text.translatable("message.village-quest.trade_route.locked")
-                    .formatted(Formatting.RED), true);
+            if (feedback) player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.locked")
+                    .withStyle(ChatFormatting.GRAY), true);
             return false;
         }
-        if (player.getEntityWorld() != world) {
-            player.sendMessage(Text.translatable("message.village-quest.trade_route.survey.wrong_dimension")
-                    .formatted(Formatting.RED), true);
+        if (player.level() != world) {
+            if (feedback) player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.survey.wrong_dimension")
+                    .withStyle(ChatFormatting.RED), true);
             return false;
         }
         MINIMAP_VIEWERS.add(playerId);
         collectEscrow(world, player);
         ServerPlayNetworking.send(player, buildMapPayload(world, playerId,
                 Payloads.TradeRouteMapPayload.ACTION_MINIMAP_ENABLE));
-        player.sendMessage(Text.translatable("message.village-quest.trade_route.minimap.enabled")
-                .formatted(Formatting.GOLD), true);
+        if (feedback) player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.minimap.enabled")
+                .withStyle(ChatFormatting.GOLD), true);
         return true;
     }
 
-    public static boolean startRouteSurvey(ServerWorld world, ServerPlayerEntity player, int routeIndex) {
+    public static boolean startRouteSurvey(ServerLevel world, ServerPlayer player, int routeIndex) {
         if (world == null || player == null) {
             return false;
         }
-        if (world != world.getServer().getOverworld() || player.getEntityWorld() != world) {
-            player.sendMessage(Text.translatable("message.village-quest.trade_route.survey.wrong_dimension")
-                    .formatted(Formatting.RED), false);
+        if (world != world.getServer().overworld() || player.level() != world) {
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.survey.wrong_dimension")
+                    .withStyle(ChatFormatting.RED), false);
             return false;
         }
-        if (!hasRouteAccess(world, player.getUuid())) {
-            player.sendMessage(Text.translatable("message.village-quest.trade_route.locked")
-                    .formatted(Formatting.RED), false);
+        if (!hasRouteAccess(world, player.getUUID())) {
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.locked")
+                    .withStyle(ChatFormatting.GRAY), false);
             return false;
         }
-        PlayerQuestData data = data(world, player.getUuid());
+        PlayerQuestData data = data(world, player.getUUID());
         int count = Math.min(MAX_ROUTES, data.getTradeRouteInt(ROUTE_COUNT));
         if (routeIndex < 0 || routeIndex >= count) {
-            player.sendMessage(Text.translatable("message.village-quest.trade_route.route_invalid", count)
-                    .formatted(Formatting.RED), false);
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.route_invalid", count)
+                    .withStyle(ChatFormatting.RED), false);
             return false;
         }
         int active = activeSurveyIndex(data);
         if (active >= 0) {
-            player.sendMessage(Text.translatable("message.village-quest.trade_route.survey.active", routeName(active))
-                    .formatted(Formatting.YELLOW), false);
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.survey.active", routeName(active))
+                    .withStyle(ChatFormatting.YELLOW), false);
             return active == routeIndex;
         }
 
@@ -596,143 +937,159 @@ public final class TradeRouteService {
         data.setTradeRouteInt(SURVEY_ROUTE, routeIndex + 1);
         data.setTradeRouteFlag(SURVEY_WAS_STOPPED, isStopped(data, routeIndex));
         data.setTradeRouteFlag(routeKey(routeIndex, STOPPED_SUFFIX.substring(1)), true);
-        removeRuntime(world, new RouteKey(player.getUuid(), routeIndex));
-        QuestState.get(world.getServer()).setDirty(true);
-        player.sendMessage(Text.translatable("message.village-quest.trade_route.survey.started",
-                routeName(routeIndex), MAX_WAYPOINTS).formatted(Formatting.GOLD), false);
+        removeRuntime(world, new RouteKey(player.getUUID(), routeIndex));
+        QuestState.get(world.getServer()).setDirty();
+        player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.survey.started",
+                routeName(routeIndex), MAX_WAYPOINTS).withStyle(ChatFormatting.GOLD), false);
+        sendSurveyEstimate(player, data, routeIndex);
         return true;
     }
 
-    public static boolean markSurveyWaypoint(ServerWorld world, ServerPlayerEntity player) {
+    public static boolean markSurveyWaypoint(ServerLevel world, ServerPlayer player) {
         if (world == null || player == null
-                || world != world.getServer().getOverworld() || player.getEntityWorld() != world) {
+                || world != world.getServer().overworld() || player.level() != world) {
             if (player != null) {
-                player.sendMessage(Text.translatable("message.village-quest.trade_route.survey.wrong_dimension")
-                        .formatted(Formatting.RED), false);
+                player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.survey.wrong_dimension")
+                        .withStyle(ChatFormatting.RED), false);
             }
             return false;
         }
-        PlayerQuestData data = data(world, player.getUuid());
+        PlayerQuestData data = data(world, player.getUUID());
         int routeIndex = activeSurveyIndex(data);
         if (routeIndex < 0) {
-            player.sendMessage(Text.translatable("message.village-quest.trade_route.survey.none")
-                    .formatted(Formatting.YELLOW), false);
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.survey.none")
+                    .withStyle(ChatFormatting.YELLOW), false);
             return false;
         }
         int count = Math.min(MAX_WAYPOINTS, data.getTradeRouteInt(SURVEY_POINT_COUNT));
         if (count >= MAX_WAYPOINTS) {
-            player.sendMessage(Text.translatable("message.village-quest.trade_route.survey.full", MAX_WAYPOINTS)
-                    .formatted(Formatting.RED), false);
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.survey.full", MAX_WAYPOINTS)
+                    .withStyle(ChatFormatting.RED), false);
             return false;
         }
         RoutePoint previous = count == 0
-                ? new RoutePoint(data.getTradeRouteInt(HOME_X), data.getTradeRouteInt(HOME_Z))
+                ? KingdomRouteEndpoints.surveyHome(de.quest.kingdom.LivingKingdomsState.get(world.getServer()),
+                        data, world.dimension().identifier().toString(), activeSurveyIndex(data))
                 : surveyPoint(data, count - 1);
-        RoutePoint point = new RoutePoint(player.getBlockX(), player.getBlockZ());
-        if (previous.distanceSquared(point) < 16.0) {
-            player.sendMessage(Text.translatable("message.village-quest.trade_route.survey.too_close")
-                    .formatted(Formatting.YELLOW), false);
+        RoutePoint point = new RoutePoint(player.getBlockX(), player.getBlockY(), player.getBlockZ());
+        if (previous.spatialDistanceSquared(point) < 16.0) {
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.survey.too_close")
+                    .withStyle(ChatFormatting.YELLOW), false);
             return false;
         }
-        boolean waterTravel = player.getVehicle() instanceof AbstractBoatEntity
-                || isWaterTravelPoint(world, player.getBlockPos());
-        boolean ocean = waterTravel && world.getBiome(player.getBlockPos()).isIn(BiomeTags.IS_OCEAN);
+        boolean waterTravel = player.getVehicle() instanceof AbstractBoat
+                || isWaterTravelPoint(world, player.blockPosition());
+        boolean ocean = waterTravel && world.getBiome(player.blockPosition()).is(BiomeTags.IS_OCEAN);
         if (waterTravel && !ocean) {
-            player.sendMessage(Text.translatable(
+            player.sendSystemMessage(Component.translatable(
                     "message.village-quest.trade_route.survey.inland_water")
-                     .formatted(Formatting.RED), false);
+                    .withStyle(ChatFormatting.RED), false);
             return false;
         }
         setSurveyPoint(data, count, point, ocean);
         data.setTradeRouteInt(SURVEY_POINT_COUNT, count + 1);
-        QuestState.get(world.getServer()).markDirty();
-        player.sendMessage(Text.translatable(ocean
+        QuestState.get(world.getServer()).setDirty();
+        player.sendSystemMessage(Component.translatable(ocean
                         ? "message.village-quest.trade_route.survey.marked_ferry"
                         : "message.village-quest.trade_route.survey.marked",
-                count + 1, point.x(), point.z()) .formatted(ocean
-                        ? Formatting.AQUA : Formatting.GREEN), false);
+                count + 1, point.x(), point.y(), point.z()).withStyle(ocean
+                        ? ChatFormatting.AQUA : ChatFormatting.GREEN), false);
+        sendSurveyEstimate(player, data, routeIndex);
         return true;
     }
 
-    public static boolean finishRouteSurvey(ServerWorld world, ServerPlayerEntity player, int requestedRouteIndex) {
-        if (world == null || player == null) {
+    public static boolean finishRouteSurvey(ServerLevel world, ServerPlayer player, int requestedRouteIndex) {
+        if (!canMutateRoute(world, player)) {
             return false;
         }
-        PlayerQuestData data = data(world, player.getUuid());
+        PlayerQuestData data = data(world, player.getUUID());
         int routeIndex = activeSurveyIndex(data);
         if (routeIndex < 0) {
-            player.sendMessage(Text.translatable("message.village-quest.trade_route.survey.none")
-                    .formatted(Formatting.YELLOW), false);
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.survey.none")
+                    .withStyle(ChatFormatting.YELLOW), false);
             return false;
         }
         if (requestedRouteIndex >= 0 && requestedRouteIndex != routeIndex) {
-            player.sendMessage(Text.translatable("message.village-quest.trade_route.survey.active", routeName(routeIndex))
-                    .formatted(Formatting.YELLOW), false);
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.survey.active", routeName(routeIndex))
+                    .withStyle(ChatFormatting.YELLOW), false);
             return false;
         }
         int routeCount = Math.min(MAX_ROUTES, data.getTradeRouteInt(ROUTE_COUNT));
         if (routeIndex >= routeCount) {
             clearSurveyDraft(data);
-            QuestState.get(world.getServer()).setDirty(true);
+            QuestState.get(world.getServer()).setDirty();
             return false;
         }
 
-        List<RouteSurveyPoint> draft = normalizedSurveyPoints(data, routeIndex);
-        Text validationError = validateSurveyPath(world, data, routeIndex, draft);
+        List<RouteSurveyPoint> rawDraft = surveyPointsWithModes(data);
+        int homeY = surveyHomeElevation(world, data, rawDraft);
+        int destinationY = surveyDestinationElevation(world, player, data, routeIndex, rawDraft);
+        var kingdoms = de.quest.kingdom.LivingKingdomsState.get(world.getServer());
+        String dimension = world.dimension().identifier().toString();
+        RoutePoint desiredHome = KingdomRouteEndpoints.surveyHome(kingdoms, data, dimension, routeIndex);
+        RoutePoint desiredEnd = KingdomRouteEndpoints.surveyDestination(kingdoms, data, dimension, routeIndex);
+        RoutePoint home = new RoutePoint(desiredHome.x(), desiredHome.hasElevation() ? desiredHome.y() : homeY, desiredHome.z());
+        RoutePoint destination = new RoutePoint(desiredEnd.x(), desiredEnd.hasElevation() ? desiredEnd.y() : destinationY, desiredEnd.z());
+        List<RouteSurveyPoint> draft = TradeRouteSurveyData.normalizedSurveyPoints(data, home, destination);
+        Component validationError = validateSurveyPath(
+                world, data, routeIndex, draft, home, destination);
         if (validationError != null) {
-            player.sendMessage(validationError.copy() .formatted(Formatting.RED), false);
+            player.sendSystemMessage(validationError.copy().withStyle(ChatFormatting.RED), false);
             return false;
         }
         setRouteWaypointsWithModes(data, routeIndex, draft);
+        markRouteGeometryV2(data, routeIndex, home.y(), destination.y());
+        KingdomRouteEndpoints.captureValidated(data, routeIndex,
+                new BlockPos(home.x(), home.y(), home.z()), new BlockPos(destination.x(), destination.y(), destination.z()));
         setRouteInt(data, routeIndex, "quality", 20);
         restoreSurveyPauseState(data, routeIndex);
         clearSurveyDraft(data);
-        removeRuntime(world, new RouteKey(player.getUuid(), routeIndex));
-        QuestState.get(world.getServer()).markDirty();
-        player.sendMessage(Text.translatable("message.village-quest.trade_route.survey.finished",
-                routeName(routeIndex), draft.size()) .formatted(Formatting.GREEN), false);
+        removeRuntime(world, new RouteKey(player.getUUID(), routeIndex));
+        QuestState.get(world.getServer()).setDirty();
+        player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.survey.finished",
+                routeName(routeIndex), draft.size()).withStyle(ChatFormatting.GREEN), false);
         long ferryPoints = draft.stream().filter(RouteSurveyPoint::ocean).count();
         if (ferryPoints > 0) {
-            player.sendMessage(Text.translatable(
+            player.sendSystemMessage(Component.translatable(
                     "message.village-quest.trade_route.survey.ferry_installed", ferryPoints)
-                     .formatted(Formatting.AQUA), false);
+                    .withStyle(ChatFormatting.AQUA), false);
         }
         return true;
     }
 
-    public static boolean cancelRouteSurvey(ServerWorld world, ServerPlayerEntity player, int requestedRouteIndex) {
-        if (world == null || player == null) {
+    public static boolean cancelRouteSurvey(ServerLevel world, ServerPlayer player, int requestedRouteIndex) {
+        if (!canMutateRoute(world, player)) {
             return false;
         }
-        PlayerQuestData data = data(world, player.getUuid());
+        PlayerQuestData data = data(world, player.getUUID());
         int routeIndex = activeSurveyIndex(data);
         if (routeIndex < 0) {
-            player.sendMessage(Text.translatable("message.village-quest.trade_route.survey.none")
-                    .formatted(Formatting.YELLOW), false);
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.survey.none")
+                    .withStyle(ChatFormatting.YELLOW), false);
             return false;
         }
         if (requestedRouteIndex >= 0 && requestedRouteIndex != routeIndex) {
-            player.sendMessage(Text.translatable("message.village-quest.trade_route.survey.active", routeName(routeIndex))
-                    .formatted(Formatting.YELLOW), false);
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.survey.active", routeName(routeIndex))
+                    .withStyle(ChatFormatting.YELLOW), false);
             return false;
         }
         restoreSurveyPauseState(data, routeIndex);
         clearSurveyDraft(data);
-        QuestState.get(world.getServer()).setDirty(true);
-        player.sendMessage(Text.translatable("message.village-quest.trade_route.survey.cancelled", routeName(routeIndex))
-                .formatted(Formatting.GRAY), false);
+        QuestState.get(world.getServer()).setDirty();
+        player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.survey.cancelled", routeName(routeIndex))
+                .withStyle(ChatFormatting.GRAY), false);
         return true;
     }
 
-    public static boolean removeRoute(ServerWorld world, ServerPlayerEntity player, int routeIndex) {
-        if (world == null || player == null || !hasRouteAccess(world, player.getUuid())) {
+    public static boolean removeRoute(ServerLevel world, ServerPlayer player, int routeIndex) {
+        if (!canMutateRoute(world, player) || !hasRouteAccess(world, player.getUUID())) {
             return false;
         }
-        PlayerQuestData data = data(world, player.getUuid());
+        PlayerQuestData data = data(world, player.getUUID());
         int count = Math.min(MAX_ROUTES, data.getTradeRouteInt(ROUTE_COUNT));
         if (routeIndex < 0 || routeIndex >= count) {
-            player.sendMessage(Text.translatable("message.village-quest.trade_route.route_invalid", count)
-                    .formatted(Formatting.RED), false);
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.route_invalid", count)
+                    .withStyle(ChatFormatting.RED), false);
             return false;
         }
 
@@ -741,133 +1098,411 @@ public final class TradeRouteService {
             restoreSurveyPauseState(data, activeSurvey);
             clearSurveyDraft(data);
         }
-        removeOwnerRuntimes(world, player.getUuid());
-        Map<String, Integer> savedInts = new HashMap<>(data.getTradeRouteIntState());
-        Map<String, String> savedStrings = new HashMap<>(data.getTradeRouteStringState());
-        Set<String> savedFlags = new HashSet<>(data.getTradeRouteFlags());
-        clearRouteEntries(data);
-
-        int targetIndex = 0;
-        for (int sourceIndex = 0; sourceIndex < count; sourceIndex++) {
-            if (sourceIndex == routeIndex) {
-                continue;
-            }
-            copyRouteEntries(data, savedInts, savedStrings, savedFlags, sourceIndex, targetIndex);
-            targetIndex++;
+        removeOwnerRuntimes(world, player.getUUID());
+        RegionalDispatchLedger.Dispatch priorDispatch = RegionalDispatchLedger.read(data);
+        UUID removedConnection = TradeRouteData.connectionId(data, routeIndex);
+        if (!removeRoute(data, routeIndex)) return false;
+        RegionalDispatchLedger.Dispatch afterDispatch = RegionalDispatchLedger.read(data);
+        if (priorDispatch != null && afterDispatch != null
+                && priorDispatch.stage() != RegionalDispatchLedger.Stage.CANCELLED_SAFE
+                && afterDispatch.stage() == RegionalDispatchLedger.Stage.CANCELLED_SAFE) {
+            RegionalDispatchService.onCancelled(world, player.getUUID(), data, afterDispatch);
         }
-        data.setTradeRouteInt(ROUTE_COUNT, count - 1);
-        TradeGuildService.onRouteRemoved(world, player.getUuid(), routeIndex);
-        QuestState.get(world.getServer()).setDirty(true);
-        SurveyorCompassQuestService.selectRouteEventMode(world, player.getUuid());
-        player.sendMessage(Text.translatable("message.village-quest.trade_route.removed",
-                routeName(routeIndex), count - 1, routeCapacity(world, player.getUuid())).formatted(Formatting.GREEN), false);
+        TradeGuildService.onRouteRemoved(world, player.getUUID(), routeIndex);
+        GuildConvoyService.onRouteRemoved(world, player.getUUID(), removedConnection);
+        QuestState.get(world.getServer()).setDirty();
+        SurveyorCompassQuestService.selectRouteEventMode(world, player.getUUID());
+        player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.removed",
+                routeName(routeIndex), count - 1, routeCapacity(world, player.getUUID())).withStyle(ChatFormatting.GREEN), false);
         refreshUi(world, player);
         return true;
     }
 
-    private static void toggleRoute(ServerWorld world, ServerPlayerEntity player, PlayerQuestData data, int routeIndex) {
+    /** Data-only route removal core shared by the authoritative server path and regression tests. */
+    public static boolean removeRoute(PlayerQuestData data, int routeIndex) {
+        if (data == null || routeIndex < 0
+                || routeIndex >= Math.min(MAX_ROUTES, data.getTradeRouteInt(ROUTE_COUNT))) return false;
+        String rawConnection = data.getTradeRouteString(routeKey(routeIndex, "connection_id"));
+        if (!rawConnection.isBlank()) {
+            try {
+                RegionalDispatchLedger.cancelForRemovedRoute(data, UUID.fromString(rawConnection));
+            } catch (IllegalArgumentException ignored) {
+                // Malformed optional metadata must not prevent route maintenance.
+            }
+        }
+        return TradeRouteData.removeRoute(data, routeIndex, MAX_ROUTES);
+    }
+
+    private static void toggleRoute(ServerLevel world, ServerPlayer player, PlayerQuestData data, int routeIndex) {
         if (activeSurveyIndex(data) == routeIndex) {
-            player.sendMessage(Text.translatable("message.village-quest.trade_route.survey.active", routeName(routeIndex))
-                    .formatted(Formatting.YELLOW), false);
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.survey.active", routeName(routeIndex))
+                    .withStyle(ChatFormatting.YELLOW), false);
             return;
         }
         String stoppedKey = routeKey(routeIndex, STOPPED_SUFFIX.substring(1));
         boolean stopped = data.hasTradeRouteFlag(stoppedKey);
         data.setTradeRouteFlag(stoppedKey, !stopped);
-        QuestState.get(world.getServer()).setDirty(true);
+        QuestState.get(world.getServer()).setDirty();
         if (!stopped) {
-            discardRouteEntities(world, new RouteKey(player.getUuid(), routeIndex));
+            discardRouteEntities(world, new RouteKey(player.getUUID(), routeIndex));
         }
     }
 
-    public static boolean renameRoute(ServerWorld world, ServerPlayerEntity player, int routeIndex, String requestedName) {
-        if (world == null || player == null || !validRoute(world, player.getUuid(), routeIndex)) {
+    public static boolean renameRoute(ServerLevel world, ServerPlayer player, int routeIndex, String requestedName) {
+        if (!canMutateRoute(world, player) || !validRoute(world, player.getUUID(), routeIndex)) {
             return false;
         }
         String name = sanitizeRouteName(requestedName);
         if (name.isEmpty()) {
-            player.sendMessage(Text.translatable("message.village-quest.trade_route.rename.invalid")
-                    .formatted(Formatting.RED), false);
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.rename.invalid")
+                    .withStyle(ChatFormatting.RED), false);
             return false;
         }
-        PlayerQuestData data = data(world, player.getUuid());
+        PlayerQuestData data = data(world, player.getUUID());
         data.setTradeRouteString(routeKey(routeIndex, "name"), name);
-        QuestState.get(world.getServer()).setDirty(true);
-        player.sendMessage(Text.translatable("message.village-quest.trade_route.rename.success", name)
-                .formatted(Formatting.GREEN), false);
+        QuestState.get(world.getServer()).setDirty();
+        player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.rename.success", name)
+                .withStyle(ChatFormatting.GREEN), false);
         refreshUi(world, player);
-        if (MAP_VIEWERS.contains(player.getUuid())) {
-            ServerPlayNetworking.send(player, buildMapPayload(world, player.getUuid(),
+        if (MAP_VIEWERS.contains(player.getUUID())) {
+            ServerPlayNetworking.send(player, buildMapPayload(world, player.getUUID(),
                     Payloads.TradeRouteMapPayload.ACTION_UPDATE));
         }
         return true;
     }
 
-    public static ActionResult onEntityUse(ServerWorld world, ServerPlayerEntity helper, Entity entity) {
-        if (world == null || helper == null || entity == null) {
-            return ActionResult.PASS;
+    public static InteractionResult onEntityUse(ServerLevel world, ServerPlayer helper, Entity entity) {
+        if (!(entity instanceof CaravanMerchantEntity merchant)) {
+            return InteractionResult.PASS;
         }
-        RouteKey key = ENTITY_ROUTES.get(entity.getUuid());
+        RouteKey key = ENTITY_ROUTES.get(entity.getUUID());
         if (key == null) {
-            return ActionResult.PASS;
+            return InteractionResult.PASS;
         }
+        if (!canMutateRoute(world, helper)
+                || helper.distanceToSqr(entity) > 64.0) return InteractionResult.PASS;
         PlayerQuestData ownerData = data(world, key.ownerId());
+        if (key.routeIndex() < 0 || key.routeIndex() >= ownerData.getTradeRouteInt(ROUTE_COUNT)) {
+            return InteractionResult.PASS;
+        }
         TradeRouteEventType event = event(ownerData, key.routeIndex());
         if (event == null) {
-            helper.sendMessage(Text.translatable("message.village-quest.trade_route.caravan_greeting",
-                    routeName(key.routeIndex())).formatted(Formatting.GOLD), false);
-            return ActionResult.SUCCESS;
+            showCrewInteraction(world, helper, key, ownerData, merchant);
+            return InteractionResult.SUCCESS;
         }
-        if (!key.ownerId().equals(helper.getUuid())) {
-            helper.sendMessage(Text.translatable("message.village-quest.trade_route.event.owner_only")
-                    .formatted(Formatting.YELLOW), false);
-            return ActionResult.SUCCESS;
+        if (merchant.getCrewRole() == CaravanRole.MASTER && !merchant.isCourier()
+                && helper.isShiftKeyDown()) {
+            sendMasterView(world, helper, key, ownerData, merchant);
+            return InteractionResult.SUCCESS;
+        }
+        if (!key.ownerId().equals(helper.getUUID())) {
+            helper.sendSystemMessage(Component.translatable("message.village-quest.trade_route.event.owner_only")
+                    .withStyle(ChatFormatting.YELLOW), false);
+            return InteractionResult.SUCCESS;
         }
 
         boolean resolved = switch (event) {
-            case BROKEN_WHEEL -> consumePair(helper, stack -> stack.isOf(Items.IRON_INGOT), 2,
-                    TradeRouteService::isPlank, 8);
-            case INJURED_PACK_ANIMAL -> consumePair(helper, stack -> stack.isOf(Items.HAY_BLOCK), 1,
-                    stack -> stack.isOf(Items.WHEAT), 4);
-            case WASHED_OUT_BRIDGE -> consumePlayerInventory(helper, TradeRouteService::isPlank, 16);
-            case HUNGRY_TRAVELERS -> consumePlayerInventory(helper, stack -> stack.isOf(Items.BREAD), 8);
-            case ROAD_TOLL -> CurrencyService.removeBalance(world, helper.getUuid(), 5L);
-            case MISSING_COURIER -> entity instanceof CaravanMerchantEntity merchant && merchant.isCourier();
-            case FALSE_DISTRESS -> startAmbush(world, helper, key, ownerData);
+            case BROKEN_WHEEL -> TradeRouteInventory.consumePair(helper, stack -> stack.is(Items.IRON_INGOT), 2,
+                    TradeRouteInventory::isPlank, 8);
+            case INJURED_PACK_ANIMAL -> TradeRouteInventory.consumePair(helper, stack -> stack.is(Items.HAY_BLOCK), 1,
+                    stack -> stack.is(Items.WHEAT), 4);
+            case WASHED_OUT_BRIDGE -> TradeRouteInventory.consume(helper, TradeRouteInventory::isPlank, 16);
+            case HUNGRY_TRAVELERS -> TradeRouteInventory.consume(helper, stack -> stack.is(Items.BREAD), 8);
+            case ROAD_TOLL -> CurrencyService.removeBalance(world, helper.getUUID(), 5L);
+            case MISSING_COURIER -> merchant.isCourier();
+            case FALSE_DISTRESS -> {
+                DifficultyObjectiveMode mode = ensureRouteEventMode(world, key, ownerData);
+                if (mode != DifficultyObjectiveMode.PEACEFUL
+                        && routeInt(ownerData, key.routeIndex(), "event_progress") == 2) {
+                    resolveEvent(world, helper, key, ownerData, event);
+                    yield false;
+                }
+                yield startAmbush(world, helper, key, ownerData);
+            }
             case STORM_CAMP -> false;
+            case SHATTERED_WAYSTONE -> TradeRouteInventory.consumePair(helper, stack -> stack.is(Items.STONE_BRICKS), 8,
+                    stack -> stack.is(Items.AMETHYST_SHARD), 4);
+            case SHRINE_PILGRIMS -> TradeRouteInventory.consume(helper, stack -> stack.is(Items.BREAD), 12);
+            case RUNES_GONE_DARK -> TradeRouteInventory.consumePair(helper, stack -> stack.is(Items.GLOW_INK_SAC), 2,
+                    stack -> stack.is(Items.LAPIS_LAZULI), 8);
         };
 
         if (event == TradeRouteEventType.FALSE_DISTRESS) {
-            return ActionResult.SUCCESS;
+            return InteractionResult.SUCCESS;
         }
         if (resolved) {
             resolveEvent(world, helper, key, ownerData, event);
         } else {
-            helper.sendMessage(event.help().copy().formatted(Formatting.YELLOW), false);
+            helper.sendSystemMessage(event.help().copy().withStyle(ChatFormatting.YELLOW), false);
         }
-        return ActionResult.SUCCESS;
+        return InteractionResult.SUCCESS;
     }
 
-    public static void onMonsterKill(ServerWorld world, ServerPlayerEntity player, Entity killedEntity) {
-        if (world == null || killedEntity == null) {
+    private static void showCrewInteraction(ServerLevel world, ServerPlayer player, RouteKey key,
+                                            PlayerQuestData ownerData, CaravanMerchantEntity merchant) {
+        int route = key.routeIndex();
+        if (merchant.getCrewRole() == CaravanRole.MASTER && !merchant.isCourier()) {
+            if (key.ownerId().equals(player.getUUID()) && player.isShiftKeyDown()) {
+                openMap(world, player);
+            } else {
+                sendMasterView(world, player, key, ownerData, merchant);
+            }
             return;
         }
-        RouteKey key = ATTACKER_ROUTES.remove(killedEntity.getUuid());
+        TradeRouteAvailability.Reason availability = routeAvailability(world, ownerData, route);
+        if (availability.suspendsForSettlement()) {
+            player.sendSystemMessage(availability.label().copy().withStyle(ChatFormatting.YELLOW), false);
+            return;
+        }
+        if (merchant.isCourier()) {
+            player.sendSystemMessage(Component.translatable("message.village-quest.caravan_crew.courier",
+                    merchant.getDisplayName(), routeName(ownerData, route))
+                    .withStyle(ChatFormatting.AQUA), false);
+            return;
+        }
+        switch (merchant.getCrewRole()) {
+            case MASTER -> { }
+            case TRADER -> interactWithTrader(world, player, key, ownerData, merchant);
+            case GUARD -> player.sendSystemMessage(Component.translatable(
+                    "message.village-quest.caravan_crew.guard", merchant.getDisplayName(),
+                    status(ownerData, route).label(), quality(ownerData, route))
+                    .withStyle(ChatFormatting.GRAY), false);
+            case COURIER -> { }
+        }
+    }
+
+    private static void sendMasterView(ServerLevel world, ServerPlayer player, RouteKey key,
+                                       PlayerQuestData ownerData, CaravanMerchantEntity merchant) {
+        int route = key.routeIndex();
+        int progress = clampProgress(routeInt(ownerData, route, "progress"));
+        int direction = routeInt(ownerData, route, "direction") < 0 ? -1 : 1;
+        TradeRouteAvailability.Reason availability = routeAvailability(world, ownerData, route);
+        TradeRouteEventType incident = event(ownerData, route);
+        Component hub = Component.translatable(isPlayerYard(ownerData)
+                ? "text.village-quest.trade_route.node.homestead"
+                : "text.village-quest.trade_route.node.caravan_yard");
+        Component village = de.quest.kingdom.KingdomVillageService.name(world,
+                routeInt(ownerData, route, "x"), routeInt(ownerData, route, "z"), villageName(ownerData, route));
+        Component journey = Component.translatable("screen.village-quest.caravan_master.journey",
+                direction < 0 ? village : hub, direction < 0 ? hub : village);
+        Component cargo = RegionalDispatchService.caravanCargoLine(ownerData, route);
+        Component quote = Component.translatable(incident != null
+                ? "screen.village-quest.caravan_master.quote_incident"
+                : availability != TradeRouteAvailability.Reason.ACTIVE
+                ? "screen.village-quest.caravan_master.quote_paused"
+                : GuildConvoyService.currentLeg(world, key.ownerId(),
+                TradeRouteData.connectionId(ownerData, route))
+                ? "screen.village-quest.caravan_master.quote_convoy"
+                : cargo != null
+                ? "screen.village-quest.caravan_master.quote_cargo"
+                : "screen.village-quest.caravan_master.quote_safe");
+        var standing = data(world, player.getUUID()).socialReputation();
+        if (de.quest.reputation.SocialReputationService.enabled() && standing.activeCase() == null && standing.probationRemaining() == 0
+                && incident == null && availability == TradeRouteAvailability.Reason.ACTIVE && cargo == null
+                && !GuildConvoyService.currentLeg(world, key.ownerId(), TradeRouteData.connectionId(ownerData, route))) {
+            if (standing.guildTrust() >= 60) quote = Component.translatable("screen.village-quest.caravan_master.quote_respected");
+            else if (standing.guildTrust() >= 20) quote = Component.translatable("screen.village-quest.caravan_master.quote_reliable");
+        }
+        ServerPlayNetworking.send(player, new VillageNetworkPayloads.CaravanMasterPayload(
+                merchant.getUUID(), merchant.getDisplayName(), routeName(ownerData, route), journey,
+                CaravanMasterArrival.legPercent(progress, direction),
+                CaravanMasterArrival.secondsToNextStop(progress, direction, movementStep(ownerData, route),
+                        availability == TradeRouteAvailability.Reason.ACTIVE),
+                quality(ownerData, route), status(ownerData, route).label(),
+                availability == TradeRouteAvailability.Reason.ACTIVE
+                        ? Component.translatable("screen.village-quest.caravan_master.active")
+                        : availability.label(),
+                incident == null ? Component.empty() : incident.label(),
+                cargo == null ? Component.translatable("screen.village-quest.caravan_master.no_cargo") : cargo,
+                quote, key.ownerId().equals(player.getUUID())
+                        && hasRouteAccess(world, player.getUUID())));
+        de.quest.reputation.ReputationInteractionService.sendJournal(player);
+    }
+
+    public static void handleMasterAction(ServerPlayer player,
+                                          VillageNetworkPayloads.CaravanMasterActionPayload payload) {
+        if (player == null || payload == null || !(player.level() instanceof ServerLevel world)
+                || world != world.getServer().overworld()) return;
+        Entity entity = world.getEntity(payload.entityId());
+        if (!(entity instanceof CaravanMerchantEntity merchant) || !merchant.isAlive()
+                || merchant.isRemoved() || merchant.isCourier()
+                || merchant.getCrewRole() != CaravanRole.MASTER || player.distanceToSqr(entity) > 64.0) return;
+        RouteKey key = ENTITY_ROUTES.get(entity.getUUID());
+        if (key == null || merchant.getRouteIndex() != key.routeIndex()) return;
+        PlayerQuestData ownerData = data(world, key.ownerId());
+        if (key.routeIndex() < 0 || key.routeIndex() >= Math.min(MAX_ROUTES,
+                ownerData.getTradeRouteInt(ROUTE_COUNT))) return;
+        if (payload.action() == VillageNetworkPayloads.CaravanMasterActionPayload.REFRESH) {
+            sendMasterView(world, player, key, ownerData, merchant);
+        } else if (payload.action() == VillageNetworkPayloads.CaravanMasterActionPayload.VIEW_ROUTE
+                && key.ownerId().equals(player.getUUID())
+                && hasRouteAccess(world, player.getUUID())) {
+            openMap(world, player);
+        }
+    }
+
+    private static void interactWithTrader(ServerLevel world, ServerPlayer player, RouteKey key,
+                                           PlayerQuestData ownerData, CaravanMerchantEntity merchant) {
+        if (!de.quest.reputation.ReputationAccessService.require(world, player,
+                de.quest.reputation.SocialReputationRules.ServiceKind.CARAVAN_TRADE, null)) return;
+        if (de.quest.reputation.SocialReputationService.enabled() && data(world, player.getUUID()).socialReputation().traderWarningActive(
+                CaravanCrewLifecycle.resolve(ownerData, key.routeIndex(), merchant.getCrewRole()).id(), QuestState.get(world.getServer()).socialServerTick())) {
+            player.sendSystemMessage(Component.translatable("message.village-quest.caravan_crew.trader_warning_pause"), false); return;
+        }
+        int villageIndex = routeInt(ownerData, key.routeIndex(), "village_index") - 1;
+        List<CaravanTraderOffers.Offer> offers = villageIndex < 0
+                ? CaravanTraderOffers.general()
+                : CaravanTraderOffers.forVillage(VillageBondType.byId(
+                        ownerData.getTradeRouteInt(VillageBondService.villageKey(villageIndex, "type")) - 1));
+        UUID connection = TradeRouteData.ensureConnectionId(ownerData, key.routeIndex());
+        TraderSelection previous = TRADER_SELECTIONS.get(player.getUUID());
+        int selected = previous != null && previous.connection().equals(connection)
+                ? previous.index() : -1;
+        if (!player.isShiftKeyDown()) {
+            selected = (selected + 1) % offers.size();
+            TRADER_SELECTIONS.put(player.getUUID(), new TraderSelection(connection, selected));
+            CaravanTraderOffers.Offer offer = offers.get(selected);
+            player.sendSystemMessage(Component.translatable("message.village-quest.caravan_crew.trader_offer",
+                    merchant.getDisplayName(), selected + 1, offers.size(), offer.count(),
+                    new ItemStack(offer.item()).getHoverName(),
+                    CurrencyService.formatBalance(offer.silvermarks()))
+                    .withStyle(ChatFormatting.AQUA), false);
+            return;
+        }
+        selected = Math.max(0, selected);
+        TRADER_SELECTIONS.put(player.getUUID(), new TraderSelection(connection, selected));
+        CaravanTraderOffers.Offer offer = offers.get(selected);
+        PlayerQuestData buyer = data(world, player.getUUID());
+        String prefix = "caravan_trade_" + connection + "_";
+        int day = (int) Math.min(Integer.MAX_VALUE, de.quest.util.TimeUtil.currentDay());
+        day = Math.max(day, buyer.getTradeRouteInt(prefix + "day"));
+        int purchases = buyer.getTradeRouteInt(prefix + "day") == day
+                ? buyer.getTradeRouteInt(prefix + "count") : 0;
+        int limit = de.quest.reputation.SocialReputationRules.decision(
+                de.quest.reputation.SocialReputationRules.ServiceKind.CARAVAN_TRADE, buyer.socialReputation(), null).caravanBuyLimit();
+        if (purchases >= limit) {
+            player.sendSystemMessage(Component.translatable(
+                    "message.village-quest.caravan_crew.trader_daily_limit", limit)
+                    .withStyle(ChatFormatting.YELLOW), false);
+            return;
+        }
+        if (!CurrencyService.removeBalance(world, player.getUUID(), offer.silvermarks())) {
+            player.sendSystemMessage(Component.translatable("message.village-quest.caravan_crew.trader_funds",
+                    CurrencyService.formatBalance(offer.silvermarks()))
+                    .withStyle(ChatFormatting.RED), false);
+            return;
+        }
+        ItemStack stack = new ItemStack(offer.item(), offer.count());
+        if (!player.getInventory().add(stack)) player.drop(stack, false);
+        buyer.setTradeRouteInt(prefix + "day", day);
+        buyer.setTradeRouteInt(prefix + "count", purchases + 1);
+        QuestState.get(world.getServer()).setDirty();
+        player.sendSystemMessage(Component.translatable("message.village-quest.caravan_crew.trader_bought",
+                offer.count(), new ItemStack(offer.item()).getHoverName())
+                .withStyle(ChatFormatting.GREEN), false);
+    }
+
+    private record TraderSelection(UUID connection, int index) {}
+
+    public record AttackOpportunity(UUID incident,UUID village,UUID connection,BlockPos position) {}
+    /** Read only the owner's existing loaded ambush. No enemy, path task, chunk ticket or incident is created. */
+    public static java.util.Optional<AttackOpportunity> attackOpportunity(ServerPlayer player) {
+        if(player==null || !(player.level() instanceof ServerLevel world) || world!=world.getServer().overworld()
+                || !world.getServer().isSameThread() || world.getDifficulty()==net.minecraft.world.Difficulty.PEACEFUL
+                || VillageQuestServerConfig.get().caravanVisualMode()==VillageQuestServerConfig.CaravanVisualMode.MAP_ONLY
+                || !player.isAlive() || player.isSpectator() || player.isCreative() || player.isSleeping() || player.isPassenger()
+                || !player.onGround() || !de.quest.kingdom.KingdomAttackPolicy.equipped(player.getHealth(),player.getArmorValue(),
+                    player.getAttributeValue(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE)) || player.hurtTime>0 || player.isUsingItem()
+                || player.getLastHurtByMob()!=null && player.tickCount-player.getLastHurtByMobTimestamp()<400
+                || player.getLastHurtMob()!=null && player.tickCount-player.getLastHurtMobTimestamp()<400) return java.util.Optional.empty();
+        var ownerData=data(world,player.getUUID());
+        var state=de.quest.kingdom.LivingKingdomsState.get(world.getServer());
+        for(int index=0;index<Math.min(MAX_ROUTES,ownerData.getTradeRouteInt(ROUTE_COUNT));index++) {
+            int elapsed=routeInt(ownerData,index,"event_online_seconds");
+            if(event(ownerData,index)!=TradeRouteEventType.FALSE_DISTRESS || routeInt(ownerData,index,"event_progress")!=1
+                    || elapsed<0 || elapsed>TradeRouteIncidentPolicy.TIMEOUT_ONLINE_SECONDS-30) continue;
+            var runtime=ACTIVE_CARAVANS.get(new RouteKey(player.getUUID(),index)); if(runtime==null || runtime.attackerIds.isEmpty() || runtime.attackerIds.size()>3) continue;
+            var route=KingdomRouteConnections.route(state,de.quest.village.VillageLifeState.get(world.getServer()),player.getUUID(),ownerData,index);
+            if(route.filter(c -> c.reason().equals("incident")).isEmpty()) continue;
+            // Outbound cargo has one unambiguous affected supply village. Return trips stay neutral.
+            if(routeInt(ownerData,index,"direction")<0) continue;
+            UUID village=route.get().destination();
+            if(runtime.merchantIds.isEmpty() || runtime.merchantIds.stream().map(world::getEntity).anyMatch(e ->
+                    !(e instanceof CaravanMerchantEntity body) || !body.isAlive() || body.isRemoved() || body.getHealth()<12)) continue;
+            var merchant=runtime.merchantIds.stream().map(world::getEntity).filter(e -> e instanceof CaravanMerchantEntity)
+                    .map(e -> (CaravanMerchantEntity)e).filter(e -> e.isAlive() && !e.isRemoved() && e.getHealth()>=12 && player.distanceToSqr(e)<=144 && player.hasLineOfSight(e)).findFirst();
+            if(merchant.isEmpty()) continue;
+            var target=merchant.get();
+            boolean loaded=de.quest.kingdom.NativeNpcPathPolicy.loaded(player.blockPosition(),0,24,
+                    (x,z) -> world.hasChunkAt(new BlockPos(x*16,player.blockPosition().getY(),z*16)));
+            if(!loaded) continue;
+            boolean visible=true;
+            for(UUID attacker:runtime.attackerIds) {
+                var enemy=world.getEntity(attacker);
+                if(!(enemy instanceof net.minecraft.world.entity.LivingEntity alive) || !alive.isAlive() || alive.isRemoved()
+                        || alive.isInvulnerable() || alive instanceof net.minecraft.world.entity.Mob mob && mob.isNoAi()
+                        || player.distanceToSqr(alive)>144 || player.distanceToSqr(alive)<16 || !player.hasLineOfSight(alive)) { visible=false; break; }
+            }
+            if(!visible || !loadedStraightAccess(world,player.blockPosition(),target.blockPosition())) continue;
+            var evidence=new de.quest.kingdom.KingdomAttackPolicy.Evidence(loaded,true,true,true,visible,true,true,
+                    (TradeRouteIncidentPolicy.TIMEOUT_ONLINE_SECONDS-routeInt(ownerData,index,"event_online_seconds"))*20);
+            if(!de.quest.kingdom.KingdomAttackPolicy.eligible(evidence)) continue;
+            try {
+                UUID incident=UUID.fromString(ownerData.getTradeRouteString(routeKey(index,"social_incident_id")));
+                if(incident.equals(new UUID(0,0))) continue;
+                return java.util.Optional.of(new AttackOpportunity(incident,village,route.get().id(),target.blockPosition()));
+            } catch(IllegalArgumentException unknownIncident) { /* No reliable ID, no blame. */ }
+        }
+        return java.util.Optional.empty();
+    }
+    private static boolean loadedStraightAccess(ServerLevel world,BlockPos from,BlockPos to) {
+        int steps=Math.max(Math.abs(from.getX()-to.getX()),Math.abs(from.getZ()-to.getZ()));
+        if(steps>12 || Math.abs(from.getY()-to.getY())>2) return false;
+        BlockPos previous=from;
+        for(int i=0;i<=steps;i++) {
+            double fraction=steps==0?0:i/(double)steps;
+            int x=(int)Math.round(from.getX()+(to.getX()-from.getX())*fraction),z=(int)Math.round(from.getZ()+(to.getZ()-from.getZ())*fraction);
+            if(!world.hasChunkAt(new BlockPos(x,previous.getY(),z))) return false;
+            BlockPos safe=TradeRouteSurfaceResolver.safeSurfaceNearY(world,x,previous.getY(),z,1);
+            if(safe==null || Math.abs(safe.getY()-previous.getY())>1) return false;
+            if(x!=previous.getX() && z!=previous.getZ() && (TradeRouteSurfaceResolver.safeSurfaceNearY(world,x,previous.getY(),previous.getZ(),1)==null
+                    || TradeRouteSurfaceResolver.safeSurfaceNearY(world,previous.getX(),previous.getY(),z,1)==null)) return false;
+            previous=safe;
+        }
+        return Math.abs(previous.getY()-to.getY())<=1;
+    }
+
+    public static void onMonsterKill(ServerLevel world, ServerPlayer player, Entity killedEntity) {
+        if (world == null || world != world.getServer().overworld() || killedEntity == null) {
+            return;
+        }
+        RouteKey key = ATTACKER_ROUTES.remove(killedEntity.getUUID());
         if (key == null) {
             return;
         }
         CaravanRuntime runtime = ACTIVE_CARAVANS.get(key);
         if (runtime != null) {
-            runtime.attackerIds.remove(killedEntity.getUuid());
+            runtime.attackerIds.remove(killedEntity.getUUID());
+            EncounterEntityLifecycle.forget(killedEntity.getUUID());
         }
         boolean attackersRemain = ATTACKER_ROUTES.containsValue(key);
         if (!attackersRemain) {
             PlayerQuestData ownerData = data(world, key.ownerId());
-            resolveEvent(world, player, key, ownerData, TradeRouteEventType.FALSE_DISTRESS);
+            if (event(ownerData, key.routeIndex()) != TradeRouteEventType.FALSE_DISTRESS
+                    || routeInt(ownerData, key.routeIndex(), "event_progress") != 1) {
+                return;
+            }
+            if (TradeRouteIncidentPolicy.canCompleteAmbush(key.ownerId(),
+                    player == null ? null : player.getUUID())) {
+                resolveEvent(world, player, key, ownerData, TradeRouteEventType.FALSE_DISTRESS);
+            } else {
+                setRouteInt(ownerData, key.routeIndex(), "event_progress", 2);
+                QuestState.get(world.getServer()).setDirty();
+            }
         }
     }
 
-    public static Text activeRouteTargetLabel(ServerWorld world, UUID playerId) {
+    public static Component activeRouteTargetLabel(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
             return null;
         }
@@ -882,7 +1517,7 @@ public final class TradeRouteService {
         return null;
     }
 
-    public static BlockPos activeRouteTarget(ServerWorld world, UUID playerId) {
+    public static BlockPos activeRouteTarget(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
             return null;
         }
@@ -900,27 +1535,48 @@ public final class TradeRouteService {
         return null;
     }
 
-    public static void resetRoutes(ServerWorld world, UUID playerId) {
+    public static void resetRoutes(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
             return;
         }
         PlayerQuestData data = data(world, playerId);
         data.clearTradeRoutes();
         removeOwnerRuntimes(world, playerId);
-        QuestState.get(world.getServer()).setDirty(true);
+        QuestState.get(world.getServer()).setDirty();
     }
 
-    public static void adminCreateTestNetwork(ServerWorld world, ServerPlayerEntity player) {
+    /**
+     * Removes the persistent route fixture created by the shrine test setup.
+     * The separate ledger milestone is retained only when real story/project
+     * progression still grants route access after the fixture is removed.
+     */
+    public static void adminReverseShrineTestNetwork(ServerLevel world,
+                                                     UUID playerId,
+                                                     boolean keepLedgerMilestone) {
+        if (world == null || playerId == null) {
+            return;
+        }
+        PlayerQuestData data = data(world, playerId);
+        data.clearTradeRoutes();
+        data.setTradeRouteInt("guild_contracts_completed", 0);
+        if (!keepLedgerMilestone) {
+            data.setMilestoneFlag(LEDGER_GRANT_RECORDED, false);
+        }
+        removeOwnerRuntimes(world, playerId);
+        QuestState.get(world.getServer()).setDirty();
+    }
+
+    public static void adminCreateTestNetwork(ServerLevel world, ServerPlayer player) {
         if (world == null || player == null) {
             return;
         }
-        removeOwnerRuntimes(world, player.getUuid());
-        PlayerQuestData data = data(world, player.getUuid());
+        removeOwnerRuntimes(world, player.getUUID());
+        PlayerQuestData data = data(world, player.getUUID());
         data.clearTradeRoutes();
-        VillageProjectService.unlock(world, player.getUuid(), VillageProjectType.CARAVAN_YARD);
+        VillageProjectService.unlock(world, player.getUUID(), VillageProjectType.CARAVAN_YARD);
 
         ShadowsTradeRoadEncounterService.VillageMarker village =
-                ShadowsTradeRoadEncounterService.currentVillage(world, player.getBlockPos());
+                ShadowsTradeRoadEncounterService.currentVillage(world, player.blockPosition());
         int homeX = village == null ? player.getBlockX() : village.centerX();
         int homeZ = village == null ? player.getBlockZ() : village.centerZ();
         if (village == null) {
@@ -966,7 +1622,7 @@ public final class TradeRouteService {
         setRouteInt(data, 1, "upgrades", TradeRouteUpgrade.REINFORCED_WHEELS.bit()
                 | TradeRouteUpgrade.LANTERN_CREW.bit());
         data.setTradeRouteInt("guild_contracts_completed", 12);
-        CurrencyService.addBalance(world, player.getUuid(), 300);
+        CurrencyService.addBalance(world, player.getUUID(), 300);
         setRouteWaypoints(data, 0, List.of(
                 new RoutePoint(homeX + 70, homeZ + 34),
                 new RoutePoint(homeX + 148, homeZ + 30)
@@ -989,80 +1645,148 @@ public final class TradeRouteService {
         ));
         setRouteInt(data, 0, "event", TradeRouteEventType.BROKEN_WHEEL.id());
         setRouteInt(data, 0, "event_day", currentWorldDay(world));
+        setRouteInt(data, 0, "event_online_seconds", 0);
         setRouteInt(data, 2, "event", TradeRouteEventType.FALSE_DISTRESS.id());
         setRouteInt(data, 2, "event_day", currentWorldDay(world));
-        QuestState.get(world.getServer()).setDirty(true);
+        setRouteInt(data, 2, "event_online_seconds", 0);
+        QuestState.get(world.getServer()).setDirty();
         grantLedger(world, player);
         giveTestWayfinder(player);
         openMap(world, player);
     }
 
-    public static boolean adminSetTestEvent(ServerWorld world,
-                                            ServerPlayerEntity player,
+    public static boolean adminSetTestEvent(ServerLevel world,
+                                            ServerPlayer player,
                                             int routeIndex,
                                             String eventKey) {
         if (world == null || player == null) {
             return false;
         }
-        PlayerQuestData data = data(world, player.getUuid());
+        PlayerQuestData data = data(world, player.getUUID());
         int count = Math.min(MAX_ROUTES, data.getTradeRouteInt(ROUTE_COUNT));
         if (routeIndex < 0 || routeIndex >= count) {
-            player.sendMessage(Text.translatable("message.village-quest.trade_route.route_invalid", count)
-                    .formatted(Formatting.RED), false);
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.route_invalid", count)
+                    .withStyle(ChatFormatting.RED), false);
             return false;
         }
         TradeRouteEventType selected = "clear".equalsIgnoreCase(eventKey)
                 ? null
                 : TradeRouteEventType.byKey(eventKey);
         if (selected == null && !"clear".equalsIgnoreCase(eventKey)) {
-            player.sendMessage(Text.translatable("command.village-quest.questadmin.routes.testevent.invalid", eventKey)
-                    .formatted(Formatting.RED), false);
+            player.sendSystemMessage(Component.translatable("command.village-quest.questadmin.routes.testevent.invalid", eventKey)
+                    .withStyle(ChatFormatting.RED), false);
             return false;
         }
         setRouteInt(data, routeIndex, "event", selected == null ? 0 : selected.id());
+        data.setTradeRouteString(routeKey(routeIndex, "social_incident_id"), "");
         setRouteInt(data, routeIndex, "event_day", selected == null ? 0 : currentWorldDay(world));
+        setRouteInt(data, routeIndex, "event_online_seconds", 0);
         setRouteInt(data, routeIndex, "event_progress", 0);
-        removeRuntime(world, new RouteKey(player.getUuid(), routeIndex));
-        QuestState.get(world.getServer()).setDirty(true);
-        SurveyorCompassQuestService.selectRouteEventMode(world, player.getUuid());
-        player.sendMessage(Text.translatable("command.village-quest.questadmin.routes.testevent",
+        removeRuntime(world, new RouteKey(player.getUUID(), routeIndex));
+        QuestState.get(world.getServer()).setDirty();
+        SurveyorCompassQuestService.selectRouteEventMode(world, player.getUUID());
+        player.sendSystemMessage(Component.translatable("command.village-quest.questadmin.routes.testevent",
                 routeName(routeIndex), selected == null
-                        ? Text.translatable("text.village-quest.trade_route.event.none")
-                        : selected.label()).formatted(Formatting.GREEN), false);
+                        ? Component.translatable("text.village-quest.trade_route.event.none")
+                        : selected.label()).withStyle(ChatFormatting.GREEN), false);
         if (selected != null) {
-            player.sendMessage(selected.help().copy().formatted(Formatting.YELLOW), false);
+            player.sendSystemMessage(selected.help().copy().withStyle(ChatFormatting.YELLOW), false);
         }
         return true;
     }
 
-    private static void tickRoute(ServerWorld world, UUID ownerId, PlayerQuestData data, int routeIndex) {
+    /** Positions Route 1 just before the midpoint used by the Last Relay guarantee. */
+    public static boolean adminPrepareLastRelayTest(ServerLevel world, ServerPlayer player) {
+        if (world == null || player == null) return false;
+        PlayerQuestData data = data(world, player.getUUID());
+        if (Math.min(MAX_ROUTES, data.getTradeRouteInt(ROUTE_COUNT)) <= 0) return false;
+        setRouteInt(data, 0, "event", 0);
+        setRouteInt(data, 0, "event_day", 0);
+        setRouteInt(data, 0, "event_online_seconds", 0);
+        setRouteInt(data, 0, "event_progress", 0);
+        setRouteInt(data, 0, "progress", PROGRESS_MAX / 2 - 100);
+        setRouteInt(data, 0, "direction", 1);
+        data.setTradeRouteFlag(routeKey(0, "stopped"), false);
+        removeRuntime(world, new RouteKey(player.getUUID(), 0));
+        QuestState.get(world.getServer()).setDirty();
+        SurveyorCompassQuestService.selectRouteEventMode(world, player.getUUID());
+        return true;
+    }
+
+    /** Rebinds one synthetic QA route to a real inhabited village for authoritative board testing. */
+    public static boolean adminSetTestDestination(ServerLevel world, ServerPlayer player,
+                                                  int routeIndex, int x, int z) {
+        if (world == null || player == null || routeIndex < 0 || routeIndex >= MAX_ROUTES) return false;
+        PlayerQuestData data = data(world, player.getUUID());
+        if (routeIndex >= Math.min(MAX_ROUTES, data.getTradeRouteInt(ROUTE_COUNT))) return false;
+        setRouteInt(data, routeIndex, "x", x);
+        setRouteInt(data, routeIndex, "z", z);
+        setRouteWaypoints(data, routeIndex, List.of());
+        removeRuntime(world, new RouteKey(player.getUUID(), routeIndex));
+        QuestState.get(world.getServer()).setDirty();
+        return true;
+    }
+
+    /** Clears every seeded incident for shrine-only test setups without changing normal route tests. */
+    public static void adminClearAllTestEvents(ServerLevel world, UUID playerId) {
+        if (world == null || playerId == null) return;
+        PlayerQuestData data = data(world, playerId);
+        int count = Math.min(MAX_ROUTES, Math.max(0, data.getTradeRouteInt(ROUTE_COUNT)));
+        for (int routeIndex = 0; routeIndex < count; routeIndex++) {
+            setRouteInt(data, routeIndex, "event", 0);
+            setRouteInt(data, routeIndex, "event_day", 0);
+            setRouteInt(data, routeIndex, "event_online_seconds", 0);
+            setRouteInt(data, routeIndex, "event_progress", 0);
+            removeRuntime(world, new RouteKey(playerId, routeIndex));
+        }
+        QuestState.get(world.getServer()).setDirty();
+    }
+
+    private static void tickRoute(ServerLevel world, UUID ownerId, PlayerQuestData data, int routeIndex) {
         RouteKey key = new RouteKey(ownerId, routeIndex);
+        if (routeAvailability(world, data, routeIndex).suspendsForSettlement()) {
+            removeRuntime(world, key);
+            return;
+        }
         if (isStopped(data, routeIndex)) {
-            discardRouteEntities(world, key);
             return;
         }
 
         boolean mapOnly = VillageQuestServerConfig.get().caravanVisualMode()
                 == VillageQuestServerConfig.CaravanVisualMode.MAP_ONLY;
         TradeRouteEventType currentEvent = event(data, routeIndex);
+        ServerPlayer owner = world.getServer().getPlayerList().getPlayer(ownerId);
+        if (currentEvent != null && (owner == null || owner.level() != world)) {
+            removeRuntime(world, key);
+            return;
+        }
         if (mapOnly && currentEvent != null) {
             clearEventForMapOnlyMode(world, key, data);
             currentEvent = null;
         }
         if (currentEvent != null) {
-            int eventDay = routeInt(data, routeIndex, "event_day");
-            if (currentWorldDay(world) > eventDay + 2) {
+            int onlineSeconds = TradeRouteIncidentPolicy.advanceOnlineSeconds(
+                    routeInt(data, routeIndex, "event_online_seconds"), true);
+            setRouteInt(data, routeIndex, "event_online_seconds", onlineSeconds);
+            QuestState.get(world.getServer()).setDirty();
+            if (TradeRouteIncidentPolicy.timedOut(onlineSeconds)) {
                 failEvent(world, key, data, currentEvent);
                 currentEvent = null;
             } else if (currentEvent == TradeRouteEventType.STORM_CAMP) {
                 tickStormCamp(world, key, data);
-            } else if (currentEvent == TradeRouteEventType.FALSE_DISTRESS
-                    && routeInt(data, key.routeIndex(), "event_progress") > 0) {
-                tickAmbush(world, key, data);
+            } else if (currentEvent == TradeRouteEventType.FALSE_DISTRESS) {
+                DifficultyObjectiveMode eventMode = ensureRouteEventMode(world, key, data);
+                if (routeInt(data, key.routeIndex(), "event_progress") > 0) {
+                    if (eventMode == DifficultyObjectiveMode.PEACEFUL) {
+                        tickPeacefulRouteEmergency(world, key, data);
+                    } else {
+                        tickAmbush(world, key, data);
+                    }
+                }
             }
         }
 
-        if (currentEvent == null) {
+        if (currentEvent == null && !shouldHoldObservedProgress(world, key, data)) {
             advanceRoute(world, ownerId, data, routeIndex);
         }
         if (mapOnly) {
@@ -1074,18 +1798,36 @@ public final class TradeRouteService {
         }
     }
 
-    private static void clearEventForMapOnlyMode(ServerWorld world, RouteKey key, PlayerQuestData data) {
+    private static void clearEventForMapOnlyMode(ServerLevel world, RouteKey key, PlayerQuestData data) {
         setRouteInt(data, key.routeIndex(), "event", 0);
         setRouteInt(data, key.routeIndex(), "event_day", 0);
+        setRouteInt(data, key.routeIndex(), "event_online_seconds", 0);
         setRouteInt(data, key.routeIndex(), "event_progress", 0);
+        setRouteInt(data, key.routeIndex(), "event_mode", 0);
         CaravanRuntime runtime = ACTIVE_CARAVANS.get(key);
         if (runtime != null) {
             discardAttackers(world, runtime);
         }
-        QuestState.get(world.getServer()).markDirty();
+        QuestState.get(world.getServer()).setDirty();
     }
 
-    private static void advanceRoute(ServerWorld world, UUID ownerId, PlayerQuestData data, int routeIndex) {
+    private static boolean shouldHoldObservedProgress(ServerLevel world,
+                                                      RouteKey key,
+                                                      PlayerQuestData data) {
+        CaravanRuntime runtime = ACTIVE_CARAVANS.get(key);
+        if (runtime == null || runtime.lastActual == null || !runtimeHasLivingMerchant(world, runtime)) {
+            return false;
+        }
+        if (CaravanProtectionService.response(TradeRouteData.connectionId(data, key.routeIndex()),
+                QuestState.get(world.getServer()).socialServerTick()) != null) return true;
+        BlockPos expected = routePosition(world, data, key.routeIndex());
+        boolean observed = nearestPlayer(world, runtime.lastActual, MATERIALIZE_RADIUS) != null
+                || nearestPlayer(world, expected, MATERIALIZE_RADIUS) != null;
+        double drift = Math.sqrt(runtime.lastActual.distSqr(expected));
+        return TradeRouteNavigationPolicy.holdVirtualProgress(observed, drift, runtime.stuckSeconds);
+    }
+
+    private static void advanceRoute(ServerLevel world, UUID ownerId, PlayerQuestData data, int routeIndex) {
         RouteKey key = new RouteKey(ownerId, routeIndex);
         int progress = clampProgress(routeInt(data, routeIndex, "progress"));
         int direction = routeInt(data, routeIndex, "direction") < 0 ? -1 : 1;
@@ -1110,24 +1852,95 @@ public final class TradeRouteService {
             if (patrolCycles > 0) {
                 setRouteInt(data, routeIndex, "patrol_cycles", patrolCycles - 1);
             }
-            payArrival(world, ownerId, data, routeIndex);
+            if (!data.hasTradeRouteFlag(routeKey(routeIndex, "crew_journey_interrupted"))) {
+                payArrival(world, ownerId, data, routeIndex);
+                onDispatchArrival(world, ownerId, data, routeIndex, progress);
+            }
+            safeCrewDeparture(world, ownerId, data, routeIndex);
         }
         setRouteInt(data, routeIndex, "progress", progress);
         boolean isFerry = ferryState(data, routeIndex, progress, direction).active();
         if (wasFerry != isFerry) {
             BlockPos soundPosition = routePosition(world, data, routeIndex, progress);
-            world.playSound(null, soundPosition, SoundEvents.ENTITY_BOAT_PADDLE_WATER,
-                    SoundCategory.PLAYERS, 0.55f, isFerry ? 0.9f : 1.15f);
+            world.playSound(null, soundPosition, SoundEvents.BOAT_PADDLE_WATER,
+                    SoundSource.PLAYERS, 0.55f, isFerry ? 0.9f : 1.15f);
         }
 
         if (!arrived && crossedMidpoint(oldProgress, progress)) {
             maybeStartEvent(world, ownerId, data, routeIndex);
         }
-        QuestState.get(world.getServer()).setDirty(true);
+        QuestState.get(world.getServer()).setDirty();
+    }
+
+    private static void advanceOfflineRoute(ServerLevel world,
+                                            UUID ownerId,
+                                            PlayerQuestData data,
+                                            int routeIndex,
+                                            int elapsedSeconds) {
+        if (elapsedSeconds <= 0 || isStopped(data, routeIndex)
+                || routeAvailability(world, data, routeIndex).suspendsForSettlement()
+                || event(data, routeIndex) != null) {
+            return;
+        }
+        int progress = clampProgress(routeInt(data, routeIndex, "progress"));
+        int direction = routeInt(data, routeIndex, "direction") < 0 ? -1 : 1;
+        long remaining = (long) movementStep(data, routeIndex) * elapsedSeconds;
+        while (remaining > 0L) {
+            int toBoundary = direction > 0 ? PROGRESS_MAX - progress : progress;
+            if (remaining < toBoundary) {
+                progress += direction * (int) remaining;
+                remaining = 0L;
+                continue;
+            }
+            progress = direction > 0 ? PROGRESS_MAX : 0;
+            remaining -= toBoundary;
+            direction *= -1;
+            setRouteInt(data, routeIndex, "runs", routeInt(data, routeIndex, "runs") + 1);
+            int patrolCycles = routeInt(data, routeIndex, "patrol_cycles");
+            if (patrolCycles > 0) {
+                setRouteInt(data, routeIndex, "patrol_cycles", patrolCycles - 1);
+            }
+            if (!data.hasTradeRouteFlag(routeKey(routeIndex, "crew_journey_interrupted"))) {
+                payArrival(world, ownerId, data, routeIndex);
+                onDispatchArrival(world, ownerId, data, routeIndex, progress);
+            }
+            safeCrewDeparture(world, ownerId, data, routeIndex);
+            if (toBoundary == 0 && remaining > 0L) {
+                continue;
+            }
+        }
+        setRouteInt(data, routeIndex, "progress", progress);
+        setRouteInt(data, routeIndex, "direction", direction);
+        QuestState.get(world.getServer()).setDirty();
+    }
+
+    private static TradeRouteAvailability.Reason routeAvailability(ServerLevel world,
+                                                                  PlayerQuestData data,
+                                                                  int routeIndex) {
+        VillageLifeState life = VillageLifeState.get(world.getServer());
+        String dimension = world.dimension().identifier().toString();
+        VillageLifeState.Status hub = isPlayerYard(data) || !hasHome(data)
+                ? VillageLifeState.Status.ACTIVE
+                : life.status(new VillageLifeState.VillageKey(dimension,
+                        data.getTradeRouteInt(HOME_X), data.getTradeRouteInt(HOME_Z)));
+        VillageLifeState.Status destination = life.status(new VillageLifeState.VillageKey(
+                dimension, routeInt(data, routeIndex, "x"), routeInt(data, routeIndex, "z")));
+        TradeRouteAvailability.Reason reason = TradeRouteAvailability.reason(isStopped(data, routeIndex),
+                activeSurveyIndex(data) == routeIndex, event(data, routeIndex) != null,
+                isPlayerYard(data), hub, destination);
+        if (reason.suspendsForSettlement() || reason == TradeRouteAvailability.Reason.SURVEY_IN_PROGRESS) return reason;
+        return KingdomRouteEndpoints.requiresResurvey(de.quest.kingdom.LivingKingdomsState.get(world.getServer()),
+                data, dimension, routeIndex) ? TradeRouteAvailability.Reason.ANCHOR_MOVED : reason;
+    }
+
+    static boolean settlementAvailable(ServerLevel world, PlayerQuestData data, int routeIndex) {
+        return world != null && data != null && routeIndex >= 0
+                && routeIndex < Math.min(MAX_ROUTES, data.getTradeRouteInt(ROUTE_COUNT))
+                && !routeAvailability(world, data, routeIndex).suspendsForSettlement();
     }
 
     private static int movementStep(PlayerQuestData data, int routeIndex) {
-        double distance = Math.max(96.0, routeDistance(data, routeIndex));
+        double distance = Math.max(96.0, routeTraversalDistance(data, routeIndex));
         double blocksPerSecond = routeBlocksPerSecond(data, routeIndex);
         return Math.max(1, (int) Math.round(blocksPerSecond * PROGRESS_MAX / distance));
     }
@@ -1141,9 +1954,11 @@ public final class TradeRouteService {
         return blocksPerSecond;
     }
 
-    private static void maybeStartEvent(ServerWorld world, UUID ownerId, PlayerQuestData data, int routeIndex) {
+    private static void maybeStartEvent(ServerLevel world, UUID ownerId, PlayerQuestData data, int routeIndex) {
+        ServerPlayer owner = world.getServer().getPlayerList().getPlayer(ownerId);
         if (VillageQuestServerConfig.get().caravanVisualMode()
                 == VillageQuestServerConfig.CaravanVisualMode.MAP_ONLY
+                || !TradeRouteIncidentPolicy.canStart(owner != null)
                 || !hasCaravanYard(world, ownerId) || hasActiveEvent(data)
                 || ferryState(data, routeIndex,
                 clampProgress(routeInt(data, routeIndex, "progress")),
@@ -1156,133 +1971,279 @@ public final class TradeRouteService {
             return;
         }
         setRouteInt(data, routeIndex, "event_stamp", runs + 1);
-        if (routeInt(data, routeIndex, "patrol_cycles") > 0) {
+        boolean lastRelayIncident = needsLastRelayIncident(world, ownerId);
+        if(!lastRelayIncident && data.hasTradeRouteFlag(TUTORIAL_EVENT_SEEN)
+                && !TradeRouteIncidentPolicy.ready(data,world.getServer().overworld().getGameTime()))return;
+        if (!lastRelayIncident && routeInt(data, routeIndex, "patrol_cycles") > 0) {
+            return;
+        }
+        int protection = routeInt(data, routeIndex, "incident_protection");
+        if (!lastRelayIncident && protection > 0) {
+            setRouteInt(data, routeIndex, "incident_protection", protection - 1);
+            QuestState.get(world.getServer()).setDirty();
             return;
         }
         int quality = quality(data, routeIndex);
+        TradeRouteIncidentApproach approach = incidentApproach(data, routeIndex);
         int eventChance = Math.max(8, Math.min(40, 38 - quality / 4
                 + (status(data, routeIndex) == TradeRouteStatus.DANGEROUS ? 8 : 0)
                 - (status(data, routeIndex) == TradeRouteStatus.FLOURISHING ? 5 : 0)
                 - (hasUpgrade(data, routeIndex, TradeRouteUpgrade.LANTERN_CREW) ? 4 : 0)
                 - (hasUpgrade(data, routeIndex, TradeRouteUpgrade.WEATHER_COVERS) ? 3 : 0)
                 - (hasUpgrade(data, routeIndex, TradeRouteUpgrade.ESCORTS) ? 6 : 0)
-                - ProsperityService.roadWatchEventReduction(world, ownerId)));
+                - ProsperityService.roadWatchEventReduction(world, ownerId)
+                + approach.eventChanceDelta()));
         boolean tutorialEvent = !data.hasTradeRouteFlag(TUTORIAL_EVENT_SEEN);
         int roll = Math.floorMod(ownerId.hashCode() + routeIndex * 37 + runs * 17, 100);
-        if (!tutorialEvent && roll >= eventChance) {
+        if (!tutorialEvent && !lastRelayIncident && roll >= eventChance) {
             return;
         }
-        if (!tutorialEvent && data.getTradeRouteInt(WARDEN_CHARGES) > 0) {
+        if (!tutorialEvent && !lastRelayIncident && data.getTradeRouteInt(WARDEN_CHARGES) > 0) {
             data.setTradeRouteInt(WARDEN_CHARGES, data.getTradeRouteInt(WARDEN_CHARGES) - 1);
-            ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(ownerId);
-            if (owner != null && ClientPreferenceService.caravanEventNotifications(owner)) {
-                owner.sendMessage(Text.translatable("message.village-quest.roadwarden_horn.prevented",
-                        routeName(routeIndex)) .formatted(Formatting.GOLD), false);
+            if (ClientPreferenceService.caravanEventNotifications(owner)) {
+                owner.sendSystemMessage(Component.translatable("message.village-quest.roadwarden_horn.prevented",
+                        routeName(routeIndex)).withStyle(ChatFormatting.GOLD), false);
             }
             return;
         }
-        TradeRouteEventType[] events = TradeRouteEventType.values();
+        TradeRouteEventType[] events = VillageBondService.hasSigil(world, ownerId)
+                ? TradeRouteEventType.values()
+                : java.util.Arrays.copyOf(TradeRouteEventType.values(), 8);
         TradeRouteEventType selected = events[Math.floorMod(ownerId.hashCode() + routeIndex * 11 + runs * 5, events.length)];
+        data.setTradeRouteString(routeKey(routeIndex, "social_incident_id"), UUID.randomUUID().toString());
         setRouteInt(data, routeIndex, "event", selected.id());
         setRouteInt(data, routeIndex, "event_day", currentWorldDay(world));
+        setRouteInt(data, routeIndex, "event_online_seconds", 0);
         setRouteInt(data, routeIndex, "event_progress", 0);
+        setRouteInt(data, routeIndex, "event_mode",
+                DifficultyObjectiveMode.forDifficulty(world.getDifficulty()).serializedId());
         data.setTradeRouteFlag(TUTORIAL_EVENT_SEEN, true);
+        TradeRouteIncidentPolicy.started(data,world.getServer().overworld().getGameTime());
         SurveyorCompassQuestService.selectRouteEventMode(world, ownerId);
-        ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(ownerId);
-        if (owner != null && ClientPreferenceService.caravanEventNotifications(owner)) {
-            owner.sendMessage(Text.translatable("message.village-quest.trade_route.event.started",
-                    routeName(routeIndex), selected.label()) .formatted(Formatting.RED), false);
-            owner.sendMessage(selected.help().copy() .formatted(Formatting.YELLOW), false);
-            world.playSound(null, owner.getBlockPos(), SoundEvents.EVENT_RAID_HORN.value(), SoundCategory.PLAYERS, 0.45f, 1.35f);
+        if (ClientPreferenceService.caravanEventNotifications(owner)) {
+            owner.sendSystemMessage(Component.translatable("message.village-quest.trade_route.event.started",
+                    routeName(routeIndex), selected.label()).withStyle(ChatFormatting.RED), false);
+            owner.sendSystemMessage(selected.help().copy().withStyle(ChatFormatting.YELLOW), false);
+            world.playSound(null, owner.blockPosition(), SoundEvents.RAID_HORN.value(), SoundSource.PLAYERS, 0.45f, 1.35f);
         }
     }
 
-    private static void tickStormCamp(ServerWorld world, RouteKey key, PlayerQuestData data) {
+    private static boolean needsLastRelayIncident(ServerLevel world, UUID ownerId) {
+        if (world == null || ownerId == null
+                || !StoryQuestService.isActive(world, ownerId, StoryArcType.SHRINES_BETWEEN_ROADS)
+                || StoryQuestService.chapterIndex(world, ownerId, StoryArcType.SHRINES_BETWEEN_ROADS) != 5) {
+            return false;
+        }
+        int contractBaseline = StoryQuestService.getQuestInt(
+                world, ownerId, StoryQuestKeys.SHRINES_RELAY_CONTRACT_BASELINE);
+        int successBaseline = StoryQuestService.getQuestInt(
+                world, ownerId, StoryQuestKeys.SHRINES_RELAY_SUCCESS_BASELINE);
+        return shouldGuaranteeLastRelayIncident(
+                true,
+                StoryQuestService.chapterIndex(world, ownerId, StoryArcType.SHRINES_BETWEEN_ROADS),
+                completedGuildContracts(world, ownerId),
+                contractBaseline,
+                totalRouteSuccesses(world, ownerId),
+                successBaseline);
+    }
+
+    static boolean shouldGuaranteeLastRelayIncident(boolean activeShrineStory,
+                                                    int chapterIndex,
+                                                    int completedContracts,
+                                                    int contractBaseline,
+                                                    int routeSuccesses,
+                                                    int successBaseline) {
+        return activeShrineStory
+                && chapterIndex == 5
+                && completedContracts > contractBaseline
+                && routeSuccesses <= successBaseline;
+    }
+
+    private static void tickStormCamp(ServerLevel world, RouteKey key, PlayerQuestData data) {
         BlockPos target = runtimeInteractionTarget(world, key, data);
-        ServerPlayerEntity helper = nearestPlayer(world, target, EVENT_INTERACTION_RADIUS);
-        if (helper == null) {
+        ServerPlayer owner = world.getServer().getPlayerList().getPlayer(key.ownerId());
+        if (owner == null || owner.level() != world
+                || owner.blockPosition().distSqr(target)
+                > EVENT_INTERACTION_RADIUS * (double) EVENT_INTERACTION_RADIUS) {
             return;
         }
         int seconds = routeInt(data, key.routeIndex(), "event_progress") + 1;
         setRouteInt(data, key.routeIndex(), "event_progress", seconds);
-        QuestState.get(world.getServer()).setDirty(true);
+        QuestState.get(world.getServer()).setDirty();
         if (seconds >= STORM_CAMP_SECONDS) {
-            resolveEvent(world, helper, key, data, TradeRouteEventType.STORM_CAMP);
+            resolveEvent(world, owner, key, data, TradeRouteEventType.STORM_CAMP);
         }
     }
 
-    private static void tickAmbush(ServerWorld world, RouteKey key, PlayerQuestData data) {
-        CaravanRuntime runtime = ACTIVE_CARAVANS.get(key);
-        if (runtime == null) {
+    private static DifficultyObjectiveMode ensureRouteEventMode(ServerLevel world,
+                                                                RouteKey key,
+                                                                PlayerQuestData data) {
+        DifficultyObjectiveState.Transition transition = DifficultyObjectiveState.transition(
+                routeInt(data, key.routeIndex(), "event_mode"), world.getDifficulty());
+        if (transition.switched()) {
+            CaravanRuntime runtime = ACTIVE_CARAVANS.get(key);
+            if (runtime != null) {
+                discardAttackers(world, runtime);
+            }
             setRouteInt(data, key.routeIndex(), "event_progress", 0);
-            QuestState.get(world.getServer()).setDirty(true);
-            return;
         }
-        for (UUID attackerId : List.copyOf(runtime.attackerIds)) {
-            Entity attacker = findEntity(world, attackerId);
-            if (attacker == null || attacker.isRemoved() || !attacker.isAlive()) {
-                runtime.attackerIds.remove(attackerId);
-                ATTACKER_ROUTES.remove(attackerId);
+        if (transition.initialized() || transition.switched()) {
+            setRouteInt(data, key.routeIndex(), "event_mode", transition.persistedValue());
+            QuestState.get(world.getServer()).setDirty();
+        }
+        if (transition.switched()) {
+            ServerPlayer owner = world.getServer().getPlayerList().getPlayer(key.ownerId());
+            if (owner != null) {
+                owner.sendSystemMessage(Component.translatable(
+                        "message.village-quest.difficulty_objective.switched",
+                        Component.translatable(transition.mode() == DifficultyObjectiveMode.PEACEFUL
+                                ? "message.village-quest.difficulty_objective.mode.peaceful"
+                                : "message.village-quest.difficulty_objective.mode.combat")
+                ).withStyle(ChatFormatting.GOLD), false);
             }
         }
-        if (runtime.attackerIds.isEmpty()) {
-            BlockPos target = runtime.lastActual == null ? runtime.lastExpected : runtime.lastActual;
-            ServerPlayerEntity helper = nearestPlayer(world, target, EVENT_INTERACTION_RADIUS * 2);
-            if (helper == null) {
-                helper = world.getServer().getPlayerManager().getPlayer(key.ownerId());
+        return transition.mode();
+    }
+
+    private static void tickPeacefulRouteEmergency(ServerLevel world,
+                                                    RouteKey key,
+                                                    PlayerQuestData data) {
+        BlockPos target = runtimeInteractionTarget(world, key, data);
+        ServerPlayer helper = world.getServer().getPlayerList().getPlayer(key.ownerId());
+        if (helper != null && (helper.level() != world
+                || helper.blockPosition().distSqr(target)
+                > EVENT_INTERACTION_RADIUS * (double) EVENT_INTERACTION_RADIUS * 4.0)) {
+            helper = null;
+        }
+        int before = routeInt(data, key.routeIndex(), "event_progress");
+        int after = RouteEmergencyProgress.advance(before, helper != null);
+        if (after != before) {
+            setRouteInt(data, key.routeIndex(), "event_progress", after);
+            QuestState.get(world.getServer()).setDirty();
+            int beforeCheckpoints = RouteEmergencyProgress.checkpoints(before);
+            int afterCheckpoints = RouteEmergencyProgress.checkpoints(after);
+            if (helper != null && afterCheckpoints > beforeCheckpoints) {
+                helper.sendSystemMessage(Component.translatable(
+                        "message.village-quest.trade_route.event.false_distress.peaceful.checkpoint",
+                        afterCheckpoints,
+                        3
+                ).withStyle(ChatFormatting.GOLD), true);
             }
+        }
+        if (RouteEmergencyProgress.complete(after)) {
             resolveEvent(world, helper, key, data, TradeRouteEventType.FALSE_DISTRESS);
         }
     }
 
-    private static void resolveEvent(ServerWorld world,
-                                     ServerPlayerEntity helper,
+    private static void tickAmbush(ServerLevel world, RouteKey key, PlayerQuestData data) {
+        if (routeInt(data, key.routeIndex(), "event_progress") == 2) {
+            return;
+        }
+        CaravanRuntime runtime = ACTIVE_CARAVANS.get(key);
+        if (runtime == null) {
+            setRouteInt(data, key.routeIndex(), "event_progress", 0);
+            QuestState.get(world.getServer()).setDirty();
+            return;
+        }
+        for (UUID attackerId : List.copyOf(runtime.attackerIds)) {
+            Entity attacker = findEntity(world, attackerId);
+            if (EncounterEntityLifecycle.defeated(attackerId, attacker)) {
+                EncounterEntityLifecycle.forget(attackerId);
+                runtime.attackerIds.remove(attackerId);
+                ATTACKER_ROUTES.remove(attackerId);
+            }
+        }
+        if (runtime.attackerIds.stream().anyMatch(EncounterEntityLifecycle::terminated)) {
+            discardAttackers(world, runtime);
+            setRouteInt(data, key.routeIndex(), "event_progress", 0);
+            QuestState.get(world.getServer()).setDirty();
+            return;
+        }
+        if (runtime.attackerIds.isEmpty()) {
+            setRouteInt(data, key.routeIndex(), "event_progress", 2);
+            QuestState.get(world.getServer()).setDirty();
+        }
+    }
+
+    private static void resolveEvent(ServerLevel world,
+                                     ServerPlayer helper,
                                      RouteKey key,
                                      PlayerQuestData ownerData,
                                      TradeRouteEventType event) {
+        if (de.quest.shrine.VillageIntroRequestService.blocksActions(world,key.ownerId())) return;
         if (event(ownerData, key.routeIndex()) != event) {
             return;
         }
+        if (event == TradeRouteEventType.FALSE_DISTRESS
+                && !TradeRouteIncidentPolicy.canProgress(key.ownerId(),
+                        helper == null ? null : helper.getUUID())) {
+            return;
+        }
+        String socialIncident = ownerData.getTradeRouteString(routeKey(key.routeIndex(), "social_incident_id"));
+        if (helper != null && !socialIncident.isBlank()) {
+            if(event==TradeRouteEventType.FALSE_DISTRESS) de.quest.kingdom.KingdomAttackService.helped(world,helper,socialIncident);
+            de.quest.reputation.SocialReputationService.recordNamedBenefit(world.getServer(), helper.getUUID(),
+                    de.quest.reputation.SocialReputationRules.BenefitKind.INCIDENT,
+                    socialIncident, List.of());
+        }
+        ownerData.setTradeRouteString(routeKey(key.routeIndex(), "social_incident_id"), "");
         setRouteInt(ownerData, key.routeIndex(), "event", 0);
         setRouteInt(ownerData, key.routeIndex(), "event_day", 0);
+        setRouteInt(ownerData, key.routeIndex(), "event_online_seconds", 0);
         setRouteInt(ownerData, key.routeIndex(), "event_progress", 0);
+        setRouteInt(ownerData, key.routeIndex(), "event_mode", 0);
         int successes = routeInt(ownerData, key.routeIndex(), "successes") + 1;
         setRouteInt(ownerData, key.routeIndex(), "successes", successes);
         setRouteInt(ownerData, key.routeIndex(), "status",
                 successes >= 4 ? TradeRouteStatus.FLOURISHING.id() : TradeRouteStatus.SECURED.id());
-        QuestState.get(world.getServer()).setDirty(true);
+        setRouteInt(ownerData, key.routeIndex(), "incident_protection",
+                VillageQuestServerConfig.get().adventureProfile().incidentProtection()
+                        + (incidentApproach(ownerData, key.routeIndex()) == TradeRouteIncidentApproach.CAREFUL ? 1 : 0));
+        QuestState.get(world.getServer()).setDirty();
 
-        if (helper != null) {
+        ServerPlayer owner = world.getServer().getPlayerList().getPlayer(key.ownerId());
+        if (owner != null) {
             int reward = eventReward(ownerData, key.routeIndex(), event);
             int reputation = Math.max(4, Math.min(10, reward / 2 + 2));
-            CurrencyService.addBalance(world, helper.getUuid(), reward);
-            ReputationService.add(world, helper.getUuid(), ReputationService.ReputationTrack.TRADE, reputation);
-            helper.sendMessage(Text.translatable("message.village-quest.trade_route.event.resolved",
-                    event.label(), routeName(key.routeIndex())).formatted(Formatting.GREEN), false);
-            world.playSound(null, helper.getBlockPos(), SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 0.55f, 1.35f);
-            refreshUi(world, helper);
+            CurrencyService.addBalance(world, key.ownerId(), reward);
+            ReputationService.add(world, key.ownerId(), ReputationService.ReputationTrack.TRADE, reputation);
+            owner.sendSystemMessage(Component.translatable("message.village-quest.trade_route.event.resolved",
+                    event.label(), routeName(key.routeIndex())).withStyle(ChatFormatting.GREEN), false);
+            world.playSound(null, owner.blockPosition(), SoundEvents.PLAYER_LEVELUP,
+                    SoundSource.PLAYERS, 0.55f, 1.35f);
+            refreshUi(world, owner);
         }
         CaravanRuntime runtime = ACTIVE_CARAVANS.get(key);
         if (runtime != null) {
             discardAttackers(world, runtime);
-            updateMerchantRoles(world, runtime, null, key.routeIndex());
+            updateMerchantRoles(world, key, runtime, null);
         }
     }
 
-    private static void failEvent(ServerWorld world, RouteKey key, PlayerQuestData data, TradeRouteEventType event) {
+    private static void failEvent(ServerLevel world, RouteKey key, PlayerQuestData data, TradeRouteEventType event) {
         setRouteInt(data, key.routeIndex(), "event", 0);
         setRouteInt(data, key.routeIndex(), "event_day", 0);
+        setRouteInt(data, key.routeIndex(), "event_online_seconds", 0);
         setRouteInt(data, key.routeIndex(), "event_progress", 0);
+        setRouteInt(data, key.routeIndex(), "event_mode", 0);
         setRouteInt(data, key.routeIndex(), "failures", routeInt(data, key.routeIndex(), "failures") + 1);
         if (!hasUpgrade(data, key.routeIndex(), TradeRouteUpgrade.INSURANCE)) {
             setRouteInt(data, key.routeIndex(), "successes", Math.max(0, routeInt(data, key.routeIndex(), "successes") - 1));
         }
         setRouteInt(data, key.routeIndex(), "status", TradeRouteStatus.DANGEROUS.id());
-        QuestState.get(world.getServer()).markDirty();
-        ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(key.ownerId());
+        setRouteInt(data, key.routeIndex(), "incident_protection",
+                VillageQuestServerConfig.get().adventureProfile().incidentProtection()
+                        + (incidentApproach(data, key.routeIndex()) == TradeRouteIncidentApproach.CAREFUL ? 1 : 0));
+        int strain = Math.max(1, (int) Math.round(
+                VillageQuestServerConfig.get().adventureProfile().routeFailureStrain()
+                        * incidentApproach(data, key.routeIndex()).failureMultiplier()));
+        VillageBondService.recordRouteFailure(world, key.ownerId(),
+                routeInt(data, key.routeIndex(), "x"), routeInt(data, key.routeIndex(), "z"), strain);
+        QuestState.get(world.getServer()).setDirty();
+        ServerPlayer owner = world.getServer().getPlayerList().getPlayer(key.ownerId());
         if (owner != null && ClientPreferenceService.caravanEventNotifications(owner)) {
-            owner.sendMessage(Text.translatable("message.village-quest.trade_route.event.failed",
-                    routeName(key.routeIndex()), event.label()) .formatted(Formatting.RED), false);
+            owner.sendSystemMessage(Component.translatable("message.village-quest.trade_route.event.failed",
+                    routeName(key.routeIndex()), event.label()).withStyle(ChatFormatting.RED), false);
         }
         CaravanRuntime runtime = ACTIVE_CARAVANS.get(key);
         if (runtime != null) {
@@ -1290,14 +2251,35 @@ public final class TradeRouteService {
         }
     }
 
-    private static boolean startAmbush(ServerWorld world, ServerPlayerEntity helper, RouteKey key, PlayerQuestData data) {
+    private static boolean startAmbush(ServerLevel world, ServerPlayer helper, RouteKey key, PlayerQuestData data) {
         if (routeInt(data, key.routeIndex(), "event_progress") > 0) {
-            helper.sendMessage(Text.translatable("message.village-quest.trade_route.event.false_distress.fight")
-                    .formatted(Formatting.RED), false);
+            helper.sendSystemMessage(Component.translatable("message.village-quest.trade_route.event.false_distress.fight")
+                    .withStyle(ChatFormatting.RED), false);
             return false;
         }
         CaravanRuntime runtime = ACTIVE_CARAVANS.get(key);
         if (runtime == null) {
+            return false;
+        }
+        if (ensureRouteEventMode(world, key, data) == DifficultyObjectiveMode.PEACEFUL) {
+            boolean supplied = TradeRouteInventory.consumePair(
+                    helper,
+                    TradeRouteInventory::isPlank,
+                    8,
+                    stack -> stack.is(Items.IRON_INGOT),
+                    4
+            );
+            if (!supplied) {
+                helper.sendSystemMessage(Component.translatable(
+                        "message.village-quest.trade_route.event.false_distress.peaceful.requirements"
+                ).withStyle(ChatFormatting.YELLOW), false);
+                return false;
+            }
+            setRouteInt(data, key.routeIndex(), "event_progress", 1);
+            QuestState.get(world.getServer()).setDirty();
+            helper.sendSystemMessage(Component.translatable(
+                    "message.village-quest.trade_route.event.false_distress.peaceful.started"
+            ).withStyle(ChatFormatting.GOLD), false);
             return false;
         }
         for (int i = 0; i < 3; i++) {
@@ -1309,31 +2291,31 @@ public final class TradeRouteService {
             if (surface == null) {
                 continue;
             }
-            traitor.refreshPositionAndAngles(surface.getX() + 0.5, surface.getY(), surface.getZ() + 0.5,
-                    world.random.nextFloat() * 360.0f, 0.0f);
-            traitor.equipStack(EquipmentSlot.MAINHAND, new ItemStack(Items.DIAMOND_SWORD));
-            traitor.addCommandTag(TAG_ROUTE_ATTACKER);
-            traitor.addCommandTag(ownerTag(key.ownerId()));
-            traitor.addCommandTag(routeTag(key.routeIndex()));
-            if (world.isSpaceEmpty(traitor) && world.spawnEntity(traitor)) {
+            traitor.setPos(surface.getX() + 0.5, surface.getY(), surface.getZ() + 0.5);
+            traitor.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.DIAMOND_SWORD));
+            traitor.addTag(TAG_ROUTE_ATTACKER);
+            traitor.addTag(ownerTag(key.ownerId()));
+            traitor.addTag(routeTag(key.routeIndex()));
+            if (EncounterEntityLifecycle.spawn(world, traitor)) {
                 traitor.setTarget(helper);
-                runtime.attackerIds.add(traitor.getUuid());
-                ATTACKER_ROUTES.put(traitor.getUuid(), key);
+                runtime.attackerIds.add(traitor.getUUID());
+                ATTACKER_ROUTES.put(traitor.getUUID(), key);
             }
         }
         if (runtime.attackerIds.isEmpty()) {
-            helper.sendMessage(TradeRouteEventType.FALSE_DISTRESS.help().copy()
-                    .formatted(Formatting.YELLOW), false);
+            helper.sendSystemMessage(TradeRouteEventType.FALSE_DISTRESS.help().copy()
+                    .withStyle(ChatFormatting.YELLOW), false);
             return false;
         }
         setRouteInt(data, key.routeIndex(), "event_progress", 1);
-        QuestState.get(world.getServer()).setDirty(true);
-        helper.sendMessage(Text.translatable("message.village-quest.trade_route.event.false_distress.ambush")
-                .formatted(Formatting.RED), false);
+        QuestState.get(world.getServer()).setDirty();
+        helper.sendSystemMessage(Component.translatable("message.village-quest.trade_route.event.false_distress.ambush")
+                .withStyle(ChatFormatting.RED), false);
         return false;
     }
 
-    private static void materializeNearPlayers(ServerWorld world, RouteKey key, PlayerQuestData data) {
+    private static void materializeNearPlayers(ServerLevel world, RouteKey key, PlayerQuestData data) {
+        if (desiredRoles(world, key, data).isEmpty()) { removeRuntime(world, key); return; }
         int progress = clampProgress(routeInt(data, key.routeIndex(), "progress"));
         int direction = routeInt(data, key.routeIndex(), "direction") < 0 ? -1 : 1;
         if (ferryState(data, key.routeIndex(), progress, direction).active()) {
@@ -1343,7 +2325,7 @@ public final class TradeRouteService {
             return;
         }
         BlockPos expected = routePosition(world, data, key.routeIndex());
-        ServerPlayerEntity observer = nearestPlayer(world, expected, MATERIALIZE_RADIUS);
+        ServerPlayer observer = nearestPlayer(world, expected, MATERIALIZE_RADIUS);
         CaravanRuntime runtime = ACTIVE_CARAVANS.get(key);
         if (observer == null) {
             BlockPos actual = runtime == null || runtime.lastActual == null ? expected : runtime.lastActual;
@@ -1354,21 +2336,21 @@ public final class TradeRouteService {
             }
             return;
         }
-        if (!isChunkLoaded(world, expected)) {
+        if (!world.hasChunkAt(expected)) {
             return;
         }
         long retryAt = MATERIALIZATION_RETRY_AT.getOrDefault(key, 0L);
-        if (world.getTime() < retryAt) {
+        if (world.getGameTime() < retryAt) {
             return;
         }
         if (runtime == null || !runtimeHasLivingMerchant(world, runtime)) {
             if (isMaterializationCrowded(world, key, data, expected)) {
-                MATERIALIZATION_RETRY_AT.put(key, world.getTime() + 20L * 5L);
+                MATERIALIZATION_RETRY_AT.put(key, world.getGameTime() + 20L * 5L);
                 return;
             }
             runtime = spawnCaravan(world, key, data, expected, observer);
             if (runtime == null) {
-                MATERIALIZATION_RETRY_AT.put(key, world.getTime() + MATERIALIZATION_RETRY_TICKS);
+                MATERIALIZATION_RETRY_AT.put(key, world.getGameTime() + MATERIALIZATION_RETRY_TICKS);
                 return;
             }
             ACTIVE_CARAVANS.put(key, runtime);
@@ -1377,26 +2359,33 @@ public final class TradeRouteService {
         runtime.lastExpected = expected;
         if (!ensureCompleteCaravan(world, key, runtime, data)) {
             removeRuntime(world, key);
-            MATERIALIZATION_RETRY_AT.put(key, world.getTime() + MATERIALIZATION_RETRY_TICKS);
+            MATERIALIZATION_RETRY_AT.put(key, world.getGameTime() + MATERIALIZATION_RETRY_TICKS);
             return;
         }
-        updateMerchantRoles(world, runtime, event(data, key.routeIndex()), key.routeIndex());
+        updateMerchantRoles(world, key, runtime, event(data, key.routeIndex()));
         if (!navigateCaravan(world, key, runtime, data, observer)) {
             return;
         }
         sampleRoadQuality(world, data, key.routeIndex(), expected);
     }
 
-    private static CaravanRuntime spawnCaravan(ServerWorld world,
+    private static CaravanRuntime spawnCaravan(ServerLevel world,
                                                 RouteKey key,
                                                 PlayerQuestData data,
                                                 BlockPos expected,
-                                                ServerPlayerEntity observer) {
+                                                ServerPlayer observer) {
         CaravanRuntime runtime = new CaravanRuntime();
         TradeRouteEventType event = event(data, key.routeIndex());
-        BlockPos anchor = findCaravanSurface(world, expected, CARAVAN_SPAWN_SEARCH_RADIUS);
-        if (anchor == null && event != null && observer != null) {
-            anchor = findCaravanSurface(world, observer.getBlockPos(), 12);
+        boolean ferryDock = hasV2Geometry(data, key.routeIndex())
+                && ferryBoardingAtProgress(data, key.routeIndex(),
+                        clampProgress(routeInt(data, key.routeIndex(), "progress")),
+                        routeInt(data, key.routeIndex(), "direction") < 0 ? -1 : 1) != null;
+        BlockPos anchor = ferryDock
+                ? findCaravanSurfaceNearY(world, expected, FERRY_DOCK_SEARCH_RADIUS, 3)
+                : resolveRouteSurface(world, data, key.routeIndex(), expected, CARAVAN_SPAWN_SEARCH_RADIUS);
+        if (anchor == null && event != null && observer != null
+                && !hasV2Geometry(data, key.routeIndex())) {
+            anchor = findCaravanSurface(world, observer.blockPosition(), 12);
         }
         if (anchor == null) {
             return null;
@@ -1404,19 +2393,19 @@ public final class TradeRouteService {
         runtime.lastExpected = expected;
         runtime.lastActual = anchor;
         runtime.lastLeaderPosition = anchor;
-        if (!spawnMissingMerchants(world, key, runtime, desiredMerchantCount(world, key.ownerId()), anchor)) {
+        if (!spawnMissingMerchants(world, key, runtime, desiredRoles(world, key, data).size(), anchor)) {
             discardRuntimeEntities(world, runtime);
             return null;
         }
-        updateMerchantRoles(world, runtime, event, key.routeIndex());
+        updateMerchantRoles(world, key, runtime, event);
         return runtime;
     }
 
-    private static boolean navigateCaravan(ServerWorld world,
+    private static boolean navigateCaravan(ServerLevel world,
                                            RouteKey key,
                                            CaravanRuntime runtime,
                                            PlayerQuestData data,
-                                           ServerPlayerEntity observer) {
+                                           ServerPlayer observer) {
         int routeIndex = key.routeIndex();
         TradeRouteEventType currentEvent = event(data, routeIndex);
         int progress = clampProgress(routeInt(data, routeIndex, "progress"));
@@ -1426,7 +2415,7 @@ public final class TradeRouteService {
                 : null;
         BlockPos target;
         if (currentEvent != null) {
-            target = findCaravanSurface(world, runtime.lastExpected, 10);
+            target = resolveRouteSurface(world, data, routeIndex, runtime.lastExpected, 10);
             if (target == null) {
                 target = runtime.lastExpected;
             }
@@ -1438,16 +2427,27 @@ public final class TradeRouteService {
             }
         } else {
             clearFerryDock(runtime);
-            int lookAhead = Math.max(120, movementStep(data, routeIndex) * 22);
+            List<RouteSurveyPoint> recordedPath = routePathWithModes(data, routeIndex);
+            int lookAhead = hasV2Geometry(data, routeIndex)
+                    ? TradeRouteNavigationPolicy.lookaheadProgressForTraversal(
+                            recordedPath, progress, direction)
+                    : TradeRouteNavigationPolicy.lookaheadProgress(
+                            recordedPath.stream().map(RouteSurveyPoint::point).toList(),
+                            progress, direction);
             int targetProgress = clampProgress(progress + direction * lookAhead);
             target = routePosition(world, data, routeIndex, targetProgress);
-            BlockPos roadTarget = findNearbyRoadSurface(world, target, 8);
+            BlockPos roadTarget = hasV2Geometry(data, routeIndex)
+                    ? findNearbyRoadSurfaceNearY(world, target, 4, 2)
+                    : findNearbyRoadSurface(world, target, 8);
             if (roadTarget != null) {
                 target = roadTarget;
             } else {
-                BlockPos terrainTarget = findCaravanSurface(world, target, 5);
+                BlockPos terrainTarget = resolveRouteSurface(world, data, routeIndex, target, 3);
                 if (terrainTarget != null) {
                     target = terrainTarget;
+                } else if (hasV2Geometry(data, routeIndex)) {
+                    holdCaravanAtUnsafeTarget(world, runtime);
+                    return true;
                 }
             }
         }
@@ -1464,20 +2464,22 @@ public final class TradeRouteService {
             merchant.setDespawnTicks(NPC_DESPAWN_TICKS);
             merchant.refreshEncounterControl(false);
             merchant.setRouteIndex(routeIndex);
-            merchant.setLiveryIndex(routeLivery(data, routeIndex));
+            merchant.setLiveryIndex(storedLivery(data, routeIndex));
             merchants.add(merchant);
         }
         if (merchants.isEmpty()) {
             removeRuntime(world, key);
-            MATERIALIZATION_RETRY_AT.put(key, world.getTime() + MATERIALIZATION_RETRY_TICKS);
+            MATERIALIZATION_RETRY_AT.put(key, world.getGameTime() + MATERIALIZATION_RETRY_TICKS);
             return false;
         }
+
+        if (defendCaravan(world, key, data, runtime, merchants)) return true;
 
         // Older materialized groups may already be standing on a canopy when a
         // player updates. Recover the full formation together before asking for
         // another path so they do not remain visible above the road network.
         boolean unsafeLeafSupport = merchants.stream().anyMatch(merchant ->
-                world.getBlockState(merchant.getBlockPos().down()).isIn(BlockTags.LEAVES));
+                world.getBlockState(merchant.blockPosition().below()).is(BlockTags.LEAVES));
         if (unsafeLeafSupport) {
             if (!recoverCaravan(world, key, runtime, data, observer, currentEvent != null)) {
                 suspendPhysicalCaravan(world, key);
@@ -1487,13 +2489,26 @@ public final class TradeRouteService {
         }
 
         CaravanMerchantEntity leader = merchants.getFirst();
-        BlockPos leaderPosition = leader.getBlockPos();
+        BlockPos leaderPosition = leader.blockPosition();
         runtime.lastActual = leaderPosition;
-        double targetDistance = leaderPosition .getSquaredDistance(target);
+        List<RouteSurveyPoint> surveyPath = hasV2Geometry(data, routeIndex)
+                ? routePathWithModes(data, routeIndex) : List.of();
+        if (!surveyPath.isEmpty() && !TradeRouteNavigationPolicy.withinSurveyCorridor(
+                surveyPath, new RoutePoint(leaderPosition.getX(), leaderPosition.getY(),
+                        leaderPosition.getZ()))) {
+            holdCaravanAtUnsafeTarget(world, runtime);
+            if (!isRecoveryVisible(observer, leader)
+                    && !recoverCaravan(world, key, runtime, data, observer, false)) {
+                suspendPhysicalCaravan(world, key);
+                return false;
+            }
+            return true;
+        }
+        double targetDistance = leaderPosition.distSqr(target);
         boolean groupReadyToBoard = boarding != null && targetDistance <= FERRY_BOARDING_DISTANCE_SQR;
         if (groupReadyToBoard) {
             for (CaravanMerchantEntity merchant : merchants) {
-                if (merchant.getBlockPos() .getSquaredDistance(target) > FERRY_GROUP_READY_DISTANCE_SQR) {
+                if (merchant.blockPosition().distSqr(target) > FERRY_GROUP_READY_DISTANCE_SQR) {
                     groupReadyToBoard = false;
                     break;
                 }
@@ -1508,8 +2523,13 @@ public final class TradeRouteService {
         }
         boolean pathRequested = true;
         if (targetDistance > 3.0 * 3.0) {
-            pathRequested = leader.getNavigation().startMovingTo(
+            pathRequested = leader.getNavigation().moveTo(
                     target.getX() + 0.5, target.getY(), target.getZ() + 0.5, 0.88);
+            if (pathRequested && !surveyPath.isEmpty()
+                    && !navigationPathFollowsSurvey(world, leader.getNavigation().getPath(), surveyPath)) {
+                leader.getNavigation().stop();
+                pathRequested = false;
+            }
         } else {
             leader.getNavigation().stop();
         }
@@ -1520,7 +2540,7 @@ public final class TradeRouteService {
         double forwardX;
         double forwardZ;
         if (length < 0.25) {
-            double yawRadians = Math.toRadians(leader.getYaw());
+            double yawRadians = Math.toRadians(leader.getYRot());
             forwardX = -Math.sin(yawRadians);
             forwardZ = Math.cos(yawRadians);
         } else {
@@ -1535,44 +2555,47 @@ public final class TradeRouteService {
             double behind = 2.25 + (ordinal - 1) * 1.55;
             double followX = leader.getX() - forwardX * behind - forwardZ * side;
             double followZ = leader.getZ() - forwardZ * behind + forwardX * side;
-            BlockPos followSurface = findNearbySafeSurface(world,
-                    (int) Math.floor(followX), (int) Math.floor(followZ), 2);
+            BlockPos followSurface = findNearbySafeSurfaceNearY(world,
+                    (int) Math.floor(followX), leader.getBlockY(),
+                    (int) Math.floor(followZ), 2, 2);
             if (followSurface != null) {
-                merchant.getNavigation().startMovingTo(followSurface.getX() + 0.5,
+                merchant.getNavigation().moveTo(followSurface.getX() + 0.5,
                         followSurface.getY(), followSurface.getZ() + 0.5, 0.92);
-            } else if (merchant.squaredDistanceTo(leader) > 2.15 * 2.15) {
-                // Do not make every follower target the leader's exact feet. On narrow or
-                // obstructed roads that old fallback visibly stacked the group into one NPC.
-                merchant.getNavigation().startMovingTo(followX, leader.getY(), followZ, 0.82);
+            } else if (surveyPath.isEmpty() && merchant.distanceToSqr(leader) > 2.15 * 2.15) {
+                merchant.getNavigation().moveTo(followX, leader.getY(), followZ, 0.82);
             } else {
                 merchant.getNavigation().stop();
             }
-            if (tooCloseToAny(merchant.getBlockPos(), formationOccupied, 1.75)) {
+            if (tooCloseToAny(merchant.blockPosition(), formationOccupied, 1.75)) {
                 List<BlockPos> separationSlots = findFormationSlots(
-                        world, leader.getBlockPos(), 1, formationOccupied);
+                        world, leader.blockPosition(), 1, formationOccupied);
                 if (!separationSlots.isEmpty()) {
                     BlockPos slot = separationSlots.getFirst();
-                    merchant.getNavigation().startMovingTo(slot.getX() + 0.5,
+                    merchant.getNavigation().moveTo(slot.getX() + 0.5,
                             slot.getY(), slot.getZ() + 0.5, 0.98);
                 }
             }
-            formationOccupied.add(merchant.getBlockPos());
-            if (merchant.squaredDistanceTo(leader)
+            formationOccupied.add(merchant.blockPosition());
+            if (merchant.distanceToSqr(leader)
                     > CARAVAN_SOFT_REGROUP_DISTANCE * (double) CARAVAN_SOFT_REGROUP_DISTANCE) {
-                BlockPos regroup = findCaravanSurface(world, leader.getBlockPos(), 4);
+                BlockPos regroup = findCaravanSurfaceNearY(world, leader.blockPosition(), 4, 2);
                 if (regroup != null) {
-                    merchant.getNavigation().startMovingTo(regroup.getX() + 0.5,
+                    merchant.getNavigation().moveTo(regroup.getX() + 0.5,
                             regroup.getY(), regroup.getZ() + 0.5, 1.08);
-                    if (merchant.squaredDistanceTo(leader)
+                    if (merchant.distanceToSqr(leader)
                             > CARAVAN_HARD_REGROUP_DISTANCE * (double) CARAVAN_HARD_REGROUP_DISTANCE
                             && !isRecoveryVisible(observer, merchant)) {
                         teleportMerchant(merchant, regroup);
                     }
                 }
             }
+            if (!surveyPath.isEmpty() && merchant.getNavigation().getPath() != null
+                    && !navigationPathFollowsSurvey(world, merchant.getNavigation().getPath(), surveyPath)) {
+                merchant.getNavigation().stop();
+            }
         }
 
-        if (leaderPosition.getSquaredDistance(runtime.lastExpected)
+        if (leaderPosition.distSqr(runtime.lastExpected)
                 > CARAVAN_MAX_ROUTE_DRIFT * (double) CARAVAN_MAX_ROUTE_DRIFT) {
             if (currentEvent != null || !isRecoveryVisible(observer, leader)) {
                 if (!recoverCaravan(world, key, runtime, data, observer, currentEvent != null)) {
@@ -1587,8 +2610,8 @@ public final class TradeRouteService {
             runtime.recoveryGraceSeconds--;
             runtime.stuckSeconds = 0;
         } else if (runtime.lastLeaderPosition != null && targetDistance > CARAVAN_TARGET_DISTANCE_SQR) {
-            double moved = leaderPosition.getSquaredDistance(runtime.lastLeaderPosition);
-            if (!pathRequested || leader.getNavigation().isIdle() || moved < CARAVAN_MIN_MOVEMENT_SQR) {
+            double moved = leaderPosition.distSqr(runtime.lastLeaderPosition);
+            if (!pathRequested || leader.getNavigation().isDone() || moved < CARAVAN_MIN_MOVEMENT_SQR) {
                 runtime.stuckSeconds += pathRequested ? 1 : 2;
             } else {
                 runtime.stuckSeconds = Math.max(0, runtime.stuckSeconds - 2);
@@ -1598,8 +2621,10 @@ public final class TradeRouteService {
         }
         runtime.lastLeaderPosition = leaderPosition;
         for (CaravanMerchantEntity merchant : merchants) {
-            runtime.lastMerchantPositions.put(merchant.getUuid(), merchant.getBlockPos());
+            runtime.lastMerchantPositions.put(merchant.getUUID(), merchant.blockPosition());
         }
+
+        updatePackMule(world, key, runtime, data, merchants, surveyPath, forwardX, forwardZ);
 
         if (runtime.stuckSeconds >= CARAVAN_STUCK_SECONDS) {
             if (currentEvent == null && isRecoveryVisible(observer, leader)) {
@@ -1618,11 +2643,11 @@ public final class TradeRouteService {
         return true;
     }
 
-    private static boolean ensureCompleteCaravan(ServerWorld world,
+    private static boolean ensureCompleteCaravan(ServerLevel world,
                                                   RouteKey key,
                                                   CaravanRuntime runtime,
                                                   PlayerQuestData data) {
-        int desired = desiredMerchantCount(world, key.ownerId());
+        int desired = desiredRoles(world, key, data).size();
         int living = livingMerchantCount(world, runtime);
         if (living >= desired) {
             return true;
@@ -1634,7 +2659,7 @@ public final class TradeRouteService {
         return spawnMissingMerchants(world, key, runtime, desired - living, anchor);
     }
 
-    private static boolean spawnMissingMerchants(ServerWorld world,
+    private static boolean spawnMissingMerchants(ServerLevel world,
                                                  RouteKey key,
                                                  CaravanRuntime runtime,
                                                  int amount,
@@ -1643,12 +2668,15 @@ public final class TradeRouteService {
             return true;
         }
         List<BlockPos> occupied = new ArrayList<>();
+        List<CaravanRole> missing = new ArrayList<>(desiredRoles(world, key, data(world, key.ownerId())));
         for (UUID merchantId : runtime.merchantIds) {
             Entity entity = findEntity(world, merchantId);
             if (entity instanceof CaravanMerchantEntity merchant && merchant.isAlive() && !merchant.isRemoved()) {
-                occupied.add(merchant.getBlockPos());
+                occupied.add(merchant.blockPosition());
+                missing.remove(merchant.getCrewRole());
             }
         }
+        amount = Math.min(amount, missing.size());
         List<BlockPos> slots = findFormationSlots(world, anchor, amount, occupied);
         if (slots.size() < amount) {
             return false;
@@ -1656,52 +2684,183 @@ public final class TradeRouteService {
         int spawned = 0;
         for (BlockPos spawn : slots) {
             CaravanMerchantEntity merchant = new CaravanMerchantEntity(ModEntities.CARAVAN_MERCHANT, world);
-            merchant.refreshPositionAndAngles(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5,
-                    world.random.nextFloat() * 360.0f, 0.0f);
+            CaravanRole role = missing.get(spawned); merchant.setCrewRole(role);
+            merchant.setInvulnerable(CaravanCrewLifecycle.protectedFromDamage());
+            var member = CaravanCrewLifecycle.resolve(data(world, key.ownerId()), key.routeIndex(), role);
+            merchant.setFemale(member.female());
+            QuestState.get(world.getServer()).setDirty();
+            merchant.addTag(TAG_LOGICAL_MEMBER_PREFIX + member.id());
+            merchant.setPos(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
             merchant.setHealth(merchant.getMaxHealth());
             merchant.setDespawnTicks(NPC_DESPAWN_TICKS);
-            merchant.addCommandTag(TAG_ROUTE_CARAVAN);
-            merchant.addCommandTag(ownerTag(key.ownerId()));
-            merchant.addCommandTag(routeTag(key.routeIndex()));
+            merchant.addTag(TAG_ROUTE_CARAVAN);
+            merchant.addTag(ownerTag(key.ownerId()));
+            merchant.addTag(routeTag(key.routeIndex()));
             merchant.setRouteIndex(key.routeIndex());
-            merchant.setLiveryIndex(routeLivery(data(world, key.ownerId()), key.routeIndex()));
+            merchant.setLiveryIndex(storedLivery(data(world, key.ownerId()), key.routeIndex()));
             merchant.refreshEncounterControl(false);
-            if (world.isSpaceEmpty(merchant) && world.spawnEntity(merchant)) {
-                runtime.merchantIds.add(merchant.getUuid());
-                runtime.lastMerchantPositions.put(merchant.getUuid(), spawn);
-                ENTITY_ROUTES.put(merchant.getUuid(), key);
+            if (world.noCollision(merchant) && world.addFreshEntity(merchant)) {
+                runtime.merchantIds.add(merchant.getUUID());
+                runtime.lastMerchantPositions.put(merchant.getUUID(), spawn);
+                ENTITY_ROUTES.put(merchant.getUUID(), key);
                 spawned++;
             }
         }
         return spawned == amount;
     }
 
-    private static List<BlockPos> findFormationSlots(ServerWorld world,
+    private static List<BlockPos> findFormationSlots(ServerLevel world,
                                                      BlockPos anchor,
                                                      int amount,
                                                      List<BlockPos> occupied) {
-        List<BlockPos> result = new ArrayList<>();
         if (world == null || anchor == null || amount <= 0) {
-            return result;
+            return new ArrayList<>();
         }
-        List<BlockPos> unavailable = new ArrayList<>(occupied);
-        for (int ring = 0; ring <= 4 && result.size() < amount; ring++) {
-            for (int dx = -ring; dx <= ring && result.size() < amount; dx++) {
-                for (int dz = -ring; dz <= ring && result.size() < amount; dz++) {
+        List<BlockPos> best = new ArrayList<>();
+        for (double spacing : TradeRouteNavigationPolicy.formationSpacings()) {
+            List<BlockPos> result = new ArrayList<>();
+            List<BlockPos> unavailable = new ArrayList<>(occupied);
+            for (int ring = 0; ring <= 4 && result.size() < amount; ring++) {
+                for (int dx = -ring; dx <= ring && result.size() < amount; dx++) {
+                    for (int dz = -ring; dz <= ring && result.size() < amount; dz++) {
+                        if (ring > 0 && Math.abs(dx) != ring && Math.abs(dz) != ring) {
+                            continue;
+                        }
+                        BlockPos candidate = safeSurfaceNearY(world,
+                                anchor.getX() + dx, anchor.getY(), anchor.getZ() + dz, 2);
+                        if (candidate == null || Math.abs(candidate.getY() - anchor.getY()) > 1
+                                || tooCloseToAny(candidate, unavailable, spacing)) {
+                            continue;
+                        }
+                        result.add(candidate);
+                        unavailable.add(candidate);
+                    }
+                }
+            }
+            if (result.size() >= amount) {
+                return result;
+            }
+            if (result.size() > best.size()) {
+                best = result;
+            }
+        }
+        return best;
+    }
+
+    private static void updatePackMule(ServerLevel world, RouteKey key, CaravanRuntime runtime,
+                                       PlayerQuestData data, List<CaravanMerchantEntity> merchants,
+                                       List<RouteSurveyPoint> surveyPath, double forwardX, double forwardZ) {
+        if (VillageQuestServerConfig.get().caravanVisualMode()
+                != VillageQuestServerConfig.CaravanVisualMode.FULL || merchants.isEmpty()) {
+            removePackMule(world, runtime);
+            return;
+        }
+        CaravanMerchantEntity leader = merchants.getFirst();
+        var member = CaravanCrewLifecycle.resolveMule(data, key.routeIndex());
+        if (member.dead()) { removePackMule(world, runtime); return; }
+        CaravanPackMuleEntity mule = runtime.packMuleId == null ? null
+                : findEntity(world, runtime.packMuleId) instanceof CaravanPackMuleEntity found
+                        && found.isAlive() && !found.isRemoved() ? found : null;
+        if (mule == null) {
+            runtime.packMuleId = null;
+            if (world.getGameTime() < runtime.packMuleRetryAt) {
+                return;
+            }
+            mule = new CaravanPackMuleEntity(ModEntities.CARAVAN_PACK_MULE, world);
+            BlockPos spawn = findPackMuleSurface(world, mule, leader, merchants,
+                    surveyPath, forwardX, forwardZ);
+            if (spawn == null) {
+                runtime.packMuleRetryAt = world.getGameTime() + MATERIALIZATION_RETRY_TICKS;
+                return;
+            }
+            mule.setPos(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
+            mule.addTag(TAG_ROUTE_CARAVAN);
+            mule.addTag(TAG_ROUTE_PACK_MULE);
+            mule.addTag(TAG_LOGICAL_MEMBER_PREFIX + member.id());
+            mule.addTag(ownerTag(key.ownerId()));
+            mule.addTag(routeTag(key.routeIndex()));
+            mule.setCustomName(Component.literal(member.name()));
+            mule.setCustomNameVisible(true);
+            if (!world.addFreshEntity(mule)) {
+                runtime.packMuleRetryAt = world.getGameTime() + MATERIALIZATION_RETRY_TICKS;
+                return;
+            }
+            runtime.packMuleId = mule.getUUID();
+            ENTITY_ROUTES.put(mule.getUUID(), key);
+            return;
+        }
+
+        RoutePoint leaderPoint = new RoutePoint(leader.getBlockX(), leader.getBlockY(), leader.getBlockZ());
+        RoutePoint mulePoint = new RoutePoint(mule.getBlockX(), mule.getBlockY(), mule.getBlockZ());
+        if (!CaravanPackAnimalPolicy.mayFollow(surveyPath, leaderPoint, mulePoint)
+                || mule.distanceToSqr(leader) > 14.0 * 14.0) {
+            removePackMule(world, runtime);
+            runtime.packMuleRetryAt = world.getGameTime() + MATERIALIZATION_RETRY_TICKS;
+            return;
+        }
+        BlockPos target = findPackMuleSurface(world, mule, leader, merchants,
+                surveyPath, forwardX, forwardZ);
+        if (target == null) {
+            mule.getNavigation().stop();
+            return;
+        }
+        if (mule.blockPosition().distSqr(target) > 2.0 * 2.0) {
+            boolean requested = mule.getNavigation().moveTo(target.getX() + 0.5,
+                    target.getY(), target.getZ() + 0.5, 1.0);
+            if (!requested || !surveyPath.isEmpty()
+                    && !navigationPathFollowsSurvey(world, mule.getNavigation().getPath(), surveyPath)) {
+                mule.getNavigation().stop();
+            }
+        } else {
+            mule.getNavigation().stop();
+        }
+    }
+
+    private static BlockPos findPackMuleSurface(ServerLevel world, CaravanPackMuleEntity mule,
+                                                 CaravanMerchantEntity leader,
+                                                 List<CaravanMerchantEntity> merchants,
+                                                 List<RouteSurveyPoint> surveyPath,
+                                                 double forwardX, double forwardZ) {
+        int behindX = (int) Math.floor(leader.getX() - forwardX * 4.0);
+        int behindZ = (int) Math.floor(leader.getZ() - forwardZ * 4.0);
+        RoutePoint leaderPoint = new RoutePoint(leader.getBlockX(), leader.getBlockY(), leader.getBlockZ());
+        List<BlockPos> occupied = merchants.stream().map(Entity::blockPosition).toList();
+        for (int ring = 0; ring <= 3; ring++) {
+            for (int dx = -ring; dx <= ring; dx++) {
+                for (int dz = -ring; dz <= ring; dz++) {
                     if (ring > 0 && Math.abs(dx) != ring && Math.abs(dz) != ring) {
                         continue;
                     }
-                    BlockPos candidate = safeSurface(world, anchor.getX() + dx, anchor.getZ() + dz);
-                    if (candidate == null || Math.abs(candidate.getY() - anchor.getY()) > 1
-                            || tooCloseToAny(candidate, unavailable, 2.05)) {
+                    BlockPos surface = safeSurfaceNearY(world,
+                            behindX + dx, leader.getBlockY(), behindZ + dz, 2);
+                    if (surface == null || tooCloseToAny(surface, occupied, 2.3)
+                            || !CaravanPackAnimalPolicy.mayFollow(surveyPath, leaderPoint,
+                                    new RoutePoint(surface.getX(), surface.getY(), surface.getZ()))) {
                         continue;
                     }
-                    result.add(candidate);
-                    unavailable.add(candidate);
+                    AABB box = mule.getBoundingBox().move(
+                            surface.getX() + 0.5 - mule.getX(),
+                            surface.getY() - mule.getY(),
+                            surface.getZ() + 0.5 - mule.getZ());
+                    if (world.noCollision(mule, box)) {
+                        return surface;
+                    }
                 }
             }
         }
-        return result;
+        return null;
+    }
+
+    private static void removePackMule(ServerLevel world, CaravanRuntime runtime) {
+        if (runtime.packMuleId == null) {
+            return;
+        }
+        ENTITY_ROUTES.remove(runtime.packMuleId);
+        Entity entity = findEntity(world, runtime.packMuleId);
+        if (entity != null) {
+            entity.discard();
+        }
+        runtime.packMuleId = null;
     }
 
     private static boolean tooCloseToAny(BlockPos candidate, List<BlockPos> positions, double distance) {
@@ -1716,28 +2875,30 @@ public final class TradeRouteService {
         return false;
     }
 
-    private static boolean recoverCaravan(ServerWorld world,
+    private static boolean recoverCaravan(ServerLevel world,
                                            RouteKey key,
                                            CaravanRuntime runtime,
                                            PlayerQuestData data,
-                                           ServerPlayerEntity observer,
+                                           ServerPlayer observer,
                                            boolean eventActive) {
         int progress = clampProgress(routeInt(data, key.routeIndex(), "progress"));
         int direction = routeInt(data, key.routeIndex(), "direction") < 0 ? -1 : 1;
         int progressStep = Math.max(80, (int) Math.round(14.0 * PROGRESS_MAX
-                / Math.max(96.0, routeDistance(data, key.routeIndex()))));
+                / Math.max(96.0, routeTraversalDistance(data, key.routeIndex()))));
         int[] offsets = {0, direction * progressStep, -direction * progressStep,
                 direction * progressStep * 2, -direction * progressStep * 2};
         BlockPos anchor = null;
         for (int offset : offsets) {
             BlockPos routePoint = routePosition(world, data, key.routeIndex(), clampProgress(progress + offset));
-            anchor = findCaravanSurface(world, routePoint, CARAVAN_SPAWN_SEARCH_RADIUS);
+            anchor = resolveRouteSurface(
+                    world, data, key.routeIndex(), routePoint, CARAVAN_SPAWN_SEARCH_RADIUS);
             if (anchor != null) {
                 break;
             }
         }
-        if (anchor == null && eventActive && observer != null) {
-            anchor = findCaravanSurface(world, observer.getBlockPos(), 12);
+        if (anchor == null && eventActive && observer != null
+                && !hasV2Geometry(data, key.routeIndex())) {
+            anchor = findCaravanSurface(world, observer.blockPosition(), 12);
         }
         if (anchor == null) {
             return false;
@@ -1747,9 +2908,10 @@ public final class TradeRouteService {
         if (slots.size() < merchants.size()) {
             return false;
         }
+        removePackMule(world, runtime);
         for (int i = 0; i < merchants.size(); i++) {
             teleportMerchant(merchants.get(i), slots.get(i));
-            runtime.lastMerchantPositions.put(merchants.get(i).getUuid(), slots.get(i));
+            runtime.lastMerchantPositions.put(merchants.get(i).getUUID(), slots.get(i));
         }
         runtime.lastActual = slots.isEmpty() ? anchor : slots.getFirst();
         runtime.lastLeaderPosition = runtime.lastActual;
@@ -1761,15 +2923,15 @@ public final class TradeRouteService {
 
     private static void teleportMerchant(CaravanMerchantEntity merchant, BlockPos target) {
         merchant.getNavigation().stop();
-        merchant.refreshPositionAndAngles(target.getX() + 0.5, target.getY(), target.getZ() + 0.5, merchant.getYaw(), merchant.getPitch());
+        merchant.teleportTo(target.getX() + 0.5, target.getY(), target.getZ() + 0.5);
     }
 
-    private static void suspendPhysicalCaravan(ServerWorld world, RouteKey key) {
+    private static void suspendPhysicalCaravan(ServerLevel world, RouteKey key) {
         removeRuntime(world, key);
-        MATERIALIZATION_RETRY_AT.put(key, world.getTime() + MATERIALIZATION_RETRY_TICKS);
+        MATERIALIZATION_RETRY_AT.put(key, world.getGameTime() + MATERIALIZATION_RETRY_TICKS);
     }
 
-    private static int desiredMerchantCount(ServerWorld world, UUID ownerId) {
+    private static int desiredMerchantCount(ServerLevel world, UUID ownerId) {
         return switch (VillageQuestServerConfig.get().caravanVisualMode()) {
             case MAP_ONLY -> 0;
             case REDUCED -> 1;
@@ -1777,11 +2939,11 @@ public final class TradeRouteService {
         };
     }
 
-    private static int livingMerchantCount(ServerWorld world, CaravanRuntime runtime) {
+    private static int livingMerchantCount(ServerLevel world, CaravanRuntime runtime) {
         return livingMerchants(world, runtime).size();
     }
 
-    private static List<CaravanMerchantEntity> livingMerchants(ServerWorld world, CaravanRuntime runtime) {
+    private static List<CaravanMerchantEntity> livingMerchants(ServerLevel world, CaravanRuntime runtime) {
         List<CaravanMerchantEntity> living = new ArrayList<>();
         if (runtime == null) {
             return living;
@@ -1795,7 +2957,7 @@ public final class TradeRouteService {
         return living;
     }
 
-    private static boolean isMaterializationCrowded(ServerWorld world,
+    private static boolean isMaterializationCrowded(ServerLevel world,
                                                     RouteKey key,
                                                     PlayerQuestData data,
                                                     BlockPos expected) {
@@ -1807,7 +2969,7 @@ public final class TradeRouteService {
             BlockPos otherPosition = entry.getValue().lastActual == null
                     ? entry.getValue().lastExpected
                     : entry.getValue().lastActual;
-            if (otherPosition == null || otherPosition.getSquaredDistance(expected)
+            if (otherPosition == null || otherPosition.distSqr(expected)
                     > CARAVAN_CROWD_RADIUS * (double) CARAVAN_CROWD_RADIUS) {
                 continue;
             }
@@ -1822,7 +2984,7 @@ public final class TradeRouteService {
         return false;
     }
 
-    private static BlockPos runtimeInteractionTarget(ServerWorld world, RouteKey key, PlayerQuestData data) {
+    private static BlockPos runtimeInteractionTarget(ServerLevel world, RouteKey key, PlayerQuestData data) {
         CaravanRuntime runtime = ACTIVE_CARAVANS.get(key);
         if (runtime != null && runtimeHasLivingMerchant(world, runtime) && runtime.lastActual != null) {
             return runtime.lastActual;
@@ -1830,46 +2992,59 @@ public final class TradeRouteService {
         return routePosition(world, data, key.routeIndex());
     }
 
-    private static void updateMerchantRoles(ServerWorld world,
-                                            CaravanRuntime runtime,
-                                            TradeRouteEventType event,
-                                            int routeIndex) {
-        int ordinal = 0;
-        for (UUID merchantId : runtime.merchantIds) {
-            Entity entity = findEntity(world, merchantId);
-            if (!(entity instanceof CaravanMerchantEntity merchant)) {
-                continue;
+    private static void updateMerchantRoles(ServerLevel world, RouteKey key,
+                                            CaravanRuntime runtime, TradeRouteEventType event) {
+        PlayerQuestData ownerData = data(world, key.ownerId());
+        if (!CaravanCrewData.isComplete(ownerData, key.routeIndex())) {
+            QuestState.get(world.getServer()).setDirty();
+        }
+        CaravanCrewData.Crew crew = CaravanCrewData.ensure(ownerData, key.routeIndex());
+        List<CaravanMerchantEntity> merchants = livingMerchants(world, runtime);
+        List<CaravanRole> allowed = desiredRoles(world, key, ownerData);
+        java.util.Set<CaravanRole> assigned = java.util.EnumSet.noneOf(CaravanRole.class);
+        for (CaravanMerchantEntity merchant : merchants) {
+            CaravanRole role = merchant.getCrewRole();
+            if (!allowed.contains(role) || assigned.contains(role)) {
+                ENTITY_ROUTES.remove(merchant.getUUID()); merchant.discard(); continue;
             }
-            boolean courier = event == TradeRouteEventType.MISSING_COURIER && ordinal == runtime.merchantIds.size() - 1;
+            assigned.add(role);
+        }
+        for (int ordinal = 0; ordinal < merchants.size(); ordinal++) {
+            CaravanMerchantEntity merchant = merchants.get(ordinal);
+            if (merchant.isRemoved()) continue;
+            boolean courier = merchant.getCrewRole() == CaravanRole.COURIER;
             merchant.setCourier(courier);
-            merchant.setRouteIndex(routeIndex);
-            String name = CARAVAN_NAMES[Math.floorMod(routeIndex * 2 + ordinal, CARAVAN_NAMES.length)];
-            Text baseName = Text.translatable(courier
-                    ? "entity.village-quest.route_courier"
-                    : "entity.village-quest.route_merchant." + name);
-            merchant.setCustomName(event != null && ordinal == 0
-                    ? Text.translatable("entity.village-quest.route_merchant.event", baseName, event.label())
+            merchant.setRouteIndex(key.routeIndex());
+            CaravanRole identity = courier ? CaravanRole.COURIER : merchant.getCrewRole();
+            boolean appearanceKnown=CaravanCrewLifecycle.appearanceKnown(ownerData,key.routeIndex(),identity);
+            merchant.setFemale(CaravanCrewLifecycle.resolve(ownerData,key.routeIndex(),identity).female());
+            if(!appearanceKnown) QuestState.get(world.getServer()).setDirty();
+            Component baseName = NpcNames.component(crew.name(identity));
+            merchant.refreshAutomaticName(event != null && identity == CaravanRole.MASTER
+                    ? Component.translatable("entity.village-quest.route_merchant.event", baseName, event.label())
                     : baseName);
-            merchant.setCustomNameVisible(courier || (event != null && ordinal == 0));
-            ordinal++;
+            merchant.setCustomNameVisible(true);
         }
     }
 
-    private static void sampleRoadQuality(ServerWorld world, PlayerQuestData data, int routeIndex, BlockPos center) {
+    private static void sampleRoadQuality(ServerLevel world, PlayerQuestData data, int routeIndex, BlockPos center) {
         int road = 0;
         int lit = 0;
         int samples = 0;
         for (int dx = -4; dx <= 4; dx += 2) {
             for (int dz = -4; dz <= 4; dz += 2) {
-                BlockPos surface = safeSurface(world, center.getX() + dx, center.getZ() + dz);
+                BlockPos surface = hasV2Geometry(data, routeIndex)
+                        ? safeSurfaceNearY(world, center.getX() + dx, center.getY(),
+                                center.getZ() + dz, 2)
+                        : safeSurface(world, center.getX() + dx, center.getZ() + dz);
                 if (surface == null) {
                     continue;
                 }
                 samples++;
-                if (isRoadBlock(world.getBlockState(surface.down()))) {
+                if (isRoadBlock(world.getBlockState(surface.below()))) {
                     road++;
                 }
-                if (world.getLightLevel(LightType.BLOCK, surface) >= 8) {
+                if (world.getBrightness(LightLayer.BLOCK, surface) >= 8) {
                     lit++;
                 }
             }
@@ -1882,25 +3057,17 @@ public final class TradeRouteService {
         int smoothed = Math.max(5, Math.min(100, (current * 7 + measured) / 8));
         if (smoothed != current) {
             setRouteInt(data, routeIndex, "quality", smoothed);
-            QuestState.get(world.getServer()).setDirty(true);
+            QuestState.get(world.getServer()).setDirty();
         }
     }
 
-    private static void payArrival(ServerWorld world, UUID ownerId, PlayerQuestData data, int routeIndex) {
-        TradeRouteStatus status = status(data, routeIndex);
-        ServerPlayerEntity owner = world.getServer().getPlayerManager().getPlayer(ownerId);
-        int day = currentWorldDay(world);
-        if (data.getTradeRouteInt(INCOME_DAY) != day) {
-            data.setTradeRouteInt(INCOME_DAY, day);
-            data.setTradeRouteInt(INCOME_TODAY, 0);
-        }
-        int dailyCap = hasCaravanYard(world, ownerId) ? 60 : 8;
-        int remaining = Math.max(0, dailyCap - data.getTradeRouteInt(INCOME_TODAY));
-        if (remaining <= 0) {
-            TradeGuildService.onRouteArrival(world, ownerId, routeIndex);
+    private static void payArrival(ServerLevel world, UUID ownerId, PlayerQuestData data, int routeIndex) {
+        if (!settlementAvailable(world, data, routeIndex)) {
             return;
         }
-        double distance = routeDistance(data, routeIndex);
+        TradeRouteStatus status = status(data, routeIndex);
+        ServerPlayer owner = world.getServer().getPlayerList().getPlayer(ownerId);
+        double distance = economyRouteDistance(data, routeIndex);
         double statusFactor = switch (status) {
             case FLOURISHING -> 1.25;
             case SECURED -> 1.0;
@@ -1909,224 +3076,439 @@ public final class TradeRouteService {
         double qualityFactor = 0.8 + quality(data, routeIndex) / 250.0;
         int distanceReward = 1 + Math.min(9, (int) Math.floor(distance / 300.0));
         int reward = Math.min(15, Math.max(1, (int) Math.round(distanceReward * statusFactor * qualityFactor)));
-        reward = Math.min(reward, remaining);
-        data.setTradeRouteInt(INCOME_TODAY, data.getTradeRouteInt(INCOME_TODAY) + reward);
-        if (owner != null) {
-            CurrencyService.addBalance(world, ownerId, reward);
-        } else {
-            int escrowCap = hasCaravanYard(world, ownerId) ? 30 : 8;
-            data.setTradeRouteInt(ESCROW, Math.min(escrowCap, data.getTradeRouteInt(ESCROW) + reward));
-        }
+        reward = de.quest.economy.CaravanIncomeLedger.withdraw(data, reward, owner != null);
+        // Freight still completes when the passive budget is empty or the owner is offline.
+        if (reward <= 0) { TradeGuildService.onRouteArrival(world, ownerId, routeIndex); return; }
+        CurrencyService.addBalance(world, ownerId, reward);
         setRouteInt(data, routeIndex, "earnings", routeInt(data, routeIndex, "earnings") + reward);
         TradeGuildService.onRouteArrival(world, ownerId, routeIndex);
         if (owner != null && ClientPreferenceService.caravanEventNotifications(owner)) {
-            owner.sendMessage(Text.translatable("message.village-quest.trade_route.arrived",
-                    routeName(routeIndex), CurrencyService.formatDelta(reward)) .formatted(Formatting.GRAY), false);
+            de.quest.quest.WorldNewsService.offer(owner,"route:"+routeIndex,Component.translatable("message.village-quest.trade_route.arrived",
+                    routeName(routeIndex), CurrencyService.formatDelta(reward)).withStyle(ChatFormatting.GRAY),false);
         }
     }
 
-    public static int collectEscrow(ServerWorld world, ServerPlayerEntity player) {
-        if (world == null || player == null) return 0;
-        PlayerQuestData data = data(world, player.getUuid());
+    public static int collectEscrow(ServerLevel world, ServerPlayer player) {
+        if (world == null || player == null) {
+            return 0;
+        }
+        PlayerQuestData data = data(world, player.getUUID());
         int amount = Math.max(0, data.getTradeRouteInt(ESCROW));
-        if (amount <= 0) return 0;
+        if (amount <= 0) {
+            return 0;
+        }
         data.setTradeRouteInt(ESCROW, 0);
-        CurrencyService.addBalance(world, player.getUuid(), amount);
-        QuestState.get(world.getServer()).setDirty(true);
-        player.sendMessage(Text.translatable("message.village-quest.trade_route.escrow_collected",
-                CurrencyService.formatDelta(amount)).formatted(Formatting.GREEN), false);
+        CurrencyService.addBalance(world, player.getUUID(), amount);
+        QuestState.get(world.getServer()).setDirty();
+        player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.escrow_collected",
+                CurrencyService.formatDelta(amount)).withStyle(ChatFormatting.GREEN), false);
         return amount;
     }
 
-    public static int escrow(ServerWorld world, UUID playerId) {
+    public static int escrow(ServerLevel world, UUID playerId) {
         return world == null || playerId == null ? 0 : Math.max(0, data(world, playerId).getTradeRouteInt(ESCROW));
     }
 
-    public static int incomeToday(ServerWorld world, UUID playerId) {
-        if (world == null || playerId == null) return 0;
+    public static int incomeToday(ServerLevel world, UUID playerId) {
+        if (world == null || playerId == null) {
+            return 0;
+        }
         PlayerQuestData data = data(world, playerId);
-        return data.getTradeRouteInt(INCOME_DAY) == currentWorldDay(world)
-                ? Math.max(0, data.getTradeRouteInt(INCOME_TODAY)) : 0;
+        return de.quest.economy.CaravanIncomeLedger.paidThisOnlineHour(data);
     }
 
-    public static boolean useRoadwardenHorn(ServerWorld world, ServerPlayerEntity player) {
+    public static boolean useRoadwardenHorn(ServerLevel world, ServerPlayer player) {
         if (world == null || player == null) return false;
-        if (!hasRouteAccess(world, player.getUuid())) {
-            player.sendMessage(Text.translatable("message.village-quest.roadwarden_horn.no_network")
-                    .formatted(Formatting.GRAY), true);
+        if (!hasRouteAccess(world, player.getUUID())) {
+            player.sendSystemMessage(Component.translatable("message.village-quest.roadwarden_horn.no_network")
+                    .withStyle(ChatFormatting.GRAY), true);
             return false;
         }
-        PlayerQuestData data = data(world, player.getUuid());
+        PlayerQuestData data = data(world, player.getUUID());
         int today = (int) de.quest.util.TimeUtil.currentDay();
         if (data.getTradeRouteInt(WARDEN_USE_DAY) != today) {
             data.setTradeRouteInt(WARDEN_USE_DAY, today);
             data.setTradeRouteInt(WARDEN_CHARGES, 1);
-            QuestState.get(world.getServer()).setDirty(true);
-            world.playSound(null, player.getBlockPos(), SoundEvents.EVENT_RAID_HORN.value(), SoundCategory.PLAYERS, 0.55f, 1.65f);
-            player.sendMessage(Text.translatable("message.village-quest.roadwarden_horn.armed")
-                    .formatted(Formatting.GOLD), true);
+            de.quest.kingdom.ArtifactJourneyService.confirmed(world,player,de.quest.kingdom.ArtifactJourneyProgress.Deed.HORN,player.blockPosition());
+            QuestState.get(world.getServer()).setDirty();
+            world.playSound(null, player.blockPosition(), SoundEvents.RAID_HORN.value(), SoundSource.PLAYERS, 0.55f, 1.65f);
+            player.sendSystemMessage(Component.translatable("message.village-quest.roadwarden_horn.armed")
+                    .withStyle(ChatFormatting.GOLD), true);
         } else {
-            Text target = activeRouteTargetLabel(world, player.getUuid());
-            player.sendMessage(target == null
-                    ? Text.translatable("message.village-quest.roadwarden_horn.ready")
-                    : Text.translatable("message.village-quest.roadwarden_horn.target", target), true);
+            Component target = activeRouteTargetLabel(world, player.getUUID());
+            if(target!=null) de.quest.kingdom.ArtifactJourneyService.confirmed(world,player,de.quest.kingdom.ArtifactJourneyProgress.Deed.HORN,player.blockPosition());
+            player.sendSystemMessage(target == null
+                    ? Component.translatable("message.village-quest.roadwarden_horn.ready")
+                    : Component.translatable("message.village-quest.roadwarden_horn.target", target), true);
         }
-        SurveyorCompassQuestService.selectRouteEventMode(world, player.getUuid());
+        SurveyorCompassQuestService.selectRouteEventMode(world, player.getUUID());
         return true;
     }
 
-    public static int routeCount(ServerWorld world, UUID playerId) {
+    public static int routeCount(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) return 0;
         return Math.min(routeCapacity(world, playerId), data(world, playerId).getTradeRouteInt(ROUTE_COUNT));
     }
 
-    public static int routeQuality(ServerWorld world, UUID playerId, int routeIndex) {
+    public static boolean isRegisteredDestination(ServerLevel world, UUID playerId, int x, int z) {
+        if (world == null || playerId == null) return false;
+        return isRegisteredDestination(de.quest.kingdom.LivingKingdomsState.get(world.getServer()),
+                data(world, playerId), world.dimension().identifier().toString(), x, z);
+    }
+
+    public static boolean isRegisteredDestination(de.quest.kingdom.LivingKingdomsState state,
+                                                   PlayerQuestData data, String dimension, int x, int z) {
+        if (data == null || !"minecraft:overworld".equals(dimension)) return false;
+        int count = Math.min(MAX_ROUTES, Math.max(0, data.getTradeRouteInt(ROUTE_COUNT)));
+        for (int route = 0; route < count; route++) {
+            int rx = routeInt(data, route, "x"), rz = routeInt(data, route, "z");
+            if (de.quest.kingdom.KingdomVillageService.sameVillage(state, dimension, rx, rz, x, z)) return true;
+            if (!canonicalRoute(data, route) && (state == null
+                    || state.byLegacy(new VillageLifeState.VillageKey(dimension, x, z)).isEmpty())
+                    && Math.abs((long) rx - x) <= 8L && Math.abs((long) rz - z) <= 8L) return true;
+        }
+        return false;
+    }
+
+    private static void onDispatchArrival(ServerLevel world, UUID ownerId, PlayerQuestData data,
+                                          int routeIndex, int endpointProgress) {
+        String raw = data.getTradeRouteString(routeKey(routeIndex, "connection_id"));
+        if (raw.isBlank()) return;
+        try {
+            UUID connection = UUID.fromString(raw);
+            RegionalDispatchService.onArrival(world, ownerId, data, connection,
+                    endpointProgress == PROGRESS_MAX);
+            GuildConvoyService.onArrival(world, ownerId, data, connection,
+                    endpointProgress == PROGRESS_MAX);
+        } catch (IllegalArgumentException ignored) {
+            // Bad optional connection metadata must not interrupt the older route economy.
+        }
+    }
+
+    /** Read-only route identity check used by live revalidation and deterministic state tests. */
+    public static boolean isRegisteredDestination(PlayerQuestData data, int x, int z) {
+        if (data == null) return false;
+        int count = Math.min(MAX_ROUTES, Math.max(0, data.getTradeRouteInt(ROUTE_COUNT)));
+        for (int route = 0; route < count; route++) {
+            int rx = routeInt(data, route, "x"), rz = routeInt(data, route, "z");
+            if (rx == x && rz == z) return true;
+            if (!canonicalRoute(data, route) && Math.abs((long) rx - x) <= 8L
+                    && Math.abs((long) rz - z) <= 8L) return true;
+        }
+        return false;
+    }
+
+    private static boolean canonicalRoute(PlayerQuestData data, int route) {
+        int village = routeInt(data, route, "village_index") - 1;
+        return village >= 0 && village < VillageBondService.historicalVillageCount(data)
+                && !data.getTradeRouteString(VillageBondService.villageKey(village, "canonical_id")).isEmpty();
+    }
+
+    public static boolean hasActiveSurvey(ServerLevel world, UUID playerId) {
+        return world != null && playerId != null && activeSurveyIndex(data(world, playerId)) >= 0;
+    }
+
+    public static boolean isNearHome(ServerLevel world, UUID playerId, BlockPos pos, int radius) {
+        if (world == null || playerId == null || pos == null) return false;
+        PlayerQuestData data = data(world, playerId);
+        if (!hasHome(data)) return false;
+        long dx = (long) pos.getX() - data.getTradeRouteInt(HOME_X);
+        long dz = (long) pos.getZ() - data.getTradeRouteInt(HOME_Z);
+        return dx * dx + dz * dz <= radius * (long) radius;
+    }
+
+    static boolean isNearRouteMaster(ServerLevel world, ServerPlayer player,
+                                     UUID ownerId, UUID connection) {
+        if (world == null || player == null || ownerId == null || connection == null
+                || player.level() != world) return false;
+        PlayerQuestData ownerData = data(world, ownerId);
+        for (Map.Entry<UUID, RouteKey> linked : ENTITY_ROUTES.entrySet()) {
+            RouteKey key = linked.getValue();
+            if (!ownerId.equals(key.ownerId()) || !connection.equals(
+                    TradeRouteData.connectionId(ownerData, key.routeIndex()))) continue;
+            Entity entity = world.getEntity(linked.getKey());
+            if (entity instanceof CaravanMerchantEntity merchant && merchant.isAlive()
+                    && !merchant.isRemoved() && !merchant.isCourier()
+                    && merchant.getCrewRole() == CaravanRole.MASTER
+                    && player.distanceToSqr(merchant) <= 64.0) return true;
+        }
+        return false;
+    }
+
+    /** True only for the explicitly registered player-built Homestead Trade Post. */
+    public static boolean isNearPlayerYard(ServerLevel world, UUID playerId, BlockPos pos, int radius) {
+        return world != null && playerId != null
+                && isNearPlayerYard(data(world, playerId), world.dimension(), pos, radius);
+    }
+
+    static boolean isNearPlayerYard(PlayerQuestData data, ResourceKey<Level> dimension,
+                                    BlockPos pos, int radius) {
+        return dimension == Level.OVERWORLD && isPlayerYardNear(data, pos, radius);
+    }
+
+    public static boolean isNearAnyNetworkAnchor(ServerLevel world, BlockPos pos, int radius) {
+        if (world == null || pos == null) return false;
+        int safeRadius = Math.max(0, radius);
+        for (var entry : QuestState.get(world.getServer()).getPlayersView().entrySet()) {
+            UUID playerId = entry.getKey();
+            PlayerQuestData playerData = entry.getValue();
+            if (isNearHome(world, playerId, pos, safeRadius)
+                    || distanceToNearestRoute(world, playerId, pos) >= 0
+                    && distanceToNearestRoute(world, playerId, pos) <= safeRadius) {
+                return true;
+            }
+            int count = Math.min(MAX_ROUTES, Math.max(0, playerData.getTradeRouteInt(ROUTE_COUNT)));
+            for (int route = 0; route < count; route++) {
+                long dx = (long) routeInt(playerData, route, "x") - pos.getX();
+                long dz = (long) routeInt(playerData, route, "z") - pos.getZ();
+                if (dx * dx + dz * dz <= safeRadius * (long) safeRadius) return true;
+            }
+        }
+        return false;
+    }
+
+    public static int completedGuildContracts(ServerLevel world, UUID playerId) {
+        return world == null || playerId == null ? 0
+                : Math.max(0, data(world, playerId).getTradeRouteInt("guild_contracts_completed"));
+    }
+
+    public static int totalRouteSuccesses(ServerLevel world, UUID playerId) {
+        if (world == null || playerId == null) return 0;
+        PlayerQuestData data = data(world, playerId);
+        int total = 0;
+        for (int route = 0; route < Math.min(MAX_ROUTES, data.getTradeRouteInt(ROUTE_COUNT)); route++) {
+            total += Math.max(0, routeInt(data, route, "successes"));
+        }
+        return total;
+    }
+
+    public static boolean hasActiveRouteEvent(ServerLevel world, UUID playerId) {
+        if (world == null || playerId == null) return false;
+        PlayerQuestData data = data(world, playerId);
+        for (int route = 0; route < routeCount(world, playerId); route++) {
+            if (event(data, route) != null) return true;
+        }
+        return false;
+    }
+
+    /** Existing loaded ambushes only; no quest-state reads, scans or route mutation. */
+    public static boolean ambientConflict(ServerLevel world,BlockPos position) {
+        return ACTIVE_CARAVANS.values().stream().filter(r -> !r.attackerIds.isEmpty())
+                .anyMatch(r -> (r.lastActual==null?r.lastExpected:r.lastActual).distSqr(position)<=64*64
+                        || r.attackerIds.stream().map(world::getEntity).anyMatch(e -> e!=null && e.blockPosition().distSqr(position)<=64*64));
+    }
+
+    public static int distanceToNearestRoute(ServerLevel world, UUID playerId, BlockPos pos) {
+        if (world == null || playerId == null || pos == null) return -1;
+        PlayerQuestData data = data(world, playerId);
+        int count = Math.min(MAX_ROUTES, Math.max(0, data.getTradeRouteInt(ROUTE_COUNT)));
+        if (count == 0) return -1;
+        double best = Double.MAX_VALUE;
+        for (int route = 0; route < count; route++) {
+            List<RoutePoint> path = routePath(data, route);
+            for (int point = 1; point < path.size(); point++) {
+                best = Math.min(best, distanceToSegment(pos.getX(), pos.getZ(), path.get(point - 1), path.get(point)));
+            }
+        }
+        return best == Double.MAX_VALUE ? -1 : (int) Math.round(best);
+    }
+
+    private static double distanceToSegment(double x, double z, RoutePoint from, RoutePoint to) {
+        double dx = to.x() - from.x();
+        double dz = to.z() - from.z();
+        double lengthSquared = dx * dx + dz * dz;
+        if (lengthSquared <= 0.0001) return Math.hypot(x - from.x(), z - from.z());
+        double t = Math.max(0.0, Math.min(1.0, ((x - from.x()) * dx + (z - from.z()) * dz) / lengthSquared));
+        return Math.hypot(x - (from.x() + dx * t), z - (from.z() + dz * t));
+    }
+
+    public static int routeQuality(ServerLevel world, UUID playerId, int routeIndex) {
         return validRoute(world, playerId, routeIndex) ? quality(data(world, playerId), routeIndex) : 0;
     }
 
-    public static int routeSuccesses(ServerWorld world, UUID playerId, int routeIndex) {
+    public static int routeSuccesses(ServerLevel world, UUID playerId, int routeIndex) {
         return validRoute(world, playerId, routeIndex)
                 ? Math.max(0, routeInt(data(world, playerId), routeIndex, "successes")) : 0;
     }
 
-    public static int routeDistanceBlocks(ServerWorld world, UUID playerId, int routeIndex) {
+    public static int routeTraversalDistanceBlocks(ServerLevel world, UUID playerId, int routeIndex) {
         return validRoute(world, playerId, routeIndex)
-                ? Math.max(0, (int) Math.round(routeDistance(data(world, playerId), routeIndex))) : 0;
+                ? routeTraversalDistanceBlocks(data(world, playerId), routeIndex) : 0;
     }
 
-    public static Text routeDisplayName(ServerWorld world, UUID playerId, int routeIndex) {
+    public static int routeEconomyDistanceBlocks(ServerLevel world, UUID playerId, int routeIndex) {
+        return validRoute(world, playerId, routeIndex)
+                ? routeEconomyDistanceBlocks(data(world, playerId), routeIndex) : 0;
+    }
+
+    static int routeTraversalDistanceBlocks(PlayerQuestData data, int routeIndex) {
+        return Math.max(0, (int) Math.round(routeTraversalDistance(data, routeIndex)));
+    }
+
+    static int routeEconomyDistanceBlocks(PlayerQuestData data, int routeIndex) {
+        return Math.max(0, (int) Math.round(economyRouteDistance(data, routeIndex)));
+    }
+
+    public static int routeDestinationX(ServerLevel world, UUID playerId, int routeIndex) {
+        return validRoute(world, playerId, routeIndex)
+                ? routeInt(data(world, playerId), routeIndex, "x") : 0;
+    }
+
+    public static int routeDestinationZ(ServerLevel world, UUID playerId, int routeIndex) {
+        return validRoute(world, playerId, routeIndex)
+                ? routeInt(data(world, playerId), routeIndex, "z") : 0;
+    }
+
+    public static Component routeDisplayName(ServerLevel world, UUID playerId, int routeIndex) {
         return validRoute(world, playerId, routeIndex)
                 ? routeName(data(world, playerId), routeIndex)
                 : routeName(routeIndex);
     }
 
-    public static boolean hireRoadPatrol(ServerWorld world, ServerPlayerEntity player, int routeIndex, int cycles) {
-        if (world == null || player == null || !validRoute(world, player.getUuid(), routeIndex)) {
-            return false;
-        }
-        PlayerQuestData data = data(world, player.getUuid());
+    public static TradeRouteIncidentApproach incidentApproach(ServerLevel world, UUID playerId, int routeIndex) {
+        return validRoute(world, playerId, routeIndex)
+                ? incidentApproach(data(world, playerId), routeIndex) : TradeRouteIncidentApproach.CAREFUL;
+    }
+
+    public static boolean setIncidentApproach(ServerLevel world, ServerPlayer player, int routeIndex,
+                                              TradeRouteIncidentApproach approach) {
+        if (!canMutateRoute(world, player) || approach == null
+                || !validRoute(world, player.getUUID(), routeIndex)) return false;
+        setRouteInt(data(world, player.getUUID()), routeIndex, "incident_approach", approach.id());
+        QuestState.get(world.getServer()).setDirty();
+        refreshUi(world, player);
+        return true;
+    }
+
+    private static TradeRouteIncidentApproach incidentApproach(PlayerQuestData data, int routeIndex) {
+        return TradeRouteIncidentApproach.byId(routeInt(data, routeIndex, "incident_approach"));
+    }
+
+    public static boolean hireRoadPatrol(ServerLevel world, ServerPlayer player, int routeIndex, int cycles) {
+        if (!canMutateRoute(world, player) || !validRoute(world, player.getUUID(), routeIndex)) return false;
+        PlayerQuestData data = data(world, player.getUUID());
         setRouteInt(data, routeIndex, "patrol_cycles",
                 Math.max(routeInt(data, routeIndex, "patrol_cycles"), Math.max(1, cycles)));
-        QuestState.get(world.getServer()).setDirty(true);
+        QuestState.get(world.getServer()).setDirty();
         refreshUi(world, player);
         return true;
     }
 
-    public static boolean buySurveyReport(ServerWorld world, ServerPlayerEntity player, int routeIndex, int improvement) {
-        if (world == null || player == null || !validRoute(world, player.getUuid(), routeIndex)) {
-            return false;
-        }
-        PlayerQuestData data = data(world, player.getUuid());
+    public static boolean buySurveyReport(ServerLevel world, ServerPlayer player, int routeIndex, int improvement) {
+        if (!canMutateRoute(world, player) || !validRoute(world, player.getUUID(), routeIndex)) return false;
+        PlayerQuestData data = data(world, player.getUUID());
         setRouteInt(data, routeIndex, "quality", Math.min(100,
                 quality(data, routeIndex) + Math.max(1, improvement)));
-        QuestState.get(world.getServer()).setDirty(true);
+        QuestState.get(world.getServer()).setDirty();
         refreshUi(world, player);
         return true;
     }
 
-    public static boolean emergencyRecall(ServerWorld world, ServerPlayerEntity player, int routeIndex) {
-        if (world == null || player == null || !validRoute(world, player.getUuid(), routeIndex)) {
-            return false;
-        }
-        PlayerQuestData data = data(world, player.getUuid());
+    public static boolean emergencyRecall(ServerLevel world, ServerPlayer player, int routeIndex) {
+        if (!canMutateRoute(world, player) || !validRoute(world, player.getUUID(), routeIndex)) return false;
+        PlayerQuestData data = data(world, player.getUUID());
         int progress = clampProgress(routeInt(data, routeIndex, "progress"));
         int endpoint = progress < PROGRESS_MAX / 2 ? 0 : PROGRESS_MAX;
         setRouteInt(data, routeIndex, "progress", endpoint);
         setRouteInt(data, routeIndex, "direction", endpoint == 0 ? 1 : -1);
         setRouteInt(data, routeIndex, "event", 0);
         setRouteInt(data, routeIndex, "event_day", 0);
+        setRouteInt(data, routeIndex, "event_online_seconds", 0);
         setRouteInt(data, routeIndex, "event_progress", 0);
-        removeRuntime(world, new RouteKey(player.getUuid(), routeIndex));
-        QuestState.get(world.getServer()).setDirty(true);
+        setRouteInt(data, routeIndex, "event_mode", 0);
+        removeRuntime(world, new RouteKey(player.getUUID(), routeIndex));
+        QuestState.get(world.getServer()).setDirty();
         refreshUi(world, player);
         return true;
     }
 
-    public static int routeLivery(ServerWorld world, UUID playerId, int routeIndex) {
+    public static int routeLivery(ServerLevel world, UUID playerId, int routeIndex) {
         return validRoute(world, playerId, routeIndex)
-                ? routeLivery(data(world, playerId), routeIndex)
+                ? storedLivery(data(world, playerId), routeIndex)
                 : Math.floorMod(routeIndex, MAX_ROUTES);
     }
 
-    public static boolean setRouteLivery(ServerWorld world, ServerPlayerEntity player, int routeIndex, int liveryIndex) {
-        if (world == null || player == null || !validRoute(world, player.getUuid(), routeIndex)) {
-            return false;
-        }
-        PlayerQuestData data = data(world, player.getUuid());
+    public static boolean setRouteLivery(ServerLevel world, ServerPlayer player, int routeIndex, int liveryIndex) {
+        if (!canMutateRoute(world, player) || !validRoute(world, player.getUUID(), routeIndex)) return false;
+        PlayerQuestData data = data(world, player.getUUID());
         int clamped = Math.max(0, Math.min(MAX_ROUTES - 1, liveryIndex));
         setRouteInt(data, routeIndex, "livery", clamped + 1);
-        CaravanRuntime runtime = ACTIVE_CARAVANS.get(new RouteKey(player.getUuid(), routeIndex));
+        CaravanRuntime runtime = ACTIVE_CARAVANS.get(new RouteKey(player.getUUID(), routeIndex));
         if (runtime != null) {
             for (CaravanMerchantEntity merchant : livingMerchants(world, runtime)) {
                 merchant.setLiveryIndex(clamped);
             }
         }
-        QuestState.get(world.getServer()).setDirty(true);
+        QuestState.get(world.getServer()).setDirty();
         refreshUi(world, player);
-        player.sendMessage(Text.translatable("message.village-quest.prosperity.livery_applied",
-                routeName(data, routeIndex)).formatted(Formatting.GREEN), false);
+        player.sendSystemMessage(Component.translatable("message.village-quest.prosperity.livery_applied",
+                routeName(data, routeIndex)).withStyle(ChatFormatting.GREEN), false);
         return true;
     }
 
-    public static TradeRouteSpecialization specialization(ServerWorld world, UUID playerId, int routeIndex) {
+    public static TradeRouteSpecialization specialization(ServerLevel world, UUID playerId, int routeIndex) {
         return validRoute(world, playerId, routeIndex)
                 ? TradeRouteSpecialization.fromId(routeInt(data(world, playerId), routeIndex, "specialization"))
                 : TradeRouteSpecialization.GENERAL;
     }
 
-    public static boolean specialize(ServerWorld world, ServerPlayerEntity player, int routeIndex,
+    public static boolean specialize(ServerLevel world, ServerPlayer player, int routeIndex,
                                      TradeRouteSpecialization specialization) {
         if (world == null || player == null || specialization == null
-                || !validRoute(world, player.getUuid(), routeIndex)) return false;
-        PlayerQuestData data = data(world, player.getUuid());
-        if (specialization(world, player.getUuid(), routeIndex) == specialization) return false;
+                || !validRoute(world, player.getUUID(), routeIndex)) return false;
+        PlayerQuestData data = data(world, player.getUUID());
+        if (specialization(world, player.getUUID(), routeIndex) == specialization) return false;
         String chosenFlag = routeKey(routeIndex, "specialization_chosen");
         int cost = data.hasTradeRouteFlag(chosenFlag) ? 15 : 0;
-        if (cost > 0 && !CurrencyService.removeBalance(world, player.getUuid(), cost)) {
-            player.sendMessage(Text.translatable("message.village-quest.trade_guild.not_enough",
-                    CurrencyService.formatBalance(cost)).formatted(Formatting.RED), false);
+        if (cost > 0 && !CurrencyService.removeBalance(world, player.getUUID(), cost)) {
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_guild.not_enough",
+                    CurrencyService.formatBalance(cost)).withStyle(ChatFormatting.RED), false);
             return false;
         }
         setRouteInt(data, routeIndex, "specialization", specialization.id());
         data.setTradeRouteFlag(chosenFlag, true);
-        QuestState.get(world.getServer()).setDirty(true);
-        player.sendMessage(Text.translatable("message.village-quest.trade_guild.specialized", routeName(routeIndex),
-                specialization.label(), CurrencyService.formatBalance(cost)).formatted(Formatting.GREEN), false);
+        QuestState.get(world.getServer()).setDirty();
+        player.sendSystemMessage(Component.translatable("message.village-quest.trade_guild.specialized",
+                routeName(routeIndex), specialization.label(), CurrencyService.formatBalance(cost))
+                .withStyle(ChatFormatting.GREEN), false);
         refreshUi(world, player);
         return true;
     }
 
-    public static boolean hasUpgrade(ServerWorld world, UUID playerId, int routeIndex, TradeRouteUpgrade upgrade) {
+    public static boolean hasUpgrade(ServerLevel world, UUID playerId, int routeIndex, TradeRouteUpgrade upgrade) {
         return validRoute(world, playerId, routeIndex) && hasUpgrade(data(world, playerId), routeIndex, upgrade);
     }
 
-    public static boolean buyUpgrade(ServerWorld world, ServerPlayerEntity player, int routeIndex, TradeRouteUpgrade upgrade) {
-        if (world == null || player == null || upgrade == null || !validRoute(world, player.getUuid(), routeIndex)) return false;
-        if (TradeGuildService.guildRank(world, player.getUuid()) < upgrade.requiredGuildRank()) {
-            player.sendMessage(Text.translatable("message.village-quest.trade_guild.rank_locked", upgrade.requiredGuildRank())
-                    .formatted(Formatting.RED), false);
+    public static boolean buyUpgrade(ServerLevel world, ServerPlayer player, int routeIndex, TradeRouteUpgrade upgrade) {
+        if (!canMutateRoute(world, player) || upgrade == null || !validRoute(world, player.getUUID(), routeIndex)) return false;
+        if (TradeGuildService.guildRank(world, player.getUUID()) < upgrade.requiredGuildRank()) {
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_guild.rank_locked",
+                    upgrade.requiredGuildRank()).withStyle(ChatFormatting.GRAY), false);
             return false;
         }
-        PlayerQuestData data = data(world, player.getUuid());
+        PlayerQuestData data = data(world, player.getUUID());
         if (hasUpgrade(data, routeIndex, upgrade)) {
-            player.sendMessage(Text.translatable("message.village-quest.trade_guild.upgrade_owned").formatted(Formatting.GRAY), false);
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_guild.upgrade_owned")
+                    .withStyle(ChatFormatting.GRAY), false);
             return false;
         }
-        long actualCost = ProsperityService.routeUpgradePrice(world, player.getUuid(), upgrade.cost());
-        if (!CurrencyService.removeBalance(world, player.getUuid(), actualCost)) {
-            player.sendMessage(Text.translatable("message.village-quest.trade_guild.not_enough",
-                    CurrencyService.formatBalance(actualCost)).formatted(Formatting.RED), false);
+        long actualCost = ProsperityService.routeUpgradePrice(world, player.getUUID(), upgrade.cost());
+        if (!CurrencyService.removeBalance(world, player.getUUID(), actualCost)) {
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_guild.not_enough",
+                    CurrencyService.formatBalance(actualCost)).withStyle(ChatFormatting.RED), false);
             return false;
         }
-        setRouteInt(data, routeIndex, "upgrades", routeInt(data, routeIndex, "upgrades") | upgrade.bit());
-        QuestState.get(world.getServer()).setDirty(true);
-        player.sendMessage(Text.translatable("message.village-quest.trade_guild.upgrade_bought", upgrade.label(),
-                routeName(routeIndex), CurrencyService.formatBalance(actualCost)).formatted(Formatting.GREEN), false);
+        int mask = routeInt(data, routeIndex, "upgrades") | upgrade.bit();
+        setRouteInt(data, routeIndex, "upgrades", mask);
+        QuestState.get(world.getServer()).setDirty();
+        player.sendSystemMessage(Component.translatable("message.village-quest.trade_guild.upgrade_bought",
+                upgrade.label(), routeName(routeIndex), CurrencyService.formatBalance(actualCost))
+                .withStyle(ChatFormatting.GREEN), false);
         refreshUi(world, player);
         return true;
     }
 
-    private static boolean validRoute(ServerWorld world, UUID playerId, int routeIndex) {
+    private static boolean validRoute(ServerLevel world, UUID playerId, int routeIndex) {
         return routeIndex >= 0 && routeIndex < routeCount(world, playerId);
     }
 
@@ -2134,18 +3516,23 @@ public final class TradeRouteService {
         return upgrade != null && (routeInt(data, routeIndex, "upgrades") & upgrade.bit()) != 0;
     }
 
-    private static Text upgradeSummary(PlayerQuestData data, int routeIndex) {
+    private static Component upgradeSummary(PlayerQuestData data, int routeIndex) {
         List<String> names = new ArrayList<>();
         for (TradeRouteUpgrade upgrade : TradeRouteUpgrade.values()) {
             if (hasUpgrade(data, routeIndex, upgrade)) names.add(upgrade.label().getString());
         }
-        return names.isEmpty() ? Text.translatable("text.village-quest.trade_guild.upgrades_none")
-                : Text.literal(String.join(", ", names));
+        return names.isEmpty()
+                ? Component.translatable("text.village-quest.trade_guild.upgrades_none")
+                : Component.literal(String.join(", ", names));
     }
 
     private static boolean hasActiveEvent(PlayerQuestData data) {
         int count = Math.min(MAX_ROUTES, data.getTradeRouteInt(ROUTE_COUNT));
-        for (int i = 0; i < count; i++) if (event(data, i) != null) return true;
+        for (int i = 0; i < count; i++) {
+            if (event(data, i) != null) {
+                return true;
+            }
+        }
         return false;
     }
 
@@ -2155,30 +3542,46 @@ public final class TradeRouteService {
             case BROKEN_WHEEL, INJURED_PACK_ANIMAL, ROAD_TOLL -> 1;
             case WASHED_OUT_BRIDGE, STORM_CAMP -> 2;
             case FALSE_DISTRESS -> 3;
+            case SHATTERED_WAYSTONE, SHRINE_PILGRIMS -> 2;
+            case RUNES_GONE_DARK -> 3;
         };
-        return Math.max(6, Math.min(14, 5 + difficulty * 2
-                + (int) Math.floor(routeDistance(data, routeIndex) / 650.0)));
+        int base = Math.max(6, Math.min(14, 5 + difficulty * 2
+                + (int) Math.floor(economyRouteDistance(data, routeIndex) / 650.0)));
+        return Math.max(4, (int) Math.round(base * incidentApproach(data, routeIndex).rewardMultiplier()));
     }
 
-    private static Payloads.TradeRouteMapPayload buildMapPayload(ServerWorld world, UUID ownerId, int action) {
+    private static Payloads.TradeRouteMapPayload buildMapPayload(ServerLevel world, UUID ownerId, int action) {
         PlayerQuestData data = data(world, ownerId);
         List<Payloads.TradeRouteNodeData> nodes = new ArrayList<>();
         List<Payloads.TradeRouteLineData> routes = new ArrayList<>();
         List<Payloads.TradeRouteCaravanData> caravans = new ArrayList<>();
+        VillageLifeState life = VillageLifeState.get(world.getServer());
+        String dimension = world.dimension().identifier().toString();
         if (hasHome(data)) {
             boolean playerYard = isPlayerYard(data);
             nodes.add(new Payloads.TradeRouteNodeData(0,
-                    Text.translatable(playerYard
+                    Component.translatable(playerYard
                             ? "text.village-quest.trade_route.node.homestead"
                             : "text.village-quest.trade_route.node.caravan_yard"),
-                    data.getTradeRouteInt(HOME_X), data.getTradeRouteInt(HOME_Z), true, playerYard));
+                    data.getTradeRouteInt(HOME_X), data.getTradeRouteInt(HOME_Z), true, playerYard,
+                    playerYard ? VillageLifeState.Status.ACTIVE.ordinal()
+                            : life.status(new VillageLifeState.VillageKey(dimension,
+                            data.getTradeRouteInt(HOME_X), data.getTradeRouteInt(HOME_Z))).ordinal()));
         }
         int count = Math.min(MAX_ROUTES, data.getTradeRouteInt(ROUTE_COUNT));
         for (int i = 0; i < count; i++) {
             nodes.add(new Payloads.TradeRouteNodeData(i + 1,
-                    villageName(data, i),
-                    routeInt(data, i, "x"), routeInt(data, i, "z"), false, false));
+                    de.quest.kingdom.KingdomVillageService.name(world,
+                            routeInt(data, i, "x"), routeInt(data, i, "z"), villageName(data, i)),
+                    routeInt(data, i, "x"), routeInt(data, i, "z"), false, false,
+                    life.status(new VillageLifeState.VillageKey(dimension,
+                            routeInt(data, i, "x"), routeInt(data, i, "z"))).ordinal()));
             TradeRouteEventType event = event(data, i);
+            TradeRouteAvailability.Reason availability = routeAvailability(world, data, i);
+            if (!CaravanCrewData.isComplete(data, i)) {
+                QuestState.get(world.getServer()).setDirty();
+            }
+            CaravanCrewData.Crew crew = CaravanCrewData.ensure(data, i);
             boolean surveying = activeSurveyIndex(data) == i;
             List<Payloads.TradeRoutePointData> mapWaypoints = (surveying
                     ? surveyPointsWithModes(data)
@@ -2186,23 +3589,36 @@ public final class TradeRouteService {
                     .map(point -> new Payloads.TradeRoutePointData(
                             point.point().x(), point.point().z(), point.ocean()))
                     .toList();
+            TradeRouteSurveyMetrics.Estimate estimate = surveyEstimate(world, data, i, surveying);
             routes.add(new Payloads.TradeRouteLineData(
                     i,
-                    routeLivery(data, i),
-                    routeName(data, i),
+                    storedLivery(data, i),
+                    GuildConvoyService.currentLeg(world, ownerId,
+                            TradeRouteData.connectionId(data, i))
+                            ? Component.translatable("screen.village-quest.convoy.route_name", routeName(data, i))
+                            : routeName(data, i),
                     status(data, i).id(),
                     status(data, i).label(),
+                    availability == TradeRouteAvailability.Reason.ACTIVE
+                            ? Component.empty() : availability.label(),
                     quality(data, i),
                     clampProgress(routeInt(data, i, "progress")),
                     routeInt(data, i, "direction") < 0,
                     isStopped(data, i),
+                    availability.suspendsForSettlement(),
                     surveying,
-                    event == null ? Text.empty() : event.label(),
-                    event == null ? Text.empty() : event.help(),
+                    event == null ? Component.empty() : event.label(),
+                    event == null ? Component.empty() : event.help(),
                     Math.max(0, routeInt(data, i, "earnings")),
                     specialization(world, ownerId, i).label(),
+                    incidentApproach(data, i).label(),
                     upgradeSummary(data, i),
-                    mapWaypoints
+                    crew.master(), crew.trader(), crew.guard(), crew.courier(),
+                    mapWaypoints,
+                    estimate.straightBlocks(),
+                    surveying ? estimate.surveyedBlocks() : estimate.estimatedBlocks(),
+                    estimate.estimatedBlocks(), estimate.estimatedMinutes(),
+                    estimate.expectedLegs(), estimate.unusuallyLong()
             ));
             RouteKey key = new RouteKey(ownerId, i);
             int direction = routeInt(data, i, "direction") < 0 ? -1 : 1;
@@ -2224,30 +3640,38 @@ public final class TradeRouteService {
         }
         return new Payloads.TradeRouteMapPayload(
                 action,
-                Text.translatable("screen.village-quest.trade_route.title"),
-                Text.translatable("screen.village-quest.trade_route.summary_guild", count, routeCapacity(world, ownerId),
-                        TradeGuildService.rankLabel(TradeGuildService.guildRank(world, ownerId)), incomeToday(world, ownerId)),
+                Component.translatable("screen.village-quest.trade_route.title"),
+                Component.translatable("screen.village-quest.trade_route.summary_guild",
+                        count, routeCapacity(world, ownerId),
+                        TradeGuildService.rankLabel(TradeGuildService.guildRank(world, ownerId)),
+                        incomeToday(world, ownerId)),
                 List.copyOf(nodes),
                 List.copyOf(routes),
-                List.copyOf(caravans)
+                List.copyOf(caravans),
+                VillageBondService.bondPayloads(world, ownerId),
+                VillageBondService.shrinePayloads(world, ownerId, -1),
+                VillageBondService.decorationPayloads(world, ownerId),
+                hasRouteAccess(world,ownerId)
         );
     }
 
-    private static void tickMapViewers(ServerWorld world, long gameTime) {
+    private static void tickMapViewers(ServerLevel world, long gameTime) {
         if (gameTime % MAP_UPDATE_TICKS != 0L) {
             return;
         }
         for (UUID viewerId : List.copyOf(MAP_VIEWERS)) {
-            ServerPlayerEntity viewer = world.getServer().getPlayerManager().getPlayer(viewerId);
-            if (viewer == null || viewer.getEntityWorld() != world || !hasRouteAccess(world, viewerId)) {
+            ServerPlayer viewer = world.getServer().getPlayerList().getPlayer(viewerId);
+            if (viewer == null || viewer.level() != world || !hasRouteAccess(world, viewerId)
+                    || !MAP_ACTION_GATE.hasActiveSession(viewerId, gameTime)) {
                 MAP_VIEWERS.remove(viewerId);
+                MAP_ACTION_GATE.close(viewerId);
                 continue;
             }
             ServerPlayNetworking.send(viewer, buildMapPayload(world, viewerId, Payloads.TradeRouteMapPayload.ACTION_UPDATE));
         }
         for (UUID viewerId : List.copyOf(MINIMAP_VIEWERS)) {
-            ServerPlayerEntity viewer = world.getServer().getPlayerManager().getPlayer(viewerId);
-            if (viewer == null || viewer.getEntityWorld() != world || !hasRouteAccess(world, viewerId)) {
+            ServerPlayer viewer = world.getServer().getPlayerList().getPlayer(viewerId);
+            if (viewer == null || viewer.level() != world || !hasRouteAccess(world, viewerId)) {
                 MINIMAP_VIEWERS.remove(viewerId);
                 if (viewer != null) {
                     ServerPlayNetworking.send(viewer, buildMapPayload(world, viewerId,
@@ -2260,36 +3684,41 @@ public final class TradeRouteService {
         }
     }
 
-    private static void cleanupInactiveCaravans(ServerWorld world) {
+    private static void cleanupInactiveCaravans(ServerLevel world) {
         for (Map.Entry<RouteKey, CaravanRuntime> entry : List.copyOf(ACTIVE_CARAVANS.entrySet())) {
             if (!runtimeHasLivingMerchant(world, entry.getValue())) {
                 removeRuntime(world, entry.getKey());
             }
         }
-        for (Entity entity : allEntities(world)) {
-            if (entity.getCommandTags().contains(TAG_ROUTE_CARAVAN)) {
-                RouteKey key = ENTITY_ROUTES.get(entity.getUuid());
-                CaravanRuntime runtime = key == null ? null : ACTIVE_CARAVANS.get(key);
-                if (runtime != null && runtime.merchantIds.contains(entity.getUuid())) {
-                    continue;
+        if (TradeRouteSchedulingPolicy.shouldRunOrphanSweep(
+                world.getGameTime(), ORPHAN_SWEEP_INTERVAL_TICKS)) {
+            for (Entity entity : allEntities(world)) {
+                if (entity.getTags().contains(TAG_ROUTE_CARAVAN)) {
+                    RouteKey key = ENTITY_ROUTES.get(entity.getUUID());
+                    CaravanRuntime runtime = key == null ? null : ACTIVE_CARAVANS.get(key);
+                    if (runtime != null && (runtime.merchantIds.contains(entity.getUUID())
+                            || entity.getUUID().equals(runtime.packMuleId))) {
+                        continue;
+                    }
+                    ENTITY_ROUTES.remove(entity.getUUID());
+                    entity.discard();
+                } else if (entity.getTags().contains(TAG_ROUTE_ATTACKER)) {
+                    RouteKey key = ATTACKER_ROUTES.get(entity.getUUID());
+                    CaravanRuntime runtime = key == null ? null : ACTIVE_CARAVANS.get(key);
+                    if (runtime != null && runtime.attackerIds.contains(entity.getUUID())) {
+                        continue;
+                    }
+                    EncounterEntityLifecycle.forget(entity.getUUID());
+                    ATTACKER_ROUTES.remove(entity.getUUID());
+                    entity.discard();
                 }
-                ENTITY_ROUTES.remove(entity.getUuid());
-                entity.discard();
-            } else if (entity.getCommandTags().contains(TAG_ROUTE_ATTACKER)) {
-                RouteKey key = ATTACKER_ROUTES.get(entity.getUuid());
-                CaravanRuntime runtime = key == null ? null : ACTIVE_CARAVANS.get(key);
-                if (runtime != null && runtime.attackerIds.contains(entity.getUuid())) {
-                    continue;
-                }
-                ATTACKER_ROUTES.remove(entity.getUuid());
-                entity.discard();
             }
         }
-        MATERIALIZATION_RETRY_AT.entrySet().removeIf(entry -> entry.getValue() <= world.getTime()
+        MATERIALIZATION_RETRY_AT.entrySet().removeIf(entry -> entry.getValue() <= world.getGameTime()
                 && !ACTIVE_CARAVANS.containsKey(entry.getKey()));
     }
 
-    private static void removeOwnerRuntimes(ServerWorld world, UUID ownerId) {
+    public static void removeOwnerRuntimes(ServerLevel world, UUID ownerId) {
         MATERIALIZATION_RETRY_AT.keySet().removeIf(key -> key.ownerId().equals(ownerId));
         for (RouteKey key : List.copyOf(ACTIVE_CARAVANS.keySet())) {
             if (key.ownerId().equals(ownerId)) {
@@ -2298,17 +3727,17 @@ public final class TradeRouteService {
         }
         String ownerTag = ownerTag(ownerId);
         for (Entity entity : allEntities(world)) {
-            if (entity.getCommandTags().contains(ownerTag)
-                    && (entity.getCommandTags().contains(TAG_ROUTE_CARAVAN)
-                    || entity.getCommandTags().contains(TAG_ROUTE_ATTACKER))) {
-                ENTITY_ROUTES.remove(entity.getUuid());
-                ATTACKER_ROUTES.remove(entity.getUuid());
+            if (entity.getTags().contains(ownerTag)
+                    && (entity.getTags().contains(TAG_ROUTE_CARAVAN)
+                    || entity.getTags().contains(TAG_ROUTE_ATTACKER))) {
+                ENTITY_ROUTES.remove(entity.getUUID());
+                ATTACKER_ROUTES.remove(entity.getUUID());
                 entity.discard();
             }
         }
     }
 
-    private static void removeRuntime(ServerWorld world, RouteKey key) {
+    private static void removeRuntime(ServerLevel world, RouteKey key) {
         MATERIALIZATION_RETRY_AT.remove(key);
         CaravanRuntime runtime = ACTIVE_CARAVANS.remove(key);
         if (runtime != null) {
@@ -2316,32 +3745,33 @@ public final class TradeRouteService {
         }
     }
 
-    private static void discardRouteEntities(ServerWorld world, RouteKey key) {
+    private static void discardRouteEntities(ServerLevel world, RouteKey key) {
         removeRuntime(world, key);
         String owner = ownerTag(key.ownerId());
         String route = routeTag(key.routeIndex());
         for (Entity entity : allEntities(world)) {
-            RouteKey mapped = ENTITY_ROUTES.get(entity.getUuid());
+            RouteKey mapped = ENTITY_ROUTES.get(entity.getUUID());
             if (mapped == null) {
-                mapped = ATTACKER_ROUTES.get(entity.getUuid());
+                mapped = ATTACKER_ROUTES.get(entity.getUUID());
             }
-            boolean tagged = entity.getCommandTags().contains(owner) && entity.getCommandTags().contains(route)
-                    && (entity.getCommandTags().contains(TAG_ROUTE_CARAVAN)
-                    || entity.getCommandTags().contains(TAG_ROUTE_ATTACKER));
+            boolean tagged = entity.getTags().contains(owner) && entity.getTags().contains(route)
+                    && (entity.getTags().contains(TAG_ROUTE_CARAVAN)
+                    || entity.getTags().contains(TAG_ROUTE_ATTACKER));
             if (key.equals(mapped) || tagged) {
-                ENTITY_ROUTES.remove(entity.getUuid());
-                ATTACKER_ROUTES.remove(entity.getUuid());
+                ENTITY_ROUTES.remove(entity.getUUID());
+                ATTACKER_ROUTES.remove(entity.getUUID());
                 entity.discard();
             }
         }
     }
 
-    private static boolean isRecoveryVisible(ServerPlayerEntity observer, Entity entity) {
-        return observer != null && entity != null && observer.squaredDistanceTo(entity)
+    private static boolean isRecoveryVisible(ServerPlayer observer, Entity entity) {
+        return observer != null && entity != null && observer.distanceToSqr(entity)
                 <= CARAVAN_VISIBLE_RECOVERY_RADIUS * (double) CARAVAN_VISIBLE_RECOVERY_RADIUS;
     }
 
-    private static void discardRuntimeEntities(ServerWorld world, CaravanRuntime runtime) {
+    private static void discardRuntimeEntities(ServerLevel world, CaravanRuntime runtime) {
+        removePackMule(world, runtime);
         for (UUID merchantId : runtime.merchantIds) {
             ENTITY_ROUTES.remove(merchantId);
             Entity entity = findEntity(world, merchantId);
@@ -2352,8 +3782,9 @@ public final class TradeRouteService {
         discardAttackers(world, runtime);
     }
 
-    private static void discardAttackers(ServerWorld world, CaravanRuntime runtime) {
+    private static void discardAttackers(ServerLevel world, CaravanRuntime runtime) {
         for (UUID attackerId : List.copyOf(runtime.attackerIds)) {
+            EncounterEntityLifecycle.forget(attackerId);
             ATTACKER_ROUTES.remove(attackerId);
             Entity entity = findEntity(world, attackerId);
             if (entity != null) {
@@ -2363,7 +3794,7 @@ public final class TradeRouteService {
         runtime.attackerIds.clear();
     }
 
-    private static boolean runtimeHasLivingMerchant(ServerWorld world, CaravanRuntime runtime) {
+    private static boolean runtimeHasLivingMerchant(ServerLevel world, CaravanRuntime runtime) {
         if (runtime == null) {
             return false;
         }
@@ -2376,60 +3807,68 @@ public final class TradeRouteService {
         return false;
     }
 
-    private static BlockPos routePosition(ServerWorld world, PlayerQuestData data, int routeIndex) {
+    private static BlockPos routePosition(ServerLevel world, PlayerQuestData data, int routeIndex) {
         return routePosition(world, data, routeIndex, clampProgress(routeInt(data, routeIndex, "progress")));
     }
 
-    private static BlockPos routePosition(ServerWorld world, PlayerQuestData data, int routeIndex, int progress) {
+    private static BlockPos routePosition(ServerLevel world, PlayerQuestData data, int routeIndex, int progress) {
         RoutePoint point = pointAlongRoute(data, routeIndex, progress);
         int x = point.x();
         int z = point.z();
+        if (point.hasElevation()) {
+            return new BlockPos(x, point.y(), z);
+        }
         BlockPos probe = new BlockPos(x, 64, z);
-        int y = isChunkLoaded(world, probe)
-                ? world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z)
+        int y = world.hasChunkAt(probe)
+                ? world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z)
                 : 64;
         return new BlockPos(x, y, z);
     }
 
     private static RoutePoint pointAlongRoute(PlayerQuestData data, int routeIndex, int progress) {
-        List<RoutePoint> path = routePath(data, routeIndex);
-        if (path.size() < 2) {
-            return path.isEmpty() ? new RoutePoint(0, 0) : path.getFirst();
-        }
-        double totalDistance = pathDistance(path);
-        if (totalDistance <= 0.0) {
-            return path.getFirst();
-        }
-        double remaining = totalDistance * clampProgress(progress) / PROGRESS_MAX;
-        for (int i = 1; i < path.size(); i++) {
-            RoutePoint from = path.get(i - 1);
-            RoutePoint to = path.get(i);
-            double segmentDistance = from.distance(to);
-            if (segmentDistance <= 0.0) {
-                continue;
-            }
-            if (remaining <= segmentDistance) {
-                double t = remaining / segmentDistance;
-                return new RoutePoint(
-                        (int) Math.round(from.x() + (to.x() - from.x()) * t),
-                        (int) Math.round(from.z() + (to.z() - from.z()) * t)
-                );
-            }
-            remaining -= segmentDistance;
-        }
-        return path.getLast();
+        return TradeRouteGeometry.pointAlongTraversal(routePathWithModes(data, routeIndex), progress);
     }
 
-    private static double routeDistance(PlayerQuestData data, int routeIndex) {
-        return pathDistance(routePath(data, routeIndex));
+    private static double routeTraversalDistance(PlayerQuestData data, int routeIndex) {
+        return TradeRouteGeometry.traversalDistance(routePathWithModes(data, routeIndex));
     }
 
-    private static double pathDistance(List<RoutePoint> points) {
-        double distance = 0.0;
-        for (int i = 1; i < points.size(); i++) {
-            distance += points.get(i - 1).distance(points.get(i));
+    private static TradeRouteSurveyMetrics.Estimate surveyEstimate(ServerLevel world, PlayerQuestData data,
+                                                                  int routeIndex,
+                                                                  boolean draftActive) {
+        List<RouteSurveyPoint> points = draftActive
+                ? surveyPointsWithModes(data) : routeWaypointsWithModes(data, routeIndex);
+        List<TradeRouteSurveyMetrics.Point> horizontal = points.stream()
+                .map(point -> new TradeRouteSurveyMetrics.Point(
+                        point.point().x(), point.point().z(), point.ocean()))
+                .toList();
+        var kingdoms = de.quest.kingdom.LivingKingdomsState.get(world.getServer());
+        String dimension = world.dimension().identifier().toString();
+        RoutePoint home = draftActive ? KingdomRouteEndpoints.surveyHome(kingdoms, data, dimension, routeIndex)
+                : KingdomRouteEndpoints.pathHome(data, routeIndex);
+        RoutePoint destination = draftActive ? KingdomRouteEndpoints.surveyDestination(kingdoms, data, dimension, routeIndex)
+                : KingdomRouteEndpoints.pathDestination(data, routeIndex);
+        return TradeRouteSurveyMetrics.calculate(
+                new TradeRouteSurveyMetrics.Point(home.x(), home.z(), false),
+                new TradeRouteSurveyMetrics.Point(destination.x(), destination.z(), false),
+                horizontal, routeBlocksPerSecond(data, routeIndex));
+    }
+
+    private static void sendSurveyEstimate(ServerPlayer player, PlayerQuestData data, int routeIndex) {
+        TradeRouteSurveyMetrics.Estimate estimate = surveyEstimate((ServerLevel) player.level(), data, routeIndex, true);
+        player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.survey.distances",
+                estimate.straightBlocks(), estimate.surveyedBlocks(), estimate.estimatedBlocks())
+                .withStyle(ChatFormatting.GRAY), false);
+        player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.survey.estimate",
+                estimate.estimatedMinutes(), estimate.expectedLegs()).withStyle(ChatFormatting.GRAY), false);
+        if (estimate.unusuallyLong()) {
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.survey.long_warning")
+                    .withStyle(ChatFormatting.YELLOW), false);
         }
-        return distance;
+    }
+
+    private static double economyRouteDistance(PlayerQuestData data, int routeIndex) {
+        return TradeRouteGeometry.pathDistance(routePath(data, routeIndex));
     }
 
     private static List<RoutePoint> routePath(PlayerQuestData data, int routeIndex) {
@@ -2438,84 +3877,80 @@ public final class TradeRouteService {
 
     private static List<RouteSurveyPoint> routePathWithModes(PlayerQuestData data, int routeIndex) {
         List<RouteSurveyPoint> points = new ArrayList<>();
-        points.add(new RouteSurveyPoint(new RoutePoint(
-                data.getTradeRouteInt(HOME_X), data.getTradeRouteInt(HOME_Z)), false));
+        points.add(new RouteSurveyPoint(KingdomRouteEndpoints.pathHome(data, routeIndex), false));
         points.addAll(routeWaypointsWithModes(data, routeIndex));
-        points.add(new RouteSurveyPoint(new RoutePoint(
-                routeInt(data, routeIndex, "x"), routeInt(data, routeIndex, "z")), false));
+        points.add(new RouteSurveyPoint(KingdomRouteEndpoints.pathDestination(data, routeIndex), false));
         return points;
+    }
+
+    private static BlockPos resolveRouteSurface(ServerLevel world,
+                                                PlayerQuestData data,
+                                                int routeIndex,
+                                                BlockPos center,
+                                                int radius) {
+        return hasV2Geometry(data, routeIndex)
+                ? findCaravanSurfaceNearY(world, center, Math.min(radius, 5), 3)
+                : findCaravanSurface(world, center, radius);
+    }
+
+    private static boolean navigationPathFollowsSurvey(ServerLevel world,
+                                                        Path navigationPath,
+                                                        List<RouteSurveyPoint> surveyPath) {
+        if (navigationPath == null) {
+            return false;
+        }
+        for (int i = 0; i < navigationPath.getNodeCount(); i++) {
+            var node = navigationPath.getNode(i);
+            if (!TradeRouteNavigationPolicy.withinSurveyCorridor(surveyPath,
+                    new RoutePoint(node.x, node.y, node.z))
+                    || safeSurfaceNearY(world, node.x, node.y, node.z, 1) == null) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static void holdCaravanAtUnsafeTarget(ServerLevel world, CaravanRuntime runtime) {
+        runtime.stuckSeconds = Math.max(runtime.stuckSeconds, 5);
+        if (runtime.packMuleId != null
+                && findEntity(world, runtime.packMuleId) instanceof CaravanPackMuleEntity mule) {
+            mule.getNavigation().stop();
+        }
+        for (UUID merchantId : runtime.merchantIds) {
+            Entity entity = findEntity(world, merchantId);
+            if (entity instanceof CaravanMerchantEntity merchant) {
+                merchant.getNavigation().stop();
+            }
+        }
     }
 
     private static FerryState ferryState(PlayerQuestData data,
                                           int routeIndex,
                                           int progress,
                                           int direction) {
-        List<RouteSurveyPoint> path = routePathWithModes(data, routeIndex);
-        if (path.size() < 2) {
-            return FerryState.NONE;
-        }
-        double totalDistance = pathDistance(path.stream().map(RouteSurveyPoint::point).toList());
-        if (totalDistance <= 0.0) {
-            return FerryState.NONE;
-        }
-        if (isLandNodeProgress(path, progress, totalDistance)) {
-            return FerryState.NONE;
-        }
-        double traveled = totalDistance * clampProgress(progress) / PROGRESS_MAX;
-        double cursor = 0.0;
-        int activeSegment = -1;
-        for (int segment = 1; segment < path.size(); segment++) {
-            double length = path.get(segment - 1).point().distance(path.get(segment).point());
-            if (traveled <= cursor + length || segment == path.size() - 1) {
-                activeSegment = segment;
-                break;
-            }
-            cursor += length;
-        }
-        if (activeSegment < 1 || !(path.get(activeSegment - 1).ocean() || path.get(activeSegment).ocean())) {
-            return FerryState.NONE;
-        }
-
-        double remaining;
-        if (direction >= 0) {
-            double ferryEnd = cursor + path.get(activeSegment - 1).point().distance(path.get(activeSegment).point());
-            for (int segment = activeSegment + 1; segment < path.size(); segment++) {
-                if (!(path.get(segment - 1).ocean() || path.get(segment).ocean())) {
-                    break;
-                }
-                ferryEnd += path.get(segment - 1).point().distance(path.get(segment).point());
-            }
-            remaining = Math.max(0.0, ferryEnd - traveled);
-        } else {
-            double ferryStart = cursor;
-            for (int segment = activeSegment - 1; segment >= 1; segment--) {
-                if (!(path.get(segment - 1).ocean() || path.get(segment).ocean())) {
-                    break;
-                }
-                ferryStart -= path.get(segment - 1).point().distance(path.get(segment).point());
-            }
-            remaining = Math.max(0.0, traveled - ferryStart);
-        }
-        int seconds = Math.max(1, (int) Math.ceil(remaining / Math.max(0.1,
-                routeBlocksPerSecond(data, routeIndex))));
-        return new FerryState(true, seconds);
+        return TradeRouteGeometry.ferryState(routePathWithModes(data, routeIndex), progress, direction,
+                routeBlocksPerSecond(data, routeIndex));
     }
 
-    private static boolean shouldWaitForPhysicalBoarding(ServerWorld world,
+    private static boolean shouldWaitForPhysicalBoarding(ServerLevel world,
                                                           RouteKey key,
                                                           FerryBoarding boarding) {
         CaravanRuntime runtime = ACTIVE_CARAVANS.get(key);
         if (runtime == null || !runtimeHasLivingMerchant(world, runtime)) {
             return false;
         }
-        BlockPos dockProbe = new BlockPos(boarding.point().x(), 64, boarding.point().z());
-        if (!isChunkLoaded(world, dockProbe)) {
+        BlockPos dockProbe = boarding.point().hasElevation()
+                ? new BlockPos(boarding.point().x(), boarding.point().y(), boarding.point().z())
+                : new BlockPos(boarding.point().x(), 64, boarding.point().z());
+        if (!world.hasChunkAt(dockProbe)) {
             return false;
         }
-        BlockPos dock = new BlockPos(boarding.point().x(),
-                world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES,
-                        boarding.point().x(), boarding.point().z()),
-                boarding.point().z());
+        BlockPos dock = boarding.point().hasElevation()
+                ? dockProbe
+                : new BlockPos(boarding.point().x(),
+                        world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+                                boarding.point().x(), boarding.point().z()),
+                        boarding.point().z());
         BlockPos actual = runtime.lastActual == null ? dock : runtime.lastActual;
         return nearestPlayer(world, dock, MATERIALIZE_RADIUS) != null
                 || nearestPlayer(world, actual, MATERIALIZE_RADIUS) != null;
@@ -2526,86 +3961,18 @@ public final class TradeRouteService {
                                                        int progress,
                                                        int proposedProgress,
                                                        int direction) {
-        for (FerryBoarding boarding : ferryBoardings(data, routeIndex, direction)) {
-            if (direction >= 0
-                    ? progress <= boarding.progress() && proposedProgress > boarding.progress()
-                    : progress >= boarding.progress() && proposedProgress < boarding.progress()) {
-                return boarding;
-            }
-        }
-        return null;
+        return TradeRouteGeometry.crossedBoarding(
+                routePathWithModes(data, routeIndex), progress, proposedProgress, direction);
     }
 
     private static FerryBoarding ferryBoardingAtProgress(PlayerQuestData data,
                                                           int routeIndex,
                                                           int progress,
                                                           int direction) {
-        for (FerryBoarding boarding : ferryBoardings(data, routeIndex, direction)) {
-            if (boarding.progress() == clampProgress(progress)) {
-                return boarding;
-            }
-        }
-        return null;
+        return TradeRouteGeometry.boardingAt(routePathWithModes(data, routeIndex), progress, direction);
     }
 
-    private static List<FerryBoarding> ferryBoardings(PlayerQuestData data,
-                                                       int routeIndex,
-                                                       int direction) {
-        List<RouteSurveyPoint> path = routePathWithModes(data, routeIndex);
-        if (path.size() < 2) {
-            return List.of();
-        }
-        double totalDistance = pathDistance(path.stream().map(RouteSurveyPoint::point).toList());
-        if (totalDistance <= 0.0) {
-            return List.of();
-        }
-        List<FerryBoarding> boardings = new ArrayList<>();
-        double cumulative = 0.0;
-        for (int node = 0; node < path.size(); node++) {
-            RouteSurveyPoint point = path.get(node);
-            if (!point.ocean()) {
-                boolean departingFerry = direction >= 0
-                        ? node < path.size() - 1 && isFerrySegment(path.get(node), path.get(node + 1))
-                        : node > 0 && isFerrySegment(path.get(node - 1), path.get(node));
-                if (departingFerry) {
-                    boardings.add(new FerryBoarding(point.point(), progressAtDistance(cumulative, totalDistance)));
-                }
-            }
-            if (node < path.size() - 1) {
-                cumulative += point.point().distance(path.get(node + 1).point());
-            }
-        }
-        return List.copyOf(boardings);
-    }
-
-    private static boolean isLandNodeProgress(List<RouteSurveyPoint> path,
-                                              int progress,
-                                              double totalDistance) {
-        double cumulative = 0.0;
-        for (int node = 0; node < path.size(); node++) {
-            if (!path.get(node).ocean()
-                    && progressAtDistance(cumulative, totalDistance) == clampProgress(progress)) {
-                return true;
-            }
-            if (node < path.size() - 1) {
-                cumulative += path.get(node).point().distance(path.get(node + 1).point());
-            }
-        }
-        return false;
-    }
-
-    private static boolean isFerrySegment(RouteSurveyPoint from, RouteSurveyPoint to) {
-        return from.ocean() || to.ocean();
-    }
-
-    private static int progressAtDistance(double distance, double totalDistance) {
-        if (totalDistance <= 0.0) {
-            return 0;
-        }
-        return clampProgress((int) Math.round(distance * PROGRESS_MAX / totalDistance));
-    }
-
-    private static BlockPos resolveFerryDock(ServerWorld world,
+    private static BlockPos resolveFerryDock(ServerLevel world,
                                              CaravanRuntime runtime,
                                              PlayerQuestData data,
                                              int routeIndex,
@@ -2614,13 +3981,19 @@ public final class TradeRouteService {
         if (runtime.boardingAnchor != null
                 && runtime.boardingProgress == boarding.progress()
                 && runtime.boardingDirection == direction
-                && safeSurface(world, runtime.boardingAnchor.getX(), runtime.boardingAnchor.getZ())
-                != null
-                && isStableCaravanSurface(world, runtime.boardingAnchor)) {
+                && (hasV2Geometry(data, routeIndex)
+                        ? safeSurfaceNearY(world, runtime.boardingAnchor.getX(),
+                                runtime.boardingAnchor.getY(), runtime.boardingAnchor.getZ(), 1) != null
+                                && isStableCaravanSurfaceNearY(world, runtime.boardingAnchor)
+                        : safeSurface(world, runtime.boardingAnchor.getX(),
+                                runtime.boardingAnchor.getZ()) != null
+                                && isStableCaravanSurface(world, runtime.boardingAnchor))) {
             return runtime.boardingAnchor;
         }
         BlockPos routeDock = routePosition(world, data, routeIndex, boarding.progress());
-        BlockPos safeDock = findCaravanSurface(world, routeDock, FERRY_DOCK_SEARCH_RADIUS);
+        BlockPos safeDock = hasV2Geometry(data, routeIndex)
+                ? findCaravanSurfaceNearY(world, routeDock, FERRY_DOCK_SEARCH_RADIUS, 3)
+                : resolveRouteSurface(world, data, routeIndex, routeDock, FERRY_DOCK_SEARCH_RADIUS);
         if (safeDock == null) {
             clearFerryDock(runtime);
             return null;
@@ -2637,425 +4010,119 @@ public final class TradeRouteService {
         runtime.boardingDirection = 0;
     }
 
-    private static BlockPos findNearbyRoadSurface(ServerWorld world, BlockPos center, int radius) {
-        if (world == null || center == null || !isChunkLoaded(world, center)) {
-            return null;
-        }
-        BlockPos best = null;
-        double bestDistance = Double.MAX_VALUE;
-        for (int dx = -radius; dx <= radius; dx += 2) {
-            for (int dz = -radius; dz <= radius; dz += 2) {
-                BlockPos surface = safeSurface(world, center.getX() + dx, center.getZ() + dz);
-                if (surface == null
-                        || Math.abs(surface.getY() - center.getY()) > 4
-                        || !isStableCaravanSurface(world, surface)
-                        || !isRoadBlock(world.getBlockState(surface.down()))) {
-                    continue;
-                }
-                double distance = surface.getSquaredDistance(center);
-                if (distance < bestDistance) {
-                    best = surface;
-                    bestDistance = distance;
-                }
-            }
-        }
-        return best;
-    }
-
-    private static BlockPos safeSurface(ServerWorld world, int x, int z) {
-        BlockPos probe = new BlockPos(x, 64, z);
-        if (!isChunkLoaded(world, probe)) {
-            return null;
-        }
-        int topY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
-        BlockPos feet = new BlockPos(x, topY, z);
-        if (!world.getBlockState(feet).isAir()) {
-            feet = feet.up();
-        }
-        BlockPos below = feet.down();
-        BlockState belowState = world.getBlockState(below);
-        if (!world.getBlockState(feet).isAir()
-                || !world.getBlockState(feet.up()).isAir()
-                || belowState.isAir()
-                || !belowState.getFluidState().isEmpty()
-                || belowState.isIn(BlockTags.LEAVES)
-                || isDangerousSupport(belowState)
-                || !belowState.isSideSolidFullSquare(world, below, net.minecraft.util.math.Direction.UP)) {
-            return null;
-        }
-        return feet;
-    }
-
-    private static boolean isChunkLoaded(ServerWorld world, BlockPos pos) {
-        return world != null && pos != null && world.isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4);
-    }
-
-    private static BlockPos findCaravanSurface(ServerWorld world, BlockPos center, int radius) {
-        if (world == null || center == null) {
-            return null;
-        }
-        BlockPos fallback = null;
-        for (int ring = 0; ring <= radius; ring++) {
-            for (int dx = -ring; dx <= ring; dx++) {
-                for (int dz = -ring; dz <= ring; dz++) {
-                    if (ring > 0 && Math.abs(dx) != ring && Math.abs(dz) != ring) {
-                        continue;
-                    }
-                    BlockPos candidate = safeSurface(world, center.getX() + dx, center.getZ() + dz);
-                    if (candidate == null || !isStableCaravanSurface(world, candidate)) {
-                        continue;
-                    }
-                    if (isRoadBlock(world.getBlockState(candidate.down()))) {
-                        return candidate;
-                    }
-                    if (fallback == null) {
-                        fallback = candidate;
-                    }
-                }
-            }
-            if (fallback != null && ring >= 2) {
-                return fallback;
-            }
-        }
-        return fallback;
-    }
-
-    private static boolean isStableCaravanSurface(ServerWorld world, BlockPos center) {
-        if (center == null) {
-            return false;
-        }
-        int stableNeighbors = 0;
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dz = -1; dz <= 1; dz++) {
-                if (dx == 0 && dz == 0) {
-                    continue;
-                }
-                BlockPos neighbor = safeSurface(world, center.getX() + dx, center.getZ() + dz);
-                if (neighbor != null && Math.abs(neighbor.getY() - center.getY()) <= 1) {
-                    stableNeighbors++;
-                }
-            }
-        }
-        return stableNeighbors >= 5;
-    }
-
-    private static boolean isDangerousSupport(BlockState state) {
-        return state.isOf(Blocks.MAGMA_BLOCK)
-                || state.isOf(Blocks.CACTUS)
-                || state.isOf(Blocks.CAMPFIRE)
-                || state.isOf(Blocks.SOUL_CAMPFIRE)
-                || state.isOf(Blocks.POWDER_SNOW);
-    }
-
-    private static BlockPos findNearbySafeSurface(ServerWorld world, int x, int z, int radius) {
-        BlockPos center = safeSurface(world, x, z);
-        if (center != null) {
-            return center;
-        }
-        for (int ring = 1; ring <= radius; ring++) {
-            for (int dx = -ring; dx <= ring; dx++) {
-                for (int dz = -ring; dz <= ring; dz++) {
-                    if (Math.abs(dx) != ring && Math.abs(dz) != ring) {
-                        continue;
-                    }
-                    BlockPos candidate = safeSurface(world, x + dx, z + dz);
-                    if (candidate != null) {
-                        return candidate;
-                    }
-                }
-            }
-        }
-        return null;
-    }
-
-    private static boolean isRoadBlock(BlockState state) {
-        return state.isOf(Blocks.DIRT_PATH)
-                || state.isOf(Blocks.GRAVEL)
-                || state.isOf(Blocks.COBBLESTONE)
-                || state.isOf(Blocks.STONE_BRICKS)
-                || state.isOf(Blocks.OAK_PLANKS)
-                || state.isOf(Blocks.SPRUCE_PLANKS)
-                || state.isOf(Blocks.STONE_SLAB)
-                || state.isOf(Blocks.COBBLESTONE_SLAB)
-                || state.isOf(Blocks.OAK_SLAB)
-                || state.isOf(Blocks.SPRUCE_SLAB);
-    }
-
-    private static boolean isPlank(ItemStack stack) {
-        return stack.isOf(Items.OAK_PLANKS)
-                || stack.isOf(Items.SPRUCE_PLANKS)
-                || stack.isOf(Items.BIRCH_PLANKS)
-                || stack.isOf(Items.JUNGLE_PLANKS)
-                || stack.isOf(Items.ACACIA_PLANKS)
-                || stack.isOf(Items.DARK_OAK_PLANKS)
-                || stack.isOf(Items.MANGROVE_PLANKS)
-                || stack.isOf(Items.CHERRY_PLANKS)
-                || stack.isOf(Items.BAMBOO_PLANKS)
-                || stack.isOf(Items.PALE_OAK_PLANKS);
-    }
-
-    private static boolean consumePair(ServerPlayerEntity player,
-                                       Predicate<ItemStack> first,
-                                       int firstAmount,
-                                       Predicate<ItemStack> second,
-                                       int secondAmount) {
-        if (countPlayerInventory(player, first) < firstAmount || countPlayerInventory(player, second) < secondAmount) {
-            return false;
-        }
-        return consumePlayerInventory(player, first, firstAmount) && consumePlayerInventory(player, second, secondAmount);
-    }
-
-    private static int countPlayerInventory(ServerPlayerEntity player, Predicate<ItemStack> matcher) {
-        int total = 0;
-        PlayerInventory inventory = player.getInventory();
-        for (int slot = 0; slot < inventory.size(); slot++) {
-            ItemStack stack = inventory.getStack(slot);
-            if (matcher.test(stack)) {
-                total += stack.getCount();
-            }
-        }
-        return total;
-    }
-
-    private static boolean consumePlayerInventory(ServerPlayerEntity player, Predicate<ItemStack> matcher, int amount) {
-        if (amount <= 0 || countPlayerInventory(player, matcher) < amount) {
-            return false;
-        }
-        int remaining = amount;
-        PlayerInventory inventory = player.getInventory();
-        for (int slot = 0; slot < inventory.size() && remaining > 0; slot++) {
-            ItemStack stack = inventory.getStack(slot);
-            if (!matcher.test(stack)) {
-                continue;
-            }
-            int removed = Math.min(remaining, stack.getCount());
-            stack.decrement(removed);
-            remaining -= removed;
-        }
-        player.playerScreenHandler.sendContentUpdates();
-        return remaining == 0;
-    }
-
-    public static void backfillUnlockedLedger(ServerWorld world, ServerPlayerEntity player) {
-        if (world == null || player == null || !hasRouteAccess(world, player.getUuid())) {
+    public static void backfillUnlockedLedger(ServerLevel world, ServerPlayer player) {
+        if (world == null || player == null || !hasRouteAccess(world, player.getUUID())) {
             return;
         }
-        PlayerQuestData data = data(world, player.getUuid());
+        PlayerQuestData data = data(world, player.getUUID());
         if (data.hasMilestoneFlag(LEDGER_GRANT_RECORDED)) {
             return;
         }
         boolean granted = grantLedger(world, player);
         if (granted) {
-            player.sendMessage(Text.translatable("message.village-quest.trade_route.provisional_unlocked")
-                    .formatted(Formatting.GOLD), false);
+            player.sendSystemMessage(Component.translatable("message.village-quest.trade_route.provisional_unlocked")
+                    .withStyle(ChatFormatting.GOLD), false);
         }
     }
 
-    private static boolean grantLedger(ServerWorld world, ServerPlayerEntity player) {
+    private static boolean grantLedger(ServerLevel world, ServerPlayer player) {
         if (world == null || player == null || ModItems.CARAVAN_LEDGER == null) {
             return false;
         }
         boolean alreadyPresent = hasLedger(player);
         giveLedger(player);
-        PlayerQuestData data = data(world, player.getUuid());
+        PlayerQuestData data = data(world, player.getUUID());
         data.setMilestoneFlag(LEDGER_GRANT_RECORDED, true);
-        QuestState.get(world.getServer()).markDirty();
+        QuestState.get(world.getServer()).setDirty();
         return !alreadyPresent;
     }
 
-    private static boolean hasLedger(ServerPlayerEntity player) {
+    private static boolean hasLedger(ServerPlayer player) {
         if (player == null || ModItems.CARAVAN_LEDGER == null) {
             return false;
         }
-        for (int slot = 0; slot < player.getInventory().size(); slot++) {
-            if (player.getInventory().getStack(slot).isOf(ModItems.CARAVAN_LEDGER)) {
+        for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
+            if (player.getInventory().getItem(slot).is(ModItems.CARAVAN_LEDGER)) {
                 return true;
             }
         }
         return false;
     }
 
-    private static void giveLedger(ServerPlayerEntity player) {
+    private static void giveLedger(ServerPlayer player) {
         if (player == null || ModItems.CARAVAN_LEDGER == null) {
             return;
         }
         if (hasLedger(player)) {
             return;
         }
-        ItemStack ledger = new ItemStack(ModItems.CARAVAN_LEDGER);
-        if (!player.getInventory().insertStack(ledger)) {
-            player.dropItem(ledger, false);
+        ServerLevel world = (ServerLevel) player.level();
+        ItemStack ledger = GuildArchiveService.issueInitial(world, player, ArchiveItem.CARAVAN_LEDGER,
+                new ItemStack(ModItems.CARAVAN_LEDGER));
+        if (!player.getInventory().add(ledger)) {
+            player.drop(ledger, false);
         }
-        player.playerScreenHandler.sendContentUpdates();
+        player.inventoryMenu.broadcastChanges();
     }
 
-    private static void giveTestWayfinder(ServerPlayerEntity player) {
+    private static void giveTestWayfinder(ServerPlayer player) {
         if (player == null || ModItems.SURVEYORS_COMPASS == null) {
             return;
         }
-        for (int slot = 0; slot < player.getInventory().size(); slot++) {
-            if (player.getInventory().getStack(slot).isOf(ModItems.SURVEYORS_COMPASS)) {
+        for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
+            if (player.getInventory().getItem(slot).is(ModItems.SURVEYORS_COMPASS)) {
                 return;
             }
         }
         ItemStack compass = new ItemStack(ModItems.SURVEYORS_COMPASS);
-        if (!player.getInventory().insertStack(compass)) {
-            player.dropItem(compass, false);
+        if (!player.getInventory().add(compass)) {
+            player.drop(compass, false);
         }
-        player.playerScreenHandler.sendContentUpdates();
+        player.inventoryMenu.broadcastChanges();
     }
 
-    private static void bindVillageHome(PlayerQuestData data, int x, int z) {
-        data.setTradeRouteInt(HOME_X, x);
-        data.setTradeRouteInt(HOME_Z, z);
-        data.setTradeRouteFlag(HOME_BOUND, true);
-        data.setTradeRouteFlag(HOME_PLAYER_YARD, false);
-    }
-
-    private static void bindPlayerYard(PlayerQuestData data, int x, int z) {
-        data.setTradeRouteInt(HOME_X, x);
-        data.setTradeRouteInt(HOME_Z, z);
-        data.setTradeRouteFlag(HOME_BOUND, true);
-        data.setTradeRouteFlag(HOME_PLAYER_YARD, true);
-    }
-
-    private static int activeSurveyIndex(PlayerQuestData data) {
-        int stored = data == null ? 0 : data.getTradeRouteInt(SURVEY_ROUTE);
-        return stored <= 0 ? -1 : stored - 1;
-    }
-
-    private static List<RouteSurveyPoint> routeWaypointsWithModes(PlayerQuestData data, int routeIndex) {
-        int count = Math.min(MAX_WAYPOINTS, Math.max(0, routeInt(data, routeIndex, "waypoint_count")));
-        List<RouteSurveyPoint> points = new ArrayList<>(count);
-        for (int i = 0; i < count; i++) {
-            points.add(new RouteSurveyPoint(new RoutePoint(
-                    routeInt(data, routeIndex, "waypoint_" + i + "_x"),
-                    routeInt(data, routeIndex, "waypoint_" + i + "_z")
-            ), data.hasTradeRouteFlag(routeKey(routeIndex, "waypoint_" + i + "_ocean"))));
-        }
-        return points;
-    }
-
-    private static List<RoutePoint> routeWaypoints(PlayerQuestData data, int routeIndex) {
-        return routeWaypointsWithModes(data, routeIndex).stream().map(RouteSurveyPoint::point).toList();
-    }
-
-    private static void setRouteWaypoints(PlayerQuestData data, int routeIndex, List<RoutePoint> points) {
-        List<RouteSurveyPoint> routed = points == null ? List.of() : points.stream()
-                .map(point -> new RouteSurveyPoint(point, false))
-                .toList();
-        setRouteWaypointsWithModes(data, routeIndex, routed);
-    }
-
-    private static void setRouteWaypointsWithModes(PlayerQuestData data,
-                                                    int routeIndex,
-                                                    List<RouteSurveyPoint> points) {
-        String prefix = routeKey(routeIndex, "waypoint_");
-        for (String key : List.copyOf(data.getTradeRouteIntState().keySet())) {
-            if (key.startsWith(prefix)) {
-                data.setTradeRouteInt(key, 0);
-            }
-        }
-        for (String flag : List.copyOf(data.getTradeRouteFlags())) {
-            if (flag.startsWith(prefix)) {
-                data.setTradeRouteFlag(flag, false);
-            }
-        }
-        int count = Math.min(MAX_WAYPOINTS, points == null ? 0 : points.size());
-        setRouteInt(data, routeIndex, "waypoint_count", count);
-        for (int i = 0; i < count; i++) {
-            RouteSurveyPoint routed = points.get(i);
-            RoutePoint point = routed.point();
-            setRouteInt(data, routeIndex, "waypoint_" + i + "_x", point.x());
-            setRouteInt(data, routeIndex, "waypoint_" + i + "_z", point.z());
-            data.setTradeRouteFlag(routeKey(routeIndex, "waypoint_" + i + "_ocean"), routed.ocean());
-        }
-    }
-
-    private static List<RouteSurveyPoint> surveyPointsWithModes(PlayerQuestData data) {
-        int count = Math.min(MAX_WAYPOINTS, Math.max(0, data.getTradeRouteInt(SURVEY_POINT_COUNT)));
-        List<RouteSurveyPoint> points = new ArrayList<>(count);
-        for (int i = 0; i < count; i++) {
-            points.add(surveyPointWithMode(data, i));
-        }
-        return points;
-    }
-
-    private static List<RoutePoint> surveyPoints(PlayerQuestData data) {
-        return surveyPointsWithModes(data).stream().map(RouteSurveyPoint::point).toList();
-    }
-
-    private static RouteSurveyPoint surveyPointWithMode(PlayerQuestData data, int pointIndex) {
-        return new RouteSurveyPoint(new RoutePoint(
-                data.getTradeRouteInt(SURVEY_POINT_PREFIX + pointIndex + "_x"),
-                data.getTradeRouteInt(SURVEY_POINT_PREFIX + pointIndex + "_z")
-        ), data.hasTradeRouteFlag(SURVEY_POINT_PREFIX + pointIndex + "_ocean"));
-    }
-
-    private static RoutePoint surveyPoint(PlayerQuestData data, int pointIndex) {
-        return surveyPointWithMode(data, pointIndex).point();
-    }
-
-    private static void setSurveyPoint(PlayerQuestData data, int pointIndex, RoutePoint point, boolean ocean) {
-        data.setTradeRouteInt(SURVEY_POINT_PREFIX + pointIndex + "_x", point.x());
-        data.setTradeRouteInt(SURVEY_POINT_PREFIX + pointIndex + "_z", point.z());
-        data.setTradeRouteFlag(SURVEY_POINT_PREFIX + pointIndex + "_ocean", ocean);
-    }
-
-    private static List<RouteSurveyPoint> normalizedSurveyPoints(PlayerQuestData data, int routeIndex) {
-        RoutePoint home = new RoutePoint(data.getTradeRouteInt(HOME_X), data.getTradeRouteInt(HOME_Z));
-        RoutePoint destination = new RoutePoint(routeInt(data, routeIndex, "x"), routeInt(data, routeIndex, "z"));
-        List<RouteSurveyPoint> normalized = new ArrayList<>();
-        RoutePoint previous = home;
-        for (RouteSurveyPoint routed : surveyPointsWithModes(data)) {
-            RoutePoint point = routed.point();
-            if (previous.distanceSquared(point) < 16.0) {
-                continue;
-            }
-            normalized.add(routed);
-            previous = point;
-        }
-        if (!normalized.isEmpty() && normalized.getLast().point().distanceSquared(destination) < 16.0) {
-            normalized.removeLast();
-        }
-        return normalized;
-    }
-
-    private static boolean isWaterTravelPoint(ServerWorld world, BlockPos position) {
+    private static boolean isWaterTravelPoint(ServerLevel world, BlockPos position) {
         if (world == null || position == null) {
             return false;
         }
         for (int offset = 0; offset <= 1; offset++) {
-            if (world.getFluidState(position.down(offset)).isIn(FluidTags.WATER)) {
+            if (world.getFluidState(position.below(offset)).is(FluidTags.WATER)) {
                 return true;
             }
         }
         return false;
     }
 
-    private static Text validateSurveyPath(ServerWorld world,
+    private static Component validateSurveyPath(ServerLevel world,
                                                 PlayerQuestData data,
                                                 int routeIndex,
-                                                List<RouteSurveyPoint> waypoints) {
+                                                List<RouteSurveyPoint> waypoints,
+                                                RoutePoint home,
+                                                RoutePoint destination) {
         List<RouteSurveyPoint> path = new ArrayList<>();
-        path.add(new RouteSurveyPoint(new RoutePoint(
-                data.getTradeRouteInt(HOME_X), data.getTradeRouteInt(HOME_Z)), false));
+        path.add(new RouteSurveyPoint(home, false));
         path.addAll(waypoints);
-        path.add(new RouteSurveyPoint(new RoutePoint(
-                routeInt(data, routeIndex, "x"), routeInt(data, routeIndex, "z")), false));
+        path.add(new RouteSurveyPoint(destination, false));
+        boolean newPhysicalTarget = KingdomRouteEndpoints.requiresResurvey(
+                de.quest.kingdom.LivingKingdomsState.get(world.getServer()), data,
+                world.dimension().identifier().toString(), routeIndex);
 
         for (int node = 0; node < path.size(); node++) {
             RouteSurveyPoint point = path.get(node);
             boolean ferryDock = !point.ocean()
-                    && (node > 0 && isFerrySegment(path.get(node - 1), point)
-                    || node < path.size() - 1 && isFerrySegment(point, path.get(node + 1)));
+                    && (node > 0 && TradeRouteGeometry.isFerrySegment(path.get(node - 1), point)
+                    || node < path.size() - 1 && TradeRouteGeometry.isFerrySegment(point, path.get(node + 1)));
             if (!ferryDock) {
                 continue;
             }
-            BlockPos probe = new BlockPos(point.point().x(), 64, point.point().z());
-            if (isChunkLoaded(world, probe)
-                    && findCaravanSurface(world, probe, FERRY_DOCK_SEARCH_RADIUS) == null) {
-                return Text.translatable("message.village-quest.trade_route.survey.unsafe_dock");
+            BlockPos probe = point.point().hasElevation()
+                    ? new BlockPos(point.point().x(), point.point().y(), point.point().z())
+                    : new BlockPos(point.point().x(), 64, point.point().z());
+            if (world.hasChunkAt(probe)
+                    && (point.point().hasElevation()
+                            ? findCaravanSurfaceNearY(world, probe, FERRY_DOCK_SEARCH_RADIUS, 3)
+                            : findCaravanSurface(world, probe, FERRY_DOCK_SEARCH_RADIUS)) == null) {
+                return Component.translatable("message.village-quest.trade_route.survey.unsafe_dock");
             }
         }
 
@@ -3063,17 +4130,48 @@ public final class TradeRouteService {
             RouteSurveyPoint from = path.get(segment - 1);
             RouteSurveyPoint to = path.get(segment);
             boolean ferrySegment = from.ocean() || to.ocean();
-            double distance = from.point().distance(to.point());
+            double distance = TradeRouteGeometry.segmentTraversalDistance(from, to);
             int samples = Math.max(1, (int) Math.ceil(distance / 8.0));
+            if (!ferrySegment && from.point().hasElevation() && to.point().hasElevation()) {
+                boolean loaded = true;
+                for (int sample = 0; sample <= samples; sample++) {
+                    double t = sample / (double) samples;
+                    int x = (int) Math.round(from.point().x()
+                            + (to.point().x() - from.point().x()) * t);
+                    int y = (int) Math.round(from.point().y()
+                            + (to.point().y() - from.point().y()) * t);
+                    int z = (int) Math.round(from.point().z()
+                            + (to.point().z() - from.point().z()) * t);
+                    if (!world.hasChunkAt(new BlockPos(x, y, z))) {
+                        if (newPhysicalTarget) return Component.translatable("message.village-quest.kingdom.survey_unloaded");
+                        loaded = false;
+                        break;
+                    }
+                }
+                if (loaded && !TradeRouteSurveyPathPolicy.hasSafeLandSegment(
+                        from.point(), to.point(),
+                        (x, y, z) -> safeSurfaceNearY(world, x, y, z, 0) != null)) {
+                    return Component.translatable("message.village-quest.trade_route.survey.unsafe_land",
+                            from.point().x(), from.point().y(), from.point().z(),
+                            to.point().x(), to.point().y(), to.point().z());
+                }
+            }
             for (int sample = 0; sample <= samples; sample++) {
                 double t = sample / (double) samples;
                 int x = (int) Math.round(from.point().x() + (to.point().x() - from.point().x()) * t);
                 int z = (int) Math.round(from.point().z() + (to.point().z() - from.point().z()) * t);
-                BlockPos probe = new BlockPos(x, 64, z);
-                if (!isChunkLoaded(world, probe)) {
+                int y = from.point().hasElevation() && to.point().hasElevation()
+                        ? (int) Math.round(from.point().y() + (to.point().y() - from.point().y()) * t)
+                        : 64;
+                BlockPos probe = new BlockPos(x, y, z);
+                if (!world.hasChunkAt(probe)) {
+                    if (newPhysicalTarget) return Component.translatable("message.village-quest.kingdom.survey_unloaded");
                     continue;
                 }
-                int topY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
+                if (!ferrySegment && from.point().hasElevation() && to.point().hasElevation()) {
+                    continue;
+                }
+                int topY = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
                 BlockPos surface = new BlockPos(x, topY - 1, z);
                 BlockState surfaceState = world.getBlockState(surface);
                 if (surfaceState.getFluidState().isEmpty()
@@ -3085,7 +4183,7 @@ public final class TradeRouteService {
                 BlockPos water = null;
                 for (int offset = 0; offset <= 2; offset++) {
                     BlockPos candidate = new BlockPos(x, topY - offset, z);
-                    if (world.getFluidState(candidate).isIn(FluidTags.WATER)) {
+                    if (world.getFluidState(candidate).is(FluidTags.WATER)) {
                         water = candidate;
                         break;
                     }
@@ -3093,150 +4191,77 @@ public final class TradeRouteService {
                 if (water == null) {
                     continue;
                 }
-                boolean ocean = world.getBiome(water).isIn(BiomeTags.IS_OCEAN);
+                boolean ocean = world.getBiome(water).is(BiomeTags.IS_OCEAN);
                 if (!ocean) {
-                    return Text.translatable("message.village-quest.trade_route.survey.inland_water");
+                    return Component.translatable("message.village-quest.trade_route.survey.inland_water");
                 }
                 if (!ferrySegment) {
-                    return Text.translatable("message.village-quest.trade_route.survey.ocean_unmarked");
+                    return Component.translatable("message.village-quest.trade_route.survey.ocean_unmarked");
                 }
             }
         }
         return null;
     }
 
-    private static void restoreSurveyPauseState(PlayerQuestData data, int routeIndex) {
-        data.setTradeRouteFlag(routeKey(routeIndex, STOPPED_SUFFIX.substring(1)),
-                data.hasTradeRouteFlag(SURVEY_WAS_STOPPED));
+    private static int surveyHomeElevation(ServerLevel world,
+                                           PlayerQuestData data,
+                                           List<RouteSurveyPoint> draft) {
+        BlockPos anchor = physicalHomeAnchor(data);
+        if (anchor != null) {
+            return anchor.getY();
+        }
+        Integer surveyed = surveyedElevationNear(draft,
+                data.getTradeRouteInt(HOME_X), data.getTradeRouteInt(HOME_Z), 12);
+        return surveyed == null
+                ? legacyEndpointElevation(world,
+                        data.getTradeRouteInt(HOME_X), data.getTradeRouteInt(HOME_Z))
+                : surveyed;
     }
 
-    private static void clearSurveyDraft(PlayerQuestData data) {
-        for (String key : List.copyOf(data.getTradeRouteIntState().keySet())) {
-            if (key.equals(SURVEY_ROUTE) || key.equals(SURVEY_POINT_COUNT) || key.startsWith(SURVEY_POINT_PREFIX)) {
-                data.setTradeRouteInt(key, 0);
+    private static int surveyDestinationElevation(ServerLevel world,
+                                                  ServerPlayer player,
+                                                  PlayerQuestData data,
+                                                  int routeIndex,
+                                                  List<RouteSurveyPoint> draft) {
+        int x = routeInt(data, routeIndex, "x");
+        int z = routeInt(data, routeIndex, "z");
+        Integer surveyed = surveyedElevationNear(draft, x, z, 12);
+        if (surveyed != null) {
+            return surveyed;
+        }
+        long dx = (long) player.getBlockX() - x;
+        long dz = (long) player.getBlockZ() - z;
+        return dx * dx + dz * dz <= 12L * 12L
+                ? player.getBlockY()
+                : legacyEndpointElevation(world, x, z);
+    }
+
+    private static Integer surveyedElevationNear(List<RouteSurveyPoint> points,
+                                                  int x,
+                                                  int z,
+                                                  int radius) {
+        Integer bestY = null;
+        long bestDistance = (long) radius * radius + 1L;
+        for (RouteSurveyPoint routed : points) {
+            RoutePoint point = routed.point();
+            if (!point.hasElevation() || routed.ocean()) {
+                continue;
+            }
+            long dx = (long) point.x() - x;
+            long dz = (long) point.z() - z;
+            long distance = dx * dx + dz * dz;
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                bestY = point.y();
             }
         }
-        for (String flag : List.copyOf(data.getTradeRouteFlags())) {
-            if (flag.startsWith(SURVEY_POINT_PREFIX)) {
-                data.setTradeRouteFlag(flag, false);
-            }
-        }
-        data.setTradeRouteFlag(SURVEY_WAS_STOPPED, false);
+        return bestY;
     }
 
-    private static void clearRouteEntries(PlayerQuestData data) {
-        for (String key : List.copyOf(data.getTradeRouteIntState().keySet())) {
-            if (key.startsWith(ROUTE_PREFIX)) {
-                data.setTradeRouteInt(key, 0);
-            }
-        }
-        for (String flag : List.copyOf(data.getTradeRouteFlags())) {
-            if (flag.startsWith(ROUTE_PREFIX)) {
-                data.setTradeRouteFlag(flag, false);
-            }
-        }
-        for (String key : List.copyOf(data.getTradeRouteStringState().keySet())) {
-            if (key.startsWith(ROUTE_PREFIX)) {
-                data.setTradeRouteString(key, "");
-            }
-        }
-    }
-
-    private static void copyRouteEntries(PlayerQuestData data,
-                                         Map<String, Integer> savedInts,
-                                         Map<String, String> savedStrings,
-                                         Set<String> savedFlags,
-                                         int sourceIndex,
-                                         int targetIndex) {
-        String sourcePrefix = ROUTE_PREFIX + sourceIndex + "_";
-        String targetPrefix = ROUTE_PREFIX + targetIndex + "_";
-        for (Map.Entry<String, Integer> entry : savedInts.entrySet()) {
-            if (entry.getKey().startsWith(sourcePrefix)) {
-                data.setTradeRouteInt(targetPrefix + entry.getKey().substring(sourcePrefix.length()), entry.getValue());
-            }
-        }
-        for (String flag : savedFlags) {
-            if (flag.startsWith(sourcePrefix)) {
-                data.setTradeRouteFlag(targetPrefix + flag.substring(sourcePrefix.length()), true);
-            }
-        }
-        for (Map.Entry<String, String> entry : savedStrings.entrySet()) {
-            if (entry.getKey().startsWith(sourcePrefix)) {
-                data.setTradeRouteString(targetPrefix + entry.getKey().substring(sourcePrefix.length()), entry.getValue());
-            }
-        }
-    }
-
-    private static boolean hasHome(PlayerQuestData data) {
-        return data != null && data.hasTradeRouteFlag(HOME_BOUND);
-    }
-
-    private static boolean isPlayerYard(PlayerQuestData data) {
-        return data != null && data.hasTradeRouteFlag(HOME_PLAYER_YARD);
-    }
-
-    private static int quality(PlayerQuestData data, int routeIndex) {
-        int quality = routeInt(data, routeIndex, "quality");
-        return quality <= 0 ? 20 : Math.min(100, quality);
-    }
-
-    private static int routeLivery(PlayerQuestData data, int routeIndex) {
-        int stored = routeInt(data, routeIndex, "livery");
-        return stored <= 0 ? Math.floorMod(routeIndex, MAX_ROUTES)
-                : Math.max(0, Math.min(MAX_ROUTES - 1, stored - 1));
-    }
-
-    private static TradeRouteStatus status(PlayerQuestData data, int routeIndex) {
-        TradeRouteStatus status = TradeRouteStatus.byId(routeInt(data, routeIndex, "status"));
-        return status == TradeRouteStatus.UNKNOWN ? TradeRouteStatus.DANGEROUS : status;
-    }
-
-    private static TradeRouteEventType event(PlayerQuestData data, int routeIndex) {
-        return TradeRouteEventType.byId(routeInt(data, routeIndex, "event"));
-    }
-
-    private static boolean isStopped(PlayerQuestData data, int routeIndex) {
-        return data.hasTradeRouteFlag(routeKey(routeIndex, STOPPED_SUFFIX.substring(1)));
-    }
-
-    private static int routeInt(PlayerQuestData data, int routeIndex, String suffix) {
-        return data.getTradeRouteInt(routeKey(routeIndex, suffix));
-    }
-
-    private static void setRouteInt(PlayerQuestData data, int routeIndex, String suffix, int value) {
-        data.setTradeRouteInt(routeKey(routeIndex, suffix), value);
-    }
-
-    private static String routeKey(int routeIndex, String suffix) {
-        return ROUTE_PREFIX + routeIndex + "_" + suffix;
-    }
-
-    private static Text routeName(int routeIndex) {
-        return Text.translatable("text.village-quest.trade_route.name", routeIndex + 1);
-    }
-
-    private static Text routeName(PlayerQuestData data, int routeIndex) {
-        String custom = data == null ? "" : data.getTradeRouteString(routeKey(routeIndex, "name"));
-        return custom.isBlank() ? routeName(routeIndex) : Text.literal(custom);
-    }
-
-    private static Text villageName(PlayerQuestData data, int routeIndex) {
-        String custom = data == null ? "" : data.getTradeRouteString(routeKey(routeIndex, "name"));
-        return custom.isBlank()
-                ? Text.translatable("text.village-quest.trade_route.node.village", routeIndex + 1)
-                : Text.literal(custom);
-    }
-
-    private static String sanitizeRouteName(String requestedName) {
-        if (requestedName == null) {
-            return "";
-        }
-        String clean = Formatting.strip(requestedName).replaceAll("\\p{Cntrl}", "")
-                .trim().replaceAll("\\s+", " ");
-        if (clean.length() > 24) {
-            clean = clean.substring(0, 24).trim();
-        }
-        return clean;
+    private static int legacyEndpointElevation(ServerLevel world, int x, int z) {
+        BlockPos surface = findCaravanSurface(
+                world, new BlockPos(x, 64, z), CARAVAN_SPAWN_SEARCH_RADIUS);
+        return surface == null ? 64 : surface.getY();
     }
 
     private static String routeTag(int routeIndex) {
@@ -3252,25 +4277,17 @@ public final class TradeRouteService {
                 || (previous > PROGRESS_MAX / 2 && current <= PROGRESS_MAX / 2);
     }
 
-    private static int currentWorldDay(ServerWorld world) {
-        return world == null ? 0 : (int) (world.getTimeOfDay() / 24000L);
-    }
-
-    private static PlayerQuestData data(ServerWorld world, UUID playerId) {
-        return QuestState.get(world.getServer()).getPlayerData(playerId);
-    }
-
-    private static ServerPlayerEntity nearestPlayer(ServerWorld world, BlockPos pos, int radius) {
+    private static ServerPlayer nearestPlayer(ServerLevel world, BlockPos pos, int radius) {
         if (world == null || pos == null) {
             return null;
         }
-        ServerPlayerEntity best = null;
+        ServerPlayer best = null;
         double bestDistance = radius * (double) radius;
-        for (ServerPlayerEntity player : world.getServer().getPlayerManager().getPlayerList()) {
-            if (player.getEntityWorld() != world) {
+        for (ServerPlayer player : world.getServer().getPlayerList().getPlayers()) {
+            if (player.level() != world) {
                 continue;
             }
-            double distance = player.getBlockPos().getSquaredDistance(pos);
+            double distance = player.blockPosition().distSqr(pos);
             if (distance <= bestDistance) {
                 best = player;
                 bestDistance = distance;
@@ -3279,22 +4296,14 @@ public final class TradeRouteService {
         return best;
     }
 
-    private static Entity findEntity(ServerWorld world, UUID entityId) {
-        if (world == null || entityId == null) {
-            return null;
-        }
-        for (Entity entity : world.iterateEntities()) {
-            if (entityId.equals(entity.getUuid())) {
-                return entity;
-            }
-        }
-        return null;
+    private static Entity findEntity(ServerLevel world, UUID entityId) {
+        return world == null || entityId == null ? null : world.getEntity(entityId);
     }
 
-    private static List<Entity> allEntities(ServerWorld world) {
+    private static List<Entity> allEntities(ServerLevel world) {
         List<Entity> entities = new ArrayList<>();
         if (world != null) {
-            for (Entity entity : world.iterateEntities()) {
+            for (Entity entity : world.getAllEntities()) {
                 entities.add(entity);
             }
         }
@@ -3305,7 +4314,7 @@ public final class TradeRouteService {
         return TAG_ROUTE_OWNER_PREFIX + ownerId;
     }
 
-    private static void refreshUi(ServerWorld world, ServerPlayerEntity player) {
+    private static void refreshUi(ServerLevel world, ServerPlayer player) {
         QuestBookHelper.refreshQuestBook(world, player);
         QuestTrackerService.refresh(world, player);
         QuestMasterUiService.refreshIfOpen(world, player);
@@ -3315,31 +4324,13 @@ public final class TradeRouteService {
 
     private record YardConfirmation(BlockPos position, long expiresAt) {}
 
-    private record RouteSurveyPoint(RoutePoint point, boolean ocean) {}
-
-    private record FerryBoarding(RoutePoint point, int progress) {}
-
-    private record FerryState(boolean active, int secondsRemaining) {
-        private static final FerryState NONE = new FerryState(false, 0);
-    }
-
-    private record RoutePoint(int x, int z) {
-        private double distance(RoutePoint other) {
-            return Math.sqrt(distanceSquared(other));
-        }
-
-        private double distanceSquared(RoutePoint other) {
-            double dx = other.x - x;
-            double dz = other.z - z;
-            return dx * dx + dz * dz;
-        }
-    }
-
     private static final class CaravanRuntime {
         private final List<UUID> merchantIds = new ArrayList<>();
+        private UUID packMuleId;
+        private long packMuleRetryAt;
         private final Set<UUID> attackerIds = new HashSet<>();
         private final Map<UUID, BlockPos> lastMerchantPositions = new HashMap<>();
-        private BlockPos lastExpected = BlockPos.ORIGIN;
+        private BlockPos lastExpected = BlockPos.ZERO;
         private BlockPos lastActual;
         private BlockPos lastLeaderPosition;
         private BlockPos boardingAnchor;

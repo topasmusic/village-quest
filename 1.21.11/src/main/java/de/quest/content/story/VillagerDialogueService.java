@@ -1,75 +1,75 @@
 package de.quest.content.story;
 
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.passive.VillagerEntity;
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.village.VillagerProfession;
+import net.minecraft.core.Holder;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.entity.npc.villager.VillagerProfession;
 
 public final class VillagerDialogueService {
     private VillagerDialogueService() {}
 
-    public static void sendDialogue(ServerPlayerEntity player, Entity speaker, Text line) {
-        if (player == null || speaker == null || line == null || line.getString().isEmpty()) {
+    public static void sendDialogue(ServerPlayer player, Entity speaker, Component line) {
+        if (player == null || speaker == null || speaker instanceof Villager villager && villager.isBaby()
+                || line == null || line.getString().isEmpty()) {
             return;
         }
-        player.sendMessage(
-                speaker.getDisplayName().copy().formatted(Formatting.GOLD)
-                        .append(Text.literal(": ").formatted(Formatting.DARK_GRAY))
-                        .append(line.copy().formatted(Formatting.GRAY)),
-                false
+        de.quest.kingdom.NpcSpeechService.privateLine(player,speaker,line,
+                speaker.getDisplayName().copy().withStyle(ChatFormatting.GOLD)
+                        .append(Component.literal(": ").withStyle(ChatFormatting.DARK_GRAY))
+                        .append(line.copy().withStyle(ChatFormatting.GRAY))
         );
     }
 
-    public static Text marketRounds(VillagerEntity villager) {
+    public static Component marketRounds(Villager villager) {
         return pick(villager, 4, "message.village-quest.dialogue.market_rounds.");
     }
 
-    public static Text marketRoadGather(VillagerEntity villager) {
+    public static Component marketRoadGather(Villager villager) {
         return pick(villager, 4, "message.village-quest.dialogue.market_road_gather.");
     }
 
-    public static Text marketRoadProfession(VillagerEntity villager) {
+    public static Component marketRoadProfession(Villager villager) {
         if (villager == null) {
-            return Text.empty();
+            return Component.empty();
         }
-        RegistryEntry<VillagerProfession> profession = villager.getVillagerData().profession();
-        if (profession.matchesKey(VillagerProfession.TOOLSMITH)) {
-            return Text.translatable("message.village-quest.dialogue.market_road_profession.toolsmith");
+        Holder<VillagerProfession> profession = villager.getVillagerData().profession();
+        if (profession.is(VillagerProfession.TOOLSMITH)) {
+            return Component.translatable("message.village-quest.dialogue.market_road_profession.toolsmith");
         }
-        if (profession.matchesKey(VillagerProfession.WEAPONSMITH)) {
-            return Text.translatable("message.village-quest.dialogue.market_road_profession.weaponsmith");
+        if (profession.is(VillagerProfession.WEAPONSMITH)) {
+            return Component.translatable("message.village-quest.dialogue.market_road_profession.weaponsmith");
         }
-        if (profession.matchesKey(VillagerProfession.FARMER)) {
-            return Text.translatable("message.village-quest.dialogue.market_road_profession.farmer");
+        if (profession.is(VillagerProfession.FARMER)) {
+            return Component.translatable("message.village-quest.dialogue.market_road_profession.farmer");
         }
-        if (profession.matchesKey(VillagerProfession.FISHERMAN)) {
-            return Text.translatable("message.village-quest.dialogue.market_road_profession.fisherman");
+        if (profession.is(VillagerProfession.FISHERMAN)) {
+            return Component.translatable("message.village-quest.dialogue.market_road_profession.fisherman");
         }
-        if (profession.matchesKey(VillagerProfession.SHEPHERD)) {
-            return Text.translatable("message.village-quest.dialogue.market_road_profession.shepherd");
+        if (profession.is(VillagerProfession.SHEPHERD)) {
+            return Component.translatable("message.village-quest.dialogue.market_road_profession.shepherd");
         }
-        if (profession.matchesKey(VillagerProfession.LIBRARIAN)) {
-            return Text.translatable("message.village-quest.dialogue.market_road_profession.librarian");
+        if (profession.is(VillagerProfession.LIBRARIAN)) {
+            return Component.translatable("message.village-quest.dialogue.market_road_profession.librarian");
         }
-        return Text.translatable("message.village-quest.dialogue.market_road_gather.1");
+        return Component.translatable("message.village-quest.dialogue.market_road_gather.1");
     }
 
-    public static Text shadowsHomeRumor(VillagerEntity villager) {
+    public static Component shadowsHomeRumor(Villager villager) {
         return pick(villager, 6, "message.village-quest.dialogue.shadows_home.");
     }
 
-    public static Text shadowsRemoteRumor(VillagerEntity villager) {
+    public static Component shadowsRemoteRumor(Villager villager) {
         return pick(villager, 8, "message.village-quest.dialogue.shadows_remote.");
     }
 
-    private static Text pick(VillagerEntity villager, int variants, String keyPrefix) {
+    private static Component pick(Villager villager, int variants, String keyPrefix) {
         if (villager == null || variants <= 0 || keyPrefix == null || keyPrefix.isBlank()) {
-            return Text.empty();
+            return Component.empty();
         }
-        int variant = Math.floorMod(villager.getUuid().hashCode(), variants) + 1;
-        return Text.translatable(keyPrefix + variant);
+        int variant = Math.floorMod(villager.getUUID().hashCode(), variants) + 1;
+        return Component.translatable(keyPrefix + variant);
     }
 }

@@ -2,7 +2,19 @@
 
 Village Quest uses a single-active-line development policy.
 
-## 2.6.3 current release
+## 2.6.4 — Living Kingdoms
+
+Village Quest **2.6.4** is available for Minecraft **1.21.11, 26.2 and 26.3**.
+Living Kingdoms is new to Minecraft 1.21.11, with village buildings and staff,
+diplomacy, visiting traders, guild projects and roadside quests. This update
+also fixes writing-supply progress and keeps honey harvests counting with
+campfire smoke.
+
+Minecraft 26.1.2 remains on **2.1.1**. Use the [installation table](README.md#installation)
+to choose the correct file and dependencies. Keep client and server on the same
+Village Quest version and back up your world before updating.
+
+## 2.6.3 release
 
 `Village Quest 2.6.3 — Living Kingdoms` is released for Minecraft `26.3` and
 `26.2`. It adds roadside quests, parallel Core and Kingdom story progress,
@@ -70,7 +82,7 @@ The release contains the same intended features, fixes, documentation, and resou
 ## Current support policy
 
 - Minecraft `26.3` is the only active content-development line.
-- Minecraft `26.2` remains available as the previous maintenance line on Stable 2.6.3 through the explicitly authorized content port.
+- Minecraft `26.2` remains available as the maintenance line on Stable 2.6.4 through the explicitly authorized content port.
 - New quests, systems, items, interfaces, balancing passes, visual redesigns, and other content updates are not automatically backported to previous lines.
 - The released `2.1.x` builds for older Minecraft versions remain available for download.
 - Older lines may receive deliberately scoped maintenance releases for confirmed bug fixes, crash prevention, save-safety fixes, severe exploits, and meaningful performance improvements.

@@ -1,15 +1,15 @@
 package de.quest.mixin;
 
 import de.quest.quest.daily.DailyQuestService;
-import net.minecraft.entity.passive.VillagerEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.village.MerchantInventory;
-import net.minecraft.screen.slot.TradeOutputSlot;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.village.Merchant;
-import net.minecraft.village.TradeOffer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.MerchantContainer;
+import net.minecraft.world.inventory.MerchantResultSlot;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.trading.Merchant;
+import net.minecraft.world.item.trading.MerchantOffer;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -17,33 +17,35 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Mixin(TradeOutputSlot.class)
+@Mixin(MerchantResultSlot.class)
 public abstract class TradeOutputSlotMixin {
     @Shadow @Final private Merchant merchant;
-    @Shadow @Final private MerchantInventory merchantInventory;
+    @Shadow @Final private MerchantContainer slots;
 
     @Inject(
-            method = "onTakeItem",
+            method = "onTake",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/village/Merchant;trade(Lnet/minecraft/village/TradeOffer;)V",
+                    target = "Lnet/minecraft/world/item/trading/Merchant;notifyTrade(Lnet/minecraft/world/item/trading/MerchantOffer;)V",
                     shift = At.Shift.AFTER
             )
     )
-    private void villageQuest$trackVillagerTrade(PlayerEntity player, ItemStack stack, CallbackInfo ci) {
-        if (!(merchant instanceof VillagerEntity)) {
+    private void villageQuest$trackVillagerTrade(Player player, ItemStack stack, CallbackInfo ci) {
+        if (!(merchant instanceof Villager villager)) {
             return;
         }
-        if (!(player instanceof ServerPlayerEntity serverPlayer)) {
+        if (!(player instanceof ServerPlayer serverPlayer)) {
             return;
         }
-        ServerWorld serverWorld = (ServerWorld) serverPlayer.getEntityWorld();
+        ServerLevel serverWorld = (ServerLevel) serverPlayer.level();
         ItemStack rewardStack = stack == null ? ItemStack.EMPTY : stack.copy();
         if (rewardStack.isEmpty()) {
-            TradeOffer offer = this.merchantInventory.getTradeOffer();
-            rewardStack = offer == null ? ItemStack.EMPTY : offer.copySellItem();
+            MerchantOffer offer = this.slots.getActiveOffer();
+            rewardStack = offer == null ? ItemStack.EMPTY : offer.assemble();
         }
 
         DailyQuestService.onVillagerTrade(serverWorld, serverPlayer, rewardStack);
+        de.quest.shrine.VillageTradeTrustService.onCommittedTrade(
+                serverWorld, serverPlayer, villager, java.util.UUID.randomUUID());
     }
 }

@@ -6,14 +6,21 @@ import de.quest.client.network.ClientQuestNetworking;
 import de.quest.client.hud.QuestTrackerHud;
 import de.quest.client.hud.TradeRouteMinimapHud;
 import de.quest.client.render.CaravanMerchantEntityRenderer;
+import de.quest.client.render.KingdomNpcEntityRenderer;
 import de.quest.client.render.PilgrimEntityRenderer;
 import de.quest.client.render.QuestMasterEntityRenderer;
 import de.quest.client.render.TraitorEntityRenderer;
+import de.quest.client.render.WayshrineCrystalRenderer;
 import de.quest.client.ui.InventoryJournalTutorialState;
 import de.quest.registry.ModEntities;
+import de.quest.registry.ModBlockEntities;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.rendering.v1.BlockEntityRendererRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityModelLayerRegistry;
-import net.minecraft.client.render.entity.EntityRendererFactories;
+import net.minecraft.client.renderer.entity.EntityRenderers;
+import net.minecraft.client.renderer.entity.DonkeyRenderer;
+import net.minecraft.client.model.geom.ModelLayers;
+import net.minecraft.client.resources.model.EquipmentClientInfo;
 
 public class VillageQuestClient implements ClientModInitializer {
     @Override
@@ -36,12 +43,20 @@ public class VillageQuestClient implements ClientModInitializer {
                 TraitorEntityRenderer.TRAITOR_LAYER,
                 TraitorEntityRenderer::createModelData
         );
-        EntityRendererFactories.register(ModEntities.PILGRIM, PilgrimEntityRenderer::new);
-        EntityRendererFactories.register(ModEntities.QUEST_MASTER, QuestMasterEntityRenderer::new);
-        EntityRendererFactories.register(ModEntities.CARAVAN_MERCHANT, CaravanMerchantEntityRenderer::new);
-        EntityRendererFactories.register(ModEntities.TRAITOR, TraitorEntityRenderer::new);
+        EntityRenderers.register(ModEntities.PILGRIM, PilgrimEntityRenderer::new);
+        EntityRenderers.register(ModEntities.QUEST_MASTER, QuestMasterEntityRenderer::new);
+        EntityRenderers.register(ModEntities.CARAVAN_MERCHANT, CaravanMerchantEntityRenderer::new);
+        EntityModelLayerRegistry.registerModelLayer(de.quest.client.render.AmbientAdventurerEntityRenderer.LAYER,CaravanMerchantEntityRenderer::createModelData);
+        EntityRenderers.register(ModEntities.AMBIENT_ADVENTURER,de.quest.client.render.AmbientAdventurerEntityRenderer::new);
+        EntityRenderers.register(ModEntities.CARAVAN_PACK_MULE, context -> new DonkeyRenderer<>(
+                context, DonkeyRenderer.Type.MULE));
+        EntityRenderers.register(ModEntities.TRAITOR, TraitorEntityRenderer::new);
+        EntityModelLayerRegistry.registerModelLayer(KingdomNpcEntityRenderer.LAYER,CaravanMerchantEntityRenderer::createModelData);
+        EntityRenderers.register(ModEntities.KINGDOM_NPC,KingdomNpcEntityRenderer::new);
+        BlockEntityRendererRegistry.register(ModBlockEntities.GUILD_WAYSHRINE, WayshrineCrystalRenderer::new);
         ClientQuestNetworking.register();
         QuestTrackerHud.register();
+        de.quest.client.hud.NpcSpeechHud.register();
         TradeRouteMinimapHud.register();
         InventoryJournalTutorialState.bootstrap();
     }

@@ -11,35 +11,41 @@ import de.quest.quest.story.StoryQuestService;
 import de.quest.quest.story.VillageProjectType;
 import de.quest.reputation.ReputationService;
 import de.quest.util.Texts;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.passive.VillagerEntity;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
-import net.minecraft.village.VillagerProfession;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.core.Holder;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.entity.npc.villager.VillagerProfession;
 
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
-    private static final int SHUTTERED_STALLS_EMERALD_TARGET = 73;
-    private static final int LEDGER_PAPER_TARGET = 57;
-    private static final int LEDGER_BOOK_TARGET = 17;
-    private static final int GOODS_MUST_FLOW_TRADE_TARGET = 31;
-    private static final int GOODS_MUST_FLOW_PROFESSION_TARGET = 6;
-    private static final int MARKET_DAY_RETURNS_VILLAGER_TARGET = 17;
+    private static final int SHUTTERED_STALLS_EMERALD_TARGET = 64;
+    private static final int LEDGER_PAPER_DELIVERY_TARGET = 48;
+    private static final int LEDGER_BOOK_TARGET = 16;
+    private static final int LEDGER_PAPER_WORK_TARGET = LEDGER_PAPER_DELIVERY_TARGET + LEDGER_BOOK_TARGET * 3;
+
+    static int ledgerPaperDeliveryTarget() { return LEDGER_PAPER_DELIVERY_TARGET; }
+    static int ledgerBookTarget() { return LEDGER_BOOK_TARGET; }
+    static int ledgerPaperWorkTarget() { return LEDGER_PAPER_WORK_TARGET; }
+    private static final int GOODS_MUST_FLOW_TRADE_TARGET = 24;
+    private static final int GOODS_MUST_FLOW_PROFESSION_TARGET = 4;
+    private static final String PROFESSION_PREFIX = "market_road_profession_";
+    private static final int MARKET_DAY_RETURNS_VILLAGER_TARGET = 6;
     private static final int MARKET_DAY_RETURNS_BELL_TARGET = 1;
-    private static final int MARKET_DAY_RETURNS_BELL_NEARBY_TARGET = 18;
+    private static final int MARKET_DAY_RETURNS_BELL_NEARBY_TARGET = 6;
     private static final double MARKET_DAY_RETURNS_BELL_RADIUS = 20.0D;
 
     private final List<StoryChapterDefinition> chapters = List.of(
@@ -55,8 +61,8 @@ public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
     }
 
     @Override
-    public Text title() {
-        return Text.translatable("quest.village-quest.story.market_road_troubles.title");
+    public Component title() {
+        return Component.translatable("quest.village-quest.story.market_road_troubles.title");
     }
 
     @Override
@@ -73,86 +79,87 @@ public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
     }
 
     @Override
-    public boolean isUnlocked(ServerWorld world, UUID playerId) {
+    public boolean isUnlocked(ServerLevel world, UUID playerId) {
         return StoryQuestService.isCompleted(world, playerId, StoryArcType.SILENT_FORGE);
     }
 
     private abstract static class MarketRoadChapter implements StoryChapterDefinition {
-        protected void addProgress(ServerWorld world, ServerPlayerEntity player, String key, int amount, int target) {
-            StoryQuestService.addQuestIntClamped(world, player.getUuid(), key, amount, target);
+        protected void addProgress(ServerLevel world, ServerPlayer player, String key, int amount, int target) {
+            StoryQuestService.addQuestIntClamped(world, player.getUUID(), key, amount, target);
             StoryQuestService.completeIfEligible(world, player);
         }
 
-        protected int progress(ServerWorld world, UUID playerId, String key) {
+        protected int progress(ServerLevel world, UUID playerId, String key) {
             return StoryQuestService.getQuestInt(world, playerId, key);
         }
 
-        protected boolean hasItem(ServerWorld world, ServerPlayerEntity player, Item item, int amount) {
-            return player != null && StoryQuestService.countCompletionItem(world, player.getUuid(), item) >= amount;
+        protected boolean hasItem(ServerLevel world, ServerPlayer player, Item item, int amount) {
+            return player != null && StoryQuestService.countCompletionItem(world, player.getUUID(), item) >= amount;
         }
 
-        protected boolean consumeItem(ServerWorld world, ServerPlayerEntity player, Item item, int amount) {
-            return player != null && StoryQuestService.consumeCompletionItem(world, player.getUuid(), item, amount);
+        protected boolean consumeItem(ServerLevel world, ServerPlayer player, Item item, int amount) {
+            return player != null && StoryQuestService.consumeCompletionItem(world, player.getUUID(), item, amount);
         }
 
         protected boolean isAdultVillager(Entity entity) {
-            return entity instanceof VillagerEntity villager && !villager.isBaby();
+            return entity instanceof Villager villager && !villager.isBaby();
         }
 
-        protected void updateCraftProgress(ServerWorld world,
-                                           ServerPlayerEntity player,
+        protected void updateCraftProgress(ServerLevel world,
+                                           ServerPlayer player,
                                            String baselineKey,
                                            String progressKey,
                                            Item item,
                                            int target) {
-            int baseline = StoryQuestService.getQuestInt(world, player.getUuid(), baselineKey);
+            int baseline = StoryQuestService.getQuestInt(world, player.getUUID(), baselineKey);
             int crafted = DailyQuestService.getCraftedStat(player, item);
             if (baseline == 0) {
-                StoryQuestService.setQuestInt(world, player.getUuid(), baselineKey, crafted + 1);
+                StoryQuestService.setQuestInt(world, player.getUUID(), baselineKey, crafted + 1);
                 return;
             }
 
             int delta = crafted - (baseline - 1);
             if (delta > 0) {
-                StoryQuestService.addQuestIntClamped(world, player.getUuid(), progressKey, delta, target);
+                StoryQuestService.addQuestIntClamped(world, player.getUUID(), progressKey, delta, target);
             }
-            StoryQuestService.setQuestInt(world, player.getUuid(), baselineKey, crafted + 1);
+            StoryQuestService.setQuestInt(world, player.getUUID(), baselineKey, crafted + 1);
         }
 
-        protected int countProfessionProgress(ServerWorld world, UUID playerId) {
-            int total = 0;
-            total += StoryQuestService.hasStoryFlag(world, playerId, StoryQuestKeys.MARKET_ROAD_TOOLSMITH) ? 1 : 0;
-            total += StoryQuestService.hasStoryFlag(world, playerId, StoryQuestKeys.MARKET_ROAD_WEAPONSMITH) ? 1 : 0;
-            total += StoryQuestService.hasStoryFlag(world, playerId, StoryQuestKeys.MARKET_ROAD_FARMER) ? 1 : 0;
-            total += StoryQuestService.hasStoryFlag(world, playerId, StoryQuestKeys.MARKET_ROAD_FISHERMAN) ? 1 : 0;
-            total += StoryQuestService.hasStoryFlag(world, playerId, StoryQuestKeys.MARKET_ROAD_SHEPHERD) ? 1 : 0;
-            total += StoryQuestService.hasStoryFlag(world, playerId, StoryQuestKeys.MARKET_ROAD_LIBRARIAN) ? 1 : 0;
-            return total;
+        protected int countProfessionProgress(ServerLevel world, UUID playerId) {
+            return (int) net.minecraft.core.registries.BuiltInRegistries.VILLAGER_PROFESSION.listElements()
+                    .filter(p -> !p.is(VillagerProfession.NONE) && !p.is(VillagerProfession.NITWIT))
+                    .filter(p -> StoryQuestService.hasStoryFlag(world,playerId,professionFlag(p))).count();
         }
 
-        protected boolean trackProfession(ServerWorld world, UUID playerId, RegistryEntry<VillagerProfession> profession) {
-            if (profession.matchesKey(VillagerProfession.TOOLSMITH)) {
-                return setProfessionFlag(world, playerId, StoryQuestKeys.MARKET_ROAD_TOOLSMITH);
-            }
-            if (profession.matchesKey(VillagerProfession.WEAPONSMITH)) {
-                return setProfessionFlag(world, playerId, StoryQuestKeys.MARKET_ROAD_WEAPONSMITH);
-            }
-            if (profession.matchesKey(VillagerProfession.FARMER)) {
-                return setProfessionFlag(world, playerId, StoryQuestKeys.MARKET_ROAD_FARMER);
-            }
-            if (profession.matchesKey(VillagerProfession.FISHERMAN)) {
-                return setProfessionFlag(world, playerId, StoryQuestKeys.MARKET_ROAD_FISHERMAN);
-            }
-            if (profession.matchesKey(VillagerProfession.SHEPHERD)) {
-                return setProfessionFlag(world, playerId, StoryQuestKeys.MARKET_ROAD_SHEPHERD);
-            }
-            if (profession.matchesKey(VillagerProfession.LIBRARIAN)) {
-                return setProfessionFlag(world, playerId, StoryQuestKeys.MARKET_ROAD_LIBRARIAN);
-            }
-            return false;
+        protected boolean trackProfession(ServerLevel world, UUID playerId, Holder<VillagerProfession> profession) {
+            if(profession==null || profession.is(VillagerProfession.NONE) || profession.is(VillagerProfession.NITWIT)
+                    || profession.unwrapKey().isEmpty()) return false;
+            return setProfessionFlag(world,playerId,professionFlag(profession));
         }
 
-        private boolean setProfessionFlag(ServerWorld world, UUID playerId, String key) {
+        private String professionFlag(Holder<VillagerProfession> profession) {
+            if (profession.is(VillagerProfession.TOOLSMITH)) {
+                return StoryQuestKeys.MARKET_ROAD_TOOLSMITH;
+            }
+            if (profession.is(VillagerProfession.WEAPONSMITH)) {
+                return StoryQuestKeys.MARKET_ROAD_WEAPONSMITH;
+            }
+            if (profession.is(VillagerProfession.FARMER)) {
+                return StoryQuestKeys.MARKET_ROAD_FARMER;
+            }
+            if (profession.is(VillagerProfession.FISHERMAN)) {
+                return StoryQuestKeys.MARKET_ROAD_FISHERMAN;
+            }
+            if (profession.is(VillagerProfession.SHEPHERD)) {
+                return StoryQuestKeys.MARKET_ROAD_SHEPHERD;
+            }
+            if (profession.is(VillagerProfession.LIBRARIAN)) {
+                return StoryQuestKeys.MARKET_ROAD_LIBRARIAN;
+            }
+            return PROFESSION_PREFIX+profession.unwrapKey().orElseThrow().identifier();
+        }
+
+        private boolean setProfessionFlag(ServerLevel world, UUID playerId, String key) {
             if (StoryQuestService.hasStoryFlag(world, playerId, key)) {
                 return false;
             }
@@ -163,43 +170,43 @@ public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
 
     private static final class ShutteredStallsChapter extends MarketRoadChapter {
         @Override
-        public Text title() {
-            return Text.translatable("quest.village-quest.story.market_road_troubles.chapter_1.title");
+        public Component title() {
+            return Component.translatable("quest.village-quest.story.market_road_troubles.chapter_1.title");
         }
 
         @Override
-        public Text offerParagraph1() {
-            return Text.translatable("quest.village-quest.story.market_road_troubles.chapter_1.offer.1").formatted(Formatting.GRAY);
+        public Component offerParagraph1() {
+            return Component.translatable("quest.village-quest.story.market_road_troubles.chapter_1.offer.1").withStyle(ChatFormatting.GRAY);
         }
 
         @Override
-        public Text offerParagraph2() {
-            return Text.translatable("quest.village-quest.story.market_road_troubles.chapter_1.offer.2").formatted(Formatting.GRAY);
+        public Component offerParagraph2() {
+            return Component.translatable("quest.village-quest.story.market_road_troubles.chapter_1.offer.2").withStyle(ChatFormatting.GRAY);
         }
 
         @Override
-        public List<Text> progressLines(ServerWorld world, UUID playerId) {
+        public List<Component> progressLines(ServerLevel world, UUID playerId) {
             return List.of(
-                    Text.translatable(
+                    Component.translatable(
                             "quest.village-quest.story.market_road_troubles.chapter_1.progress",
                             progress(world, playerId, StoryQuestKeys.MARKET_ROAD_EMERALDS),
                             SHUTTERED_STALLS_EMERALD_TARGET
-                    ).formatted(Formatting.GRAY)
+                    ).withStyle(ChatFormatting.GRAY)
             );
         }
 
         @Override
-        public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
-            return progress(world, player.getUuid(), StoryQuestKeys.MARKET_ROAD_EMERALDS) >= SHUTTERED_STALLS_EMERALD_TARGET;
+        public boolean isComplete(ServerLevel world, ServerPlayer player) {
+            return progress(world, player.getUUID(), StoryQuestKeys.MARKET_ROAD_EMERALDS) >= SHUTTERED_STALLS_EMERALD_TARGET;
         }
 
         @Override
         public StoryChapterCompletion buildCompletion() {
             return new StoryChapterCompletion(
                     title(),
-                    Text.translatable("quest.village-quest.story.market_road_troubles.chapter_1.complete.1").formatted(Formatting.GRAY),
-                    Text.translatable("quest.village-quest.story.market_road_troubles.chapter_1.complete.2").formatted(Formatting.GRAY),
-                    Text.translatable("quest.village-quest.story.market_road_troubles.chapter_1.complete.3").formatted(Formatting.GRAY),
+                    Component.translatable("quest.village-quest.story.market_road_troubles.chapter_1.complete.1").withStyle(ChatFormatting.GRAY),
+                    Component.translatable("quest.village-quest.story.market_road_troubles.chapter_1.complete.2").withStyle(ChatFormatting.GRAY),
+                    Component.translatable("quest.village-quest.story.market_road_troubles.chapter_1.complete.3").withStyle(ChatFormatting.GRAY),
                     CurrencyService.SILVERMARK * 10L,
                     8,
                     ReputationService.ReputationTrack.TRADE,
@@ -209,8 +216,8 @@ public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
         }
 
         @Override
-        public void onVillagerTrade(ServerWorld world, ServerPlayerEntity player, ItemStack stack) {
-            if (stack != null && stack.isOf(Items.EMERALD)) {
+        public void onVillagerTrade(ServerLevel world, ServerPlayer player, ItemStack stack) {
+            if (stack != null && stack.is(Items.EMERALD)) {
                 addProgress(world, player, StoryQuestKeys.MARKET_ROAD_EMERALDS, stack.getCount(), SHUTTERED_STALLS_EMERALD_TARGET);
             }
         }
@@ -218,107 +225,96 @@ public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
 
     private static final class LedgerAndNoticesChapter extends MarketRoadChapter {
         @Override
-        public Text title() {
-            return Text.translatable("quest.village-quest.story.market_road_troubles.chapter_2.title");
+        public Component title() {
+            return Component.translatable("quest.village-quest.story.market_road_troubles.chapter_2.title");
         }
 
         @Override
-        public Text offerParagraph1() {
-            return Text.translatable("quest.village-quest.story.market_road_troubles.chapter_2.offer.1").formatted(Formatting.GRAY);
+        public Component offerParagraph1() {
+            return Component.translatable("quest.village-quest.story.market_road_troubles.chapter_2.offer.1").withStyle(ChatFormatting.GRAY);
         }
 
         @Override
-        public Text offerParagraph2() {
-            return Text.translatable("quest.village-quest.story.market_road_troubles.chapter_2.offer.2").formatted(Formatting.GRAY);
+        public Component offerParagraph2() {
+            return Component.translatable("quest.village-quest.story.market_road_troubles.chapter_2.offer.2").withStyle(ChatFormatting.GRAY);
         }
 
         @Override
-        public void onAccepted(ServerWorld world, ServerPlayerEntity player) {
-            StoryQuestService.setQuestInt(world, player.getUuid(), StoryQuestKeys.MARKET_ROAD_PAPER_BASELINE, DailyQuestService.getCraftedStat(player, Items.PAPER) + 1);
-            StoryQuestService.setQuestInt(world, player.getUuid(), StoryQuestKeys.MARKET_ROAD_BOOK_BASELINE, DailyQuestService.getCraftedStat(player, Items.BOOK) + 1);
+        public void onAccepted(ServerLevel world, ServerPlayer player) {
+            StoryQuestService.setQuestInt(world, player.getUUID(), StoryQuestKeys.MARKET_ROAD_PAPER_BASELINE, DailyQuestService.getCraftedStat(player, Items.PAPER) + 1);
+            StoryQuestService.setQuestInt(world, player.getUUID(), StoryQuestKeys.MARKET_ROAD_BOOK_BASELINE, DailyQuestService.getCraftedStat(player, Items.BOOK) + 1);
         }
 
         @Override
-        public void onServerTick(ServerWorld world, ServerPlayerEntity player) {
-            UUID playerId = player.getUuid();
-            boolean paperWasComplete = progress(world, playerId, StoryQuestKeys.MARKET_ROAD_PAPER_CRAFTED) >= LEDGER_PAPER_TARGET;
-            updateCraftProgress(world, player, StoryQuestKeys.MARKET_ROAD_PAPER_BASELINE, StoryQuestKeys.MARKET_ROAD_PAPER_CRAFTED, Items.PAPER, LEDGER_PAPER_TARGET);
-            if (paperWasComplete) {
-                updateCraftProgress(world, player, StoryQuestKeys.MARKET_ROAD_BOOK_BASELINE, StoryQuestKeys.MARKET_ROAD_BOOK_CRAFTED, Items.BOOK, LEDGER_BOOK_TARGET);
-            } else {
-                StoryQuestService.setQuestInt(
-                        world,
-                        playerId,
-                        StoryQuestKeys.MARKET_ROAD_BOOK_BASELINE,
-                        DailyQuestService.getCraftedStat(player, Items.BOOK) + 1
-                );
-            }
+        public void onServerTick(ServerLevel world, ServerPlayer player) {
+            updateCraftProgress(world, player, StoryQuestKeys.MARKET_ROAD_PAPER_BASELINE, StoryQuestKeys.MARKET_ROAD_PAPER_CRAFTED, Items.PAPER, LEDGER_PAPER_WORK_TARGET);
+            updateCraftProgress(world, player, StoryQuestKeys.MARKET_ROAD_BOOK_BASELINE, StoryQuestKeys.MARKET_ROAD_BOOK_CRAFTED, Items.BOOK, LEDGER_BOOK_TARGET);
             StoryQuestService.completeIfEligible(world, player);
         }
 
         @Override
-        public List<Text> progressLines(ServerWorld world, UUID playerId) {
+        public List<Component> progressLines(ServerLevel world, UUID playerId) {
             int paperProgress = progress(world, playerId, StoryQuestKeys.MARKET_ROAD_PAPER_CRAFTED);
-            if (paperProgress < LEDGER_PAPER_TARGET) {
-                return List.of(Text.translatable(
-                        "quest.village-quest.story.market_road_troubles.chapter_2.stage.1",
-                        paperProgress,
-                        LEDGER_PAPER_TARGET
-                ).formatted(Formatting.GRAY));
-            }
-
             int bookProgress = progress(world, playerId, StoryQuestKeys.MARKET_ROAD_BOOK_CRAFTED);
-            if (bookProgress < LEDGER_BOOK_TARGET) {
-                return List.of(Text.translatable(
-                        "quest.village-quest.story.market_road_troubles.chapter_2.stage.2",
-                        bookProgress,
-                        LEDGER_BOOK_TARGET
-                ).formatted(Formatting.GRAY));
+            if (paperProgress < LEDGER_PAPER_WORK_TARGET || bookProgress < LEDGER_BOOK_TARGET) {
+                return List.of(Component.translatable(
+                        "quest.village-quest.story.market_road_troubles.chapter_2.progress.1",
+                        paperProgress,LEDGER_PAPER_WORK_TARGET,bookProgress,LEDGER_BOOK_TARGET
+                ).withStyle(ChatFormatting.GRAY));
             }
 
-            ServerPlayerEntity player = world == null ? null : world.getServer().getPlayerManager().getPlayer(playerId);
-            Text blocked = player == null ? null : claimBlockedMessage(world, player);
+            ServerPlayer player = world == null ? null : world.getServer().getPlayerList().getPlayer(playerId);
+            Component blocked = player == null ? null : claimBlockedMessage(world, player, true);
             return List.of(blocked == null
-                    ? Text.translatable("quest.village-quest.story.market_road_troubles.chapter_2.stage.3").formatted(Formatting.GRAY)
+                    ? Component.translatable("quest.village-quest.story.market_road_troubles.chapter_2.stage.3").withStyle(ChatFormatting.GRAY)
                     : blocked);
         }
 
         @Override
-        public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
-            UUID playerId = player.getUuid();
-            return progress(world, playerId, StoryQuestKeys.MARKET_ROAD_PAPER_CRAFTED) >= LEDGER_PAPER_TARGET
+        public boolean isComplete(ServerLevel world, ServerPlayer player) {
+            UUID playerId = player.getUUID();
+            return progress(world, playerId, StoryQuestKeys.MARKET_ROAD_PAPER_CRAFTED) >= LEDGER_PAPER_WORK_TARGET
                     && progress(world, playerId, StoryQuestKeys.MARKET_ROAD_BOOK_CRAFTED) >= LEDGER_BOOK_TARGET
-                    && hasItem(world, player, Items.PAPER, LEDGER_PAPER_TARGET)
+                    && hasItem(world, player, Items.PAPER, LEDGER_PAPER_DELIVERY_TARGET)
                     && hasItem(world, player, Items.BOOK, LEDGER_BOOK_TARGET);
         }
 
         @Override
-        public boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) {
+        public boolean consumeCompletionRequirements(ServerLevel world, ServerPlayer player) {
             if (!isComplete(world, player)) {
                 return false;
             }
-            return StoryQuestService.consumeCompletionItems(world, player.getUuid(), Map.of(
-                    Items.PAPER, LEDGER_PAPER_TARGET,
-                    Items.BOOK, LEDGER_BOOK_TARGET
-            ));
+            return StoryQuestService.consumeCompletionItems(
+                    world,
+                    player.getUUID(),
+                    Map.of(
+                            Items.PAPER, LEDGER_PAPER_DELIVERY_TARGET,
+                            Items.BOOK, LEDGER_BOOK_TARGET
+                    )
+            );
         }
 
         @Override
-        public Text claimBlockedMessage(ServerWorld world, ServerPlayerEntity player) {
+        public Component claimBlockedMessage(ServerLevel world, ServerPlayer player) {
+            return claimBlockedMessage(world, player, false);
+        }
+
+        @Override
+        public Component claimBlockedMessage(ServerLevel world, ServerPlayer player, boolean allRequirements) {
             if (player == null || world == null) {
                 return null;
             }
-            UUID playerId = player.getUuid();
-            if (progress(world, playerId, StoryQuestKeys.MARKET_ROAD_PAPER_CRAFTED) < LEDGER_PAPER_TARGET
+            UUID playerId = player.getUUID();
+            if (progress(world, playerId, StoryQuestKeys.MARKET_ROAD_PAPER_CRAFTED) < LEDGER_PAPER_WORK_TARGET
                     || progress(world, playerId, StoryQuestKeys.MARKET_ROAD_BOOK_CRAFTED) < LEDGER_BOOK_TARGET
-                    || (hasItem(world, player, Items.PAPER, LEDGER_PAPER_TARGET) && hasItem(world, player, Items.BOOK, LEDGER_BOOK_TARGET))) {
+                    || (hasItem(world, player, Items.PAPER, LEDGER_PAPER_DELIVERY_TARGET) && hasItem(world, player, Items.BOOK, LEDGER_BOOK_TARGET))) {
                 return null;
             }
-            return Texts.turnInMissing(
-                    Items.PAPER.getDefaultStack().toHoverableText(),
+            return Texts.turnInMissing(allRequirements,
+                    Items.PAPER.getDefaultInstance().getDisplayName(),
                     StoryQuestService.countCompletionItem(world, playerId, Items.PAPER),
-                    LEDGER_PAPER_TARGET,
-                    Items.BOOK.getDefaultStack().toHoverableText(),
+                    LEDGER_PAPER_DELIVERY_TARGET,
+                    Items.BOOK.getDefaultInstance().getDisplayName(),
                     StoryQuestService.countCompletionItem(world, playerId, Items.BOOK),
                     LEDGER_BOOK_TARGET
             );
@@ -328,9 +324,9 @@ public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
         public StoryChapterCompletion buildCompletion() {
             return new StoryChapterCompletion(
                     title(),
-                    Text.translatable("quest.village-quest.story.market_road_troubles.chapter_2.complete.1").formatted(Formatting.GRAY),
-                    Text.translatable("quest.village-quest.story.market_road_troubles.chapter_2.complete.2").formatted(Formatting.GRAY),
-                    Text.translatable("quest.village-quest.story.market_road_troubles.chapter_2.complete.3").formatted(Formatting.GRAY),
+                    Component.translatable("quest.village-quest.story.market_road_troubles.chapter_2.complete.1").withStyle(ChatFormatting.GRAY),
+                    Component.translatable("quest.village-quest.story.market_road_troubles.chapter_2.complete.2").withStyle(ChatFormatting.GRAY),
+                    Component.translatable("quest.village-quest.story.market_road_troubles.chapter_2.complete.3").withStyle(ChatFormatting.GRAY),
                     CurrencyService.SILVERMARK * 14L,
                     10,
                     ReputationService.ReputationTrack.TRADE,
@@ -342,39 +338,39 @@ public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
 
     private static final class GoodsMustFlowChapter extends MarketRoadChapter {
         @Override
-        public Text title() {
-            return Text.translatable("quest.village-quest.story.market_road_troubles.chapter_3.title");
+        public Component title() {
+            return Component.translatable("quest.village-quest.story.market_road_troubles.chapter_3.title");
         }
 
         @Override
-        public Text offerParagraph1() {
-            return Text.translatable("quest.village-quest.story.market_road_troubles.chapter_3.offer.1").formatted(Formatting.GRAY);
+        public Component offerParagraph1() {
+            return Component.translatable("quest.village-quest.story.market_road_troubles.chapter_3.offer.1").withStyle(ChatFormatting.GRAY);
         }
 
         @Override
-        public Text offerParagraph2() {
-            return Text.translatable("quest.village-quest.story.market_road_troubles.chapter_3.offer.2").formatted(Formatting.GRAY);
+        public Component offerParagraph2() {
+            return Component.translatable("quest.village-quest.story.market_road_troubles.chapter_3.offer.2").withStyle(ChatFormatting.GRAY);
         }
 
         @Override
-        public List<Text> progressLines(ServerWorld world, UUID playerId) {
+        public List<Component> progressLines(ServerLevel world, UUID playerId) {
             return List.of(
-                    Text.translatable(
+                    Component.translatable(
                             "quest.village-quest.story.market_road_troubles.chapter_3.progress.1",
                             progress(world, playerId, StoryQuestKeys.MARKET_ROAD_TRADES),
                             GOODS_MUST_FLOW_TRADE_TARGET
-                    ).formatted(Formatting.GRAY),
-                    Text.translatable(
+                    ).withStyle(ChatFormatting.GRAY),
+                    Component.translatable(
                             "quest.village-quest.story.market_road_troubles.chapter_3.progress.2",
                             countProfessionProgress(world, playerId),
                             GOODS_MUST_FLOW_PROFESSION_TARGET
-                    ).formatted(Formatting.GRAY)
+                    ).withStyle(ChatFormatting.GRAY)
             );
         }
 
         @Override
-        public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
-            UUID playerId = player.getUuid();
+        public boolean isComplete(ServerLevel world, ServerPlayer player) {
+            UUID playerId = player.getUUID();
             return progress(world, playerId, StoryQuestKeys.MARKET_ROAD_TRADES) >= GOODS_MUST_FLOW_TRADE_TARGET
                     && countProfessionProgress(world, playerId) >= GOODS_MUST_FLOW_PROFESSION_TARGET;
         }
@@ -383,9 +379,9 @@ public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
         public StoryChapterCompletion buildCompletion() {
             return new StoryChapterCompletion(
                     title(),
-                    Text.translatable("quest.village-quest.story.market_road_troubles.chapter_3.complete.1").formatted(Formatting.GRAY),
-                    Text.translatable("quest.village-quest.story.market_road_troubles.chapter_3.complete.2").formatted(Formatting.GRAY),
-                    Text.translatable("quest.village-quest.story.market_road_troubles.chapter_3.complete.3").formatted(Formatting.GRAY),
+                    Component.translatable("quest.village-quest.story.market_road_troubles.chapter_3.complete.1").withStyle(ChatFormatting.GRAY),
+                    Component.translatable("quest.village-quest.story.market_road_troubles.chapter_3.complete.2").withStyle(ChatFormatting.GRAY),
+                    Component.translatable("quest.village-quest.story.market_road_troubles.chapter_3.complete.3").withStyle(ChatFormatting.GRAY),
                     CurrencyService.SILVERMARK * 18L,
                     12,
                     ReputationService.ReputationTrack.TRADE,
@@ -395,16 +391,16 @@ public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
         }
 
         @Override
-        public void onVillagerTrade(ServerWorld world, ServerPlayerEntity player, ItemStack stack) {
+        public void onVillagerTrade(ServerLevel world, ServerPlayer player, ItemStack stack) {
             addProgress(world, player, StoryQuestKeys.MARKET_ROAD_TRADES, 1, GOODS_MUST_FLOW_TRADE_TARGET);
         }
 
         @Override
-        public void onEntityUse(ServerWorld world, ServerPlayerEntity player, Entity entity, ItemStack inHand) {
-            if (!(entity instanceof VillagerEntity villager) || villager.isBaby()) {
+        public void onEntityUse(ServerLevel world, ServerPlayer player, Entity entity, ItemStack inHand) {
+            if (!(entity instanceof Villager villager) || villager.isBaby()) {
                 return;
             }
-            if (trackProfession(world, player.getUuid(), villager.getVillagerData().profession())) {
+            if (trackProfession(world, player.getUUID(), villager.getVillagerData().profession())) {
                 VillagerDialogueService.sendDialogue(player, villager, VillagerDialogueService.marketRoadProfession(villager));
                 StoryQuestService.completeIfEligible(world, player);
             }
@@ -413,39 +409,39 @@ public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
 
     private static final class MarketDayReturnsChapter extends MarketRoadChapter {
         @Override
-        public Text title() {
-            return Text.translatable("quest.village-quest.story.market_road_troubles.chapter_4.title");
+        public Component title() {
+            return Component.translatable("quest.village-quest.story.market_road_troubles.chapter_4.title");
         }
 
         @Override
-        public Text offerParagraph1() {
-            return Text.translatable("quest.village-quest.story.market_road_troubles.chapter_4.offer.1").formatted(Formatting.GRAY);
+        public Component offerParagraph1() {
+            return Component.translatable("quest.village-quest.story.market_road_troubles.chapter_4.offer.1").withStyle(ChatFormatting.GRAY);
         }
 
         @Override
-        public Text offerParagraph2() {
-            return Text.translatable("quest.village-quest.story.market_road_troubles.chapter_4.offer.2").formatted(Formatting.GRAY);
+        public Component offerParagraph2() {
+            return Component.translatable("quest.village-quest.story.market_road_troubles.chapter_4.offer.2").withStyle(ChatFormatting.GRAY);
         }
 
         @Override
-        public List<Text> progressLines(ServerWorld world, UUID playerId) {
+        public List<Component> progressLines(ServerLevel world, UUID playerId) {
             return List.of(
-                    Text.translatable(
+                    Component.translatable(
                             "quest.village-quest.story.market_road_troubles.chapter_4.progress.1",
                             progress(world, playerId, StoryQuestKeys.MARKET_ROAD_VILLAGERS),
                             MARKET_DAY_RETURNS_VILLAGER_TARGET
-                    ).formatted(Formatting.GRAY),
-                    Text.translatable(
+                    ).withStyle(ChatFormatting.GRAY),
+                    Component.translatable(
                             "quest.village-quest.story.market_road_troubles.chapter_4.progress.2",
                             progress(world, playerId, StoryQuestKeys.MARKET_ROAD_BELL),
                             MARKET_DAY_RETURNS_BELL_TARGET
-                    ).formatted(Formatting.GRAY)
+                    ).withStyle(ChatFormatting.GRAY)
             );
         }
 
         @Override
-        public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
-            UUID playerId = player.getUuid();
+        public boolean isComplete(ServerLevel world, ServerPlayer player) {
+            UUID playerId = player.getUUID();
             return progress(world, playerId, StoryQuestKeys.MARKET_ROAD_VILLAGERS) >= MARKET_DAY_RETURNS_VILLAGER_TARGET
                     && progress(world, playerId, StoryQuestKeys.MARKET_ROAD_BELL) >= MARKET_DAY_RETURNS_BELL_TARGET;
         }
@@ -454,9 +450,9 @@ public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
         public StoryChapterCompletion buildCompletion() {
             return new StoryChapterCompletion(
                     title(),
-                    Text.translatable("quest.village-quest.story.market_road_troubles.chapter_4.complete.1").formatted(Formatting.GRAY),
-                    Text.translatable("quest.village-quest.story.market_road_troubles.chapter_4.complete.2").formatted(Formatting.GRAY),
-                    Text.translatable("quest.village-quest.story.market_road_troubles.chapter_4.complete.3").formatted(Formatting.GRAY),
+                    Component.translatable("quest.village-quest.story.market_road_troubles.chapter_4.complete.1").withStyle(ChatFormatting.GRAY),
+                    Component.translatable("quest.village-quest.story.market_road_troubles.chapter_4.complete.2").withStyle(ChatFormatting.GRAY),
+                    Component.translatable("quest.village-quest.story.market_road_troubles.chapter_4.complete.3").withStyle(ChatFormatting.GRAY),
                     CurrencyService.SILVERMARK * 24L,
                     20,
                     ReputationService.ReputationTrack.TRADE,
@@ -466,51 +462,51 @@ public final class MarketRoadTroublesStoryArc implements StoryArcDefinition {
         }
 
         @Override
-        public void onEntityUse(ServerWorld world, ServerPlayerEntity player, Entity entity, ItemStack inHand) {
+        public void onEntityUse(ServerLevel world, ServerPlayer player, Entity entity, ItemStack inHand) {
             if (!isAdultVillager(entity)) {
                 return;
             }
-            String visitFlag = StoryQuestKeys.MARKET_ROAD_GATHERED_PREFIX + entity.getUuidAsString();
-            UUID playerId = player.getUuid();
+            String visitFlag = StoryQuestKeys.MARKET_ROAD_GATHERED_PREFIX + entity.getStringUUID();
+            UUID playerId = player.getUUID();
             if (progress(world, playerId, StoryQuestKeys.MARKET_ROAD_VILLAGERS) >= MARKET_DAY_RETURNS_VILLAGER_TARGET
                     || StoryQuestService.hasStoryFlag(world, playerId, visitFlag)) {
                 return;
             }
-            VillagerDialogueService.sendDialogue(player, (VillagerEntity) entity, VillagerDialogueService.marketRoadGather((VillagerEntity) entity));
+            VillagerDialogueService.sendDialogue(player, (Villager) entity, VillagerDialogueService.marketRoadGather((Villager) entity));
             StoryQuestService.setStoryFlag(world, playerId, visitFlag, true);
             addProgress(world, player, StoryQuestKeys.MARKET_ROAD_VILLAGERS, 1, MARKET_DAY_RETURNS_VILLAGER_TARGET);
             if (progress(world, playerId, StoryQuestKeys.MARKET_ROAD_VILLAGERS) >= MARKET_DAY_RETURNS_VILLAGER_TARGET) {
-                player.sendMessage(Text.translatable("message.village-quest.story.market_road_troubles.ready_for_bell").formatted(Formatting.GOLD), false);
+                player.sendSystemMessage(Component.translatable("message.village-quest.story.market_road_troubles.ready_for_bell").withStyle(ChatFormatting.GOLD), false);
             }
         }
 
         @Override
-        public void onUseBlock(ServerWorld world, ServerPlayerEntity player, BlockPos pos, BlockState state, ItemStack inHand) {
-            if (state == null || !state.isOf(Blocks.BELL) || progress(world, player.getUuid(), StoryQuestKeys.MARKET_ROAD_BELL) >= MARKET_DAY_RETURNS_BELL_TARGET) {
+        public void onUseBlock(ServerLevel world, ServerPlayer player, BlockPos pos, BlockState state, ItemStack inHand) {
+            if (state == null || !state.is(Blocks.BELL) || progress(world, player.getUUID(), StoryQuestKeys.MARKET_ROAD_BELL) >= MARKET_DAY_RETURNS_BELL_TARGET) {
                 return;
             }
-            UUID playerId = player.getUuid();
+            UUID playerId = player.getUUID();
             int spokenTo = progress(world, playerId, StoryQuestKeys.MARKET_ROAD_VILLAGERS);
             if (spokenTo < MARKET_DAY_RETURNS_VILLAGER_TARGET) {
-                player.sendMessage(Text.translatable(
+                player.sendSystemMessage(Component.translatable(
                         "message.village-quest.story.market_road_troubles.villagers_missing",
                         spokenTo,
                         MARKET_DAY_RETURNS_VILLAGER_TARGET
-                ).formatted(Formatting.GRAY), true);
+                ).withStyle(ChatFormatting.GRAY), true);
                 return;
             }
 
-            int villagersNearby = world.getEntitiesByClass(
-                    VillagerEntity.class,
-                    new Box(pos).expand(MARKET_DAY_RETURNS_BELL_RADIUS),
+            int villagersNearby = world.getEntitiesOfClass(
+                    Villager.class,
+                    new AABB(pos).inflate(MARKET_DAY_RETURNS_BELL_RADIUS),
                     villager -> villager != null && villager.isAlive() && !villager.isRemoved() && !villager.isBaby()
             ).size();
             if (villagersNearby < MARKET_DAY_RETURNS_BELL_NEARBY_TARGET) {
-                player.sendMessage(Text.translatable(
+                player.sendSystemMessage(Component.translatable(
                         "message.village-quest.story.market_road_troubles.bell_too_thin",
                         villagersNearby,
                         MARKET_DAY_RETURNS_BELL_NEARBY_TARGET
-                ).formatted(Formatting.GRAY), true);
+                ).withStyle(ChatFormatting.GRAY), true);
                 return;
             }
 

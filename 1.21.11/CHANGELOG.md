@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.6.4 Stable — Living Kingdoms
+
+Living Kingdoms is now available on Minecraft 1.21.11.
+
+- Build councils, inns, markets and storehouses, and meet the villagers who run them.
+- Connect villages with trade routes, caravans and Wayshrines. Earn trust and shape relationships between settlements.
+- Follow separate Core and Living Kingdoms stories, meet travelling characters and take on roadside quests. Peaceful mode includes more ways to progress.
+- Use the Journal, maps and quest tracker to follow your next goal. Play solo or share adventures with friends.
+
+- **Ink Between Villages** now counts crafted Paper and Ink Sacs or Feathers you collect from the right mobs near the quest village.
+- Partial pickups count the amount collected. Dropping and picking up your own writing supplies adds no progress.
+- Successful honey and honeycomb harvests count with or without campfire smoke.
+
 ## Unpackaged localization corrections — 2026-10-12
 
 - Rechecked EN/DE/ES with quest and item context: consistent currencies, profession reputation, compass and ledger names; corrected the spider-fang contract, first-route project explanation, and applicable progression instructions. Added contextual localization regression guards.

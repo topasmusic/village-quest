@@ -1,88 +1,94 @@
 package de.quest.client.render;
 
 import de.quest.VillageQuest;
+import de.quest.caravan.CaravanRole;
 import de.quest.client.compat.ClientModCompat;
 import de.quest.entity.CaravanMerchantEntity;
-import net.minecraft.client.model.Dilation;
-import net.minecraft.client.render.entity.EntityRendererFactory;
-import net.minecraft.client.render.entity.MobEntityRenderer;
-import net.minecraft.client.render.entity.feature.HeldItemFeatureRenderer;
-import net.minecraft.client.render.entity.model.BipedEntityModel;
-import net.minecraft.client.render.entity.model.EntityModelLayer;
-import net.minecraft.client.render.entity.model.PlayerEntityModel;
-import net.minecraft.client.render.entity.state.ArmedEntityRenderState;
-import net.minecraft.client.render.entity.state.PlayerEntityRenderState;
-import net.minecraft.client.item.ItemModelManager;
-import net.minecraft.entity.player.PlayerSkinType;
-import net.minecraft.entity.player.SkinTextures;
-import net.minecraft.util.AssetInfo;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.model.HumanoidModel;
+import net.minecraft.client.model.geom.ModelLayerLocation;
+import net.minecraft.client.model.geom.builders.CubeDeformation;
+import net.minecraft.client.model.geom.builders.LayerDefinition;
+import net.minecraft.client.model.player.PlayerModel;
+import net.minecraft.client.renderer.entity.EntityRendererProvider;
+import net.minecraft.client.renderer.entity.MobRenderer;
+import net.minecraft.client.renderer.entity.layers.ItemInHandLayer;
+import net.minecraft.client.renderer.entity.state.ArmedEntityRenderState;
+import net.minecraft.client.renderer.entity.state.AvatarRenderState;
+import net.minecraft.client.renderer.item.ItemModelResolver;
+import net.minecraft.core.ClientAsset;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.player.PlayerModelType;
+import net.minecraft.world.entity.player.PlayerSkin;
+import net.minecraft.world.item.Items;
 
-public final class CaravanMerchantEntityRenderer extends MobEntityRenderer<CaravanMerchantEntity, PlayerEntityRenderState, PlayerEntityModel> {
-    public static final EntityModelLayer CARAVAN_MERCHANT_LAYER =
-            new EntityModelLayer(Identifier.of(VillageQuest.MOD_ID, "caravan_merchant"), "main");
-    private static final Identifier[] TEXTURES = {
-            texture("caravan_burgundy.png"),
-            texture("caravan_forest.png"),
-            texture("caravan.png"),
-            texture("caravan_ochre.png"),
-            texture("caravan_violet.png")
-    };
-    private static final SkinTextures[] SKINS = {
-            skin(TEXTURES[0]), skin(TEXTURES[1]), skin(TEXTURES[2]), skin(TEXTURES[3]), skin(TEXTURES[4])
-    };
-    private final ItemModelManager itemModelManager;
+public final class CaravanMerchantEntityRenderer extends MobRenderer<CaravanMerchantEntity, AvatarRenderState, QuestNpcPlayerModel> {
+    public static final ModelLayerLocation CARAVAN_MERCHANT_LAYER =
+            new ModelLayerLocation(Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "caravan_merchant"), "main");
+    private static final String[] LIVERIES = {"burgundy", "forest", "neutral", "ochre", "violet"};
+    private static final PlayerSkin[][] SKINS = createRoleSkins();
+    private static final PlayerSkin FEMALE_SKIN=skin(texture("living_kingdoms/caravan_f_01.png"));
+    private final ItemModelResolver itemModelManager;
     private final boolean heldItemRenderingEnabled;
 
-    public CaravanMerchantEntityRenderer(EntityRendererFactory.Context context) {
-        super(context, new PlayerEntityModel(context.getPart(CARAVAN_MERCHANT_LAYER), false), 0.5f);
-        this.itemModelManager = context.getItemModelManager();
+    public CaravanMerchantEntityRenderer(EntityRendererProvider.Context context) {
+        super(context, new QuestNpcPlayerModel(context.bakeLayer(CARAVAN_MERCHANT_LAYER), false), 0.5f);
+        this.itemModelManager = context.getItemModelResolver();
         this.heldItemRenderingEnabled = !ClientModCompat.shouldUseSafeNpcHeldItemFallback();
         if (this.heldItemRenderingEnabled) {
-            this.addFeature(new HeldItemFeatureRenderer<>(this));
+            this.addLayer(new ItemInHandLayer<>(this));
         } else {
-            this.addFeature(new QuestNpcHeldItemFeatureRenderer(this));
+            this.addLayer(new QuestNpcHeldItemLayer(this));
         }
     }
 
-    public static net.minecraft.client.model.TexturedModelData createModelData() {
-        return net.minecraft.client.model.TexturedModelData.of(
-                PlayerEntityModel.getTexturedModelData(Dilation.NONE, false),
-                64,
-                64
-        );
+    public static LayerDefinition createModelData() {
+        return LayerDefinition.create(PlayerModel.createMesh(CubeDeformation.NONE, false), 64, 64);
     }
 
     @Override
-    public PlayerEntityRenderState createRenderState() {
-        return new PlayerEntityRenderState();
+    public AvatarRenderState createRenderState() {
+        return new AvatarRenderState();
     }
 
     @Override
-    public void updateRenderState(CaravanMerchantEntity entity, PlayerEntityRenderState state, float tickDelta) {
-        super.updateRenderState(entity, state, tickDelta);
+    public void extractRenderState(CaravanMerchantEntity entity, AvatarRenderState state, float tickDelta) {
+        super.extractRenderState(entity, state, tickDelta);
         if (this.heldItemRenderingEnabled) {
-            ArmedEntityRenderState.updateRenderState(entity, state, this.itemModelManager, tickDelta);
+            ArmedEntityRenderState.extractArmedEntityRenderState(entity, state, this.itemModelManager, tickDelta);
         } else {
-            QuestNpcHeldItemStateHelper.updateSafeHeldItemState(entity, state, this.itemModelManager);
+            QuestNpcHeldItemStateHelper.extractSafeHeldItemState(entity, state, this.itemModelManager);
         }
-        if (!entity.getMainHandStack().isEmpty()) {
-            state.rightArmPose = BipedEntityModel.ArmPose.BLOCK;
+        if (entity.getMainHandItem().getItem() == Items.TORCH) {
+            state.rightArmPose = HumanoidModel.ArmPose.BLOCK;
         }
-        state.skinTextures = SKINS[Math.floorMod(entity.getLiveryIndex(), SKINS.length)];
+        // One livery identifies the route; each synchronized role has its own outfit.
+        CaravanRole role = entity.isCourier() ? CaravanRole.COURIER : entity.getCrewRole();
+        state.skin = entity.isFemale()?FEMALE_SKIN:SKINS[Math.floorMod(entity.getLiveryIndex(), SKINS.length)][role.ordinal()];
     }
 
     @Override
-    public Identifier getTexture(PlayerEntityRenderState state) {
-        return state.skinTextures == null ? TEXTURES[0] : state.skinTextures.body().texturePath();
+    public Identifier getTextureLocation(AvatarRenderState state) {
+        return state.skin == null ? texture("caravan_burgundy_master.png")
+                : state.skin.body().texturePath();
+    }
+
+    private static PlayerSkin[][] createRoleSkins() {
+        PlayerSkin[][] skins = new PlayerSkin[LIVERIES.length][CaravanRole.values().length];
+        for (int livery = 0; livery < LIVERIES.length; livery++) {
+            for (CaravanRole role : CaravanRole.values()) {
+                skins[livery][role.ordinal()] = skin(texture("caravan_" + LIVERIES[livery]
+                        + "_" + role.name().toLowerCase(java.util.Locale.ROOT) + ".png"));
+            }
+        }
+        return skins;
     }
 
     private static Identifier texture(String filename) {
-        return Identifier.of(VillageQuest.MOD_ID, "textures/entity/" + filename);
+        return Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "textures/entity/" + filename);
     }
 
-    private static SkinTextures skin(Identifier texture) {
-        AssetInfo.TextureAsset asset = new AssetInfo.TextureAsset() {
+    private static PlayerSkin skin(Identifier texture) {
+        ClientAsset.Texture asset = new ClientAsset.Texture() {
             @Override
             public Identifier id() {
                 return texture;
@@ -93,6 +99,6 @@ public final class CaravanMerchantEntityRenderer extends MobEntityRenderer<Carav
                 return texture;
             }
         };
-        return SkinTextures.create(asset, null, null, PlayerSkinType.WIDE);
+        return PlayerSkin.insecure(asset, null, null, PlayerModelType.WIDE);
     }
 }

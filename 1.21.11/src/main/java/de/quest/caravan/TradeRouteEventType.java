@@ -1,6 +1,6 @@
 package de.quest.caravan;
 
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.Component;
 
 public enum TradeRouteEventType {
     BROKEN_WHEEL(1, "broken_wheel"),
@@ -10,7 +10,10 @@ public enum TradeRouteEventType {
     HUNGRY_TRAVELERS(5, "hungry_travelers"),
     ROAD_TOLL(6, "road_toll"),
     MISSING_COURIER(7, "missing_courier"),
-    STORM_CAMP(8, "storm_camp");
+    STORM_CAMP(8, "storm_camp"),
+    SHATTERED_WAYSTONE(9, "shattered_waystone"),
+    SHRINE_PILGRIMS(10, "shrine_pilgrims"),
+    RUNES_GONE_DARK(11, "runes_gone_dark");
 
     private final int id;
     private final String translationSuffix;
@@ -28,12 +31,12 @@ public enum TradeRouteEventType {
         return translationSuffix;
     }
 
-    public Text label() {
-        return Text.translatable("text.village-quest.trade_route.event." + translationSuffix);
+    public Component label() {
+        return Component.translatable("text.village-quest.trade_route.event." + translationSuffix);
     }
 
-    public Text help() {
-        return Text.translatable("message.village-quest.trade_route.event." + translationSuffix + ".help");
+    public Component help() {
+        return Component.translatable("message.village-quest.trade_route.event." + translationSuffix + ".help");
     }
 
     public static TradeRouteEventType byId(int id) {

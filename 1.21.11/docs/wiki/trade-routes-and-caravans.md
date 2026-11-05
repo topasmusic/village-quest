@@ -1,6 +1,8 @@
 # Trade Routes and Caravans
 
-This page describes the `2.0.0 - Roads Between Villages` trade-route and Trade-Guild system now shared by all three maintained lines. This `26.2` implementation remains the native-client visual and gameplay reference.
+Normal entity interactions, including boarding minecarts outside the Overworld, do not trigger route-survey warnings. Explicit route actions remain restricted to the Overworld.
+
+Use the Caravan Ledger to connect real villages, survey roads and manage your personal trade network in Minecraft 1.21.11.
 
 ## Unlocking the Network
 
@@ -10,7 +12,7 @@ When an existing save already has the `Market Charter` or `Caravan Yard`, the fi
 
 - have a capacity of one route
 - use smaller two-merchant physical caravans
-- can earn up to `8 Silvermarks` per Minecraft day
+- share the network-wide passive income limit described below
 - do not roll recurring route incidents
 - may already use a deliberately confirmed player base as their home node
 
@@ -25,74 +27,65 @@ The route network is player-owned. Story and route events remain solo content an
 
 ## Registering Villages
 
-Stand inside or close to a generated village, then either:
+Stand inside a generated inhabited village **or a player-built settlement founded
+through a confirmed Council Seat**, then sneak-use the Caravan Ledger or run
+`/vq routes register`. Normal route unlocks and capacity limits still apply.
+The first registered village becomes the home hub; later villages become its
+route destinations. Duplicate registrations are ignored.
 
-- sneak-use the `Caravan Ledger`
-- run `/vq routes register`
+For a player-built village, follow **A Place at the Table**, confirm the furnished
+council and choose **Found village** to give it a name. Registration alone does
+not make an empty settlement inhabited: add real residents and satisfy the normal
+active-village checks. Use the ledger and Guild Notice Post inside the confirmed
+building area. Arbitrary groups of villagers or unregistered coordinates do not
+become a Village Quest settlement automatically. See [Buildings](kingdom-buildings.md).
 
-The first registered village becomes the home hub. Further registrations create routes from the hub until all five route slots are occupied. Duplicate villages are ignored.
+Generated villages use their actual structure footprint plus a small margin.
+CTOV works through the standard `#minecraft:village` structure tag and is optional.
+Empty/zombie or abandoned destinations cannot operate as ordinary active partners;
+uncertain unloaded population evidence is not accepted as proof. If your position
+cannot be identified, move within the village's confirmed area and check again.
 
-Registration checks both sides of the destination: the player must be inside a real generated village structure, and that village must still contain at least one living normal villager. Naturally abandoned/zombie villages and villages whose population has died are rejected instead of becoming misleading trade nodes. The admin test network deliberately bypasses this rule because its destinations are synthetic QA fixtures.
+After confirming a Homestead, a single registration at a qualifying destination
+creates its route; the Homestead's two-step confirmation is not repeated.
+Normal ledger use or `/vq routes` opens the map.
 
-`ChoiceTheorem's Overhauled Village` (`CTOV`) is supported without becoming a required dependency. CTOV publishes its small, medium, and large settlements through the standard `#minecraft:village` structure tag that Village Quest already consumes. The population scan follows the detected structure's complete bounding footprint plus a small edge margin, so a villager placed in the outer district of a large CTOV settlement still proves that village is inhabited. Empty and zombie CTOV variants remain ineligible.
-
-Normal use of the ledger, or `/vq routes`, opens the route map.
+The Caravan Master view uses an open parchment layout without a second inner window, with a centered progress badge in the header. It shows the current route and journey above a progress bar, arrival and road conditions in two columns, cargo, any incident and personal Guild standing. Hover the Master's name for their remark, or a shortened label for its full details. These hints wrap into compact boxes that stay on screen. **View route** opens the existing route overview when available. The route and close actions now sit inside the parchment footer, matching the Journal and Quest Board controls.
 
 ### Using a Player Base as the Home Node
 
-The `Market Charter` no longer forces the provisional first node to be inside a generated village. As soon as it grants the Caravan Ledger, stand on solid, dry Overworld ground at your base and run `/vq routes yard`, or sneak-use the ledger while no generated village can be registered. Repeat the action within `30 seconds` to confirm the exact place. The map marks it as a distinct `Homestead Trade Post` rather than pretending that the base is a village. No second unlock quest is required; the later `Caravan Yard` still matters because it expands the network from one route to five and enables incidents.
+The `Market Charter` no longer forces the provisional first node to be inside a generated village. As soon as it grants the Caravan Ledger, stand on solid, dry Overworld ground at your base and run `/vq routes yard`, or sneak-use the ledger where no generated or founded village can be registered. Repeat the action within `30 seconds` to confirm the exact place. The map marks it as a distinct `Homestead Trade Post` rather than pretending that the base is a village. No second unlock quest is required; the later `Caravan Yard` still matters because it expands the network from one route to five and enables incidents.
 
-This deliberately changes only the home node. Every route destination must still be a real generated, inhabited vanilla or CTOV village. Zombie villages, abandoned villages, arbitrary coordinates, and test markers cannot become trade partners. A network with installed routes must remove them before relocating its home, preventing existing paths and caravans from silently pointing at a different origin.
+A Homestead changes only the home node. Destinations must be qualifying inhabited generated villages or properly founded player-built settlements. Arbitrary coordinates and test markers do not qualify. Remove installed routes before relocating the home, so existing journeys cannot silently change their origin.
 
 ## The Route Map
 
-The Caravan Ledger now combines its management overview with a real top-down view of the world. It samples only chunks the client already has loaded and never requests or force-loads terrain. Terrain samples are aligned to stable world coordinates, so panning the viewport no longer subtly rerolls colors or decorations. Explored tiles persist per world/server, dimension, and quality level under `.minecraft/village-quest/map-cache`; fresh loaded terrain safely updates old samples. It displays:
+The Ledger shows explored terrain, your position, villages, caravans, incidents,
+road quality and earnings. Unknown terrain remains parchment; the map observes
+loaded terrain and previously cached tiles without loading distant chunks.
+It does not predict structures or the world seed.
 
-- registered village nodes and connecting route lines
-- a moving caravan marker for each active route
-- the player's current position
-- current travel direction and whether the physical caravan is nearby
-- security state: `Unknown`, `Dangerous`, `Secured`, or `Flourishing`
-- road quality and accumulated earnings
-- current route emergency and its objective
-- pause/resume, survey, cancel, and remove controls for each route
-- every installed bend in a surveyed route
-- ocean ferry legs as dashed blue lanes, with a dedicated boat marker and remaining crossing time
-- current trade-guild rank and today's network income in the header
-- each route's specialization and installed upgrades in its tooltip
+Drag to pan, scroll or use +/− to zoom, and use Focus to return to your position.
+Click the route selector to cycle routes; hover markers for names and details.
+Pause, survey, rename or remove a route through its controls. Removal requires
+two clicks within 30 seconds; later routes move into the vacant slot.
+Renames allow 24 clean characters. Pausing removes the visible group while
+retaining its saved journey. Closing the map does not stop simulation.
 
-Hovering a village shows its name and coordinates. Hovering a caravan shows its route, current coordinates, physical-nearby/background-simulation state, and incident. Player, village, caravan, and incident markers use separate shapes and priorities; if the player overlaps the Caravan Yard, the tooltip combines both locations instead of hiding one of them.
-
-The map updates while open. Closing it does not stop route simulation. Removing a route requires two clicks on the map within the generous `30 second` confirmation window to reduce accidental deletion; `/vq routes remove <1-5>` is the direct command equivalent. Materialized traders and incident attackers are discarded as part of that removal, including tagged orphans when an unloaded chunk is encountered later, so repeated route replacement cannot accumulate old caravans. Later routes are renumbered into the open slot, cleanly rematerialize when observed, and the removed destination can be registered again later.
-
-Each route row has a small running or paused indicator with a focused tooltip. Pausing is a true physical stop: that route's currently materialized merchants and incident attackers despawn immediately, while its persistent route data remains available for a later resume. The paused route is swept again on every service tick, and global cleanup keeps only entities that belong to the current runtime group, so stale mapped duplicates cannot accumulate after repeated materialization. A fresh five-route client run verified that pausing all five leaves no loaded caravan merchants. Long route hover details wrap into multiple readable lines instead of extending beyond the screen. The three navigation tabs are grouped clear of the upper-left brass corner, while the Route Office guild/day summary sits on the lower right below its divider.
-
-Use the ledger's `Rename` action or `/vq routes rename <1-5> <name>` to give a destination a persistent player-defined label such as `Home`, `Harbor`, or `North Market`. Names are limited to `24` clean characters, survive save/reload, move with their route when an earlier slot is removed, and appear on map nodes and route details.
-
-The five route identities are deliberately consistent across the world and both maps: route `1` is burgundy, route `2` forest green, route `3` blue, route `4` ochre, and route `5` violet. Every merchant in one physical caravan wears that route's outfit, while the full-map line, minimap line, caravan marker, and management accent use the matching color.
-
-Hold the left mouse button over the terrain and drag to move the map. The mouse wheel and brass `+`/`-` controls keep their existing zoom behavior, and the focus control returns to the player's position. Terrain is baked into one cached client texture rather than rebuilt from thousands of rectangles every frame. While the mouse is held, the existing texture moves immediately with the route and entity overlays; the newly exposed terrain is sampled once when the button is released. This keeps navigation responsive without loading additional chunks.
+Five route colours/liveries stay consistent on the map, minimap and caravan.
+See [Configuration](configuration.md) for map quality and cache settings.
 
 ## Live Corner Minimap
 
-Press `,` to toggle a compact real-time view. The key lives under `Options -> Controls -> Key Binds -> Village Quest` and can be rebound like any vanilla control. `/vq routes minimap` provides the same toggle for players who prefer commands. The tracker uses `.` in that same category.
-
-The minimap uses the same terrain renderer and installed route geometry in a navigation-focused form:
-
-- recognizable loaded/previously surveyed terrain, including water, forests, clearings, and built surfaces
-- home and registered village nodes
-- the player's cyan position marker
-- moving caravan markers, including whether a physical group is currently close enough to see
-- incident emphasis for a route that needs help
-- a compact route/nearby-caravan count
-
-The cyan compass-star is always your live position, including before the network has a registered home node. On narrow HUD layouts the footer prioritizes the current X/Z coordinates over route statistics, so the navigation reference remains readable.
-
-It updates once per second without pausing the game and automatically stays out of the way while the full ledger map is open. It is a surface-navigation aid, not a cave or entity radar: its job is to make the world, player, villages, and caravans readable in relation to one another while respecting normal client chunk loading.
+Press `,` or use `/vq routes minimap` after route access is unlocked. Rebind it
+in Minecraft Controls under Village Quest. The cyan star is your live position;
+other markers show villages, caravans and incidents. The minimap hides while
+the full map is open and restores your saved preference quietly on joining.
+It is an Overworld surface-navigation aid, not a cave or entity radar.
 
 ## Surveying a Real Road
 
-Every route starts as a direct hub-to-village connection, but it can store up to `48` intermediate waypoints. The home hub and destination village are implicit endpoints and do not need to be marked.
+Every route starts as a direct hub-to-village connection, but it can store up to `48` intermediate waypoints. New surveys record X, Y, and Z so tunnels, bridges, underpasses, switchbacks, and paths sharing the same X/Z at different heights stay distinct. Legacy X/Z routes keep their historical surface behavior and are upgraded only when the player deliberately installs a new survey. The home hub and destination village are implicit endpoints and do not need to be marked.
 
 Recommended workflow:
 
@@ -125,26 +118,16 @@ A long but well-built detour therefore works as a real route. Travel time and pa
 
 ## Visible Caravans
 
-World owners can choose `FULL`, `REDUCED`, or `MAP_ONLY` in `config/village-quest/server.properties`. Full mode preserves the ordinary group, Reduced materializes one route trader, and Map Only keeps route movement, income, escrow, guild progress, and map markers without spawning traders. Map Only also suppresses new physical incidents so it never creates an objective the configured world cannot resolve.
+Persistent named crews and an optional pack mule make journeys visible near
+players. They move along the installed route and return to background simulation
+when unobserved. Their saved identities survive unloading and ferry travel.
+Ordinary navigation stalls use safe recovery; a marked incident instead needs
+its stated objective. No road or building is constructed automatically.
 
-Each active route represents a named group of three caravan merchants. The route continues to progress while its chunks are unloaded, without permanently loading them.
-
-The three merchants choose from four stable medieval outfit variants derived from their UUIDs. Their appearance therefore stays consistent while a group is visible without requiring new entity data or save migration.
-
-When a player comes near the simulated route position:
-
-- the merchants materialize as real NPCs
-- they walk toward the next point on the route
-- navigation favors nearby road-like blocks
-- they return safely to the abstract simulation when no player is close enough to observe them
-
-Physical placement rejects fluids, leaves as footing, powder snow, magma, cactus, campfires, and narrow isolated ledges. Navigation also gives leaves and powder snow an explicit negative path cost. Followers keep a wider formation, separate themselves if an event stop compresses them into the same block, and regroup around the lead merchant if terrain splits the party. If the leader cannot make meaningful progress, the group searches forward and backward along the installed route for a stable recovery point; after repeated failures it dematerializes briefly while the persistent journey continues. A player therefore never has to dig an ordinary caravan out of a ravine to keep the economy alive.
-
-An incident is different from a pathfinding stall: its lead merchant carries a visible warning and event name, and the player receives a concrete objective. Event groups deliberately camp near the incident until that objective is resolved or expires.
-
-This makes roads between villages visible and useful without leaving hundreds of permanent entities across the world.
-
-The older `Shadows on the Trade Road` rescue encounters use the same safety philosophy but remain combat encounters: they require a broad, mostly level footprint before starting, create the complete merchant group or retry later, and pull a survivor back to a spaced safe position if combat knocks them far below or outside the encounter area.
+Owners choose FULL, REDUCED or MAP_ONLY in settings. Reduced shows one trader;
+Map Only retains journeys, economy and map markers without physical traders or
+new physical incidents. [Social reputation](social-reputation.md) explains crew
+vulnerability, personal attack consequences and safe freight collection after loss.
 
 ## Building Better Roads
 
@@ -164,15 +147,14 @@ Lighting also helps. A continuous, lit road raises route quality over time. High
 
 The system intentionally scores what exists in the world; it does not place or remove road blocks by itself.
 
-### How the Installed Line and Nearby Blocks Work Together
-
-The installed waypoint polyline is the authoritative route. While a physical group is visible, its next navigation target can still snap to a road-like surface up to `8` blocks from the current surveyed segment. Road quality is sampled in a `9 x 9` area around the caravan's current abstract position on that same line.
-
-This keeps villagers from walking rigidly through the exact center of every marked coordinate while preventing them from jumping to an unrelated village path far away. If a large detour is not surveyed, it is not part of the route; after it is surveyed, the map, virtual caravan, visible merchants, events, and quality checks all recognize it.
+The surveyed line defines the journey. Mark major bends and detours rather than
+expecting traders to adopt an unrelated distant road automatically.
 
 ## Recurring Route Events
 
 Only the full Caravan Yard network rolls recurring incidents. A player network can have at most one active incident at a time, and its first incident is a guaranteed tutorial. Later incident chance falls with road quality, flourishing security, lantern crews, weather covers, and escorts. Merely starting an incident no longer marks the route dangerous.
+
+Each route also exposes a deliberate response plan through `/vq routes approach <route> <careful|bold>` and its Ledger detail. `careful` reduces frequency and reward, reduces destination-village strain by 40%, and grants an extra protected journey after an incident. `bold` increases incident opportunity and reward by 25%, with 25% more repairable destination strain on failure. Adventure Profile adds its own protection and tolerance. A story-required incident is never blocked by these normal safety rules.
 
 Routes can stop for one of eight situations:
 
@@ -199,7 +181,7 @@ Deliveries add route earnings. The amount depends on:
 - road quality
 - the complete installed path length
 
-Ordinary delivery income is capped across the entire network at `8 Silvermarks` per Minecraft day for the provisional network and `60 Silvermarks` for the full Caravan Yard. When the owner is offline, earnings enter a capped trade-office escrow instead of silently filling the wallet. Opening or using the ledger collects it.
+Ordinary arrival income now earns one `Silvermark` of budget per four minutes of online simulation time, up to `15 SM` per online hour for the entire network. One or five routes share the same budget, including a provisional route. At most one hour of unspent credit is banked, and arrivals are also limited to `15 SM` in each saved online-hour window. Sleeping, world-day changes, reconnecting and offline catch-up do not replenish it. Offline arrivals generate no new passive currency. Existing trade-office escrow remains collectible when opening or using the ledger.
 
 This is deliberately a long-term infrastructure loop. A route begins uncertain, becomes safer through play, and can eventually flourish if the player maintains it.
 
@@ -207,13 +189,17 @@ This is deliberately a long-term infrastructure loop. A route begins uncertain, 
 
 `/vq routes guild` shows the five-rank guild progression. Its score comes from registered routes, sampled road quality, resolved incidents, and completed freight contracts. Rank unlocks stronger contracts and later route investments; it does not provide an infinitely scaling raw-stat bonus.
 
-`/vq routes contracts` shows up to three deterministic daily offers. The workflow is:
+`/vq routes contracts` shows up to three deterministic daily offers. Recorded destination needs are prioritized, and each matching offer lists the route numbers whose village currently needs that item. A different valid route remains general supply rather than becoming unusable. The workflow is:
 
 1. `/vq routes contracts accept <offer 1-3> <route 1-5>`
 2. Carry the listed cargo and run `/vq routes contracts supply`.
 3. Keep the assigned route active. Its next arrival within three real-world reset days completes the order.
 
-Contract payout increases modestly for long installed roads. A matching specialization adds `25%`; the final `Trade Office` upgrade adds another `25%`. Freight completion and its separate payout still occur when ordinary route income has already reached the network's daily cap.
+New contract payouts use cargo value plus a transport fee, with up to `3 SM` for installed-road distance, `2 SM` for a matching specialization, `2 SM` for a Trade Office and `2 SM` for a dangerous route. Bonuses apply to transport, not the entire cargo value. The accepted quote is saved; existing accepted contracts without a quote keep their original reward formula. Freight completion and its separate payout still occur when the passive budget is empty, including offline arrivals.
+
+Freight and Regional Dispatch share a limit of `3` new commissions per player per real daily reset across all routes. The slot is reserved on acceptance; cancellation and expiration do not restore it. Existing accepted work still completes normally. Regional Dispatch remains an eight-item, two-leg shipment; rewards vary with material and combined installed-road distance instead of always paying `12 SM`. Direct village requests keep their existing one-per-village daily reset and use the same material reference plus a local delivery fee. Wheat, bread and hay preserve their ingredient ratios.
+
+Every route arrival now also helps a recorded destination village and advances that village's Wayshrine-energy meter. Matching supplied freight has the stronger effect. Three energy steps generate a shared charge at a bound destination shrine, while failed incidents create bounded supply strain with a hard repair floor instead of destroying trust or story progress.
 
 Routes can specialize as `general`, `provisions`, `forge`, `livestock`, `courier`, or `guarded` through `/vq routes specialize <route> <type>`. The first choice is free; later refits cost `15 Silvermarks`.
 
@@ -226,7 +212,7 @@ Permanent upgrades are purchased with `/vq routes upgrade <route> <upgrade>`:
 | `covers` | 35 SM | 2 | fewer weather/road delays overall |
 | `escorts` | 45 SM | 3 | substantially fewer incidents |
 | `insurance` | 50 SM | 4 | a failed incident no longer removes a past success |
-| `office` | 60 SM | 5 | `25%` higher freight-contract payout |
+| `office` | 60 SM | 5 | `2 SM` extra transport payment on new freight contracts |
 
 ## Roadwarden Horn
 
@@ -238,44 +224,31 @@ The `2.1.0` economy adds route-targeted Road Patrol, Survey Report, and Emergenc
 
 Five collectible liveries can be assigned independently to installed routes. Every merchant in that caravan, the full-map route, and the minimap route use the selected color. See [Prosperity and the Village Economy](./prosperity-and-economy.md) for prices and unlock rules.
 
-## In-game Core Test
+## Caravan violence and reparation in2.5
 
-Run:
+Crews and the pack mule now have persistent lives and are physically vulnerable by default. Confirmed personal attacks trigger warnings, measured trust losses and temporary work restrictions; guards defend only against proven attackers within the route leash. A real death interrupts the affected trip, keeps freight in safe saved claims and replaces the lost person only at a later safe departure. Cleanup/ferries/unload preserve living identities. Full rules and the reachable aid path are in [Social reputation](social-reputation.md). Caravan purchase limits now use the configured real Daily reset, with personal standing limits2/4/5/6 and case/ostracism0.
 
-```mcfunction
-/vq admin routes testsetup
-```
+## Dispatch board
 
-The command prepares the current player with:
+The Trust desk can open Regional Dispatch from a nearby Guild Notice Post in
+one of your own active connected villages. It explains the missing network,
+route or location prerequisites instead of equating neutral standing with an
+unlocked service. At least two suitable active village routes are needed.
 
-- the `Caravan Yard`, `Caravan Ledger`, and a `Wayfinder's Compass` if needed
-- five surveyed test routes with different shapes, qualities, and security states
-- all five specializations, several visible upgrade states, rank-five guild progress, and `300 Silvermarks` for investment testing
-- a `Broken Wheel` event on route 1
-- a `False Distress` event on route 3
-- the prerequisites needed to start `The Empty Caravan` at the Questmaster
-- an opened route map
+Regional Dispatch moves cargo source → hub → destination on actual caravan
+arrivals. Keep the required routes active and inspect the board for delivery
+status. [Living Village Network](living-village-network.md) explains local needs.
 
-Suggested test pass:
+## Map and Wayshrine screens
 
-1. Inspect all five routes, their waypoint lines, player marker, village/caravan hover details, and moving markers on the map.
-2. Toggle the corner minimap once with `,` and once with `/vq routes minimap`; move between two parts of the network and confirm the cyan player marker and nearby count update.
-3. Walk toward a caravan marker and confirm the three merchants materialize and travel.
-4. Build path, gravel, stone-brick, or plank road segments within the route corridor and watch road quality change over subsequent samples.
-5. Bring `8` planks and `2` iron ingots to the broken-wheel caravan, then interact with a merchant.
-6. Investigate the false distress call, interact with its caravan, and defeat the three spawned traitors.
-7. Force focused cases with `/vq admin routes testevent 1 <event>`; use `clear` to release the route again. Confirm `Missing courier` exposes a named courier and `Storm camp` resolves after staying near the group for `30 seconds`.
-8. Obstruct an ordinary group temporarily and confirm it regroups or recovers instead of remaining permanently trapped; leaving the area must keep the abstract route advancing.
-9. Use `/vq questmaster` to begin the newly unlocked story test path.
-10. Start a survey on a route, mark at least two bends with sneak-use, install it, and confirm the saved line changes on the map.
-11. Remove one route through the map's two-click confirmation and confirm the later routes shift into the open slot.
-12. Run `/vq routes guild`, inspect the route tooltip specializations/upgrades, and buy an unowned upgrade.
-13. Run `/vq routes contracts`, accept a listed offer, provide its cargo, run `contracts supply`, and wait for the assigned route arrival.
+Wayshrine cards show destinations and alternative coin/charge costs. Select a
+payment method before travel; this does not recharge the shrine. Normal balance,
+charge and cooldown requirements apply. [Wayshrine guide](shrines-between-roads.md).
 
-Clean up the generated route state with:
+## Living Kingdoms 2.6
 
-```mcfunction
-/vq admin routes reset
-```
-
-The ordinary complete data reset also removes route runtime entities, but it is broader and should only be used when a full mod reset is intended.
+Real direct village routes also support [visiting market traders](kingdom-market.md)
+and [supply/friendship agreements](kingdom-diplomacy.md). A contract never constructs
+a route or grants duplicate freight rewards. Successfully supplied completed
+freight can leave personal project evidence at its canonical participating home
+and destination; unrelated, empty and unfinished trips do not.

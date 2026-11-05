@@ -1,8 +1,14 @@
 package de.quest.client.ui;
 
-import net.minecraft.client.texture.NativeImage;
+import com.mojang.blaze3d.platform.NativeImage;
 import de.quest.VillageQuest;
 import de.quest.client.config.VillageQuestClientConfig;
+import de.quest.map.SurfaceMapProjection;
+import de.quest.map.FantasyMapStyle;
+import de.quest.map.FantasyMapAtlas;
+import de.quest.map.FantasyMapStyle.Cell;
+import de.quest.map.FantasyMapStyle.Terrain;
+import de.quest.map.MapWorkBudget;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
@@ -22,6 +28,8 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -29,23 +37,23 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.world.ClientWorld;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.texture.NativeImageBackedTexture;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.Identifier;
-import net.minecraft.block.Blocks;
-import net.minecraft.block.BlockState;
-import net.minecraft.world.chunk.Chunk;
-import net.minecraft.world.chunk.ChunkStatus;
-import net.minecraft.world.Heightmap;
-import net.minecraft.block.MapColor;
-import net.minecraft.util.WorldSavePath;
+import net.minecraft.client.Minecraft;
+import de.quest.client.compat.GuiGraphics;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.texture.DynamicTexture;
+import net.minecraft.core.BlockPos;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.chunk.status.ChunkStatus;
+import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.material.MapColor;
+import net.minecraft.world.level.storage.LevelResource;
 
 /**
- * Turns already-loaded MinecraftClient terrain into a compact illustrated guild map.
+ * Turns already-loaded Minecraft terrain into a compact illustrated guild map.
  *
  * <p>The renderer never loads chunks. It remembers samples the player has seen,
  * groups them into a restrained fantasy-map palette, adds height shading, shoreline
@@ -54,18 +62,16 @@ import net.minecraft.util.WorldSavePath;
  * player's world.</p>
  */
 public final class SurfaceMapRenderer {
-    private enum Terrain {
-        UNKNOWN,
-        WATER,
-        GRASS,
-        FOREST,
-        SAND,
-        BADLANDS,
-        ROCK,
-        MOUNTAIN,
-        SNOW
-    }
-
+    private static final MapWorkBudget WORK = new MapWorkBudget();
+    private static final int PAINT_TILE_CELLS = 16;
+    private static final int PAINT_TILE_PIXELS = PAINT_TILE_CELLS * FantasyMapStyle.PIXELS;
+    private static final int MAX_PAINT_TILES = 128; // 8 MiB of ARGB data, shared by screen/HUD.
+    private static final Map<PaintKey, PaintedTile> PAINT_TILES = new LinkedHashMap<>(128, .75f, true) {
+        @Override protected boolean removeEldestEntry(Map.Entry<PaintKey, PaintedTile> entry) {
+            return size() > MAX_PAINT_TILES;
+        }
+    };
+    private static final Map<Long, CompletableFuture<List<Sample>>> TILE_READS = new LinkedHashMap<>();
     private static final int MAX_REMEMBERED_SAMPLES = 120_000;
     private static final int CACHE_MAGIC = 0x56514D50; // VQMP
     private static final int CACHE_VERSION = 1;
@@ -73,9 +79,9 @@ public final class SurfaceMapRenderer {
     private static final int MAX_LOADED_TILE_MARKERS = 512;
     private static final long CACHE_FLUSH_TICKS = 20L * 15L;
     private static final SurfaceTexture SCREEN_TEXTURE = new SurfaceTexture(
-            Identifier.of(VillageQuest.MOD_ID, "surface_map_screen"));
+            Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "surface_map_screen"));
     private static final SurfaceTexture HUD_TEXTURE = new SurfaceTexture(
-            Identifier.of(VillageQuest.MOD_ID, "surface_map_hud"));
+            Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "surface_map_hud"));
     private static final Map<Long, Sample> SURFACE_MEMORY = new LinkedHashMap<>(24_576, 0.75f, true) {
         @Override
         protected boolean removeEldestEntry(Map.Entry<Long, Sample> eldest) {
@@ -90,33 +96,42 @@ public final class SurfaceMapRenderer {
     };
     private static final Set<Long> DIRTY_TILES = new HashSet<>();
     private static Raster screenRaster;
+    private static Raster tourRaster;
+    private static final SurfaceTexture TOUR_TEXTURE = new SurfaceTexture(
+            Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "surface_map_tour"));
     private static Raster hudRaster;
-    private static ClientWorld memoryLevel;
+    private static ClientLevel memoryLevel;
+    private static int memoryGrid;
+    private static boolean memoryPersistent;
     private static Path cacheDirectory;
     private static long lastCacheFlushTick;
     private static CompletableFuture<Void> cacheWrites = CompletableFuture.completedFuture(null);
 
     private SurfaceMapRenderer() {}
 
-    public static void drawScreen(DrawContext graphics, int x, int y, int width, int height,
+    public static void drawScreen(GuiGraphics graphics, int x, int y, int width, int height,
                                   int minX, int maxX, int minZ, int maxZ) {
         drawScreen(graphics, x, y, width, height, minX, maxX, minZ, maxZ, true);
     }
 
-    public static void drawScreen(DrawContext graphics, int x, int y, int width, int height,
+    public static void drawScreen(GuiGraphics graphics, int x, int y, int width, int height,
                                   int minX, int maxX, int minZ, int maxZ,
                                   boolean refreshTerrain) {
-        screenRaster = raster(MinecraftClient.getInstance(), screenRaster, minX, maxX, minZ, maxZ,
-                scaledSamples(Math.max(72, width / 2)), scaledSamples(Math.max(42, height / 2)),
+        if (de.quest.client.screen.UiTestTour.active()) {
+            drawTour(graphics, x, y, width, height, minX, maxX, minZ, maxZ);
+            return;
+        }
+        screenRaster = raster(Minecraft.getInstance(), screenRaster, minX, maxX, minZ, maxZ,
+                Math.min(96, scaledSamples(Math.max(48, width / 2))), Math.min(64, scaledSamples(Math.max(28, height / 2))),
                 50L, refreshTerrain);
         draw(graphics, SCREEN_TEXTURE, screenRaster, x, y, width, height,
                 minX, maxX, minZ, maxZ, true);
     }
 
-    public static void drawHud(DrawContext graphics, int x, int y, int width, int height,
+    public static void drawHud(GuiGraphics graphics, int x, int y, int width, int height,
                                int minX, int maxX, int minZ, int maxZ) {
-        hudRaster = raster(MinecraftClient.getInstance(), hudRaster, minX, maxX, minZ, maxZ,
-                scaledSamples(Math.max(42, width / 2)), scaledSamples(Math.max(24, height / 2)),
+        hudRaster = raster(Minecraft.getInstance(), hudRaster, minX, maxX, minZ, maxZ,
+                Math.min(64, scaledSamples(Math.max(32, width / 2))), Math.min(40, scaledSamples(Math.max(24, height / 2))),
                 25L, true);
         draw(graphics, HUD_TEXTURE, hudRaster, x, y, width, height,
                 minX, maxX, minZ, maxZ, false);
@@ -126,7 +141,43 @@ public final class SurfaceMapRenderer {
         screenRaster = null;
     }
 
+    private static void drawTour(GuiGraphics graphics, int x, int y, int width, int height,
+                                 int minX, int maxX, int minZ, int maxZ) {
+        int cellSize = sampleCellSize(minX, maxX, minZ, maxZ, 96, 54);
+        WORK.begin(System.nanoTime() / 50_000_000L);
+        if (tourRaster == null || !tourRaster.covers(null, minX, maxX, minZ, maxZ, cellSize, sampleGridSize())) {
+            var coverage = SurfaceMapProjection.tileCoverage(minX, maxX, minZ, maxZ, cellSize);
+            Sample[] samples = new Sample[coverage.cellWidth() * coverage.cellHeight()];
+            for (int row = 0; row < coverage.cellHeight(); row++) {
+                int wz = fixedSampleCoordinate(coverage.originCellZ() + row, cellSize);
+                for (int col = 0; col < coverage.cellWidth(); col++) {
+                    int wx = fixedSampleCoordinate(coverage.originCellX() + col, cellSize);
+                    double land = Math.sin(wx / 110.0) + Math.cos(wz / 90.0);
+                    double ridge = Math.sin(wx / 75.0) - Math.cos(wz / 120.0);
+                    Terrain terrain = land < -.35 || Math.abs(wx - 90 * Math.sin(wz / 130.0)) < cellSize ? Terrain.WATER
+                            : land < -.10 ? Terrain.SAND : ridge > 1.6 ? Terrain.SNOW
+                            : ridge > 1.3 ? Terrain.MOUNTAIN : land > .65 ? Terrain.FOREST : Terrain.GRASS;
+                    int color = switch (terrain) {
+                        case WATER -> 0x4E99AC; case SAND -> 0xD7C18C; case FOREST -> 0x5A7949; default -> 0x8CAC56;
+                    };
+                    samples[row * coverage.cellWidth() + col] = new Sample(terrain, terrain == Terrain.WATER ? 62
+                            : 70 + (int) (Math.max(0, ridge) * 45), color, wx, wz);
+                }
+            }
+            tourRaster = new Raster(null, coverage.minX(), coverage.maxX(), coverage.minZ(), coverage.maxZ(),
+                    coverage.originCellX(), coverage.originCellZ(), cellSize, sampleGridSize(),
+                    coverage.cellWidth(), coverage.cellHeight(), samples, 0);
+        }
+        draw(graphics, TOUR_TEXTURE, tourRaster, x, y, width, height, minX, maxX, minZ, maxZ, true);
+    }
+
+    public static void clearTour() {
+        tourRaster = null;
+        TOUR_TEXTURE.release();
+    }
+
     public static void clear() {
+        clearTour();
         scheduleCacheWrites();
         screenRaster = null;
         hudRaster = null;
@@ -135,52 +186,77 @@ public final class SurfaceMapRenderer {
         SURFACE_MEMORY.clear();
         LOADED_TILES.clear();
         DIRTY_TILES.clear();
+        TILE_READS.clear();
+        PAINT_TILES.clear();
         SCREEN_TEXTURE.release();
         HUD_TEXTURE.release();
     }
 
-    private static Raster raster(MinecraftClient client, Raster existing,
+    private static Raster raster(Minecraft client, Raster existing,
                                  int minX, int maxX, int minZ, int maxZ,
                                  int sampleWidth, int sampleHeight, long maxAge,
                                  boolean refreshTerrain) {
-        ClientWorld level = client.world;
+        ClientLevel level = client.level;
         if (level == null) {
             return null;
         }
         ensureWorld(client, level);
+        long now = System.nanoTime() / 50_000_000L;
+        // Refreshes and budgets must both advance while a singleplayer screen pauses the world.
+        WORK.begin(now);
+        applyTileReads();
         if (!refreshTerrain && existing != null && existing.level == level) {
             return existing;
         }
-        long now = level.getTime();
         if (now - lastCacheFlushTick >= CACHE_FLUSH_TICKS) {
             scheduleCacheWrites();
             lastCacheFlushTick = now;
         }
         int cellSize = sampleCellSize(minX, maxX, minZ, maxZ, sampleWidth, sampleHeight);
         int gridSize = sampleGridSize();
-        if (existing != null && existing.matches(level, minX, maxX, minZ, maxZ, cellSize, gridSize)
-                && now - existing.sampledAt < maxAge) {
+        if (existing != null && existing.covers(level, minX, maxX, minZ, maxZ, cellSize, gridSize)) {
+            refreshRaster(existing, now, maxAge);
             return existing;
         }
-        int originCellX = Math.floorDiv(minX, cellSize) - 1;
-        int originCellZ = Math.floorDiv(minZ, cellSize) - 1;
-        int endCellX = Math.floorDiv(maxX - 1, cellSize) + 1;
-        int endCellZ = Math.floorDiv(maxZ - 1, cellSize) + 1;
-        int rasterWidth = endCellX - originCellX + 1;
-        int rasterHeight = endCellZ - originCellZ + 1;
+        SurfaceMapProjection.Coverage coverage = SurfaceMapProjection.tileCoverage(
+                minX, maxX, minZ, maxZ, cellSize);
+        int originCellX = coverage.originCellX();
+        int originCellZ = coverage.originCellZ();
+        int rasterWidth = coverage.cellWidth();
+        int rasterHeight = coverage.cellHeight();
         Sample[] samples = new Sample[rasterWidth * rasterHeight];
         for (int row = 0; row < rasterHeight; row++) {
             int worldZ = fixedSampleCoordinate(originCellZ + row, cellSize);
             for (int column = 0; column < rasterWidth; column++) {
                 int worldX = fixedSampleCoordinate(originCellX + column, cellSize);
-                samples[row * rasterWidth + column] = sample(level, worldX, worldZ);
+                samples[row * rasterWidth + column] = SURFACE_MEMORY.getOrDefault(surfaceKey(worldX, worldZ), unknown(worldX, worldZ));
             }
         }
-        return new Raster(level, minX, maxX, minZ, maxZ, originCellX, originCellZ,
+        Raster created = new Raster(level, coverage.minX(), coverage.maxX(), coverage.minZ(), coverage.maxZ(),
+                originCellX, originCellZ,
                 cellSize, gridSize, rasterWidth, rasterHeight, samples, now);
+        refreshRaster(created, now, maxAge);
+        return created;
     }
 
-    private static Sample sample(ClientWorld level, int worldX, int worldZ) {
+    private static void refreshRaster(Raster raster, long now, long maxAge) {
+        if (raster.cursor >= raster.order.length) {
+            if (now - raster.sampledAt < maxAge) return;
+            raster.cursor = 0;
+        }
+        while (raster.cursor < raster.order.length && WORK.sample()) {
+            int index = raster.order[raster.cursor++];
+            Sample previous = raster.samples[index];
+            Sample next = sample(raster.level, previous.worldX, previous.worldZ);
+            if (!next.equals(previous)) {
+                raster.samples[index] = next;
+                raster.dirtyCell(index % raster.width, index / raster.width);
+            }
+        }
+        if (raster.cursor == raster.order.length) raster.sampledAt = now;
+    }
+
+    private static Sample sample(ClientLevel level, int worldX, int worldZ) {
         long key = ((long) worldX << 32) ^ (worldZ & 0xFFFF_FFFFL);
         Sample live = sampleLoaded(level, worldX, worldZ);
         if (live.terrain != Terrain.UNKNOWN) {
@@ -198,68 +274,72 @@ public final class SurfaceMapRenderer {
         return SURFACE_MEMORY.getOrDefault(key, unknown(worldX, worldZ));
     }
 
-    private static Sample sampleLoaded(ClientWorld level, int worldX, int worldZ) {
+    private static Sample sampleLoaded(ClientLevel level, int worldX, int worldZ) {
         int chunkX = Math.floorDiv(worldX, 16);
         int chunkZ = Math.floorDiv(worldZ, 16);
-        if (!level.isChunkLoaded(chunkX, chunkZ)) {
+        if (!level.hasChunk(chunkX, chunkZ)) {
             return unknown(worldX, worldZ);
         }
-        Chunk chunk = level.getChunk(chunkX, chunkZ, ChunkStatus.FULL, false);
+        ChunkAccess chunk = level.getChunk(chunkX, chunkZ, ChunkStatus.FULL, false);
         if (chunk == null) {
             return unknown(worldX, worldZ);
         }
         int localX = Math.floorMod(worldX, 16);
         int localZ = Math.floorMod(worldZ, 16);
-        int topY = chunk.sampleHeightmap(Heightmap.Type.WORLD_SURFACE, localX, localZ) - 1;
-        if (topY < level.getBottomY()) {
+        // ChunkAccess already returns the top occupied block, not the first air
+        // block above it. Subtracting again skips thin surfaces over air/void.
+        int topY = chunk.getHeight(Heightmap.Types.WORLD_SURFACE, localX, localZ);
+        if (topY < level.getMinY()) {
             return unknown(worldX, worldZ);
         }
-        BlockPos.Mutable pos = new BlockPos.Mutable(worldX, topY, worldZ);
+        BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos(worldX, topY, worldZ);
         BlockState state = chunk.getBlockState(pos);
-        MapColor color = MapColor.CLEAR;
-        for (int depth = 0; depth < 10 && pos.getY() >= level.getBottomY(); depth++, pos.move(0, -1, 0)) {
+        MapColor color = MapColor.NONE;
+        for (int depth = 0; depth < 10 && pos.getY() >= level.getMinY(); depth++, pos.move(0, -1, 0)) {
             state = chunk.getBlockState(pos);
             color = state.getMapColor(level, pos);
-            if (color != MapColor.CLEAR) {
+            if (color != MapColor.NONE) {
                 break;
             }
         }
-        if (color == MapColor.CLEAR) {
+        if (color == MapColor.NONE) {
             return unknown(worldX, worldZ);
         }
-        int rgb = color.getRenderColor(MapColor.Brightness.NORMAL);
+        int rgb = color.calculateARGBColor(MapColor.Brightness.NORMAL);
         return new Sample(classify(state, rgb, topY), topY, rgb, worldX, worldZ);
     }
 
     private static Terrain classify(BlockState state, int rgb, int height) {
-        if (!state.getFluidState().isEmpty() || state.isOf(Blocks.WATER) || state.isOf(Blocks.ICE)) {
+        if (state.is(Blocks.WATER) || state.is(Blocks.ICE)
+                || state.getFluidState().is(net.minecraft.tags.FluidTags.WATER)) {
             return Terrain.WATER;
         }
-        if (state.isOf(Blocks.SNOW) || state.isOf(Blocks.SNOW_BLOCK) || state.isOf(Blocks.POWDER_SNOW)
-                || state.isOf(Blocks.PACKED_ICE) || state.isOf(Blocks.BLUE_ICE)) {
+        if (state.is(Blocks.SNOW) || state.is(Blocks.SNOW_BLOCK) || state.is(Blocks.POWDER_SNOW)
+                || state.is(Blocks.PACKED_ICE) || state.is(Blocks.BLUE_ICE)) {
             return Terrain.SNOW;
         }
-        if (state.isOf(Blocks.SAND) || state.isOf(Blocks.SANDSTONE)) {
+        if (state.is(Blocks.SAND) || state.is(Blocks.SANDSTONE)) {
             return Terrain.SAND;
         }
-        if (state.isOf(Blocks.RED_SAND) || state.isOf(Blocks.RED_SANDSTONE)
-                || state.isOf(Blocks.TERRACOTTA)) {
+        if (state.is(Blocks.RED_SAND) || state.is(Blocks.RED_SANDSTONE)
+                || state.is(Blocks.TERRACOTTA)) {
             return Terrain.BADLANDS;
         }
         int red = (rgb >>> 16) & 0xFF;
         int green = (rgb >>> 8) & 0xFF;
         int blue = rgb & 0xFF;
+        if (state.is(net.minecraft.tags.BlockTags.LEAVES)) return Terrain.FOREST;
         if (height >= 128 && red + green + blue > 540) {
             return Terrain.SNOW;
         }
         if (height >= 112) {
             return Terrain.MOUNTAIN;
         }
-        if (state.isOf(Blocks.OAK_LEAVES) || state.isOf(Blocks.SPRUCE_LEAVES)
-                || state.isOf(Blocks.BIRCH_LEAVES) || state.isOf(Blocks.JUNGLE_LEAVES)
-                || state.isOf(Blocks.ACACIA_LEAVES) || state.isOf(Blocks.DARK_OAK_LEAVES)
-                || state.isOf(Blocks.MANGROVE_LEAVES) || state.isOf(Blocks.CHERRY_LEAVES)
-                || state.isOf(Blocks.AZALEA_LEAVES) || state.isOf(Blocks.FLOWERING_AZALEA_LEAVES)) {
+        if (state.is(Blocks.OAK_LEAVES) || state.is(Blocks.SPRUCE_LEAVES)
+                || state.is(Blocks.BIRCH_LEAVES) || state.is(Blocks.JUNGLE_LEAVES)
+                || state.is(Blocks.ACACIA_LEAVES) || state.is(Blocks.DARK_OAK_LEAVES)
+                || state.is(Blocks.MANGROVE_LEAVES) || state.is(Blocks.CHERRY_LEAVES)
+                || state.is(Blocks.AZALEA_LEAVES) || state.is(Blocks.FLOWERING_AZALEA_LEAVES)) {
             return Terrain.FOREST;
         }
         if (red > green + 28 && red > blue + 45) {
@@ -271,7 +351,7 @@ public final class SurfaceMapRenderer {
         return Terrain.GRASS;
     }
 
-    private static void draw(DrawContext graphics, SurfaceTexture texture, Raster raster,
+    private static void draw(GuiGraphics graphics, SurfaceTexture texture, Raster raster,
                              int x, int y, int width, int height,
                              int minX, int maxX, int minZ, int maxZ, boolean decorate) {
         float opacity = decorate ? 1.0f : VillageQuestClientConfig.get().minimapOpacity();
@@ -279,149 +359,96 @@ public final class SurfaceMapRenderer {
         if (raster == null) {
             return;
         }
-        texture.upload(raster, width, height, decorate);
-        double requestedWidth = Math.max(1.0, maxX - minX);
-        double requestedHeight = Math.max(1.0, maxZ - minZ);
-        int drawX = x + (int) Math.round((raster.minX - minX) / requestedWidth * width);
-        int drawY = y + (int) Math.round((raster.minZ - minZ) / requestedHeight * height);
-        graphics.drawTexture(RenderPipelines.GUI_TEXTURED, texture.id, drawX, drawY, 0.0f, 0.0f,
-                width, height, width, height);
+        int textureWidth = raster.width * SurfaceMapProjection.PIXELS_PER_CELL;
+        int textureHeight = raster.height * SurfaceMapProjection.PIXELS_PER_CELL;
+        texture.upload(raster, textureWidth, textureHeight, decorate);
+        Raster displayed = texture.displayedRaster;
+        if (displayed == null) return;
+        // While an upload is throttled, project the still-visible GPU data at its old origin.
+        raster = displayed;
+        double u0 = SurfaceMapProjection.textureCoordinate(minX, raster.minX, raster.cellSize);
+        double v0 = SurfaceMapProjection.textureCoordinate(minZ, raster.minZ, raster.cellSize);
+        double u1 = SurfaceMapProjection.textureCoordinate(maxX, raster.minX, raster.cellSize);
+        double v1 = SurfaceMapProjection.textureCoordinate(maxZ, raster.minZ, raster.cellSize);
+        drawTextureRegion(graphics, texture.id, x, y, width, height,
+                u0, v0, u1, v1, texture.width, texture.height);
     }
 
-    private static void paint(NativeImage image, Raster raster, int width, int height,
-                              boolean decorate) {
-        float opacity = decorate ? 1.0f : VillageQuestClientConfig.get().minimapOpacity();
-        image.fillRect(0, 0, width, height, withOpacity(0xFFD8B978, opacity));
-        double worldWidth = Math.max(1.0, raster.maxX - raster.minX);
-        double worldHeight = Math.max(1.0, raster.maxZ - raster.minZ);
-        for (int row = 0; row < raster.height; row++) {
-            int cellZ = raster.originCellZ + row;
-            int y0 = projectedCoordinate((long) cellZ * raster.cellSize,
-                    raster.minZ, worldHeight, height);
-            int y1 = projectedCoordinate((long) (cellZ + 1) * raster.cellSize,
-                    raster.minZ, worldHeight, height);
-            int clippedY0 = Math.max(0, y0);
-            int clippedY1 = Math.min(height, y1);
-            if (clippedY1 <= clippedY0) {
-                continue;
-            }
-            for (int column = 0; column < raster.width; column++) {
-                int cellX = raster.originCellX + column;
-                int x0 = projectedCoordinate((long) cellX * raster.cellSize,
-                        raster.minX, worldWidth, width);
-                int x1 = projectedCoordinate((long) (cellX + 1) * raster.cellSize,
-                        raster.minX, worldWidth, width);
-                int clippedX0 = Math.max(0, x0);
-                int clippedX1 = Math.min(width, x1);
-                if (clippedX1 <= clippedX0) {
-                    continue;
-                }
-                Sample sample = raster.at(column, row);
-                int shade = slopeShade(raster, column, row, sample.height);
-                int color = palette(sample, shade, hash(sample.worldX, sample.worldZ));
-                image.fillRect(clippedX0, clippedY0, clippedX1 - clippedX0, clippedY1 - clippedY0,
-                        withOpacity(color, opacity));
-                if (sample.terrain == Terrain.WATER && touchesLand(raster, column, row)) {
-                    image.fillRect(clippedX0, clippedY0, clippedX1 - clippedX0, 1,
-                            withOpacity(0xFFB7C59A, opacity));
-                }
-            }
+    private static void drawTextureRegion(GuiGraphics graphics, Identifier texture,
+                                          int x, int y, int width, int height,
+                                          double u0, double v0, double u1, double v1,
+                                          int textureWidth, int textureHeight) {
+        double fullSourceWidth = Math.max(0.0001D, u1 - u0);
+        double fullSourceHeight = Math.max(0.0001D, v1 - v0);
+        double clippedU0 = Math.max(0.0D, u0);
+        double clippedV0 = Math.max(0.0D, v0);
+        double clippedU1 = Math.min(textureWidth, u1);
+        double clippedV1 = Math.min(textureHeight, v1);
+        if (clippedU1 <= clippedU0 || clippedV1 <= clippedV0) {
+            return;
         }
-        if (decorate) {
-            drawTerrainGlyphs(image, raster, width, height);
-        }
-    }
-
-    private static void drawTerrainGlyphs(NativeImage image, Raster raster,
-                                          int width, int height) {
-        double worldWidth = Math.max(1.0, raster.maxX - raster.minX);
-        double worldHeight = Math.max(1.0, raster.maxZ - raster.minZ);
-        for (int row = 1; row < raster.height - 1; row++) {
-            for (int column = 1; column < raster.width - 1; column++) {
-                if (Math.floorMod(raster.originCellX + column, 2) != 0
-                        || Math.floorMod(raster.originCellZ + row, 2) != 0) {
-                    continue;
-                }
-                Sample sample = raster.at(column, row);
-                int hash = hash(sample.worldX * 7, sample.worldZ * 11);
-                int px = projectedCoordinate(sample.worldX, raster.minX, worldWidth, width);
-                int py = projectedCoordinate(sample.worldZ, raster.minZ, worldHeight, height);
-                if (sample.terrain == Terrain.FOREST && Math.floorMod(hash, 9) == 0) {
-                    fillSafe(image, px, py - 1, 1, 3, 0xFF31532D);
-                    fillSafe(image, px - 1, py, 3, 1, 0xFF4D7D3C);
-                } else if ((sample.terrain == Terrain.MOUNTAIN || sample.terrain == Terrain.ROCK)
-                        && Math.floorMod(hash, 17) == 0) {
-                    fillSafe(image, px, py - 1, 1, 2, 0xFF6B6657);
-                    fillSafe(image, px - 1, py + 1, 3, 1, 0xFF746D5C);
-                } else if (sample.terrain == Terrain.WATER && Math.floorMod(hash, 19) == 0) {
-                    fillSafe(image, px - 1, py, 3, 1, 0xFF72B7BB);
-                }
-            }
-        }
-    }
-
-    private static void fillSafe(NativeImage image, int x, int y, int width, int height, int color) {
-        int x0 = Math.max(0, x);
-        int y0 = Math.max(0, y);
-        int x1 = Math.min(image.getWidth(), x + width);
-        int y1 = Math.min(image.getHeight(), y + height);
-        if (x1 > x0 && y1 > y0) {
-            image.fillRect(x0, y0, x1 - x0, y1 - y0, color);
-        }
-    }
-
-    private static int slopeShade(Raster raster, int x, int y, int height) {
-        int west = raster.at(Math.max(0, x - 1), y).height;
-        int north = raster.at(x, Math.max(0, y - 1)).height;
-        return Math.max(-18, Math.min(18, (height - west) * 2 + (height - north)));
-    }
-
-    private static int palette(Sample sample, int shade, int hash) {
-        int base = switch (sample.terrain) {
-            case WATER -> 0xFF4E9AA8;
-            case GRASS -> 0xFF86A64C;
-            case FOREST -> 0xFF47743A;
-            case SAND -> 0xFFC9AE68;
-            case BADLANDS -> 0xFFB77046;
-            case ROCK -> 0xFF837B68;
-            case MOUNTAIN -> 0xFF777665;
-            case SNOW -> 0xFFD8D7C1;
-            case UNKNOWN -> 0xFFD7BC82;
-        };
-        int texture = Math.floorMod(hash, 9) - 4;
-        return adjust(base, shade + texture);
-    }
-
-    private static int adjust(int color, int amount) {
-        int r = clamp(((color >>> 16) & 0xFF) + amount);
-        int g = clamp(((color >>> 8) & 0xFF) + amount);
-        int b = clamp((color & 0xFF) + amount / 2);
-        return 0xFF000000 | (r << 16) | (g << 8) | b;
-    }
-
-    private static int clamp(int value) {
-        return Math.max(0, Math.min(255, value));
+        int drawX0 = x + (int) Math.round((clippedU0 - u0) / fullSourceWidth * width);
+        int drawY0 = y + (int) Math.round((clippedV0 - v0) / fullSourceHeight * height);
+        int drawX1 = x + (int) Math.round((clippedU1 - u0) / fullSourceWidth * width);
+        int drawY1 = y + (int) Math.round((clippedV1 - v0) / fullSourceHeight * height);
+        int sourceWidth = Math.max(1, (int) Math.round(clippedU1 - clippedU0));
+        int sourceHeight = Math.max(1, (int) Math.round(clippedV1 - clippedV0));
+        int drawWidth = Math.max(1, drawX1 - drawX0);
+        int drawHeight = Math.max(1, drawY1 - drawY0);
+        var matrices = graphics.pose();
+        matrices.pushMatrix();
+        matrices.translate(drawX0, drawY0);
+        matrices.scale(drawWidth / (float) sourceWidth, drawHeight / (float) sourceHeight);
+        graphics.blit(RenderPipelines.GUI_TEXTURED, texture, 0, 0,
+                (float) clippedU0, (float) clippedV0,
+                sourceWidth, sourceHeight, textureWidth, textureHeight);
+        matrices.popMatrix();
     }
 
     private static int withOpacity(int color, float opacity) {
-        int alpha = Math.max(0, Math.min(255, Math.round((color >>> 24) * opacity)));
-        return (alpha << 24) | (color & 0x00FFFFFF);
+        return Math.clamp(Math.round((color >>> 24) * opacity), 0, 255) << 24 | color & 0xFFFFFF;
     }
 
-    private static boolean touchesLand(Raster raster, int x, int y) {
-        return raster.at(Math.max(0, x - 1), y).terrain != Terrain.WATER
-                || raster.at(Math.min(raster.width - 1, x + 1), y).terrain != Terrain.WATER
-                || raster.at(x, Math.max(0, y - 1)).terrain != Terrain.WATER
-                || raster.at(x, Math.min(raster.height - 1, y + 1)).terrain != Terrain.WATER;
+    private record PaintKey(int x, int z, int cellSize, int gridSize, boolean detail, int alpha) {}
+    private record PaintedTile(long fingerprint, int[] pixels) {}
+
+    private static PaintedTile paintTile(Raster raster, PaintKey key) {
+        return paintTile(raster, key, false);
     }
 
-    private static int hash(int x, int z) {
-        int value = x * 734_287_67 ^ z * 912_931;
-        value ^= value >>> 13;
-        value *= 1_274_126_177;
-        return value ^ value >>> 16;
+    private static PaintedTile paintTile(Raster raster, PaintKey key, boolean cachedOnly) {
+        int cellX = key.x * PAINT_TILE_CELLS;
+        int cellZ = key.z * PAINT_TILE_CELLS;
+        // Include the halo: neighbouring height/coast changes invalidate this tile too.
+        long fingerprint = 0xcbf29ce484222325L;
+        for (int z = -12; z < PAINT_TILE_CELLS + 12; z++) {
+            for (int x = -12; x < PAINT_TILE_CELLS + 12; x++) {
+                Sample sample = raster.atWorldCell(cellX + x, cellZ + z);
+                fingerprint = (fingerprint ^ sample.hashCode()) * 0x100000001b3L;
+            }
+        }
+        PaintedTile cached = PAINT_TILES.get(key);
+        if (cached != null && cached.fingerprint == fingerprint) return cached;
+        if (cachedOnly) return null;
+        int[] pixels = new int[PAINT_TILE_PIXELS * PAINT_TILE_PIXELS];
+        float opacity = key.alpha / 255f;
+        for (int z = 0; z < PAINT_TILE_CELLS; z++) {
+            for (int x = 0; x < PAINT_TILE_CELLS; x++) {
+                int wx = cellX + x, wz = cellZ + z;
+                FantasyMapStyle.paintInto(pixels, z * 8 * PAINT_TILE_PIXELS + x * 8, PAINT_TILE_PIXELS,
+                        raster.atWorldCell(wx, wz).cell(), raster.atWorldCell(wx - 1, wz).cell(),
+                        raster.atWorldCell(wx, wz - 1).cell(), raster.atWorldCell(wx + 1, wz).cell(),
+                        raster.atWorldCell(wx, wz + 1).cell(), key.cellSize, key.detail, opacity);
+            }
+        }
+        FantasyMapAtlas.shoreline(pixels, PAINT_TILE_PIXELS, PAINT_TILE_PIXELS,
+                cellX, cellZ, (x, z) -> raster.atWorldCell(x, z).cell());
+        if (key.detail) FantasyMapAtlas.overlay(pixels, PAINT_TILE_PIXELS, PAINT_TILE_PIXELS,
+                cellX, cellZ, key.cellSize, (x, z) -> raster.atWorldCell(x, z).cell());
+        PaintedTile painted = new PaintedTile(fingerprint, pixels);
+        PAINT_TILES.put(key, painted);
+        return painted;
     }
-
     private static int scaledSamples(int base) {
         return Math.max(24, Math.round(base * VillageQuestClientConfig.get().mapQuality().sampleScale()));
     }
@@ -468,16 +495,25 @@ public final class SurfaceMapRenderer {
         return new Sample(Terrain.UNKNOWN, 63, 0, worldX, worldZ);
     }
 
-    private static void ensureWorld(MinecraftClient client, ClientWorld level) {
-        if (memoryLevel == level) {
+    private static void ensureWorld(Minecraft client, ClientLevel level) {
+        boolean persistent = VillageQuestClientConfig.get().persistentMapCache();
+        if (memoryLevel == level && memoryGrid == sampleGridSize() && memoryPersistent == persistent) {
             return;
         }
         scheduleCacheWrites();
         memoryLevel = level;
+        memoryGrid = sampleGridSize();
+        memoryPersistent = persistent;
+        screenRaster = null;
+        hudRaster = null;
+        PAINT_TILES.clear();
+        TILE_READS.clear();
+        SCREEN_TEXTURE.displayedRaster = null;
+        HUD_TEXTURE.displayedRaster = null;
         SURFACE_MEMORY.clear();
         LOADED_TILES.clear();
         DIRTY_TILES.clear();
-        lastCacheFlushTick = level.getTime();
+        lastCacheFlushTick = System.nanoTime() / 50_000_000L;
         cacheDirectory = VillageQuestClientConfig.get().persistentMapCache()
                 ? cacheDirectory(client, level)
                 : null;
@@ -501,16 +537,41 @@ public final class SurfaceMapRenderer {
             return;
         }
         long tileKey = tileKey(worldX, worldZ);
-        if (LOADED_TILES.put(tileKey, Boolean.TRUE) != null) {
+        if (LOADED_TILES.containsKey(tileKey) || TILE_READS.containsKey(tileKey)
+                || TILE_READS.size() >= 8 || !WORK.diskRead()) {
             return;
         }
+        LOADED_TILES.put(tileKey, Boolean.TRUE);
         Path file = tilePath(cacheDirectory, tileX(worldX), tileZ(worldZ));
+        TILE_READS.put(tileKey, CompletableFuture.supplyAsync(() -> readTile(file)));
+    }
+
+    private static void applyTileReads() {
+        var iterator = TILE_READS.entrySet().iterator();
+        int applied = 0;
+        while (iterator.hasNext() && applied < 2) {
+            var entry = iterator.next();
+            if (!entry.getValue().isDone()) continue;
+            List<Sample> samples = entry.getValue().getNow(List.of());
+            for (Sample sample : samples) SURFACE_MEMORY.putIfAbsent(surfaceKey(sample.worldX, sample.worldZ), sample);
+            // The first sweep may have finished before this asynchronous disk read.
+            if (!samples.isEmpty()) {
+                if (screenRaster != null) screenRaster.cursor = 0;
+                if (hudRaster != null) hudRaster.cursor = 0;
+            }
+            iterator.remove();
+            applied++;
+        }
+    }
+
+    private static List<Sample> readTile(Path file) {
+        List<Sample> samples = new ArrayList<>();
         if (!Files.isRegularFile(file)) {
-            return;
+            return samples;
         }
         try (DataInputStream input = new DataInputStream(new BufferedInputStream(Files.newInputStream(file)))) {
             if (input.readInt() != CACHE_MAGIC || input.readInt() != CACHE_VERSION) {
-                return;
+                return samples;
             }
             int count = Math.max(0, Math.min(TILE_CELLS * TILE_CELLS, input.readInt()));
             for (int index = 0; index < count; index++) {
@@ -522,13 +583,14 @@ public final class SurfaceMapRenderer {
                 Terrain terrain = terrainId >= 0 && terrainId < Terrain.values().length
                         ? Terrain.values()[terrainId]
                         : Terrain.UNKNOWN;
-                SURFACE_MEMORY.put(surfaceKey(x, z), new Sample(terrain, height, sourceColor, x, z));
+                samples.add(new Sample(terrain, height, sourceColor, x, z));
             }
         } catch (EOFException exception) {
             VillageQuest.LOGGER.warn("Ignoring truncated Village Quest map tile {}", file);
         } catch (IOException exception) {
             VillageQuest.LOGGER.warn("Could not read Village Quest map tile {}", file, exception);
         }
+        return samples;
     }
 
     private static void scheduleCacheWrites() {
@@ -611,18 +673,18 @@ public final class SurfaceMapRenderer {
         }
     }
 
-    private static Path cacheDirectory(MinecraftClient client, ClientWorld level) {
+    private static Path cacheDirectory(Minecraft client, ClientLevel level) {
         String source;
-        if (client.getCurrentServerEntry() != null) {
-            source = "server-" + client.getCurrentServerEntry().address;
-        } else if (client.getServer() != null) {
-            source = "world-" + client.getServer().getSaveProperties().getLevelName()
-                    + "-" + client.getServer().getSavePath(WorldSavePath.ROOT)
+        if (client.getCurrentServer() != null) {
+            source = "server-" + client.getCurrentServer().ip;
+        } else if (client.getSingleplayerServer() != null) {
+            source = "world-" + client.getSingleplayerServer().getWorldData().getLevelName()
+                    + "-" + client.getSingleplayerServer().getWorldPath(LevelResource.ROOT)
                     .toAbsolutePath().normalize();
         } else {
             source = "local-world";
         }
-        String dimension = level.getRegistryKey().getValue().toString();
+        String dimension = level.dimension().identifier().toString();
         String folder = safeName(source) + "-" + digest(source).substring(0, 12);
         return cacheRoot().resolve(folder).resolve(safeName(dimension))
                 .resolve("grid-" + sampleGridSize());
@@ -682,11 +744,11 @@ public final class SurfaceMapRenderer {
     }
 
     private static int tileX(int worldX) {
-        return Math.floorDiv(worldX, sampleGridSize() * TILE_CELLS);
+        return Math.floorDiv(worldX, (memoryGrid > 0 ? memoryGrid : sampleGridSize()) * TILE_CELLS);
     }
 
     private static int tileZ(int worldZ) {
-        return Math.floorDiv(worldZ, sampleGridSize() * TILE_CELLS);
+        return Math.floorDiv(worldZ, (memoryGrid > 0 ? memoryGrid : sampleGridSize()) * TILE_CELLS);
     }
 
     private static long tileKey(int worldX, int worldZ) {
@@ -720,78 +782,213 @@ public final class SurfaceMapRenderer {
         }
     }
 
-    private record Sample(Terrain terrain, int height, int sourceColor, int worldX, int worldZ) {}
+    private record Sample(Terrain terrain, int height, int sourceColor, int worldX, int worldZ) {
+        Cell cell() { return new Cell(terrain, height, sourceColor, worldX, worldZ); }
+    }
 
     private static final class SurfaceTexture {
         private final Identifier id;
-        private NativeImageBackedTexture texture;
+        private DynamicTexture texture;
         private Raster uploadedRaster;
-        private int width;
-        private int height;
+        private Raster displayedRaster;
+        private int width, height;
         private boolean decorated;
+        private int alpha = -1;
+        private boolean pendingUpload;
+        private boolean[] knownGround;
 
-        private SurfaceTexture(Identifier id) {
-            this.id = id;
-        }
+        private SurfaceTexture(Identifier id) { this.id = id; }
 
-        private void upload(Raster raster, int requestedWidth, int requestedHeight,
-                            boolean requestedDecorated) {
+        private void upload(Raster raster, int requestedWidth, int requestedHeight, boolean detail) {
+            if (requestedWidth > 1024 || requestedHeight > 768) return;
+            int requestedAlpha = detail ? 255 : Math.round(255 * VillageQuestClientConfig.get().minimapOpacity());
+            Raster previous = uploadedRaster;
+            boolean sameContext = previous != null && previous.level == raster.level
+                    && previous.gridSize == raster.gridSize && decorated == detail && alpha == requestedAlpha;
+            boolean resize = texture == null || width != requestedWidth || height != requestedHeight;
+            boolean reservedUpload = false;
+            // Keep the already-published GPU image until its resized replacement can
+            // be uploaded in the same call. A different world/quality is never a fallback.
+            if (resize && sameContext && displayedRaster != null) {
+                if (!WORK.upload()) return;
+                reservedUpload = true;
+            }
+            if (!sameContext) displayedRaster = null;
+            int previousWidth = width, previousHeight = height;
+            boolean[] previousGround = knownGround;
+            int[] retained = null;
+            // A viewport is not a new world. Preserve the CPU image, including partially
+            // completed tiles, before clearing/reallocating its backing texture.
+            if (sameContext && previous != raster
+                    && texture != null && texture.getPixels() != null) {
+                retained = new int[width * height];
+                NativeImage old = texture.getPixels();
+                for (int y = 0; y < height; y++) for (int x = 0; x < width; x++)
+                    retained[y * width + x] = old.getPixel(x, y);
+            }
             if (texture == null || width != requestedWidth || height != requestedHeight) {
                 release();
                 width = requestedWidth;
                 height = requestedHeight;
-                texture = new NativeImageBackedTexture(() -> id.toString(), width, height, false);
-                MinecraftClient.getInstance().getTextureManager().registerTexture(id, texture);
+                texture = new DynamicTexture(() -> id.toString(), width, height, false);
+                Minecraft.getInstance().getTextureManager().register(id, texture);
             }
-            if (uploadedRaster == raster && decorated == requestedDecorated) {
-                return;
+            NativeImage pixels = texture.getPixels();
+            if (pixels == null) return;
+            if (uploadedRaster != raster || decorated != detail || alpha != requestedAlpha) {
+                pixels.fillRect(0, 0, width, height, withOpacity(0xFFD8B978, requestedAlpha / 255f));
+                knownGround=new boolean[raster.samples.length];
+                // Publish known ground everywhere, not parchment holes in tiles waiting for expensive motifs.
+                // This uses only samples already observed; unknown territory remains parchment.
+                for(int row=0;row<raster.height;row++) for(int col=0;col<raster.width;col++) {
+                    var sample=raster.samples[row*raster.width+col];
+                    if(sample.terrain!=Terrain.UNKNOWN) {
+                        pixels.fillRect(col*8,row*8,8,8,FantasyMapStyle.groundPreview(sample.cell(),requestedAlpha/255f));
+                        knownGround[row*raster.width+col]=true;
+                    }
+                }
+                if (retained != null) {
+                    for (int y = 0; y < height; y++) {
+                        long sy = Math.floorDiv(((long) raster.minZ - previous.minZ) * 8
+                                + (long) y * raster.cellSize, previous.cellSize);
+                        if (sy < 0 || sy >= previousHeight) continue;
+                        for (int x = 0; x < width; x++) {
+                            long sx = Math.floorDiv(((long) raster.minX - previous.minX) * 8
+                                    + (long) x * raster.cellSize, previous.cellSize);
+                            if (sx >= 0 && sx < previousWidth
+                                    && raster.samples[(y/8)*raster.width+x/8].terrain!=Terrain.UNKNOWN
+                                    && previousGround!=null && previousGround[((int)sy/8)*previous.width+(int)sx/8]
+                                    && previous.samples[((int)sy/8)*previous.width+(int)sx/8].terrain!=Terrain.UNKNOWN)
+                                pixels.setPixel(x, y, retained[(int) sy * previousWidth + (int) sx]);
+                        }
+                    }
+                }
+                raster.dirtyAll();
+                uploadedRaster = raster;
+                decorated = detail;
+                alpha = requestedAlpha;
+                pendingUpload = true;
             }
-            NativeImage pixels = texture.getImage();
-            if (pixels == null) {
-                return;
+            // Sampling mutates a Raster in place. Publish newly known ground even when detail paint is throttled.
+            for(int i=0;i<raster.samples.length;i++) {
+                var sample=raster.samples[i];boolean known=sample.terrain!=Terrain.UNKNOWN;
+                if(knownGround[i]!=known) {
+                    pixels.fillRect((i%raster.width)*8,(i/raster.width)*8,8,8,known?
+                            FantasyMapStyle.groundPreview(sample.cell(),requestedAlpha/255f):withOpacity(0xFFD8B978,requestedAlpha/255f));
+                    knownGround[i]=known;pendingUpload=true;
+                }
             }
-            paint(pixels, raster, width, height, requestedDecorated);
-            texture.upload();
-            uploadedRaster = raster;
-            decorated = requestedDecorated;
+            var iterator = raster.dirtyPaintTiles.iterator();
+            while (iterator.hasNext()) {
+                long tile = iterator.next();
+                int tx = (int) (tile >> 32), tz = (int) tile;
+                PaintKey key = new PaintKey(tx, tz, raster.cellSize, raster.gridSize, detail, alpha);
+                PaintedTile painted = paintTile(raster, key, true);
+                // Cache copies are bounded by the viewport. Only expensive new painting
+                // spends the shared work budget; cached terrain must not blink away.
+                if (painted == null) {
+                    if (!WORK.tile()) continue;
+                    painted = paintTile(raster, key);
+                }
+                int dx = (tx * PAINT_TILE_CELLS - raster.originCellX) * 8;
+                int dy = (tz * PAINT_TILE_CELLS - raster.originCellZ) * 8;
+                for (int y = Math.max(0, -dy); y < Math.min(PAINT_TILE_PIXELS, height - dy); y++) {
+                    for (int x = Math.max(0, -dx); x < Math.min(PAINT_TILE_PIXELS, width - dx); x++) {
+                        pixels.setPixel(dx + x, dy + y, painted.pixels[y * PAINT_TILE_PIXELS + x]);
+                    }
+                }
+                iterator.remove();
+                pendingUpload = true;
+            }
+            if (pendingUpload && (reservedUpload || WORK.upload())) {
+                texture.upload();
+                displayedRaster = raster;
+                pendingUpload = false;
+            }
         }
 
         private void release() {
-            if (texture != null) {
-                MinecraftClient.getInstance().getTextureManager().destroyTexture(id);
-            }
+            if (texture != null) Minecraft.getInstance().getTextureManager().release(id);
             texture = null;
             uploadedRaster = null;
-            width = 0;
-            height = 0;
+            displayedRaster = null;
+            width = height = 0;
+            pendingUpload = false;
+            knownGround = null;
         }
     }
 
-    private record Raster(
-            ClientWorld level,
-            int minX,
-            int maxX,
-            int minZ,
-            int maxZ,
-            int originCellX,
-            int originCellZ,
-            int cellSize,
-            int gridSize,
-            int width,
-            int height,
-            Sample[] samples,
-            long sampledAt
-    ) {
-        private Sample at(int x, int y) {
-            return samples[Math.max(0, Math.min(height - 1, y)) * width
-                    + Math.max(0, Math.min(width - 1, x))];
+    private static final class Raster {
+        final ClientLevel level;
+        final int minX, maxX, minZ, maxZ, originCellX, originCellZ, cellSize, gridSize, width, height;
+        final Sample[] samples;
+        final int[] order;
+        final Set<Long> dirtyPaintTiles = new LinkedHashSet<>();
+        long sampledAt;
+        int cursor;
+
+        Raster(ClientLevel level, int minX, int maxX, int minZ, int maxZ,
+               int originCellX, int originCellZ, int cellSize, int gridSize,
+               int width, int height, Sample[] samples, long sampledAt) {
+            this.level = level;
+            this.minX = minX; this.maxX = maxX; this.minZ = minZ; this.maxZ = maxZ;
+            this.originCellX = originCellX; this.originCellZ = originCellZ;
+            this.cellSize = cellSize; this.gridSize = gridSize;
+            this.width = width; this.height = height; this.samples = samples; this.sampledAt = sampledAt;
+            // Visible centre first, then the buffered margin. Reused for each refresh sweep.
+            Integer[] indices = new Integer[samples.length];
+            for (int i = 0; i < indices.length; i++) indices[i] = i;
+            Arrays.sort(indices, Comparator.comparingInt(i -> Math.max(
+                    Math.abs((i % width) * 2 - width), Math.abs((i / width) * 2 - height))));
+            order = new int[indices.length];
+            for (int i = 0; i < indices.length; i++) order[i] = indices[i];
+            dirtyAll();
         }
 
-        private boolean matches(ClientWorld otherLevel, int otherMinX, int otherMaxX,
-                                int otherMinZ, int otherMaxZ, int otherCellSize, int otherGridSize) {
-            return level == otherLevel && minX == otherMinX && maxX == otherMaxX
-                    && minZ == otherMinZ && maxZ == otherMaxZ
-                    && cellSize == otherCellSize && gridSize == otherGridSize;
+        Sample atWorldCell(int x, int z) {
+            int col = x - originCellX, row = z - originCellZ;
+            if (col >= 0 && col < width && row >= 0 && row < height) return samples[row * width + col];
+            int wx = fixedSampleCoordinate(x, cellSize), wz = fixedSampleCoordinate(z, cellSize);
+            return SURFACE_MEMORY.getOrDefault(surfaceKey(wx, wz), unknown(wx, wz));
+        }
+
+        void dirtyCell(int x, int z) {
+            int wx = originCellX + x, wz = originCellZ + z;
+            markTile(wx, wz); markTile(wx - 1, wz); markTile(wx + 1, wz);
+            markTile(wx, wz - 1); markTile(wx, wz + 1);
+            // Include motif reach and the local density neighbourhood.
+            for (int dz = -12; dz <= 12; dz += 12) for (int dx = -12; dx <= 12; dx += 12)
+                markTile(wx + dx, wz + dz);
+        }
+
+        void markTile(int x, int z) {
+            int tx = Math.floorDiv(x, PAINT_TILE_CELLS), tz = Math.floorDiv(z, PAINT_TILE_CELLS);
+            if (tx * PAINT_TILE_CELLS >= originCellX + width || (tx + 1) * PAINT_TILE_CELLS <= originCellX
+                    || tz * PAINT_TILE_CELLS >= originCellZ + height || (tz + 1) * PAINT_TILE_CELLS <= originCellZ) return;
+            dirtyPaintTiles.add((long) tx << 32 ^ tz & 0xFFFF_FFFFL);
+        }
+
+        void dirtyAll() {
+            for (int z = 0; z < height; z += PAINT_TILE_CELLS) {
+                for (int x = 0; x < width; x += PAINT_TILE_CELLS) markTile(originCellX + x, originCellZ + z);
+                markTile(originCellX + width - 1, originCellZ + z);
+            }
+            for (int x = 0; x < width; x += PAINT_TILE_CELLS) markTile(originCellX + x, originCellZ + height - 1);
+            markTile(originCellX + width - 1, originCellZ + height - 1);
+            var ordered = new ArrayList<>(dirtyPaintTiles);
+            ordered.sort(Comparator.comparingLong(tile -> {
+                long tx = tile >> 32, tz = (int) (long) tile;
+                return Math.max(Math.abs((tx * 16 + 8 - originCellX) * 2 - width),
+                        Math.abs((tz * 16 + 8 - originCellZ) * 2 - height));
+            }));
+            dirtyPaintTiles.clear();
+            dirtyPaintTiles.addAll(ordered);
+        }
+
+        boolean covers(ClientLevel otherLevel, int otherMinX, int otherMaxX,
+                       int otherMinZ, int otherMaxZ, int otherCellSize, int otherGridSize) {
+            return level == otherLevel && otherMinX >= minX && otherMaxX <= maxX
+                    && otherMinZ >= minZ && otherMaxZ <= maxZ && cellSize == otherCellSize && gridSize == otherGridSize;
         }
     }
 }

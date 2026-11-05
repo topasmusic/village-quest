@@ -1,6 +1,6 @@
 package de.quest.caravan;
 
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.Component;
 
 public enum TradeRouteStatus {
     UNKNOWN(0, "unknown"),
@@ -20,8 +20,8 @@ public enum TradeRouteStatus {
         return id;
     }
 
-    public Text label() {
-        return Text.translatable("text.village-quest.trade_route.status." + translationSuffix);
+    public Component label() {
+        return Component.translatable("text.village-quest.trade_route.status." + translationSuffix);
     }
 
     public static TradeRouteStatus byId(int id) {

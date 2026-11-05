@@ -18,6 +18,7 @@
     "ForgingScreenHandlerAccessor",
     "ForgingScreenHandlerMixin",
     "ItemEntityMixin",
+    "ItemStackCraftMixin",
     "KingdomBuildingDirtyMixin",
     "LivingEntityReputationMixin",
     "MarketPlayerSaveInvoker",

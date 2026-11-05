@@ -4,22 +4,22 @@ import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.entity.QuestMasterEntity;
 import de.quest.registry.ModEntities;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
-import net.minecraft.world.Heightmap;
-
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
 import java.util.UUID;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.levelgen.Heightmap;
 
 public final class QuestMasterService {
     private static final int MIN_SPAWN_DISTANCE = 4;
@@ -34,21 +34,21 @@ public final class QuestMasterService {
 
     private QuestMasterService() {}
 
-    private static PlayerQuestData data(ServerWorld world, UUID playerId) {
+    private static PlayerQuestData data(ServerLevel world, UUID playerId) {
         return QuestState.get(world.getServer()).getPlayerData(playerId);
     }
 
-    private static void markDirty(ServerWorld world) {
+    private static void markDirty(ServerLevel world) {
         if (world != null) {
-            QuestState.get(world.getServer()).markDirty();
+            QuestState.get(world.getServer()).setDirty();
         }
     }
 
-    public static boolean isEligibleSpawnTarget(PlayerEntity player) {
+    public static boolean isEligibleSpawnTarget(Player player) {
         return player != null && player.isAlive() && !player.isSpectator();
     }
 
-    public static QuestMasterEntity spawnNearPlayer(ServerWorld world, ServerPlayerEntity anchor) {
+    public static QuestMasterEntity spawnNearPlayer(ServerLevel world, ServerPlayer anchor) {
         if (world == null || anchor == null || !isEligibleSpawnTarget(anchor)) {
             return null;
         }
@@ -57,9 +57,13 @@ public final class QuestMasterService {
         }
 
         for (BlockPos spawnPos : findSpawnCandidates(world, anchor)) {
+            if (spawnPos == null) {
+                continue;
+            }
+
             QuestMasterEntity questMaster = new QuestMasterEntity(ModEntities.QUEST_MASTER, world);
-            float yaw = world.random.nextFloat() * 360.0f;
-            questMaster.refreshPositionAndAngles(
+            float yaw = world.getRandom().nextFloat() * 360.0f;
+            questMaster.snapTo(
                     spawnPos.getX() + 0.5,
                     spawnPos.getY(),
                     spawnPos.getZ() + 0.5,
@@ -67,10 +71,10 @@ public final class QuestMasterService {
                     0.0f
             );
 
-            if (!world.isSpaceEmpty(questMaster)) {
+            if (!world.noCollision(questMaster)) {
                 continue;
             }
-            if (!world.spawnEntity(questMaster)) {
+            if (!world.addFreshEntity(questMaster)) {
                 continue;
             }
             questMaster.beginArrivalTracking(anchor);
@@ -79,40 +83,40 @@ public final class QuestMasterService {
         return null;
     }
 
-    public static void interact(ServerWorld world, ServerPlayerEntity player, QuestMasterEntity questMaster) {
+    public static void interact(ServerLevel world, ServerPlayer player, QuestMasterEntity questMaster) {
         if (world == null || player == null || questMaster == null) {
             return;
         }
-        if (player.squaredDistanceTo(questMaster) > MAX_INTERACT_DISTANCE_SQUARED) {
-            player.sendMessage(Text.translatable("message.village-quest.questmaster.too_far").formatted(Formatting.RED), false);
+        if (player.distanceToSqr(questMaster) > MAX_INTERACT_DISTANCE_SQUARED) {
+            player.sendSystemMessage(Component.translatable("message.village-quest.questmaster.too_far").withStyle(ChatFormatting.RED), false);
             return;
         }
 
         questMaster.beginInteraction(player);
-        questMaster.getLookControl().lookAt(player.getX(), player.getEyeY(), player.getZ());
+        questMaster.getLookControl().setLookAt(player.getX(), player.getEyeY(), player.getZ());
         QuestMasterUiService.open(world, player, questMaster);
     }
 
-    public static QuestMasterEntity findNearbyQuestMaster(ServerWorld world, double x, double y, double z) {
+    public static QuestMasterEntity findNearbyQuestMaster(ServerLevel world, double x, double y, double z) {
         if (world == null) {
             return null;
         }
-        for (Entity entity : world.iterateEntities()) {
+        for (Entity entity : world.getAllEntities()) {
             if (entity instanceof QuestMasterEntity questMaster
                     && questMaster.isAlive()
-                    && questMaster.squaredDistanceTo(x, y, z) <= NEARBY_QUESTMASTER_DISTANCE_SQUARED) {
+                    && questMaster.distanceToSqr(x, y, z) <= NEARBY_QUESTMASTER_DISTANCE_SQUARED) {
                 return questMaster;
             }
         }
         return null;
     }
 
-    public static List<QuestMasterEntity> getQuestMasters(ServerWorld world) {
+    public static List<QuestMasterEntity> getQuestMasters(ServerLevel world) {
         List<QuestMasterEntity> questMasters = new ArrayList<>();
         if (world == null) {
             return questMasters;
         }
-        for (Entity entity : world.iterateEntities()) {
+        for (Entity entity : world.getAllEntities()) {
             if (entity instanceof QuestMasterEntity questMaster && questMaster.isAlive()) {
                 questMasters.add(questMaster);
             }
@@ -120,13 +124,13 @@ public final class QuestMasterService {
         return questMasters;
     }
 
-    public static int despawnAll(ServerWorld world) {
+    public static int despawnAll(ServerLevel world) {
         if (world == null) {
             return 0;
         }
         List<QuestMasterEntity> questMasters = getQuestMasters(world);
         for (QuestMasterEntity questMaster : questMasters) {
-            ServerPlayerEntity customer = questMaster.getCustomer();
+            ServerPlayer customer = questMaster.getCustomer();
             if (customer != null) {
                 QuestMasterUiService.close(customer);
                 questMaster.clearCustomer();
@@ -144,37 +148,37 @@ public final class QuestMasterService {
         return PLAYER_SUMMON_COOLDOWN_TICKS;
     }
 
-    public static void applyPlayerSummonCooldown(ServerWorld world, UUID playerId) {
+    public static void applyPlayerSummonCooldown(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
             return;
         }
-        data(world, playerId).setQuestMasterSummonBlockedUntil(world.getTime() + PLAYER_SUMMON_COOLDOWN_TICKS);
+        data(world, playerId).setQuestMasterSummonBlockedUntil(world.getGameTime() + PLAYER_SUMMON_COOLDOWN_TICKS);
         markDirty(world);
     }
 
-    public static long getPlayerSummonCooldownRemainingTicks(ServerWorld world, UUID playerId) {
+    public static long getPlayerSummonCooldownRemainingTicks(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
             return 0L;
         }
-        long remaining = data(world, playerId).getQuestMasterSummonBlockedUntil() - world.getTime();
+        long remaining = data(world, playerId).getQuestMasterSummonBlockedUntil() - world.getGameTime();
         return Math.max(0L, remaining);
     }
 
-    public static Text formatDuration(long remainingTicks) {
+    public static Component formatDuration(long remainingTicks) {
         long totalSeconds = Math.max(1L, (remainingTicks + 19L) / 20L);
         long minutes = totalSeconds / 60L;
         long seconds = totalSeconds % 60L;
         if (minutes > 0L && seconds > 0L) {
-            return Text.translatable("text.village-quest.duration.minutes_seconds", minutes, seconds);
+            return Component.translatable("text.village-quest.duration.minutes_seconds", minutes, seconds);
         }
         if (minutes > 0L) {
-            return Text.translatable("text.village-quest.duration.minutes", minutes);
+            return Component.translatable("text.village-quest.duration.minutes", minutes);
         }
-        return Text.translatable("text.village-quest.duration.seconds", seconds);
+        return Component.translatable("text.village-quest.duration.seconds", seconds);
     }
 
-    private static List<BlockPos> findSpawnCandidates(ServerWorld world, ServerPlayerEntity anchor) {
-        BlockPos origin = anchor.getBlockPos();
+    private static List<BlockPos> findSpawnCandidates(ServerLevel world, ServerPlayer anchor) {
+        BlockPos origin = anchor.blockPosition();
         int minDistanceSquared = MIN_SPAWN_DISTANCE * MIN_SPAWN_DISTANCE;
         int maxDistanceSquared = MAX_SPAWN_DISTANCE * MAX_SPAWN_DISTANCE;
         Map<BlockPos, SpawnCandidate> candidates = new HashMap<>();
@@ -188,10 +192,10 @@ public final class QuestMasterService {
 
                 int x = origin.getX() + dx;
                 int z = origin.getZ() + dz;
-                addCandidate(candidates, origin, findNearbyVerticalSpawnPos(world, origin.getY(), x, z), 0, world.random.nextInt());
+                addCandidate(candidates, origin, findNearbyVerticalSpawnPos(world, origin.getY(), x, z), 0, world.getRandom().nextInt());
 
-                int surfaceY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
-                addCandidate(candidates, origin, validateSpawnPos(world, new BlockPos(x, surfaceY, z)), SURFACE_FALLBACK_PENALTY, world.random.nextInt());
+                int surfaceY = world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+                addCandidate(candidates, origin, validateSpawnPos(world, new BlockPos(x, surfaceY, z)), SURFACE_FALLBACK_PENALTY, world.getRandom().nextInt());
             }
         }
 
@@ -205,9 +209,9 @@ public final class QuestMasterService {
                 .toList();
     }
 
-    private static BlockPos findNearbyVerticalSpawnPos(ServerWorld world, int originY, int x, int z) {
-        int minY = Math.max(world.getBottomY() + 1, originY - VERTICAL_SEARCH_RADIUS);
-        int maxY = Math.min(world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z), originY + VERTICAL_SEARCH_RADIUS);
+    private static BlockPos findNearbyVerticalSpawnPos(ServerLevel world, int originY, int x, int z) {
+        int minY = Math.max(world.getMinY() + 1, originY - VERTICAL_SEARCH_RADIUS);
+        int maxY = Math.min(world.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z), originY + VERTICAL_SEARCH_RADIUS);
         for (int offset = 0; offset <= VERTICAL_SEARCH_RADIUS; offset++) {
             BlockPos lowerPos = validateSpawnPos(world, new BlockPos(x, originY - offset, z));
             if (originY - offset >= minY && lowerPos != null) {
@@ -225,18 +229,18 @@ public final class QuestMasterService {
         return null;
     }
 
-    private static BlockPos validateSpawnPos(ServerWorld world, BlockPos feetPos) {
-        BlockPos groundPos = feetPos.down();
-        if (!world.getWorldBorder().contains(feetPos)) {
+    private static BlockPos validateSpawnPos(ServerLevel world, BlockPos feetPos) {
+        BlockPos groundPos = feetPos.below();
+        if (!world.getWorldBorder().isWithinBounds(feetPos)) {
             return null;
         }
-        if (feetPos.getY() <= world.getBottomY()) {
+        if (feetPos.getY() <= world.getMinY()) {
             return null;
         }
-        if (!world.getBlockState(groundPos).isSideSolidFullSquare(world, groundPos, Direction.UP)) {
+        if (!world.getBlockState(groundPos).isFaceSturdy(world, groundPos, Direction.UP)) {
             return null;
         }
-        if (!world.getBlockState(feetPos).isAir() || !world.getBlockState(feetPos.up()).isAir()) {
+        if (!world.getBlockState(feetPos).isAir() || !world.getBlockState(feetPos.above()).isAir()) {
             return null;
         }
         return feetPos;

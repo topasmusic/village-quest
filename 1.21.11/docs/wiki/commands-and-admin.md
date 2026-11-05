@@ -2,7 +2,44 @@
 
 All commands are available as `/villagequest ...` and the short alias `/vq ...`.
 
+In Village Quest 2.5, messages about features that still need a project, rank or story unlock use gray text. This includes the Journal's Map and Prosperity actions and locked services or Shop offers.
+
 ## Player Commands
+
+### Personal restart
+
+Back up a real save before testing a personal restart or updating an existing
+world. In the Progression Overhaul build, a living Survival player can use
+`/vq reset`, read the warning and run `/vq reset confirm`
+within two minutes. A direct `/vq reset confirm` first shows the warning; repeat it to confirm. Each confirmation works once, on the same
+server and for its requesting player. There is no other-player or console form;
+operator permission does not bypass these rules.
+
+This resets your quests in both story slots, personal reputation, village links,
+routes and VQ money, and leaves your party and guild. It removes VQ items from
+your inventory and Ender Chest, including nested portable storage, cursor and
+crafting inputs. Ordinary Minecraft items are kept. Before removal, all cursor
+and crafting contents must fit in saved inventory slots, and ordinary contents
+inside removed VQ bags must have room. Close other containers first.
+
+Placed world blocks and buildings, shared village rights, other players,
+in-progress shared contributions and earned shared-project claims remain. If you are the last guild member, finish any active shared project before restarting. The reset is blocked before item removal while that project is unfinished.
+Collect other earned reward choices/item deliveries and settle supplied freight
+or market transfers before restarting. Existing reward limits, first rewards
+and transaction records are preserved. Repeating already paid one-time stories does not pay their
+money, experience or materials again; progression unlocks can be earned again.
+The short introductory Daily is paid normally after a restart when a new Daily
+allowance is free, and consumes that allowance. Resetting never clears a paid cycle.
+Personal tools may be issued at a new owner generation, invalidating your old
+issues stored elsewhere. Anonymous old transferable items cannot be traced back
+to their original player.
+
+The reset records and reads back native player and world saves at its phase
+boundaries. Login resolves an interrupted reset before normal quest actions.
+If records are unknown or inconsistent, access stays locked with the claims
+preserved. Ask the server operator to inspect records/backups; do not force a
+second reset by deleting the records. Actual migration, multiplayer and
+power-loss behavior still require manual testing.
 
 ### Core Commands
 
@@ -10,7 +47,10 @@ All commands are available as `/villagequest ...` and the short alias `/vq ...`.
   Summon the `Questmaster` near you.
 
 - `/vq journal`
-  Open or close the journal.
+  Open or close the journal. The Journal opens directly; settings are optional.
+
+- `/vq settings`
+  Open journal settings directly. World options require current world-owner/operator permission on the server; personal settings are available to every player.
 
 - `/vq prosperity`
   Open the Prosperity, commissions, services, collection, and economy-ledger board after a matching project or trade route has unlocked access.
@@ -33,8 +73,14 @@ All commands are available as `/villagequest ...` and the short alias `/vq ...`.
 - `/vq diagnose`
   Print a read-only reset, route, caravan, stuck-group, and orphan-entity report. Operators can use `/vq diagnose <player>` for another player.
 
+- `/vq town retrofit`
+  Request a Guild Corner in the village around you. If the decorative preset cannot fit, a compact Notice Post is placed on safe nearby ground. Stand beside your cleared area and retry: the local search checks densely around you, including forest villages. Necessary natural foliage/tree blocks may be cleared; buildings and containers stay protected. Failed old reservations and missing or deliberately removed generated boards can recover through this explicit command. The required area must be loaded; a compact board occupies three blocks of width and two of height, with a clear approach.
+
 - `/vq routes guild`
   Show trade-guild rank, score, daily income, escrow, route specialization, road length, quality, and solved incidents.
+
+- `/vq routes approach <route 1-5> <careful|bold>`
+  Choose the route's visible incident plan. Careful lowers frequency, reward, and failure strain and adds protection; Bold raises opportunity, reward, and repairable risk.
 
 - `/vq routes contracts`
   Show the current freight contract or up to three daily guild offers.
@@ -69,13 +115,40 @@ All commands are available as `/villagequest ...` and the short alias `/vq ...`.
 - `/vq routes survey cancel`
   Discard the draft and restore the previous route and pause state.
 
+- `/vq network`
+  Show recorded villages, Adventure Profile, network renown, rank, honor title, and specialization.
+
+- `/vq network specialize <steward|courier|wayfarer>`
+  Preview a permanent network specialization after rank 2 without applying it.
+
+- `/vq network specialize <steward|courier|wayfarer> confirm`
+  Confirm and permanently apply the named specialization. It can only be chosen once.
+
+### Optional Living-Network Guild
+
+- `/vq guild create <name>`
+- `/vq guild invite <player>`
+- `/vq guild accept`
+- `/vq guild status`
+- `/vq guild promote <player>`
+- `/vq guild transfer <player>`
+- `/vq guild kick <player>`
+- `/vq guild project <common_reserve|waystation|archive_exchange>`
+- `/vq guild leave`
+
+The shared guild stores only membership, roles, renown, and its selected network project. Personal story rewards, Archive ownership, and unique tools remain personal. Leaders promote Stewards, transfer leadership, or remove members; Leaders and Stewards may invite and choose a project after guild rank 2. A Leader with other members must transfer leadership or remove those members before leaving, so an offline member can never permanently trap guild management.
+
+`invite`, `promote`, `transfer`, and `kick` resolve stored player profiles as well as online players. After a player has joined the server at least once, these actions can therefore target that cached name while the player is offline.
+
 ### Quest Commands
 
 - `/vq daily accept`
   Accept the currently pending daily-related offer.
 
 - `/vq daily reroll`
-  Replace today's unaccepted daily quest once. Three combined post-200 Mastery levels grant a second reroll.
+  Replace today's unaccepted daily selection once. Three combined post-200 Mastery levels grant a second reroll. In 2.6.4, the Quest Master's three choices refresh together and old choice buttons expire; ordinary reopening or cancellation keeps the same choices.
+
+Village Quest 2.6.4 offers three normal Daily choices every cycle after the easier introduction. Choose one in the Quest Master window. Its saved target profile and progress remain active through calendar changes until completion or cancellation. Normal and shard-bonus Dailies share one active slot. Explicit personal selection keeps the chosen quest type; use the separate party invitation to join a running group quest.
 
 ### Quest Party
 
@@ -109,11 +182,11 @@ All commands are available as `/villagequest ...` and the short alias `/vq ...`.
 - `/vq party share weekly decline`
   Decline the currently pending shared weekly join offer.
 
-- `/vq party share story accept`
-  Accept the currently pending shared story-chapter join offer for a running party story.
+- `/vq party share story accept [core|kingdom]`
+  Accept one pending story-chapter offer. Choose `core` or `kingdom` when both are open; the chapter's chat buttons select the correct slot automatically.
 
-- `/vq party share story decline`
-  Decline the currently pending shared story-chapter join offer.
+- `/vq party share story decline [core|kingdom]`
+  Decline only the selected story offer. With two open offers, the general command leaves both unchanged and asks you to select a slot.
 
 - `/vq party share pilgrim accept`
   Accept the currently pending shared pilgrim-contract join offer for a running party contract.
@@ -123,8 +196,9 @@ All commands are available as `/villagequest ...` and the short alias `/vq ...`.
 
 Quest-party notes:
 
-- this surface is only active on dedicated multiplayer servers
-- the `Questmaster` party drawer is intentionally hidden on singleplayer and integrated worlds
+- parties work on dedicated multiplayer servers and integrated worlds opened to LAN; mod-hosted sessions such as Essential are also detected when another player has joined
+- the `Questmaster` party drawer is available to both host and guests for shareable quests; private singleplayer worlds keep it hidden
+- saved parties load when the world becomes multiplayer and remain stored when the shared session ends
 - co-op scope currently covers shareable `Daily`, `Weekly`, core `Story`, and normal `Pilgrim` combat-contract flows
 - `Shadows on the Trade Road`, `The Empty Caravan`, persistent route events, relic/special quests, and compass-item quest lines remain solo by design
 
@@ -151,6 +225,8 @@ These are intended for testing, packmaking, and server administration.
 - `/vq admin nextdaily [player]`
 - `/vq admin completedaily [player]`
 
+`resetdaily` also clears that player's per-village Guild Notice Board delivery locks, so the current requests can be handed in again during focused admin testing.
+
 ### Weekly
 
 - `/vq admin resetweekly [player]`
@@ -167,6 +243,7 @@ This command clears the saved Village Quest state for every player at once:
 - daily, weekly, story, special, and pilgrim progress
 - unlocked village projects
 - registered villages, persistent trade routes, route events, quality, and earnings
+- living-village supply, energy, prestige, specialization, and optional shared guild state
 - pilgrim natural spawn cooldown state
 - quest parties, pending invites, shared sessions, and reconnect-grace state
 - active Village Quest journals, trackers, questmaster sessions, and pilgrim trades
@@ -192,7 +269,7 @@ It is a Village Quest data reset, not a world or inventory wipe.
 - a carried `Wayfinder's Compass`
 - unlocked compass structure modes if they were still missing
 
-`/vq admin story shadows testrescue` jumps the player into the regular caravan-defense test state.
+`/vq admin story shadows testrescue` jumps the player into the regular caravan-defense test state, chooses a prevalidated dry encounter site roughly `320–500` blocks away, and advances the Overworld clock to the required night. The complete merchant formation must fit before the compass target is committed. On Peaceful the merchants and escort remain present while hostile waves stay at zero; if the final spawn still fails, the encounter relocates or reports its reschedule instead of failing silently.
 
 `/vq admin story shadows testfinal` jumps the player into the final large-convoy defense test state and arms the convoy for the current day/night cycle instead of the normal two-night story wait.
 
@@ -212,6 +289,7 @@ Current unlockable project ids:
 - `pasture_charter`
 - `watch_bell`
 - `caravan_yard`
+- `wayshrine_network`
 
 ### Trade Routes
 
@@ -231,12 +309,10 @@ Current unlockable project ids:
 
 This focused `2.1.0` fixture unlocks the five matching project branches, prepares the five-route test network, sets the wallet to `500 Crowns`, and opens `Prosperity & Prestige`. It is intended for rank-price, discount, commission, service, livery, collection, localization, and persistence QA.
 
-### UI Layout Tests
+### Interface preview
 
-- `/vq admin uitest questmaster`
-- `/vq admin uitest pilgrim`
-
-These admin-only commands open the real Questmaster dashboard or Pilgrim trader payload without requiring precise NPC interaction. They use current player progression and currency, making them suitable for checking translations, long descriptions, large wallet values, GUI scaling, and reusable component alignment in a real client. For the Questmaster, inspect all four icon tabs, list scrolling, the selected quest detail card, locked/active/claimable states, simultaneous action buttons, reset timers, and the party overlay on a multiplayer client.
+Operators can use `/vq admin uitest` for the interface tour. The first twelve pages show the new Friends NPC windows: Simon, Lutte and Marius quests, herb exchange, coastal-chart actions, raid preparation, completed dialogue and Raphael lore. These isolated previews cannot accept quests, consume items or grant rewards. Its sample screens
+do not grant quest progress or execute gameplay actions. Escape exits.
 
 ### Pilgrim
 
@@ -275,81 +351,73 @@ Note:
 - `/vq admin shardcache [player]`
 - `/vq admin shardcachetp [player]`
 
-## Useful Testing Patterns
+## Social reputation admin tools (2.5)
 
-### Force a new daily
+Operator permission is required. These affect personal NPC trust, not player-guild prestige or skill expertise.
 
-```mcfunction
-/vq admin resetdaily
-/vq admin nextdaily
-/vq questmaster
-```
+- `/vq admin reputation inspect <player>` — read values, case identity, probation and schema mutability.
+- `/vq admin reputation set guild <player> <value>` — clamp−100..100, record an administrative history entry.
+- `/vq admin reputation set village <player> <dimension> <x> <z> <value>` — use the saved physical village anchor; does not discover a village or create a route.
+- `/vq admin reputation pardon <player>` — close the personal case/reconciliation, raise affected values to at least−10 and apply two-deed probation. No revival, money or freight reward.
+- `/vq admin reputation uitest <neutral|reliable|respected|blocked|probation|major>` — open a synthetic personal view without saved state or inventory changes. Preview action buttons are inactive.
 
-### Force a new weekly
+For actual aid, interact with a valid own/affected board or existing Questmaster within8 blocks. A remote Journal view cannot consume materials. Unknown/future schema data cannot be silently overwritten by set/pardon.
 
-```mcfunction
-/vq admin resetweekly
-/vq admin nextweekly
-/vq questmaster
-```
+Village Quest 2.5 adds [chosen Vanilla reward packages and saved collection](vanilla-rewards.md), including `/vq rewards claim`. Existing accepted contracts and prepaid orders retain their original conditions.
 
-### Reset the full Village Quest server state
+## Reward collection after testing
 
-```mcfunction
-/vq admin reset complete
-```
+The temporary `/vq admin rewardtest` command and all its subcommands were removed before the 2.5 release for Minecraft26.3 and26.2. Use the Questmaster or `/vq rewards claim` for normal earned rewards. Existing saved rewards, inventories, wallets and completion receipts are retained. The permanent `/vq admin uitest` visual tour remains available.
 
-### Unlock all visible story-core projects quickly
+## Living Kingdoms 2.6
 
-```mcfunction
-/vq admin project unlock @s apiary_charter
-/vq admin project unlock @s forge_charter
-/vq admin project unlock @s market_charter
-/vq admin project unlock @s pasture_charter
-/vq admin project unlock @s watch_bell
-```
+These commands are available on Minecraft 1.21.11. Ordinary player commands
+still require actual story, location, incident and village permissions. Commands
+never create earned tools, mandates or completed services.
 
-### Spawn the Pilgrim with rumor access
+| Command | Requirements and effect |
+|---|---|
+| `/vq artifacts target` | Select/reselect the artifact scene's village at one fresh local permitted council. Use a destination on a real direct route for the scene. Earned chapters stay; the current scene needs new actions. |
+| `/vq artifacts reserve` | Choose the finale's reserve charter at the selected permitted council. After completion only revises the charter/epilogue, with no repeated reward. |
+| `/vq artifacts road` | The equivalent open-road charter choice, with the same entry and no-repeat-reward rules. |
+| `/vq aid help <incident>` | Eligible owner at a real rescuable loaded ambush, using its offered UUID: record explicit willingness to help; actual rescue remains required. |
+| `/vq aid refuse <incident>` | Same real incident/eligibility: record explicit refusal. Silence and elapsed time are neutral. |
+| `/vq aid repair` | Affected player beside the disappointed leader at a freshly confirmed council: begin apology/freight repair; new matching delivery is still required. |
 
-```mcfunction
-/vq admin pilgrim rumor unlock
-/vq admin pilgrim spawn
-```
+These commands need no OP status, but all server-side story/actor/mandate checks
+still apply. See [Stories and tools](kingdom-stories-and-tools.md) and
+[Diplomacy and crises](kingdom-diplomacy.md).
 
-### Prepare the late trade-road story for testing
+### Current capacity limits
 
-```mcfunction
-/vq admin story shadows unlock
-/vq admin story shadows testrescue
-```
+Market UI admits at most **32 simultaneous sessions**, each expiring after 1,200
+server ticks (about 60 seconds at normal tick rate). Place searches return at most
+**32 candidates**; assign suitable places and recheck when rearranging. Trade
+always uses one displayed lot. Reopen an expired market to request a fresh session.
 
-Use `/vq admin story shadows testfinal` when you specifically want the chapter `6` convoy-defense setup.
+### Quest tracker side
 
-### Test the complete caravan batch
+- `/vq questtracker left`: move to the left and save locally.
+- `/vq questtracker right`: move to the right and save locally.
 
-```mcfunction
-/vq admin routes testsetup
-```
+The configured top/bottom anchor is retained; tracking remains enabled or disabled as before. `/villagequest` accepts the same subcommands.
 
-Then:
+## NPC skin gallery — 2.6
 
-1. Inspect all five surveyed route lines, moving markers, security states, road quality values, and event summaries.
-2. Approach a marker and verify that three named merchants materialize and start traveling.
-3. Resolve route 1 by carrying `8` planks and `2` iron ingots and interacting with its caravan.
-4. Trigger route 3 by interacting with the false-distress caravan, then defeat its traitors.
-5. Build suitable lit road surfaces near a route and allow several samples for quality to react.
-6. Run `/vq questmaster` to start the prepared `The Empty Caravan` story path.
+Operators can run `/vq skinpreview` in a clear open area. It checks an already
+loaded empty strip above/beside the player, builds a smooth-stone platform and
+places all 42 owned human skin variants in one east–west row. The player is moved
+onto the viewing walkway. Preview bodies have no AI, gravity, damage, trade or
+quest progress; they remain still after unfreezing. The whole server world is
+frozen with Vanilla `tick freeze` after successful creation.
 
-Clean up only the route test data with:
+- `/tick unfreeze` resumes world ticks (operator permission required).
+- `/vq skinpreview clear` removes only your loaded preview figures within 128 blocks.
+  The platform remains and may be dismantled manually.
 
-```mcfunction
-/vq admin routes reset
-```
+The gallery does not create real village staff, generate village records or grant
+story evidence. It does not overwrite terrain, structures or occupied space and
+does not load chunks. If the strip is blocked or unloaded, nothing is placed.
+Use a test world; real villagers, players and all other world ticks are frozen too.
 
-## Notes for Testers
-
-- `Story` and `Special` start visible but greyed out.
-- `Story` unlocks after the first normal daily completion.
-- after a full `4`-chapter story arc, the next story appears only after a real `1 hour` cooldown and the `Story` tab shows a live timer during that pause
-- `Special` unlocks after the first real reputation gain.
-- `Weekly` cancel now exists and does not reroll a new weekly for the same week.
+Placement uses actual Vanilla/CTOV house and jobsite footprints: the Notice Post stays within 10 horizontal blocks of a real building; distant roads and the combined village bounds do not count. Automatic placement keeps the entire footprint at least 8 horizontal blocks from every nearby player and waits for a safe loaded site if necessary. Generated posts drop no item, so repeated retrofit cannot farm them; crafted posts keep their ordinary drops, including crafted replacements at an old generated site. Recovery restores the compact board rather than replenishing decorative materials.

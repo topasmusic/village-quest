@@ -1,96 +1,125 @@
 package de.quest.client.hud;
 
+import de.quest.VillageQuest;
 import de.quest.client.config.VillageQuestClientConfig;
+import de.quest.client.config.QuestTrackerFocus;
 import de.quest.network.Payloads;
+import de.quest.client.ui.VillageUiTheme;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.option.KeyBinding;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.KeyMapping;
+import net.minecraft.client.gui.Font;
+import de.quest.client.compat.GuiGraphics;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import org.lwjgl.glfw.GLFW;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public final class QuestTrackerHud {
+    private static final Identifier HUD_LAYER_ID = Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "quest_tracker");
     private static final int MAX_CONTENT_WIDTH = 220;
     private static final int LINE_HEIGHT = 10;
-    private static final int COMPLETED_OBJECTIVE_COLOR = 0xFF00AA00;
-    private static final Pattern PROGRESS_FRACTION_PATTERN = Pattern.compile("(\\d+)\\s*/\\s*(\\d+)");
+    private static final int COMPLETED_OBJECTIVE_COLOR = 0xFF306C42;
     private static TrackerState state = TrackerState.disabled();
-    private static KeyBinding toggleKey;
+    private static KeyMapping toggleKey;
 
     private QuestTrackerHud() {}
 
     public static void register() {
-        toggleKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+        toggleKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
                 "key.village-quest.quest_tracker", GLFW.GLFW_KEY_PERIOD,
                 TradeRouteMinimapHud.keyCategory()));
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            while (toggleKey.wasPressed()) {
+            while (toggleKey.consumeClick()) {
                 if (client.player != null && ClientPlayNetworking.canSend(Payloads.QuestTrackerActionPayload.ID)) {
                     ClientPlayNetworking.send(new Payloads.QuestTrackerActionPayload());
                 }
             }
         });
-        HudRenderCallback.EVENT.register(QuestTrackerHud::render);
+        HudElementRegistry.attachElementAfter(
+                VanillaHudElements.BOSS_BAR,
+                HUD_LAYER_ID,
+                (extractor, tickCounter) -> render(new GuiGraphics(extractor), tickCounter)
+        );
     }
 
     public static void update(TrackerState trackerState) {
         state = trackerState == null ? TrackerState.disabled() : trackerState;
+        if (state.enabled()) QuestTrackerFocus.current().reconcile(activeTitles(state));
     }
 
-    private static void render(DrawContext drawContext, net.minecraft.client.render.RenderTickCounter tickCounter) {
+    private static java.util.Map<String, Component> activeTitles(TrackerState s) {
+        var titles = new java.util.LinkedHashMap<String, Component>();
+        for(var entry:s.entries()) titles.put(entry.id(),entry.title());
+        return titles;
+    }
+
+    record Page<T>(List<T> lines, int number, int count, int rows) {}
+    static <T> Page<T> page(List<T> pinned, List<T> others, int capacity, long milliseconds) {
+        capacity = Math.max(2, capacity);
+        // Keep the whole chosen quest fixed when it fits; retain its heading on very small HUDs.
+        if(pinned.size()==capacity && others.isEmpty()) return new Page<>(List.copyOf(pinned),1,1,pinned.size());
+        int fixed = pinned.size() >= capacity ? 1 : pinned.size();
+        var rotating = new ArrayList<T>(pinned.subList(fixed, pinned.size()));
+        rotating.addAll(others);
+        int room = capacity - fixed, count = Math.max(1, (rotating.size() + room - 1) / room);
+        int page = (int) Math.floorMod(milliseconds / 7000, count);
+        var shown = new ArrayList<T>(pinned.subList(0, fixed));
+        shown.addAll(rotating.subList(Math.min(rotating.size(), page * room), Math.min(rotating.size(), (page + 1) * room)));
+        return new Page<>(List.copyOf(shown), page + 1, count, count>1 ? capacity : shown.size());
+    }
+
+    private static void render(GuiGraphics drawContext, net.minecraft.client.DeltaTracker tickCounter) {
         TrackerState tracker = state;
-        if (!tracker.enabled() || (!tracker.dailyActive() && !tracker.weeklyActive() && !tracker.storyActive() && !tracker.pilgrimActive() && !tracker.specialActive())) {
+        if (!tracker.enabled() || tracker.entries().isEmpty()) {
             return;
         }
 
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client.options.hudHidden || client.player == null) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.options.hideGui || client.player == null) {
             return;
         }
 
-        TextRenderer renderer = client.textRenderer;
-        List<RenderEntry> renderLines = new ArrayList<>();
-        addEntry(renderLines, renderer, Text.translatable("text.village-quest.tracker.header"), 0xFFF0D7A7);
-        int headerLineCount = renderLines.size();
-        if (tracker.dailyActive()) {
-            addSection(renderLines, renderer, tracker.dailyTitle(), tracker.dailyLines(), 0xFFD8D8D8);
-        }
-        if (tracker.weeklyActive()) {
-            addSection(renderLines, renderer, tracker.weeklyTitle(), tracker.weeklyLines(), 0xFFF0E2B0);
-        }
-        if (tracker.storyActive()) {
-            addSection(renderLines, renderer, tracker.storyTitle(), tracker.storyLines(), 0xFFD7E9A9);
-        }
-        if (tracker.pilgrimActive()) {
-            addSection(renderLines, renderer, tracker.pilgrimTitle(), tracker.pilgrimLines(), 0xFFE7D1A4);
-        }
-        if (tracker.specialActive()) {
-            addSection(renderLines, renderer, tracker.specialTitle(), tracker.specialLines(), 0xFFE2D0FF);
-        }
-
-        int maxWidth = 1;
-        int contentLines = 0;
-        for (RenderEntry line : renderLines) {
-            for (String wrappedLine : line.lines()) {
-                maxWidth = Math.max(maxWidth, renderer.getWidth(wrappedLine));
-                contentLines++;
-            }
-        }
+        Font renderer = client.font;
         VillageQuestClientConfig config = VillageQuestClientConfig.get();
         float scale = config.questTrackerScale();
-        int logicalWidth = Math.max(1, (int) Math.floor(drawContext.getScaledWindowWidth() / scale));
-        int logicalHeight = Math.max(1, (int) Math.floor(drawContext.getScaledWindowHeight() / scale));
-        int boxWidth = maxWidth + 12;
-        int boxHeight = contentLines * LINE_HEIGHT + 10;
+        int logicalWidth = Math.max(1, (int) Math.floor(drawContext.guiWidth() / scale));
+        int logicalHeight = Math.max(1, (int) Math.floor(drawContext.guiHeight() / scale));
         int margin = Math.max(4, Math.round(8.0f / scale));
+        int wrapWidth = Math.min(MAX_CONTENT_WIDTH,Math.max(24,logicalWidth-margin*2-20));
+        List<RenderEntry> renderLines = new ArrayList<>();
+        List<RenderEntry> pinnedLines = new ArrayList<>();
+        var focus = QuestTrackerFocus.current();
+        var titles = activeTitles(tracker);
+        boolean pinned = titles.containsKey(focus.quest()) && focus.matches(focus.quest(), titles.get(focus.quest()));
+        for (var entry : tracker.entries()) {
+            boolean chosen=pinned && entry.id().equals(focus.quest());
+            if(pinned && focus.onlyPinned() && !chosen) continue;
+            addSection(chosen?pinnedLines:renderLines,renderer,entry.title(),List.of(entry.shortObjective()),wrapWidth);
+        }
+
+        var pinnedFlat = new ArrayList<RenderEntry>();
+        var otherFlat = new ArrayList<RenderEntry>();
+        for (RenderEntry entry : pinnedLines) for (String line : entry.lines()) pinnedFlat.add(new RenderEntry(List.of(line), entry.color()));
+        for (RenderEntry entry : renderLines) for (String line : entry.lines()) otherFlat.add(new RenderEntry(List.of(line), entry.color()));
+        renderLines = new ArrayList<>(pinnedFlat); renderLines.addAll(otherFlat);
+
+        int maxWidth = 1;
+        for (RenderEntry line : renderLines) {
+            for (String wrappedLine : line.lines()) {
+                maxWidth = Math.max(maxWidth, renderer.width(wrappedLine));
+            }
+        }
+        int capacity=Math.max(2,(logicalHeight-2*margin-42)/LINE_HEIGHT);
+        var visible = page(pinnedFlat, otherFlat, capacity, System.currentTimeMillis());
+        int pages=visible.count();
+        int boxWidth=Math.min(logicalWidth-2*margin,maxWidth+20);
+        int boxHeight=visible.rows()*LINE_HEIGHT+30+(pages>1?12:0);
         int x = switch (config.questTrackerPosition()) {
             case TOP_LEFT, BOTTOM_LEFT -> margin;
             case TOP_RIGHT, BOTTOM_RIGHT -> logicalWidth - boxWidth - margin;
@@ -100,81 +129,64 @@ public final class QuestTrackerHud {
             case BOTTOM_LEFT, BOTTOM_RIGHT -> logicalHeight - boxHeight - margin;
         };
 
-        var matrices = drawContext.getMatrices();
+        var matrices = drawContext.pose();
         matrices.pushMatrix();
         matrices.scale(scale, scale);
 
-        int backgroundAlpha = Math.round(config.questTrackerBackgroundOpacity() * 255.0f);
-        drawContext.fill(x, y, x + boxWidth, y + boxHeight, backgroundAlpha << 24 | 0x00101010);
-        drawContext.fill(x, y, x + boxWidth, y + 1, 0x90D1B277);
-        drawContext.fill(x, y + boxHeight - 1, x + boxWidth, y + boxHeight, 0x90302010);
-
-        int textX = x + 6;
-        int textY = y + 4;
-        for (int index = 0; index < renderLines.size(); index++) {
-            RenderEntry line = renderLines.get(index);
-            for (String wrappedLine : line.lines()) {
-                drawContext.drawText(renderer, wrappedLine, textX, textY, line.color(), false);
-                textY += LINE_HEIGHT;
-            }
-            if (index + 1 == headerLineCount) {
-                textY += 2;
-            }
+        drawBackground(drawContext,x,y,boxWidth,boxHeight,config.questTrackerBackgroundOpacity());
+        String header=VillageUiTheme.ellipsize(renderer,Component.translatable("text.village-quest.tracker.header").getString(),boxWidth-16);
+        drawContext.drawString(renderer,header,x+8,y+6,VillageUiTheme.LIGHT_TEXT,false);
+        boolean transparent=config.questTrackerBackgroundOpacity()<=.5f;
+        int textX=x+10,textY=y+24;
+        for(RenderEntry entry:visible.lines()) for(String line:entry.lines()) {
+                int color=transparent?(entry.color()==COMPLETED_OBJECTIVE_COLOR?0xFF94C68F:VillageUiTheme.LIGHT_TEXT):entry.color();
+                drawContext.drawString(renderer,line,textX,textY,color,transparent); textY+=LINE_HEIGHT;
         }
+        if(pages>1) drawContext.drawString(renderer,
+                Component.translatable("screen.village-quest.journal.page",visible.number(),pages),textX,y+boxHeight-12,transparent?VillageUiTheme.LIGHT_TEXT:VillageUiTheme.MUTED,transparent);
         matrices.popMatrix();
     }
 
-    private static void addSection(List<RenderEntry> output,
-                                   TextRenderer renderer,
-                                   Text title,
-                                   List<Text> lines,
-                                   int lineColor) {
-        addEntry(output, renderer, title, 0xFFFFFFFF);
-        for (Text line : lines) {
-            boolean completedObjective = isCompletedObjective(line);
-            addEntry(output, renderer, line,
-                    completedObjective ? COMPLETED_OBJECTIVE_COLOR : lineColor,
-                    completedObjective);
+    /** Every pixel of the panel receives one alpha layer, including the header. */
+    static void drawBackground(GuiGraphics g,int x,int y,int width,int height,float opacity) {
+        int alpha=Math.round(Math.max(0,Math.min(1,opacity))*255);
+        // Shadow stays outside the panel rather than darkening the paper beneath it.
+        g.fill(x+width,y+2,x+width+2,y+height+2,(alpha/3)<<24|0x18120D);
+        g.fill(x+2,y+height,x+width,y+height+2,(alpha/3)<<24|0x18120D);
+        border(g,x,y,width,height,alpha<<24|VillageUiTheme.WOOD&0xFFFFFF);
+        border(g,x+1,y+1,width-2,height-2,alpha<<24|VillageUiTheme.GOLD&0xFFFFFF);
+        g.fill(x+2,y+2,x+width-2,y+19,alpha<<24|VillageUiTheme.TEAL&0xFFFFFF);
+        g.fill(x+2,y+19,x+width-2,y+height-2,alpha<<24|VillageUiTheme.PAPER&0xFFFFFF);
+    }
+
+    private static void border(GuiGraphics g,int x,int y,int width,int height,int color) {
+        g.fill(x,y,x+width,y+1,color);
+        g.fill(x,y+height-1,x+width,y+height,color);
+        g.fill(x,y+1,x+1,y+height-1,color);
+        g.fill(x+width-1,y+1,x+width,y+height-1,color);
+    }
+
+    private static void addSection(List<RenderEntry> output,Font font,Component title,List<Component> lines,int width) {
+        output.add(new RenderEntry(List.of(VillageUiTheme.ellipsize(font,title.getString(),width)),VillageUiTheme.TEAL));
+        for(Component objective:lines) {
+            var rows=de.quest.quest.QuestShortObjective.rows(objective);
+            for(Component line:rows) output.add(new RenderEntry(rows.size()>1?wrapText(font,line.getString(),width):objectiveLines(font,line,width),
+                    isCompletedObjective(line)?COMPLETED_OBJECTIVE_COLOR:VillageUiTheme.BODY));
         }
     }
 
-    private static void addEntry(List<RenderEntry> output, TextRenderer renderer, Text text, int color) {
-        addEntry(output, renderer, text, color, false);
+    static List<String> objectiveLines(Font font,Component objective,int width) {
+        var lines=wrapText(font,objective.getString(),width);
+        if(objective.getString().contains("\n")) return lines;
+        if(lines.size()<=2) return lines;
+        return List.of(lines.getFirst(),VillageUiTheme.ellipsize(font,lines.get(1)+" …",width));
     }
 
-    private static void addEntry(List<RenderEntry> output,
-                                 TextRenderer renderer,
-                                 Text text,
-                                 int color,
-                                 boolean forceColor) {
-        int resolvedColor = forceColor || text.getStyle().getColor() == null
-                ? color
-                : 0xFF000000 | text.getStyle().getColor().getRgb();
-        output.add(new RenderEntry(wrapText(renderer, text.getString()), resolvedColor));
+    static boolean isCompletedObjective(Component component) {
+        return de.quest.quest.QuestObjectiveProgress.complete(component);
     }
 
-    private static boolean isCompletedObjective(Text text) {
-        if (text == null) {
-            return false;
-        }
-        Matcher matcher = PROGRESS_FRACTION_PATTERN.matcher(text.getString());
-        boolean foundProgress = false;
-        while (matcher.find()) {
-            foundProgress = true;
-            try {
-                long current = Long.parseLong(matcher.group(1));
-                long target = Long.parseLong(matcher.group(2));
-                if (target <= 0L || current < target) {
-                    return false;
-                }
-            } catch (NumberFormatException ignored) {
-                return false;
-            }
-        }
-        return foundProgress;
-    }
-
-    private static List<String> wrapText(TextRenderer renderer, String text) {
+    private static List<String> wrapText(Font font, String text, int width) {
         List<String> lines = new ArrayList<>();
         if (text == null || text.isBlank()) {
             lines.add("");
@@ -188,7 +200,7 @@ public final class QuestTrackerHud {
                     continue;
                 }
                 String candidate = current.isEmpty() ? word : current + " " + word;
-                if (!current.isEmpty() && renderer.getWidth(candidate) > MAX_CONTENT_WIDTH) {
+                if (!current.isEmpty() && font.width(candidate) > width) {
                     lines.add(current.toString());
                     current.setLength(0);
                     current.append(word);
@@ -205,31 +217,24 @@ public final class QuestTrackerHud {
         if (lines.isEmpty()) {
             lines.add("");
         }
-        return lines;
+        List<String> bounded=new ArrayList<>();
+        for(String line:lines) {
+            StringBuilder part=new StringBuilder();
+            for(int cp:line.codePoints().toArray()) {
+                String glyph=new String(Character.toChars(cp));
+                if(!part.isEmpty() && font.width(part+glyph)>width) { bounded.add(part.toString());part.setLength(0); }
+                part.append(glyph);
+            }
+            bounded.add(part.toString());
+        }
+        return bounded;
     }
 
     private record RenderEntry(List<String> lines, int color) {}
 
-    public record TrackerState(
-            boolean enabled,
-            boolean dailyActive,
-            Text dailyTitle,
-            List<Text> dailyLines,
-            boolean weeklyActive,
-            Text weeklyTitle,
-            List<Text> weeklyLines,
-            boolean storyActive,
-            Text storyTitle,
-            List<Text> storyLines,
-            boolean pilgrimActive,
-            Text pilgrimTitle,
-            List<Text> pilgrimLines,
-            boolean specialActive,
-            Text specialTitle,
-            List<Text> specialLines
-    ) {
-        public static TrackerState disabled() {
-            return new TrackerState(false, false, Text.empty(), List.of(), false, Text.empty(), List.of(), false, Text.empty(), List.of(), false, Text.empty(), List.of(), false, Text.empty(), List.of());
-        }
+    public record TrackerState(boolean enabled,List<de.quest.quest.TrackerEntry> entries) {
+        public TrackerState { entries=de.quest.quest.TrackerEntry.checked(entries); }
+        public static TrackerState disabled() { return new TrackerState(false,List.of()); }
     }
+
 }

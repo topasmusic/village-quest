@@ -1,5 +1,9 @@
 # Core Progression
 
+Questmaster, local-story, introductory board and crisis detail text can be scrolled with the mouse wheel, arrow keys, Page Up/Down and Home/End. Scrollbars show when more text is available; action buttons remain in place. Special quest instructions remain available after acceptance. Town commission chat offers show full rules before the acceptance link; accepted rules and Pilgrim instructions remain in the journal.
+
+Multistage Daily and Weekly details show the complete bundle that will be consumed at hand-in. Wheat used to bake the required bread is part of the harvest target, not an extra wheat delivery. Older accepted smelting Dailys may still include Raw Iron; follow the actual delivery rows for that quest. Pausing or returning to the journal keeps the full rule text available.
+
 ## Design Structure
 
 `Village Quest` is split into a village-core lane and a later outer-road lane.
@@ -23,6 +27,8 @@ Outer-road side lane:
 ### Questmaster
 
 The `Questmaster` is the center of village progression.
+
+In Village Quest 2.5, newly available Daily, Weekly and Story offers found together produce one lore announcement and one notification sound. The message names the new categories; already announced offers are not repeated on the next check or after their saved notice markers are reloaded. Your chat notification preference still applies.
 
 He handles:
 - daily quests
@@ -159,7 +165,7 @@ Current project roster:
 - `Pasture Charter`
 - `Watch Bell`
 
-In `2.1.0`, completed projects also unlock permanent Crown investments. See [Prosperity and the Village Economy](./prosperity-and-economy.md) for the five three-rank branches, commissions, services, collection milestones, and economy ledger.
+In `2.1.0`, completed projects are also the entry points for permanent Crown investments. See [Prosperity and the Village Economy](./prosperity-and-economy.md) for the five three-rank branches, Pilgrim commissions, paid services, collection milestones, and the economy ledger.
 
 ## Cancel Rules
 
@@ -192,3 +198,9 @@ That is intentional:
 - `Weekly` quests are random from the non-combat weekly pool.
 - `Pilgrim` dangerous roadside rumors are random from the unlocked rumor pool after `Watch Bell`.
 - `Roadmarks for the Compass` is not random; it is a one-time special override.
+
+Village Quest 2.5 adds [chosen Vanilla reward packages and saved collection](vanilla-rewards.md), including `/vq rewards claim`. Existing accepted contracts and prepaid orders retain their original conditions.
+
+## Questmaster offer notice after login
+
+New-offer chat and its hint sound wait 400 server ticks after login, approximately 20 seconds at normal tick speed. Assignments remain immediately available. The next regular check sends any still-new offers in one combined notice; existing saved receipts prevent repeated announcements. Rejoining starts a fresh wait, and waiting does not consume a pending notice. Normal later offer checks and notification preferences remain unchanged.

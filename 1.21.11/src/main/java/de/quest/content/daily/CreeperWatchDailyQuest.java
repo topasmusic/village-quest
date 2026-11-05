@@ -4,18 +4,18 @@ import de.quest.quest.daily.DailyQuestCompletion;
 import de.quest.quest.daily.DailyQuestDefinition;
 import de.quest.quest.daily.DailyQuestKeys;
 import de.quest.quest.daily.DailyQuestService;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.mob.CreeperEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-
 import java.util.UUID;
+import de.quest.quest.PeacefulRepeatableSupplies;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.monster.Creeper;
+import net.minecraft.world.item.ItemStack;
 
 public final class CreeperWatchDailyQuest implements DailyQuestDefinition {
-    private static final int TARGET = 12;
+    private static final int TARGET = 4;
 
     @Override
     public DailyQuestService.DailyQuestType type() {
@@ -23,57 +23,60 @@ public final class CreeperWatchDailyQuest implements DailyQuestDefinition {
     }
 
     @Override
-    public Text title() {
-        return Text.translatable("quest.village-quest.daily.creeper_watch.title");
+    public Component title() {
+        return Component.translatable("quest.village-quest.daily.creeper_watch.title");
     }
 
     @Override
-    public Text offerParagraph1() {
-        return Text.translatable("quest.village-quest.daily.creeper_watch.offer.1").formatted(Formatting.GRAY);
+    public Component offerParagraph1() {
+        return Component.translatable("quest.village-quest.daily.creeper_watch.offer.1").withStyle(ChatFormatting.GRAY);
     }
 
     @Override
-    public Text offerParagraph2() {
-        return Text.translatable("quest.village-quest.daily.creeper_watch.offer.2").formatted(Formatting.GRAY);
+    public Component offerParagraph2() {
+        return Component.translatable("quest.village-quest.daily.creeper_watch.offer.2").withStyle(ChatFormatting.GRAY);
     }
 
     @Override
-    public Text progressLine(ServerWorld world, UUID playerId) {
-        return Text.translatable(
+    public Component progressLine(ServerLevel world, UUID playerId) {
+        if (PeacefulRepeatableSupplies.daily(world,type())) return PeacefulRepeatableSupplies.dailyProgress(world,playerId,type());
+        return Component.translatable(
                 "quest.village-quest.daily.creeper_watch.progress",
                 DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.CREEPER_WATCH_PROGRESS),
                 TARGET
-        ).formatted(Formatting.GRAY);
+        ).withStyle(ChatFormatting.GRAY);
     }
 
     @Override
-    public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
-        return DailyQuestService.getQuestInt(world, player.getUuid(), DailyQuestKeys.CREEPER_WATCH_PROGRESS) >= TARGET;
+    public boolean isComplete(ServerLevel world, ServerPlayer player) {
+        if (PeacefulRepeatableSupplies.daily(world,type())) return PeacefulRepeatableSupplies.dailyComplete(world,player,type());
+        return DailyQuestService.getQuestInt(world, player.getUUID(), DailyQuestKeys.CREEPER_WATCH_PROGRESS) >= TARGET;
     }
 
     @Override
-    public DailyQuestCompletion buildCompletion(ServerWorld world) {
+    public DailyQuestCompletion buildCompletion(ServerLevel world) {
         return DailyQuestService.buildCompletion(
                 type(),
                 title(),
-                Text.translatable("quest.village-quest.daily.creeper_watch.completion.1").formatted(Formatting.GRAY),
-                Text.translatable("quest.village-quest.daily.creeper_watch.completion.2").formatted(Formatting.GRAY),
-                Text.translatable("quest.village-quest.daily.creeper_watch.completion.3").formatted(Formatting.GRAY),
+                Component.translatable("quest.village-quest.daily.creeper_watch.completion.1").withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.daily.creeper_watch.completion.2").withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.daily.creeper_watch.completion.3").withStyle(ChatFormatting.GRAY),
                 ItemStack.EMPTY,
                 ItemStack.EMPTY
         );
     }
 
     @Override
-    public void onMonsterKill(ServerWorld world, ServerPlayerEntity player, Entity killedEntity) {
-        if (!(killedEntity instanceof CreeperEntity)) {
+    public void onMonsterKill(ServerLevel world, ServerPlayer player, Entity killedEntity) {
+        if (PeacefulRepeatableSupplies.daily(world,type())) return;
+        if (!(killedEntity instanceof Creeper)) {
             return;
         }
-        if (!DailyQuestService.isTrackingQuest(world, player.getUuid(), type())) {
+        if (!DailyQuestService.isTrackingQuest(world, player.getUUID(), type())) {
             return;
         }
 
-        UUID playerId = player.getUuid();
+        UUID playerId = player.getUUID();
         int current = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.CREEPER_WATCH_PROGRESS);
         if (current >= TARGET) {
             return;

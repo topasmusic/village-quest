@@ -3,27 +3,27 @@ package de.quest.client.render;
 import de.quest.VillageQuest;
 import de.quest.client.compat.ClientModCompat;
 import de.quest.entity.PilgrimEntity;
-import net.minecraft.client.model.Dilation;
-import net.minecraft.client.render.entity.EntityRendererFactory;
-import net.minecraft.client.render.entity.MobEntityRenderer;
-import net.minecraft.client.render.entity.state.ArmedEntityRenderState;
-import net.minecraft.client.render.entity.feature.HeldItemFeatureRenderer;
-import net.minecraft.client.render.entity.model.EntityModelLayer;
-import net.minecraft.client.render.entity.model.BipedEntityModel;
-import net.minecraft.client.render.entity.model.PlayerEntityModel;
-import net.minecraft.client.render.entity.state.PlayerEntityRenderState;
-import net.minecraft.client.item.ItemModelManager;
-import net.minecraft.entity.player.PlayerSkinType;
-import net.minecraft.entity.player.SkinTextures;
-import net.minecraft.item.Items;
-import net.minecraft.util.AssetInfo;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.model.HumanoidModel;
+import net.minecraft.client.model.geom.ModelLayerLocation;
+import net.minecraft.client.model.geom.builders.CubeDeformation;
+import net.minecraft.client.model.player.PlayerModel;
+import net.minecraft.client.renderer.entity.EntityRendererProvider;
+import net.minecraft.client.renderer.entity.MobRenderer;
+import net.minecraft.client.renderer.entity.layers.ItemInHandLayer;
+import net.minecraft.client.renderer.entity.state.ArmedEntityRenderState;
+import net.minecraft.client.renderer.entity.state.AvatarRenderState;
+import net.minecraft.client.renderer.item.ItemModelResolver;
+import net.minecraft.core.ClientAsset;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.player.PlayerModelType;
+import net.minecraft.world.entity.player.PlayerSkin;
+import net.minecraft.world.item.Items;
 
-public final class PilgrimEntityRenderer extends MobEntityRenderer<PilgrimEntity, PlayerEntityRenderState, PlayerEntityModel> {
-    public static final EntityModelLayer PILGRIM_LAYER =
-            new EntityModelLayer(Identifier.of(VillageQuest.MOD_ID, "pilgrim"), "main");
-    private static final Identifier TEXTURE = Identifier.of(VillageQuest.MOD_ID, "textures/entity/pilgrim.png");
-    private static final AssetInfo.TextureAsset PILGRIM_TEXTURE_ASSET = new AssetInfo.TextureAsset() {
+public final class PilgrimEntityRenderer extends MobRenderer<PilgrimEntity, AvatarRenderState, QuestNpcPlayerModel> {
+    public static final ModelLayerLocation PILGRIM_LAYER =
+            new ModelLayerLocation(Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "pilgrim"), "main");
+    private static final Identifier TEXTURE = Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "textures/entity/pilgrim.png");
+    private static final ClientAsset.Texture PILGRIM_TEXTURE_ASSET = new ClientAsset.Texture() {
         @Override
         public Identifier id() {
             return TEXTURE;
@@ -34,51 +34,51 @@ public final class PilgrimEntityRenderer extends MobEntityRenderer<PilgrimEntity
             return TEXTURE;
         }
     };
-    private static final SkinTextures PILGRIM_SKIN =
-            SkinTextures.create(PILGRIM_TEXTURE_ASSET, null, null, PlayerSkinType.WIDE);
-    private final ItemModelManager itemModelManager;
+    private static final PlayerSkin PILGRIM_SKIN =
+            PlayerSkin.insecure(PILGRIM_TEXTURE_ASSET, null, null, PlayerModelType.WIDE);
+    private final ItemModelResolver itemModelManager;
     private final boolean heldItemRenderingEnabled;
 
-    public PilgrimEntityRenderer(EntityRendererFactory.Context context) {
-        super(context, new PlayerEntityModel(context.getPart(PILGRIM_LAYER), false), 0.5f);
-        this.itemModelManager = context.getItemModelManager();
+    public PilgrimEntityRenderer(EntityRendererProvider.Context context) {
+        super(context, new QuestNpcPlayerModel(context.bakeLayer(PILGRIM_LAYER), false), 0.5f);
+        this.itemModelManager = context.getItemModelResolver();
         this.heldItemRenderingEnabled = !ClientModCompat.shouldUseSafeNpcHeldItemFallback();
         if (this.heldItemRenderingEnabled) {
-            this.addFeature(new HeldItemFeatureRenderer<>(this));
+            this.addLayer(new ItemInHandLayer<>(this));
         } else {
-            this.addFeature(new QuestNpcHeldItemFeatureRenderer(this));
+            this.addLayer(new QuestNpcHeldItemLayer(this));
         }
     }
 
-    public static net.minecraft.client.model.TexturedModelData createModelData() {
-        return net.minecraft.client.model.TexturedModelData.of(
-                PlayerEntityModel.getTexturedModelData(Dilation.NONE, false),
+    public static net.minecraft.client.model.geom.builders.LayerDefinition createModelData() {
+        return net.minecraft.client.model.geom.builders.LayerDefinition.create(
+                PlayerModel.createMesh(CubeDeformation.NONE, false),
                 64,
                 64
         );
     }
 
     @Override
-    public PlayerEntityRenderState createRenderState() {
-        return new PlayerEntityRenderState();
+    public AvatarRenderState createRenderState() {
+        return new AvatarRenderState();
     }
 
     @Override
-    public void updateRenderState(PilgrimEntity entity, PlayerEntityRenderState state, float tickDelta) {
-        super.updateRenderState(entity, state, tickDelta);
+    public void extractRenderState(PilgrimEntity entity, AvatarRenderState state, float tickDelta) {
+        super.extractRenderState(entity, state, tickDelta);
         if (this.heldItemRenderingEnabled) {
-            ArmedEntityRenderState.updateRenderState(entity, state, this.itemModelManager, tickDelta);
+            ArmedEntityRenderState.extractArmedEntityRenderState(entity, state, this.itemModelManager, tickDelta);
         } else {
-            QuestNpcHeldItemStateHelper.updateSafeHeldItemState(entity, state, this.itemModelManager);
+            QuestNpcHeldItemStateHelper.extractSafeHeldItemState(entity, state, this.itemModelManager);
         }
-        if (entity.getMainHandStack().isOf(Items.TORCH)) {
-            state.rightArmPose = BipedEntityModel.ArmPose.BLOCK;
+        if (entity.getMainHandItem().getItem() == Items.TORCH) {
+            state.rightArmPose = HumanoidModel.ArmPose.BLOCK;
         }
-        state.skinTextures = PILGRIM_SKIN;
+        state.skin = PILGRIM_SKIN;
     }
 
     @Override
-    public Identifier getTexture(PlayerEntityRenderState state) {
+    public Identifier getTextureLocation(AvatarRenderState state) {
         return TEXTURE;
     }
 }

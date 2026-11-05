@@ -7,13 +7,13 @@ import de.quest.quest.daily.DailyQuestKeys;
 import de.quest.quest.daily.DailyQuestService;
 import de.quest.util.Texts;
 import java.util.UUID;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.stat.Stats;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.stats.Stats;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 
 public final class RiverMealDailyQuest implements DailyQuestDefinition {
     @Override
@@ -27,111 +27,116 @@ public final class RiverMealDailyQuest implements DailyQuestDefinition {
     }
 
     @Override
-    public Text title() {
-        return Text.translatable("quest.village-quest.daily.river.title");
+    public Component title() {
+        return Component.translatable("quest.village-quest.daily.river.title");
     }
 
     @Override
-    public Text offerParagraph1() {
-        return Text.translatable("quest.village-quest.daily.river.offer.1").formatted(Formatting.GRAY);
+    public Component offerParagraph1() {
+        return Component.translatable("quest.village-quest.daily.river.offer.1").withStyle(ChatFormatting.GRAY);
     }
 
     @Override
-    public Text offerParagraph2() {
-        return Text.translatable("quest.village-quest.daily.river.offer.2").formatted(Formatting.GRAY);
+    public Component offerParagraph2() {
+        return de.quest.quest.QuestRuleText.translate("quest.village-quest.daily.river.offer.2").withStyle(ChatFormatting.GRAY);
     }
 
     @Override
-    public Text progressLine(ServerWorld world, UUID playerId) {
+    public Component progressLine(ServerLevel world, UUID playerId) {
         int fishProgress = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.RIVER_FISH_PROGRESS);
         if (fishProgress < DailyQuestService.riverFishTarget()) {
-            return Text.translatable(
+            return Component.translatable(
                     "quest.village-quest.daily.river.stage.1",
                     fishProgress,
                     DailyQuestService.riverFishTarget()
-            ).formatted(Formatting.GRAY);
+            ).withStyle(ChatFormatting.GRAY);
         }
 
         int cookedProgress = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.RIVER_COOKED_FISH_PROGRESS);
         if (cookedProgress < DailyQuestService.riverCookedFishTarget()) {
-            return Text.translatable(
+            return Component.translatable(
                     "quest.village-quest.daily.river.stage.2",
                     cookedProgress,
                     DailyQuestService.riverCookedFishTarget()
-            ).formatted(Formatting.GRAY);
+            ).withStyle(ChatFormatting.GRAY);
         }
 
-        ServerPlayerEntity player = world == null ? null : world.getServer().getPlayerManager().getPlayer(playerId);
+        ServerPlayer player = world == null ? null : world.getServer().getPlayerList().getPlayer(playerId);
         if (player != null) {
-            Text blocked = claimBlockedMessage(world, player);
+            Component blocked = claimBlockedMessage(world, player);
             if (blocked != null) {
                 return blocked;
             }
         }
 
-        return Text.translatable("quest.village-quest.daily.river.stage.3").formatted(Formatting.GRAY);
+        return Component.translatable("quest.village-quest.daily.river.stage.3").withStyle(ChatFormatting.GRAY);
     }
 
     @Override
-    public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
-        UUID playerId = player.getUuid();
+    public boolean isComplete(ServerLevel world, ServerPlayer player) {
+        UUID playerId = player.getUUID();
         return DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.RIVER_FISH_PROGRESS) >= DailyQuestService.riverFishTarget()
                 && DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.RIVER_COOKED_FISH_PROGRESS) >= DailyQuestService.riverCookedFishTarget()
                 && DailyQuestService.countCompletionItems(world, player, Items.COOKED_COD, Items.COOKED_SALMON) >= DailyQuestService.riverCookedFishTarget();
     }
 
     @Override
-    public DailyQuestCompletion buildCompletion(ServerWorld world) {
+    public DailyQuestCompletion buildCompletion(ServerLevel world) {
         return DailyQuestService.buildCompletion(
                 type(),
                 title(),
-                Text.translatable("quest.village-quest.daily.river.completion.1").formatted(Formatting.GRAY),
-                Text.translatable("quest.village-quest.daily.river.completion.2").formatted(Formatting.GRAY),
-                Text.translatable("quest.village-quest.daily.river.completion.3").formatted(Formatting.GRAY),
+                Component.translatable("quest.village-quest.daily.river.completion.1").withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.daily.river.completion.2").withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.daily.river.completion.3").withStyle(ChatFormatting.GRAY),
                 ItemStack.EMPTY,
                 ItemStack.EMPTY
         );
     }
 
     @Override
-    public boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) {
+    public boolean consumeCompletionRequirements(ServerLevel world, ServerPlayer player) {
         return DailyQuestService.consumeCompletionItems(world, player, DailyQuestService.riverCookedFishTarget(), Items.COOKED_COD, Items.COOKED_SALMON);
     }
 
     @Override
-    public Text claimBlockedMessage(ServerWorld world, ServerPlayerEntity player) {
+    public Component claimBlockedMessage(ServerLevel world, ServerPlayer player) {
+        return claimBlockedMessage(world, player, false);
+    }
+
+    @Override
+    public Component claimBlockedMessage(ServerLevel world, ServerPlayer player, boolean allRequirements) {
         if (player == null || world == null) {
             return null;
         }
-        UUID playerId = player.getUuid();
+        UUID playerId = player.getUUID();
         int fishTarget = DailyQuestService.riverCookedFishTarget();
         if (DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.RIVER_FISH_PROGRESS) < DailyQuestService.riverFishTarget()
                 || DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.RIVER_COOKED_FISH_PROGRESS) < fishTarget
                 || DailyQuestService.countCompletionItems(world, player, Items.COOKED_COD, Items.COOKED_SALMON) >= fishTarget) {
             return null;
         }
-        return Texts.turnInMissing(
-                Text.translatable("text.village-quest.turnin.label.cooked_fish"),
+        return Texts.turnInMissing(allRequirements,
+                Component.translatable("text.village-quest.turnin.label.cooked_fish"),
                 DailyQuestService.countCompletionItems(world, player, Items.COOKED_COD, Items.COOKED_SALMON),
                 fishTarget
         );
     }
 
     @Override
-    public void onAccepted(ServerWorld world, ServerPlayerEntity player) {
+    public void onAccepted(ServerLevel world, ServerPlayer player) {
         DailyQuestService.setQuestInt(
                 world,
-                player.getUuid(),
+                player.getUUID(),
                 DailyQuestKeys.LAST_FISH_CAUGHT,
                 DailyQuestService.getCustomStat(player, Stats.FISH_CAUGHT) + 1
         );
     }
 
     @Override
-    public void onServerTick(ServerWorld world, ServerPlayerEntity player) {
-        if (!DailyQuestService.isTrackingQuest(world, player.getUuid(), type())) return;
+    public void onServerTick(ServerLevel world, ServerPlayer player) {
+        if (!DailyQuestService.isTrackingQuest(world, player.getUUID(), type())) return;
 
-        UUID playerId = player.getUuid();
+        UUID playerId = player.getUUID();
         int fishCaught = DailyQuestService.getCustomStat(player, Stats.FISH_CAUGHT);
         int storedLastFishCaught = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.LAST_FISH_CAUGHT);
         if (storedLastFishCaught == 0) {
@@ -155,9 +160,9 @@ public final class RiverMealDailyQuest implements DailyQuestDefinition {
     }
 
     @Override
-    public void onFurnaceOutput(ServerWorld world, ServerPlayerEntity player, ItemStack stack) {
-        if (!DailyQuestService.isTrackingQuest(world, player.getUuid(), type())) return;
-        if (DailyQuestService.getQuestInt(world, player.getUuid(), DailyQuestKeys.RIVER_FISH_PROGRESS)
+    public void onFurnaceOutput(ServerLevel world, ServerPlayer player, ItemStack stack) {
+        if (!DailyQuestService.isTrackingQuest(world, player.getUUID(), type())) return;
+        if (DailyQuestService.getQuestInt(world, player.getUUID(), DailyQuestKeys.RIVER_FISH_PROGRESS)
                 < DailyQuestService.riverFishTarget()) {
             return;
         }
@@ -167,7 +172,7 @@ public final class RiverMealDailyQuest implements DailyQuestDefinition {
             return;
         }
 
-        UUID playerId = player.getUuid();
+        UUID playerId = player.getUUID();
         int current = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.RIVER_COOKED_FISH_PROGRESS);
         int credit = Math.min(cookedFish, DailyQuestService.riverCookedFishTarget() - current);
         if (credit <= 0) {
@@ -180,7 +185,7 @@ public final class RiverMealDailyQuest implements DailyQuestDefinition {
     }
 
     private int cookedFishCount(ItemStack stack) {
-        if (stack.isOf(Items.COOKED_COD) || stack.isOf(Items.COOKED_SALMON)) {
+        if (stack.is(Items.COOKED_COD) || stack.is(Items.COOKED_SALMON)) {
             return stack.getCount();
         }
         return 0;

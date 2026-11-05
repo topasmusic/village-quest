@@ -69,6 +69,17 @@ Base mode:
 
 ### Home behavior
 
+The first click only asks for confirmation. After the second click, the compass
+checks a valid bed or charged respawn anchor and a safe exit first.
+If that respawn is missing or blocked, it searches for a safe spot near world
+spawn. If no safe spot is found, it leaves you where you are and does not spend
+the home cooldown. Compass travel does not consume an anchor charge.
+
+Biome and structure searches share a **30-second cooldown per player**, including
+unsuccessful searches, mode changes and reconnects. Story caravan bearings and
+automatic imprint hints apply in the Overworld; return there to follow them.
+
+
 - normal right-click does not teleport immediately
 - first right-click gives a confirmation warning
 - second right-click within `10` seconds returns you home
@@ -212,6 +223,13 @@ Then:
 - recover the `Starreach Ring`
 
 ## Starreach Ring
+
+The buried cache issues one ring bound to your current personal archive
+generation. Existing chest contents stay intact; a full chest must have a free
+slot before the ring can be placed. Removing the issued ring does not refill
+the cache. If it is lost, the Guild Archive can replace it during the active
+cache hunt through its normal replacement costs and generation rules. A ring
+from an older personal generation stays invalid after a restart.
 
 Effect:
 - when carried in the offhand, grants `+2` block reach while building

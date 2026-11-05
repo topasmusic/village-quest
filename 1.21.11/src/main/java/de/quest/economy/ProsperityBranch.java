@@ -1,7 +1,7 @@
 package de.quest.economy;
 
 import de.quest.quest.story.VillageProjectType;
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.Component;
 
 /** Permanent post-story investment tracks introduced by Prosperity & Prestige. */
 public enum ProsperityBranch {
@@ -33,12 +33,12 @@ public enum ProsperityBranch {
         return requiredProject;
     }
 
-    public Text title() {
-        return Text.translatable("screen.village-quest.prosperity.branch." + id);
+    public Component title() {
+        return Component.translatable("screen.village-quest.prosperity.branch." + id);
     }
 
-    public Text benefit(int rank) {
-        return Text.translatable("screen.village-quest.prosperity.branch." + id + ".benefit." + Math.max(0, Math.min(3, rank)));
+    public Component benefit(int rank) {
+        return Component.translatable("screen.village-quest.prosperity.branch." + id + ".benefit." + Math.max(0, Math.min(3, rank)));
     }
 
     public static ProsperityBranch byId(String id) {

@@ -8,12 +8,12 @@ import de.quest.quest.daily.DailyQuestService;
 import de.quest.util.Texts;
 import java.util.Map;
 import java.util.UUID;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 
 public final class WheatHarvestDailyQuest implements DailyQuestDefinition {
     @Override
@@ -27,89 +27,98 @@ public final class WheatHarvestDailyQuest implements DailyQuestDefinition {
     }
 
     @Override
-    public Text title() {
-        return Text.translatable("quest.village-quest.daily.wheat.title");
+    public Component title() {
+        return Component.translatable("quest.village-quest.daily.wheat.title");
     }
 
     @Override
-    public Text offerParagraph1() {
-        return Text.translatable("quest.village-quest.daily.wheat.offer.1").formatted(Formatting.GRAY);
+    public Component offerParagraph1() {
+        return Component.translatable("quest.village-quest.daily.wheat.offer.1").withStyle(ChatFormatting.GRAY);
     }
 
     @Override
-    public Text offerParagraph2() {
-        return Text.translatable("quest.village-quest.daily.wheat.offer.2").formatted(Formatting.GRAY);
+    public Component offerParagraph2() {
+        return de.quest.quest.QuestRuleText.translate("quest.village-quest.daily.wheat.offer.2").withStyle(ChatFormatting.GRAY);
     }
 
     @Override
-    public Text progressLine(ServerWorld world, UUID playerId) {
+    public Component progressLine(ServerLevel world, UUID playerId) {
         int wheatProgress = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.WHEAT_PROGRESS);
         if (wheatProgress < DailyQuestService.wheatHarvestTarget()) {
-            return Text.translatable(
+            return Component.translatable(
                     "quest.village-quest.daily.wheat.stage.1",
                     wheatProgress,
                     DailyQuestService.wheatHarvestTarget()
-            ).formatted(Formatting.GRAY);
+            ).withStyle(ChatFormatting.GRAY);
         }
 
         int breadProgress = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.BREAD_PROGRESS);
         if (breadProgress < DailyQuestService.breadTarget()) {
-            return Text.translatable(
+            return Component.translatable(
                     "quest.village-quest.daily.wheat.stage.2",
                     breadProgress,
                     DailyQuestService.breadTarget()
-            ).formatted(Formatting.GRAY);
+            ).withStyle(ChatFormatting.GRAY);
         }
 
-        ServerPlayerEntity player = world == null ? null : world.getServer().getPlayerManager().getPlayer(playerId);
+        ServerPlayer player = world == null ? null : world.getServer().getPlayerList().getPlayer(playerId);
         if (player != null) {
-            Text blocked = claimBlockedMessage(world, player);
+            Component blocked = claimBlockedMessage(world, player);
             if (blocked != null) {
                 return blocked;
             }
         }
 
-        return Text.translatable("quest.village-quest.daily.wheat.stage.3").formatted(Formatting.GRAY);
+        return Component.translatable("quest.village-quest.daily.wheat.stage.3").withStyle(ChatFormatting.GRAY);
     }
 
     @Override
-    public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
-        UUID playerId = player.getUuid();
+    public boolean isComplete(ServerLevel world, ServerPlayer player) {
+        UUID playerId = player.getUUID();
         return DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.WHEAT_PROGRESS) >= DailyQuestService.wheatHarvestTarget()
                 && DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.BREAD_PROGRESS) >= DailyQuestService.breadTarget()
                 && hasTurnInItems(player);
     }
 
     @Override
-    public DailyQuestCompletion buildCompletion(ServerWorld world) {
+    public DailyQuestCompletion buildCompletion(ServerLevel world) {
         return DailyQuestService.buildCompletion(
                 type(),
                 title(),
-                Text.translatable("quest.village-quest.daily.wheat.completion.1").formatted(Formatting.GRAY),
-                Text.translatable("quest.village-quest.daily.wheat.completion.2").formatted(Formatting.GRAY),
-                Text.translatable("quest.village-quest.daily.wheat.completion.3").formatted(Formatting.GRAY),
+                Component.translatable("quest.village-quest.daily.wheat.completion.1").withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.daily.wheat.completion.2").withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.daily.wheat.completion.3").withStyle(ChatFormatting.GRAY),
                 ItemStack.EMPTY,
                 ItemStack.EMPTY
         );
     }
 
     @Override
-    public boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) {
+    public boolean consumeCompletionRequirements(ServerLevel world, ServerPlayer player) {
         if (!hasTurnInItems(player)) {
             return false;
         }
-        return DailyQuestService.consumeCompletionItemRequirements(world, player, Map.of(
-                Items.WHEAT, DailyQuestService.wheatTarget(),
-                Items.BREAD, DailyQuestService.breadTarget()
-        ));
+        return DailyQuestService.consumeCompletionItemRequirements(
+                world,
+                player,
+                Map.of(
+                        Items.WHEAT, DailyQuestService.wheatTarget(),
+                        Items.BREAD, DailyQuestService.breadTarget()
+                )
+        );
     }
 
     @Override
-    public Text claimBlockedMessage(ServerWorld world, ServerPlayerEntity player) {
+    public Component claimBlockedMessage(ServerLevel world, ServerPlayer player) {
+        return claimBlockedMessage(world, player, false);
+    }
+
+    @Override
+    public Component claimBlockedMessage(ServerLevel world, ServerPlayer player, boolean allRequirements) {
         if (player == null || world == null) {
             return null;
         }
-        UUID playerId = player.getUuid();
+        UUID playerId = player.getUUID();
         int wheatTarget = DailyQuestService.wheatTarget();
         int breadTarget = DailyQuestService.breadTarget();
         if (DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.WHEAT_PROGRESS) < DailyQuestService.wheatHarvestTarget()
@@ -117,27 +126,27 @@ public final class WheatHarvestDailyQuest implements DailyQuestDefinition {
                 || hasTurnInItems(player)) {
             return null;
         }
-        return Texts.turnInMissing(
-                Items.WHEAT.getName(),
+        return Texts.turnInMissing(allRequirements,
+                Items.WHEAT.getDefaultInstance().getDisplayName(),
                 DailyQuestService.countCompletionItem(world, player, Items.WHEAT),
                 wheatTarget,
-                Items.BREAD.getName(),
+                Items.BREAD.getDefaultInstance().getDisplayName(),
                 DailyQuestService.countCompletionItem(world, player, Items.BREAD),
                 breadTarget
         );
     }
 
     @Override
-    public void onAccepted(ServerWorld world, ServerPlayerEntity player) {
-        DailyQuestService.setQuestInt(world, player.getUuid(), DailyQuestKeys.LAST_BREAD_CRAFTED,
+    public void onAccepted(ServerLevel world, ServerPlayer player) {
+        DailyQuestService.setQuestInt(world, player.getUUID(), DailyQuestKeys.LAST_BREAD_CRAFTED,
                 DailyQuestService.getCraftedStat(player, Items.BREAD) + 1);
     }
 
     @Override
-    public void onServerTick(ServerWorld world, ServerPlayerEntity player) {
-        if (!DailyQuestService.isTrackingQuest(world, player.getUuid(), type())) return;
+    public void onServerTick(ServerLevel world, ServerPlayer player) {
+        if (!DailyQuestService.isTrackingQuest(world, player.getUUID(), type())) return;
 
-        UUID playerId = player.getUuid();
+        UUID playerId = player.getUUID();
         int craftedBread = DailyQuestService.getCraftedStat(player, Items.BREAD);
         if (DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.WHEAT_PROGRESS) < DailyQuestService.wheatHarvestTarget()) {
             DailyQuestService.setQuestInt(world, playerId, DailyQuestKeys.LAST_BREAD_CRAFTED, craftedBread + 1);
@@ -164,14 +173,14 @@ public final class WheatHarvestDailyQuest implements DailyQuestDefinition {
     }
 
     @Override
-    public void onTrackedItemPickup(ServerWorld world, ServerPlayerEntity player, ItemStack stack, int count) {
-        if (!DailyQuestService.isTrackingQuest(world, player.getUuid(), type())) return;
-        if (!stack.isOf(Items.WHEAT) || count <= 0) return;
+    public void onTrackedItemPickup(ServerLevel world, ServerPlayer player, ItemStack stack, int count) {
+        if (!DailyQuestService.isTrackingQuest(world, player.getUUID(), type())) return;
+        if (!stack.is(Items.WHEAT) || count <= 0) return;
         incrementProgress(world, player, count);
     }
 
-    private void incrementProgress(ServerWorld world, ServerPlayerEntity player, int amount) {
-        UUID playerId = player.getUuid();
+    private void incrementProgress(ServerLevel world, ServerPlayer player, int amount) {
+        UUID playerId = player.getUUID();
         int current = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.WHEAT_PROGRESS);
         if (current >= DailyQuestService.wheatHarvestTarget()) {
             return;
@@ -182,8 +191,8 @@ public final class WheatHarvestDailyQuest implements DailyQuestDefinition {
         DailyQuestService.sendCurrentProgressActionbar(world, player);
     }
 
-    private boolean hasTurnInItems(ServerPlayerEntity player) {
-        ServerWorld world = (ServerWorld) player.getEntityWorld();
+    private boolean hasTurnInItems(ServerPlayer player) {
+        ServerLevel world = (ServerLevel) player.level();
         return DailyQuestService.countCompletionItem(world, player, Items.WHEAT) >= DailyQuestService.wheatTarget()
                 && DailyQuestService.countCompletionItem(world, player, Items.BREAD) >= DailyQuestService.breadTarget();
     }

@@ -1,5 +1,7 @@
 package de.quest.quest.special;
 
+import de.quest.archive.GuildArchiveService;
+import de.quest.archive.GuildArchiveService.ArchiveItem;
 import de.quest.VillageQuest;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
@@ -9,39 +11,39 @@ import de.quest.quest.daily.DailyQuestService;
 import de.quest.questmaster.QuestMasterUiService;
 import de.quest.registry.ModItems;
 import de.quest.util.Texts;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.block.entity.ChestBlockEntity;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.LoreComponent;
-import net.minecraft.entity.attribute.EntityAttributeInstance;
-import net.minecraft.entity.attribute.EntityAttributeModifier;
-import net.minecraft.entity.attribute.EntityAttributes;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.item.FilledMapItem;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.item.map.MapDecorationTypes;
-import net.minecraft.item.map.MapState;
-import net.minecraft.registry.Registries;
+import de.quest.util.QuestSiteLocator;
+import de.quest.util.QuestMapHelper;
+import de.quest.util.WildernessSiteValidator;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.stat.Stats;
-import net.minecraft.text.ClickEvent;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.world.Heightmap;
-
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.stats.Stats;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.MapItem;
+import net.minecraft.world.item.component.ItemLore;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.ChestBlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.saveddata.maps.MapDecorationTypes;
+import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -61,9 +63,12 @@ public final class ShardRelicQuestService {
     private static final int MAX_CACHE_ATTEMPTS = 64;
     private static final int CACHE_RESOLVE_DISTANCE = 96;
     private static final int CACHE_SEARCH_RADIUS = 10;
-    private static final Identifier STARREACH_REACH_ID = Identifier.of(VillageQuest.MOD_ID, "starreach_ring_reach");
-    private static final EntityAttributeModifier STARREACH_REACH_MODIFIER =
-            new EntityAttributeModifier(STARREACH_REACH_ID, 2.0, EntityAttributeModifier.Operation.ADD_VALUE);
+    private static final int CACHE_SEARCH_INTERVAL = 100;
+    private static final int CACHE_Y_UNRESOLVED = Integer.MIN_VALUE;
+    private static final int CACHE_Y_SEEKING_LAND = Integer.MIN_VALUE + 1;
+    private static final Identifier STARREACH_REACH_ID = Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "starreach_ring_reach");
+    private static final AttributeModifier STARREACH_REACH_MODIFIER =
+            new AttributeModifier(STARREACH_REACH_ID, 2.0, AttributeModifier.Operation.ADD_VALUE);
 
     private record TrialSnapshot(
             ShardRelicQuestStage stage,
@@ -76,17 +81,17 @@ public final class ShardRelicQuestService {
 
     private ShardRelicQuestService() {}
 
-    private static PlayerQuestData data(ServerWorld world, UUID playerId) {
+    private static PlayerQuestData data(ServerLevel world, UUID playerId) {
         return QuestState.get(world.getServer()).getPlayerData(playerId);
     }
 
-    private static void markDirty(ServerWorld world) {
+    private static void markDirty(ServerLevel world) {
         if (world != null) {
-            QuestState.get(world.getServer()).markDirty();
+            QuestState.get(world.getServer()).setDirty();
         }
     }
 
-    private static void refreshQuestUi(ServerWorld world, ServerPlayerEntity player) {
+    private static void refreshQuestUi(ServerLevel world, ServerPlayer player) {
         if (world == null || player == null) {
             return;
         }
@@ -109,76 +114,76 @@ public final class ShardRelicQuestService {
         );
     }
 
-    private static void sendTrialProgressFeedback(ServerWorld world, ServerPlayerEntity player, TrialSnapshot before, PlayerQuestData after) {
+    private static void sendTrialProgressFeedback(ServerLevel world, ServerPlayer player, TrialSnapshot before, PlayerQuestData after) {
         if (world == null || player == null || before == null || after == null) {
             return;
         }
 
-        Text actionbar = null;
+        Component actionbar = null;
         boolean changed = false;
         boolean completedStep = false;
 
         if (before.amethyst() != after.getShardRelicAmethystProgress()) {
             changed = true;
-            actionbar = Text.translatable(
+            actionbar = Component.translatable(
                     "quest.village-quest.special.shards.progress.amethyst",
                     after.getShardRelicAmethystProgress(),
                     AMETHYST_TARGET
-            ).formatted(Formatting.LIGHT_PURPLE);
+            ).withStyle(ChatFormatting.LIGHT_PURPLE);
             if (before.amethyst() < AMETHYST_TARGET && after.getShardRelicAmethystProgress() >= AMETHYST_TARGET) {
-                player.sendMessage(Text.translatable("message.village-quest.quest.progress.step_complete", actionbar.copy()).formatted(Formatting.LIGHT_PURPLE), false);
+                player.sendSystemMessage(Component.translatable("message.village-quest.quest.progress.step_complete", actionbar.copy()).withStyle(ChatFormatting.LIGHT_PURPLE), false);
                 completedStep = true;
             }
         }
 
         if (before.potions() != after.getShardRelicPotionProgress()) {
             changed = true;
-            actionbar = Text.translatable(
+            actionbar = Component.translatable(
                     "quest.village-quest.special.shards.progress.potions",
                     after.getShardRelicPotionProgress(),
                     POTION_TARGET
-            ).formatted(Formatting.LIGHT_PURPLE);
+            ).withStyle(ChatFormatting.LIGHT_PURPLE);
             if (before.potions() < POTION_TARGET && after.getShardRelicPotionProgress() >= POTION_TARGET) {
-                player.sendMessage(Text.translatable("message.village-quest.quest.progress.step_complete", actionbar.copy()).formatted(Formatting.LIGHT_PURPLE), false);
+                player.sendSystemMessage(Component.translatable("message.village-quest.quest.progress.step_complete", actionbar.copy()).withStyle(ChatFormatting.LIGHT_PURPLE), false);
                 completedStep = true;
             }
         }
 
         if (before.enchants() != after.getShardRelicEnchantProgress()) {
             changed = true;
-            actionbar = Text.translatable(
+            actionbar = Component.translatable(
                     "quest.village-quest.special.shards.progress.enchant",
                     after.getShardRelicEnchantProgress(),
                     ENCHANT_TARGET
-            ).formatted(Formatting.LIGHT_PURPLE);
+            ).withStyle(ChatFormatting.LIGHT_PURPLE);
             if (before.enchants() < ENCHANT_TARGET && after.getShardRelicEnchantProgress() >= ENCHANT_TARGET) {
-                player.sendMessage(Text.translatable("message.village-quest.quest.progress.step_complete", actionbar.copy()).formatted(Formatting.LIGHT_PURPLE), false);
+                player.sendSystemMessage(Component.translatable("message.village-quest.quest.progress.step_complete", actionbar.copy()).withStyle(ChatFormatting.LIGHT_PURPLE), false);
                 completedStep = true;
             }
         }
 
         if (before.enderPearls() != after.getShardRelicEnderPearlProgress()) {
             changed = true;
-            actionbar = Text.translatable(
+            actionbar = Component.translatable(
                     "quest.village-quest.special.shards.progress.ender_pearl",
                     after.getShardRelicEnderPearlProgress(),
                     ENDER_PEARL_TARGET
-            ).formatted(Formatting.LIGHT_PURPLE);
+            ).withStyle(ChatFormatting.LIGHT_PURPLE);
             if (before.enderPearls() < ENDER_PEARL_TARGET && after.getShardRelicEnderPearlProgress() >= ENDER_PEARL_TARGET) {
-                player.sendMessage(Text.translatable("message.village-quest.quest.progress.step_complete", actionbar.copy()).formatted(Formatting.LIGHT_PURPLE), false);
+                player.sendSystemMessage(Component.translatable("message.village-quest.quest.progress.step_complete", actionbar.copy()).withStyle(ChatFormatting.LIGHT_PURPLE), false);
                 completedStep = true;
             }
         }
 
         if (before.blazeRods() != after.getShardRelicBlazeRodProgress()) {
             changed = true;
-            actionbar = Text.translatable(
+            actionbar = Component.translatable(
                     "quest.village-quest.special.shards.progress.blaze_rod",
                     after.getShardRelicBlazeRodProgress(),
                     BLAZE_ROD_TARGET
-            ).formatted(Formatting.LIGHT_PURPLE);
+            ).withStyle(ChatFormatting.LIGHT_PURPLE);
             if (before.blazeRods() < BLAZE_ROD_TARGET && after.getShardRelicBlazeRodProgress() >= BLAZE_ROD_TARGET) {
-                player.sendMessage(Text.translatable("message.village-quest.quest.progress.step_complete", actionbar.copy()).formatted(Formatting.LIGHT_PURPLE), false);
+                player.sendSystemMessage(Component.translatable("message.village-quest.quest.progress.step_complete", actionbar.copy()).withStyle(ChatFormatting.LIGHT_PURPLE), false);
                 completedStep = true;
             }
         }
@@ -188,21 +193,21 @@ public final class ShardRelicQuestService {
         }
 
         if (actionbar != null) {
-            player.sendMessage(actionbar, true);
+            player.sendSystemMessage(actionbar, true);
         }
         float pitch = completedStep ? 1.7f : 1.4f;
         float volume = completedStep ? 0.28f : 0.18f;
-        world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, SoundCategory.PLAYERS, volume, pitch);
+        world.playSound(null, player.blockPosition(), SoundEvents.EXPERIENCE_ORB_PICKUP, SoundSource.PLAYERS, volume, pitch);
         refreshQuestUi(world, player);
     }
 
-    public static boolean hasPendingSpecialOffer(ServerWorld world, UUID playerId) {
+    public static boolean hasPendingSpecialOffer(ServerLevel world, UUID playerId) {
         return world != null
                 && playerId != null
                 && data(world, playerId).getPendingSpecialOfferKind() == SpecialQuestKind.SHARD_RELIC;
     }
 
-    public static boolean consumePendingSpecialOffer(ServerWorld world, UUID playerId) {
+    public static boolean consumePendingSpecialOffer(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
             return false;
         }
@@ -215,16 +220,16 @@ public final class ShardRelicQuestService {
         return true;
     }
 
-    public static boolean handleQuestMasterInteraction(ServerWorld world, ServerPlayerEntity player) {
+    public static boolean handleQuestMasterInteraction(ServerLevel world, ServerPlayer player) {
         return handleQuestMasterInteraction(world, player, false);
     }
 
-    public static boolean handleQuestMasterInteraction(ServerWorld world, ServerPlayerEntity player, boolean skipOffer) {
+    public static boolean handleQuestMasterInteraction(ServerLevel world, ServerPlayer player, boolean skipOffer) {
         if (world == null || player == null) {
             return false;
         }
 
-        PlayerQuestData data = data(world, player.getUuid());
+        PlayerQuestData data = data(world, player.getUUID());
         updatePassiveProgress(world, player, data, false);
 
         return switch (data.getShardRelicQuestStage()) {
@@ -237,11 +242,13 @@ public final class ShardRelicQuestService {
                 yield true;
             }
             case CACHE_HUNT -> {
+                player.sendSystemMessage(Component.translatable("quest.village-quest.special.shards.offer.1"),false);
+                player.sendSystemMessage(Component.translatable("quest.village-quest.special.shards.offer.2",10),false);
                 if (hasStarreachRing(player)) {
                     completeQuest(world, player, data);
                     yield true;
                 }
-                ensureCacheChest(world, data);
+                ensureCacheChest(world, player.getUUID(), data);
                 giveTreasureMap(world, player, data, false);
                 yield true;
             }
@@ -256,25 +263,25 @@ public final class ShardRelicQuestService {
         };
     }
 
-    public static boolean acceptSpecialQuest(ServerWorld world, ServerPlayerEntity player) {
+    public static boolean acceptSpecialQuest(ServerLevel world, ServerPlayer player) {
         if (world == null || player == null || ModItems.MAGIC_SHARD == null) {
             return false;
         }
 
-        PlayerQuestData data = data(world, player.getUuid());
+        PlayerQuestData data = data(world, player.getUUID());
         data.setPendingSpecialOfferKind(null);
         if (!shouldOfferSpecialQuest(world, player, data)) {
             return false;
         }
         if (!consumeInventoryItem(player, ModItems.MAGIC_SHARD, REQUIRED_SHARDS)) {
-            player.sendMessage(Text.translatable("message.village-quest.questmaster.special.shards_missing").formatted(Formatting.RED), false);
+            player.sendSystemMessage(Component.translatable("message.village-quest.questmaster.special.shards_missing").withStyle(ChatFormatting.RED), false);
             markDirty(world);
             return false;
         }
 
         startTrial(world, player, data);
         markDirty(world);
-        player.sendMessage(Texts.acceptedTitle(title(), Formatting.LIGHT_PURPLE), false);
+        player.sendSystemMessage(Texts.acceptedTitle(title(), ChatFormatting.LIGHT_PURPLE), false);
         QuestTrackerService.enableForAcceptedQuest(world, player);
         showTrialProgress(player, data);
         refreshQuestUi(world, player);
@@ -282,10 +289,10 @@ public final class ShardRelicQuestService {
     }
 
     public static void onServerTick(MinecraftServer server) {
-        ServerWorld world = server.getOverworld();
-        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+        ServerLevel world = server.overworld();
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             applyRingReachBonus(player);
-            PlayerQuestData data = data(world, player.getUuid());
+            PlayerQuestData data = data(world, player.getUUID());
             updatePassiveProgress(world, player, data, true);
             if (data.getShardRelicQuestStage() == ShardRelicQuestStage.CACHE_HUNT) {
                 prepareCacheChestIfNearby(world, player, data);
@@ -296,16 +303,18 @@ public final class ShardRelicQuestService {
         }
     }
 
-    public static void onBlockBreak(ServerWorld world, ServerPlayerEntity player, BlockPos pos, BlockState state) {
-        // Progress is granted on tracked amethyst shard pickups.
+    public static void onBlockBreak(ServerLevel world, ServerPlayer player, BlockPos pos, BlockState state) {
+        if (world == null || player == null || state == null) {
+            return;
+        }
     }
 
-    public static void onTrackedItemPickup(ServerWorld world, ServerPlayerEntity player, ItemStack stack, int count) {
+    public static void onTrackedItemPickup(ServerLevel world, ServerPlayer player, ItemStack stack, int count) {
         if (world == null || player == null || stack == null || count <= 0) {
             return;
         }
 
-        PlayerQuestData data = data(world, player.getUuid());
+        PlayerQuestData data = data(world, player.getUUID());
         if (data.getShardRelicQuestStage() != ShardRelicQuestStage.TRIAL_ACTIVE) {
             return;
         }
@@ -313,16 +322,16 @@ public final class ShardRelicQuestService {
         TrialSnapshot before = captureTrialSnapshot(data);
         boolean changed = false;
 
-        if (stack.isOf(Items.AMETHYST_SHARD)) {
+        if (stack.is(Items.AMETHYST_SHARD)) {
             int next = Math.min(AMETHYST_TARGET, data.getShardRelicAmethystProgress() + count);
             if (next != data.getShardRelicAmethystProgress()) {
                 data.setShardRelicAmethystProgress(next);
                 changed = true;
             }
-        } else if (stack.isOf(Items.ENDER_PEARL) && data.getShardRelicEnderPearlProgress() < ENDER_PEARL_TARGET) {
+        } else if (stack.is(Items.ENDER_PEARL) && data.getShardRelicEnderPearlProgress() < ENDER_PEARL_TARGET) {
             data.setShardRelicEnderPearlProgress(ENDER_PEARL_TARGET);
             changed = true;
-        } else if (stack.isOf(Items.BLAZE_ROD) && data.getShardRelicBlazeRodProgress() < BLAZE_ROD_TARGET) {
+        } else if (stack.is(Items.BLAZE_ROD) && data.getShardRelicBlazeRodProgress() < BLAZE_ROD_TARGET) {
             data.setShardRelicBlazeRodProgress(BLAZE_ROD_TARGET);
             changed = true;
         }
@@ -335,11 +344,11 @@ public final class ShardRelicQuestService {
         sendTrialProgressFeedback(world, player, before, data);
     }
 
-    public static void onPotionBrewed(ServerPlayerEntity player) {
-        if (player == null || !(player.getEntityWorld() instanceof ServerWorld world)) {
+    public static void onPotionBrewed(ServerPlayer player) {
+        if (player == null || !(player.level() instanceof ServerLevel world)) {
             return;
         }
-        PlayerQuestData data = data(world, player.getUuid());
+        PlayerQuestData data = data(world, player.getUUID());
         if (data.getShardRelicQuestStage() != ShardRelicQuestStage.TRIAL_ACTIVE) {
             return;
         }
@@ -354,12 +363,12 @@ public final class ShardRelicQuestService {
         sendTrialProgressFeedback(world, player, before, data);
     }
 
-    public static void onAnvilOutput(ServerPlayerEntity player, ItemStack leftInput, ItemStack rightInput, ItemStack output) {
-        if (player == null || !(player.getEntityWorld() instanceof ServerWorld world) || output == null || output.isEmpty()) {
+    public static void onAnvilOutput(ServerPlayer player, ItemStack leftInput, ItemStack rightInput, ItemStack output) {
+        if (player == null || !(player.level() instanceof ServerLevel world) || output == null || output.isEmpty()) {
             return;
         }
 
-        PlayerQuestData data = data(world, player.getUuid());
+        PlayerQuestData data = data(world, player.getUUID());
         if (data.getShardRelicQuestStage() != ShardRelicQuestStage.TRIAL_ACTIVE || data.getShardRelicEnchantProgress() >= ENCHANT_TARGET) {
             return;
         }
@@ -374,7 +383,7 @@ public final class ShardRelicQuestService {
         sendTrialProgressFeedback(world, player, before, data);
     }
 
-    public static boolean allowBlockBreak(ServerWorld world, ServerPlayerEntity player, BlockPos pos) {
+    public static boolean allowBlockBreak(ServerLevel world, ServerPlayer player, BlockPos pos) {
         if (world == null || player == null || pos == null) {
             return true;
         }
@@ -382,30 +391,30 @@ public final class ShardRelicQuestService {
         if (owner.isEmpty()) {
             return true;
         }
-        player.sendMessage(Text.translatable("message.village-quest.questmaster.special.cache_protected").formatted(Formatting.RED), false);
+        player.sendSystemMessage(Component.translatable("message.village-quest.questmaster.special.cache_protected").withStyle(ChatFormatting.RED), false);
         return false;
     }
 
-    public static net.minecraft.util.ActionResult onUseBlock(ServerWorld world, ServerPlayerEntity player, BlockPos pos) {
+    public static net.minecraft.world.InteractionResult onUseBlock(ServerLevel world, ServerPlayer player, BlockPos pos) {
         if (world == null || player == null || pos == null) {
-            return net.minecraft.util.ActionResult.PASS;
+            return net.minecraft.world.InteractionResult.PASS;
         }
         Optional<UUID> owner = findCacheOwner(world, pos);
         if (owner.isEmpty()) {
-            return net.minecraft.util.ActionResult.PASS;
+            return net.minecraft.world.InteractionResult.PASS;
         }
-        if (!owner.get().equals(player.getUuid())) {
-            player.sendMessage(Text.translatable("message.village-quest.questmaster.special.cache_locked").formatted(Formatting.RED), false);
-            return net.minecraft.util.ActionResult.FAIL;
+        if (!owner.get().equals(player.getUUID())) {
+            player.sendSystemMessage(Component.translatable("message.village-quest.questmaster.special.cache_locked").withStyle(ChatFormatting.GRAY), false);
+            return net.minecraft.world.InteractionResult.FAIL;
         }
-        return net.minecraft.util.ActionResult.PASS;
+        return net.minecraft.world.InteractionResult.PASS;
     }
 
-    public static boolean hasPendingOffer(ServerWorld world, UUID playerId) {
+    public static boolean hasPendingOffer(ServerLevel world, UUID playerId) {
         return hasPendingSpecialOffer(world, playerId);
     }
 
-    public static boolean isActive(ServerWorld world, UUID playerId) {
+    public static boolean isActive(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
             return false;
         }
@@ -415,11 +424,11 @@ public final class ShardRelicQuestService {
                 || stage == ShardRelicQuestStage.CACHE_HUNT;
     }
 
-    public static boolean isCompleted(ServerWorld world, UUID playerId) {
+    public static boolean isCompleted(ServerLevel world, UUID playerId) {
         return world != null && playerId != null && data(world, playerId).getShardRelicQuestStage() == ShardRelicQuestStage.COMPLETED;
     }
 
-    public static boolean isDiscovered(ServerWorld world, UUID playerId) {
+    public static boolean isDiscovered(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
             return false;
         }
@@ -428,7 +437,7 @@ public final class ShardRelicQuestService {
                 || data.getShardRelicQuestStage() != ShardRelicQuestStage.NONE;
     }
 
-    public static SpecialQuestStatus openStatus(ServerWorld world, UUID playerId) {
+    public static SpecialQuestStatus openStatus(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
             return null;
         }
@@ -436,19 +445,19 @@ public final class ShardRelicQuestService {
         return switch (data.getShardRelicQuestStage()) {
             case TRIAL_ACTIVE, TRIAL_READY -> new SpecialQuestStatus(title(), trialProgressLines(data));
             case CACHE_HUNT -> new SpecialQuestStatus(title(), List.of(
-                    Text.translatable("quest.village-quest.special.shards.cache_line.1").formatted(Formatting.GRAY),
-                    Text.translatable("quest.village-quest.special.shards.cache_line.2").formatted(Formatting.GRAY)
+                    Component.translatable("quest.village-quest.special.shards.cache_line.1").withStyle(ChatFormatting.GRAY),
+                    Component.translatable("quest.village-quest.special.shards.cache_line.2").withStyle(ChatFormatting.GRAY)
             ));
             default -> null;
         };
     }
 
-    public static boolean adminStartCacheHunt(ServerWorld world, ServerPlayerEntity player) {
+    public static boolean adminStartCacheHunt(ServerLevel world, ServerPlayer player) {
         if (world == null || player == null) {
             return false;
         }
 
-        PlayerQuestData data = data(world, player.getUuid());
+        PlayerQuestData data = data(world, player.getUUID());
         data.setPendingSpecialOfferKind(null);
         data.setShardRelicQuestStage(ShardRelicQuestStage.TRIAL_READY);
         data.setShardRelicAmethystProgress(AMETHYST_TARGET);
@@ -457,30 +466,37 @@ public final class ShardRelicQuestService {
         data.setShardRelicEnderPearlProgress(ENDER_PEARL_TARGET);
         data.setShardRelicBlazeRodProgress(BLAZE_ROD_TARGET);
         data.setShardRelicChestX(0);
-        data.setShardRelicChestY(Integer.MIN_VALUE);
+        data.setShardRelicChestY(CACHE_Y_UNRESOLVED);
         data.setShardRelicChestZ(0);
         markDirty(world);
         refreshQuestUi(world, player);
         return giveTreasureMap(world, player, data, true);
     }
 
-    public static boolean adminTeleportToCache(ServerWorld world, ServerPlayerEntity player) {
+    public static boolean adminTeleportToCache(ServerLevel world, ServerPlayer player) {
         if (world == null || player == null) {
             return false;
         }
 
-        PlayerQuestData data = data(world, player.getUuid());
+        PlayerQuestData data = data(world, player.getUUID());
         if (!hasCacheTarget(data) && !adminStartCacheHunt(world, player)) {
             return false;
         }
 
         BlockPos chestPos = chestPos(data);
         if (chestPos == null) {
-            BlockPos targetPos = new BlockPos(data.getShardRelicChestX(), world.getSeaLevel(), data.getShardRelicChestZ());
+            boolean seekingLand = data.getShardRelicChestY() == CACHE_Y_SEEKING_LAND;
+            BlockPos targetPos = seekingLand
+                    ? player.blockPosition()
+                    : new BlockPos(data.getShardRelicChestX(), world.getSeaLevel(), data.getShardRelicChestZ());
             chestPos = resolveCacheChestPos(world, targetPos, true);
+            if (chestPos == null && !seekingLand) {
+                chestPos = resolveCacheChestPos(world, player.blockPosition(), false);
+            }
             if (chestPos == null) {
                 return false;
             }
+            if(!placeInitialCacheChest(world,data,chestPos)) return false;
             data.setShardRelicChestX(chestPos.getX());
             data.setShardRelicChestY(chestPos.getY());
             data.setShardRelicChestZ(chestPos.getZ());
@@ -488,26 +504,26 @@ public final class ShardRelicQuestService {
         }
 
         world.getChunk(chestPos.getX() >> 4, chestPos.getZ() >> 4);
-        ensureCacheChest(world, data);
-        player.teleport(
+        ensureCacheChest(world, player.getUUID(), data);
+        player.teleportTo(
                 world,
                 chestPos.getX() + 0.5,
                 chestPos.getY() + 2.0,
                 chestPos.getZ() + 0.5,
                 Set.of(),
-                player.getYaw(),
-                player.getPitch(),
+                player.getYRot(),
+                player.getXRot(),
                 true
         );
         return true;
     }
 
-    public static boolean claimFromQuestMaster(ServerWorld world, ServerPlayerEntity player) {
+    public static boolean claimFromQuestMaster(ServerLevel world, ServerPlayer player) {
         if (world == null || player == null) {
             return false;
         }
 
-        PlayerQuestData data = data(world, player.getUuid());
+        PlayerQuestData data = data(world, player.getUUID());
         return switch (data.getShardRelicQuestStage()) {
             case TRIAL_READY -> giveTreasureMap(world, player, data, true);
             case CACHE_HUNT -> {
@@ -515,46 +531,61 @@ public final class ShardRelicQuestService {
                     completeQuest(world, player, data);
                     yield true;
                 }
-                ensureCacheChest(world, data);
+                ensureCacheChest(world, player.getUUID(), data);
                 yield giveTreasureMap(world, player, data, false);
             }
             default -> false;
         };
     }
 
-    private static boolean shouldOfferSpecialQuest(ServerWorld world, ServerPlayerEntity player, PlayerQuestData data) {
+    public static boolean abandonCacheHunt(ServerLevel world, ServerPlayer player) {
+        if (world == null || player == null) return false;
+        PlayerQuestData data = data(world, player.getUUID());
+        if (data.getShardRelicQuestStage() != ShardRelicQuestStage.CACHE_HUNT || hasStarreachRing(player)) {
+            return false;
+        }
+        QuestMapHelper.removeTaggedMaps(player, "starreach_cache");
+        data.setShardRelicQuestStage(ShardRelicQuestStage.TRIAL_READY);
+        markDirty(world);
+        player.sendSystemMessage(Component.translatable(
+                "message.village-quest.questmaster.special.cache_abandoned").withStyle(ChatFormatting.YELLOW), false);
+        refreshQuestUi(world, player);
+        return true;
+    }
+
+    private static boolean shouldOfferSpecialQuest(ServerLevel world, ServerPlayer player, PlayerQuestData data) {
         return data.getShardRelicQuestStage() == ShardRelicQuestStage.NONE
                 && !data.isPendingSpecialOffer()
                 && ModItems.MAGIC_SHARD != null
                 && DailyQuestService.countInventoryItem(player, ModItems.MAGIC_SHARD) >= REQUIRED_SHARDS
-                && DailyQuestService.openQuestStatus(world, player.getUuid()) == null;
+                && DailyQuestService.openQuestStatus(world, player.getUUID()) == null;
     }
 
-    private static void showSpecialOffer(ServerWorld world, ServerPlayerEntity player, PlayerQuestData data) {
+    private static void showSpecialOffer(ServerLevel world, ServerPlayer player, PlayerQuestData data) {
         data.setPendingSpecialOfferKind(SpecialQuestKind.SHARD_RELIC);
         markDirty(world);
 
-        Text divider = Text.literal("------------------------------").formatted(Formatting.GRAY);
-        Text accept = Text.translatable("text.village-quest.special.offer.accept").styled(style -> style
-                .withColor(Formatting.GRAY)
+        Component divider = Component.literal("------------------------------").withStyle(ChatFormatting.GRAY);
+        Component accept = Component.translatable("text.village-quest.special.offer.accept").withStyle(style -> style
+                .withColor(ChatFormatting.GRAY)
                 .withClickEvent(new ClickEvent.RunCommand("/vq daily accept")));
 
-        Text body = Text.empty()
+        Component body = Component.empty()
                 .append(divider.copy())
-                .append(Text.literal("\n"))
-                .append(Texts.dailyTitle(title(), Formatting.LIGHT_PURPLE))
-                .append(Text.literal("\n\n"))
-                .append(Text.translatable("quest.village-quest.special.shards.offer.1"))
-                .append(Text.literal("\n\n"))
-                .append(Text.translatable("quest.village-quest.special.shards.offer.2", REQUIRED_SHARDS))
-                .append(Text.literal("\n\n\n"))
+                .append(Component.literal("\n"))
+                .append(Texts.dailyTitle(title(), ChatFormatting.LIGHT_PURPLE))
+                .append(Component.literal("\n\n"))
+                .append(Component.translatable("quest.village-quest.special.shards.offer.1"))
+                .append(Component.literal("\n\n"))
+                .append(Component.translatable("quest.village-quest.special.shards.offer.2", REQUIRED_SHARDS))
+                .append(Component.literal("\n\n\n"))
                 .append(accept)
-                .append(Text.literal("\n"))
+                .append(Component.literal("\n"))
                 .append(divider.copy());
-        player.sendMessage(body, false);
+        player.sendSystemMessage(body, false);
     }
 
-    private static void startTrial(ServerWorld world, ServerPlayerEntity player, PlayerQuestData data) {
+    private static void startTrial(ServerLevel world, ServerPlayer player, PlayerQuestData data) {
         data.setShardRelicQuestStage(ShardRelicQuestStage.TRIAL_ACTIVE);
         data.setShardRelicAmethystProgress(0);
         data.setShardRelicPotionProgress(0);
@@ -565,12 +596,12 @@ public final class ShardRelicQuestService {
         data.setShardRelicEnderPearlBaseline(0);
         data.setShardRelicBlazeRodBaseline(0);
         data.setShardRelicChestX(0);
-        data.setShardRelicChestY(Integer.MIN_VALUE);
+        data.setShardRelicChestY(CACHE_Y_UNRESOLVED);
         data.setShardRelicChestZ(0);
         markDirty(world);
     }
 
-    private static void updatePassiveProgress(ServerWorld world, ServerPlayerEntity player, PlayerQuestData data, boolean sendReadyMessage) {
+    private static void updatePassiveProgress(ServerLevel world, ServerPlayer player, PlayerQuestData data, boolean sendReadyMessage) {
         if (data.getShardRelicQuestStage() != ShardRelicQuestStage.TRIAL_ACTIVE && data.getShardRelicQuestStage() != ShardRelicQuestStage.TRIAL_READY) {
             return;
         }
@@ -594,7 +625,7 @@ public final class ShardRelicQuestService {
         }
     }
 
-    private static boolean updateReadyState(ServerWorld world, ServerPlayerEntity player, PlayerQuestData data, boolean sendReadyMessage) {
+    private static boolean updateReadyState(ServerLevel world, ServerPlayer player, PlayerQuestData data, boolean sendReadyMessage) {
         if (data.getShardRelicQuestStage() != ShardRelicQuestStage.TRIAL_ACTIVE) {
             return false;
         }
@@ -603,9 +634,9 @@ public final class ShardRelicQuestService {
         }
         data.setShardRelicQuestStage(ShardRelicQuestStage.TRIAL_READY);
         if (sendReadyMessage && player != null) {
-            player.sendMessage(Text.translatable("message.village-quest.questmaster.special.trial_ready").formatted(Formatting.LIGHT_PURPLE), false);
+            player.sendSystemMessage(Component.translatable("message.village-quest.questmaster.special.trial_ready").withStyle(ChatFormatting.LIGHT_PURPLE), false);
             if (world != null) {
-                world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 0.8f, 1.15f);
+                world.playSound(null, player.blockPosition(), SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 0.8f, 1.15f);
             }
         }
         return true;
@@ -627,8 +658,8 @@ public final class ShardRelicQuestService {
         ItemStack left = leftInput == null ? ItemStack.EMPTY : leftInput;
         ItemStack right = rightInput == null ? ItemStack.EMPTY : rightInput;
 
-        boolean outputDiffersFromLeft = !Objects.equals(left.get(DataComponentTypes.ENCHANTMENTS), output.get(DataComponentTypes.ENCHANTMENTS))
-                || !Objects.equals(left.get(DataComponentTypes.STORED_ENCHANTMENTS), output.get(DataComponentTypes.STORED_ENCHANTMENTS));
+        boolean outputDiffersFromLeft = !Objects.equals(left.get(DataComponents.ENCHANTMENTS), output.get(DataComponents.ENCHANTMENTS))
+                || !Objects.equals(left.get(DataComponents.STORED_ENCHANTMENTS), output.get(DataComponents.STORED_ENCHANTMENTS));
 
         return outputDiffersFromLeft || hasEnchantments(right);
     }
@@ -636,35 +667,43 @@ public final class ShardRelicQuestService {
     private static boolean hasEnchantments(ItemStack stack) {
         return stack != null
                 && !stack.isEmpty()
-                && (stack.get(DataComponentTypes.ENCHANTMENTS) != null || stack.get(DataComponentTypes.STORED_ENCHANTMENTS) != null);
+                && (stack.get(DataComponents.ENCHANTMENTS) != null || stack.get(DataComponents.STORED_ENCHANTMENTS) != null);
     }
 
-    private static void showTrialProgress(ServerPlayerEntity player, PlayerQuestData data) {
-        player.sendMessage(Texts.dailyTitle(title(), Formatting.LIGHT_PURPLE), false);
-        for (Text line : trialProgressLines(data)) {
-            player.sendMessage(line, false);
+    private static void showTrialProgress(ServerPlayer player, PlayerQuestData data) {
+        player.sendSystemMessage(Component.translatable("quest.village-quest.special.shards.offer.1"),false);
+        player.sendSystemMessage(Component.translatable("quest.village-quest.special.shards.offer.2",10),false);
+        player.sendSystemMessage(Texts.dailyTitle(title(), ChatFormatting.LIGHT_PURPLE), false);
+        for (Component line : trialProgressLines(data)) {
+            player.sendSystemMessage(line, false);
         }
     }
 
-    private static List<Text> trialProgressLines(PlayerQuestData data) {
-        return List.of(
-                Text.translatable("quest.village-quest.special.shards.progress.amethyst", data.getShardRelicAmethystProgress(), AMETHYST_TARGET).formatted(Formatting.GRAY),
-                Text.translatable("quest.village-quest.special.shards.progress.potions", data.getShardRelicPotionProgress(), POTION_TARGET).formatted(Formatting.GRAY),
-                Text.translatable("quest.village-quest.special.shards.progress.enchant", data.getShardRelicEnchantProgress(), ENCHANT_TARGET).formatted(Formatting.GRAY),
-                Text.translatable("quest.village-quest.special.shards.progress.ender_pearl", data.getShardRelicEnderPearlProgress(), ENDER_PEARL_TARGET).formatted(Formatting.GRAY),
-                Text.translatable("quest.village-quest.special.shards.progress.blaze_rod", data.getShardRelicBlazeRodProgress(), BLAZE_ROD_TARGET).formatted(Formatting.GRAY)
-        );
+    private static List<Component> trialProgressLines(PlayerQuestData data) {
+        var lines = new java.util.ArrayList<Component>(List.of(
+                Component.translatable("quest.village-quest.special.shards.progress.amethyst", data.getShardRelicAmethystProgress(), AMETHYST_TARGET).withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.special.shards.progress.potions", data.getShardRelicPotionProgress(), POTION_TARGET).withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.special.shards.progress.enchant", data.getShardRelicEnchantProgress(), ENCHANT_TARGET).withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.special.shards.progress.ender_pearl", data.getShardRelicEnderPearlProgress(), ENDER_PEARL_TARGET).withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.special.shards.progress.blaze_rod", data.getShardRelicBlazeRodProgress(), BLAZE_ROD_TARGET).withStyle(ChatFormatting.GRAY)
+        ));
+        if (data.getShardRelicBlazeRodProgress() < BLAZE_ROD_TARGET)
+            lines.add(Component.translatable("quest.village-quest.special.shards.blaze_source",
+                    Component.translatable("quest.village-quest.pilgrim.contract.ash_on_the_pass.title"),
+                    Component.translatable("reward.village-quest.option.materials")).withStyle(ChatFormatting.GRAY));
+        return List.copyOf(lines);
     }
 
-    private static boolean giveTreasureMap(ServerWorld world, ServerPlayerEntity player, PlayerQuestData data, boolean firstTime) {
+    private static boolean giveTreasureMap(ServerLevel world, ServerPlayer player, PlayerQuestData data, boolean firstTime) {
         if (!hasCacheTarget(data)) {
-            BlockPos targetPos = findCacheTarget(world, player.getBlockPos());
+            BlockPos targetPos = QuestSiteLocator.findDistantLandTarget(world, player.blockPosition(),
+                    MIN_CACHE_DISTANCE, MAX_CACHE_DISTANCE, MAX_CACHE_ATTEMPTS);
             if (targetPos == null) {
-                player.sendMessage(Text.translatable("message.village-quest.questmaster.special.cache_failed").formatted(Formatting.RED), false);
+                player.sendSystemMessage(Component.translatable("message.village-quest.questmaster.special.cache_failed").withStyle(ChatFormatting.RED), false);
                 return false;
             }
             data.setShardRelicChestX(targetPos.getX());
-            data.setShardRelicChestY(Integer.MIN_VALUE);
+            data.setShardRelicChestY(CACHE_Y_UNRESOLVED);
             data.setShardRelicChestZ(targetPos.getZ());
         }
 
@@ -675,57 +714,43 @@ public final class ShardRelicQuestService {
         ItemStack map = createTreasureMap(world, data);
         giveOrDrop(player, map);
 
-        Text divider = Text.literal("------------------------------").formatted(Formatting.GRAY);
-        MutableText body = Text.empty()
+        Component divider = Component.literal("------------------------------").withStyle(ChatFormatting.GRAY);
+        MutableComponent body = Component.empty()
                 .append(divider.copy())
-                .append(Text.literal("\n"))
-                .append(Texts.dailyTitle(title(), Formatting.AQUA))
-                .append(Text.literal("\n\n"))
-                .append(Text.translatable(firstTime
+                .append(Component.literal("\n"))
+                .append(Texts.dailyTitle(title(), ChatFormatting.AQUA))
+                .append(Component.literal("\n\n"))
+                .append(Component.translatable(firstTime
                         ? "quest.village-quest.special.shards.map_granted.1"
                         : "quest.village-quest.special.shards.map_regiven.1"))
-                .append(Text.literal("\n\n"))
-                .append(Text.translatable("quest.village-quest.special.shards.map_granted.2"))
-                .append(Text.literal("\n"))
+                .append(Component.literal("\n\n"))
+                .append(Component.translatable("quest.village-quest.special.shards.map_granted.2"))
+                .append(Component.literal("\n"))
                 .append(divider.copy());
-        player.sendMessage(body, false);
+        player.sendSystemMessage(body, false);
         refreshQuestUi(world, player);
         return true;
     }
 
-    private static ItemStack createTreasureMap(ServerWorld world, PlayerQuestData data) {
-        int mapY = data.getShardRelicChestY() == Integer.MIN_VALUE ? world.getSeaLevel() : data.getShardRelicChestY();
-        ItemStack stack = FilledMapItem.createMap(world, data.getShardRelicChestX(), data.getShardRelicChestZ(), (byte) 2, true, true);
-        FilledMapItem.fillExplorationMap(world, stack);
-        MapState.addDecorationsNbt(
+    private static ItemStack createTreasureMap(ServerLevel world, PlayerQuestData data) {
+        int mapY = isCachePositionUnresolved(data) ? world.getSeaLevel() : data.getShardRelicChestY();
+        ItemStack stack = MapItem.create(world, data.getShardRelicChestX(), data.getShardRelicChestZ(), (byte) 2, true, true);
+        MapItem.renderBiomePreviewMap(world, stack);
+        MapItemSavedData.addTargetDecoration(
                 stack,
                 new BlockPos(data.getShardRelicChestX(), mapY, data.getShardRelicChestZ()),
                 "+",
                 MapDecorationTypes.RED_X
         );
-        stack.set(DataComponentTypes.ITEM_NAME, Text.translatable("item.village-quest.starreach_map").formatted(Formatting.AQUA));
-        stack.set(DataComponentTypes.LORE, new LoreComponent(List.of(
-                Text.translatable("item.village-quest.starreach_map.lore").formatted(Formatting.GRAY)
+        stack.set(DataComponents.ITEM_NAME, Component.translatable("item.village-quest.starreach_map").withStyle(ChatFormatting.AQUA));
+        stack.set(DataComponents.LORE, new ItemLore(List.of(
+                Component.translatable("item.village-quest.starreach_map.lore").withStyle(ChatFormatting.GRAY)
         )));
+        QuestMapHelper.tag(stack, "starreach_cache");
         return stack;
     }
 
-    private static BlockPos findCacheTarget(ServerWorld world, BlockPos origin) {
-        for (int attempt = 0; attempt < MAX_CACHE_ATTEMPTS; attempt++) {
-            double angle = world.random.nextDouble() * Math.PI * 2.0;
-            int distance = MathHelper.nextInt(world.random, MIN_CACHE_DISTANCE, MAX_CACHE_DISTANCE);
-            int x = origin.getX() + MathHelper.floor(Math.cos(angle) * distance);
-            int z = origin.getZ() + MathHelper.floor(Math.sin(angle) * distance);
-
-            if (!world.getWorldBorder().contains(new BlockPos(x, world.getSeaLevel(), z))) {
-                continue;
-            }
-            return new BlockPos(x, world.getSeaLevel(), z);
-        }
-        return null;
-    }
-
-    private static boolean isValidSurface(ServerWorld world, BlockPos pos) {
+    private static boolean isValidSurface(ServerLevel world, BlockPos pos) {
         BlockState state = world.getBlockState(pos);
         if (!state.getFluidState().isEmpty()) {
             return false;
@@ -743,80 +768,116 @@ public final class ShardRelicQuestService {
                 || block == Blocks.GRAVEL;
     }
 
-    private static void ensureCacheChest(ServerWorld world, PlayerQuestData data) {
+    public static boolean hasIssuedCacheRing(PlayerQuestData data) {
+        return data!=null && data.getShardRelicQuestStage()==ShardRelicQuestStage.CACHE_HUNT
+                && data.hasTradeRouteFlag("relic.shards.cache_issued");
+    }
+    private static void ensureCacheChest(ServerLevel world, UUID owner, PlayerQuestData data) {
+        if(owner==null || QuestState.get(world.getServer()).getPlayersView().get(owner)!=data
+                || de.quest.data.PersonalResetService.blocksActions(world,owner))return;
         BlockPos chestPos = chestPos(data);
         if (chestPos == null) {
             return;
         }
-        if (!world.getBlockState(chestPos).isOf(Blocks.CHEST)) {
-            world.setBlockState(chestPos, Blocks.CHEST.getDefaultState(), 3);
-        }
+        ServerPlayer player=world.getServer().getPlayerList().getPlayer(owner);
+        if (!nearbyCachePlayer(world,player) || !world.hasChunkAt(chestPos)
+                || player.blockPosition().distSqr(chestPos)>CACHE_RESOLVE_DISTANCE*CACHE_RESOLVE_DISTANCE
+                || !world.getBlockState(chestPos).is(Blocks.CHEST)) return;
         BlockEntity blockEntity = world.getBlockEntity(chestPos);
         if (!(blockEntity instanceof ChestBlockEntity chest)) {
             return;
         }
-        if (!containsRing(chest)) {
-            chest.clear();
-            chest.setStack(13, createRingStack());
-            chest.markDirty();
+        for(int i=0;i<chest.getContainerSize();i++)if(GuildArchiveService.isIssuedTo(world,owner,chest.getItem(i),ArchiveItem.STARREACH_RING)) {
+            if(!hasIssuedCacheRing(data)){data.setTradeRouteFlag("relic.shards.cache_issued",true);markDirty(world);}return;
         }
+        // A removed issue is recovered through the existing paid, generation-raising archive path.
+        if(hasIssuedCacheRing(data))return;
+        int slot=chest.getItem(13).isEmpty()?13:-1;
+        if(slot<0)for(int i=0;i<chest.getContainerSize();i++)if(chest.getItem(i).isEmpty()){slot=i;break;}
+        if(slot<0)return;
+        data.setTradeRouteFlag("relic.shards.cache_issued",true);markDirty(world);
+        chest.setItem(slot,GuildArchiveService.issueInitial(world,owner,ArchiveItem.STARREACH_RING,createRingStack()));
+        chest.setChanged();
     }
 
-    private static boolean containsRing(ChestBlockEntity chest) {
-        for (int slot = 0; slot < chest.size(); slot++) {
-            if (chest.getStack(slot).isOf(ModItems.STARREACH_RING)) {
-                return true;
-            }
-        }
-        return false;
+    private static boolean nearbyCachePlayer(ServerLevel world,ServerPlayer player) {
+        return world!=null && player!=null && world==world.getServer().overworld() && player.level()==world;
+    }
+
+    /** Only called immediately after a fresh natural-site validation, never for saved positions. */
+    private static boolean placeInitialCacheChest(ServerLevel world,PlayerQuestData data,BlockPos pos) {
+        if(hasIssuedCacheRing(data) || !world.hasChunkAt(pos) || world.getBlockEntity(pos)!=null) return false;
+        BlockState ground=world.getBlockState(pos);
+        if(!ground.is(net.minecraft.tags.BlockTags.BASE_STONE_OVERWORLD) && !isValidSurface(world,pos)) return false;
+        return world.setBlock(pos,Blocks.CHEST.defaultBlockState(),3);
     }
 
     private static BlockPos chestPos(PlayerQuestData data) {
-        if (data.getShardRelicChestY() == Integer.MIN_VALUE) {
+        if (isCachePositionUnresolved(data)) {
             return null;
         }
         return new BlockPos(data.getShardRelicChestX(), data.getShardRelicChestY(), data.getShardRelicChestZ());
     }
 
     private static boolean hasCacheTarget(PlayerQuestData data) {
-        return data.getShardRelicChestY() != Integer.MIN_VALUE
+        return !isCachePositionUnresolved(data)
                 || data.getShardRelicChestX() != 0
                 || data.getShardRelicChestZ() != 0;
     }
 
-    private static void prepareCacheChestIfNearby(ServerWorld world, ServerPlayerEntity player, PlayerQuestData data) {
-        if (world == null || player == null || data == null) {
+    private static boolean isCachePositionUnresolved(PlayerQuestData data) {
+        int y = data.getShardRelicChestY();
+        return y == CACHE_Y_UNRESOLVED || y == CACHE_Y_SEEKING_LAND;
+    }
+
+    private static void prepareCacheChestIfNearby(ServerLevel world, ServerPlayer player, PlayerQuestData data) {
+        if (!nearbyCachePlayer(world,player) || data == null) {
             return;
         }
         if (data.getShardRelicQuestStage() != ShardRelicQuestStage.CACHE_HUNT || !hasCacheTarget(data)) {
             return;
         }
-        if (data.getShardRelicChestY() != Integer.MIN_VALUE) {
-            ensureCacheChest(world, data);
+        if(de.quest.data.PersonalResetService.blocksActions(world,player.getUUID())) return;
+        if ((world.getGameTime() + player.getId()) % CACHE_SEARCH_INTERVAL != 0L) {
             return;
         }
-        if ((world.getTime() + player.getId()) % 20L != 0L) {
+        if (!isCachePositionUnresolved(data)) {
+            ensureCacheChest(world, player.getUUID(), data);
             return;
         }
 
         BlockPos targetPos = new BlockPos(data.getShardRelicChestX(), world.getSeaLevel(), data.getShardRelicChestZ());
-        if (player.getBlockPos().getSquaredDistance(targetPos) > (double) (CACHE_RESOLVE_DISTANCE * CACHE_RESOLVE_DISTANCE)) {
+        boolean seekingLand = data.getShardRelicChestY() == CACHE_Y_SEEKING_LAND;
+        if (!seekingLand
+                && player.blockPosition().distSqr(targetPos) > (double) (CACHE_RESOLVE_DISTANCE * CACHE_RESOLVE_DISTANCE)) {
             return;
         }
 
-        BlockPos resolved = resolveCacheChestPos(world, targetPos, false);
+        BlockPos searchCenter = seekingLand ? player.blockPosition() : targetPos;
+        BlockPos resolved = resolveCacheChestPos(world, searchCenter, false);
+        if (resolved == null && !seekingLand) {
+            resolved = resolveCacheChestPos(world, player.blockPosition(), false);
+        }
         if (resolved == null) {
+            if (!seekingLand) {
+                data.setShardRelicChestY(CACHE_Y_SEEKING_LAND);
+                markDirty(world);
+                player.sendSystemMessage(Component.translatable(
+                        "message.village-quest.questmaster.special.cache_seek_dry_ground")
+                        .withStyle(ChatFormatting.YELLOW), false);
+            }
             return;
         }
 
+        if (!placeInitialCacheChest(world,data,resolved)) return;
         data.setShardRelicChestX(resolved.getX());
         data.setShardRelicChestY(resolved.getY());
         data.setShardRelicChestZ(resolved.getZ());
-        ensureCacheChest(world, data);
+        ensureCacheChest(world, player.getUUID(), data);
         markDirty(world);
     }
 
-    private static BlockPos resolveCacheChestPos(ServerWorld world, BlockPos targetPos, boolean loadChunks) {
+    private static BlockPos resolveCacheChestPos(ServerLevel world, BlockPos targetPos, boolean loadChunks) {
         for (int radius = 0; radius <= CACHE_SEARCH_RADIUS; radius++) {
             for (int xOffset = -radius; xOffset <= radius; xOffset++) {
                 for (int zOffset = -radius; zOffset <= radius; zOffset++) {
@@ -828,30 +889,29 @@ public final class ShardRelicQuestService {
                     int z = targetPos.getZ() + zOffset;
                     if (loadChunks) {
                         world.getChunk(x >> 4, z >> 4);
-                    } else if (!world.isChunkLoaded(x >> 4, z >> 4)) {
+                    } else if (!world.hasChunk(x >> 4, z >> 4)) {
                         continue;
                     }
 
-                    int topY = world.getTopY(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, x, z);
-                    if (topY <= world.getBottomY() + 8) {
-                        continue;
-                    }
+                    BlockPos naturalCenter = WildernessSiteValidator.findNaturalFlatSite(
+                            world, x, z, 2, 4, 1, 2, 64, false);
+                    if (naturalCenter == null) continue;
+                    BlockPos surfacePos = naturalCenter.below();
 
-                    BlockPos surfacePos = new BlockPos(x, topY - 1, z);
-                    if (!isValidSurface(world, surfacePos)) {
+                    BlockPos chestPos = surfacePos.below(2);
+                    if (chestPos.getY() <= world.getMinY() + 2) {
                         continue;
                     }
-
-                    BlockPos chestPos = surfacePos.down(2);
-                    if (chestPos.getY() <= world.getBottomY() + 2) {
-                        continue;
-                    }
-                    if (!world.getBlockState(chestPos.up()).isOpaqueFullCube()) {
+                    if (!world.getBlockState(chestPos.above()).isSolidRender()) {
                         continue;
                     }
                     if (!world.getBlockState(chestPos).getFluidState().isEmpty()) {
                         continue;
                     }
+                    // Match initial placement eligibility before choosing a site; skip blocked underground cells.
+                    if (!world.hasChunkAt(chestPos) || world.getBlockEntity(chestPos) != null) continue;
+                    if (!world.getBlockState(chestPos).is(net.minecraft.tags.BlockTags.BASE_STONE_OVERWORLD)
+                            && !isValidSurface(world, chestPos)) continue;
                     return chestPos;
                 }
             }
@@ -859,7 +919,8 @@ public final class ShardRelicQuestService {
         return null;
     }
 
-    private static Optional<UUID> findCacheOwner(ServerWorld world, BlockPos pos) {
+    private static Optional<UUID> findCacheOwner(ServerLevel world, BlockPos pos) {
+        if(world!=world.getServer().overworld()) return Optional.empty();
         for (Map.Entry<UUID, PlayerQuestData> entry : QuestState.get(world.getServer()).getPlayersView().entrySet()) {
             PlayerQuestData data = entry.getValue();
             if (data == null || data.getShardRelicQuestStage() != ShardRelicQuestStage.CACHE_HUNT) {
@@ -873,49 +934,54 @@ public final class ShardRelicQuestService {
         return Optional.empty();
     }
 
-    private static boolean hasStarreachRing(ServerPlayerEntity player) {
+    private static boolean hasStarreachRing(ServerPlayer player) {
         if (player == null || ModItems.STARREACH_RING == null) {
             return false;
         }
-        PlayerInventory inventory = player.getInventory();
-        for (int i = 0; i < inventory.size(); i++) {
-            if (inventory.getStack(i).isOf(ModItems.STARREACH_RING)) {
+        ServerLevel world = (ServerLevel) player.level();
+        Inventory inventory = player.getInventory();
+        for (int i = 0; i < inventory.getContainerSize(); i++) {
+            if (GuildArchiveService.isValidOwnedStack(world, player, inventory.getItem(i),
+                    ArchiveItem.STARREACH_RING)) {
                 return true;
             }
         }
-        return player.getOffHandStack().isOf(ModItems.STARREACH_RING);
+        return GuildArchiveService.isValidOwnedStack(world, player, player.getOffhandItem(),
+                ArchiveItem.STARREACH_RING);
     }
 
-    private static void completeQuest(ServerWorld world, ServerPlayerEntity player, PlayerQuestData data) {
+    private static void completeQuest(ServerLevel world, ServerPlayer player, PlayerQuestData data) {
+        QuestMapHelper.removeTaggedMaps(player, "starreach_cache");
         data.setPendingSpecialOfferKind(null);
         data.setShardRelicQuestStage(ShardRelicQuestStage.COMPLETED);
         markDirty(world);
 
-        Text divider = Text.literal("------------------------------").formatted(Formatting.GRAY);
-        Text body = Text.empty()
+        Component divider = Component.literal("------------------------------").withStyle(ChatFormatting.GRAY);
+        Component body = Component.empty()
                 .append(divider.copy())
-                .append(Text.literal("\n"))
-                .append(Texts.completedTitle(title(), Formatting.AQUA))
-                .append(Text.literal("\n\n"))
-                .append(Text.translatable("quest.village-quest.special.shards.completed.1"))
-                .append(Text.literal("\n\n"))
-                .append(Text.translatable("quest.village-quest.special.shards.completed.2"))
-                .append(Text.literal("\n"))
+                .append(Component.literal("\n"))
+                .append(Texts.completedTitle(title(), ChatFormatting.AQUA))
+                .append(Component.literal("\n\n"))
+                .append(Component.translatable("quest.village-quest.special.shards.completed.1"))
+                .append(Component.literal("\n\n"))
+                .append(Component.translatable("quest.village-quest.special.shards.completed.2"))
+                .append(Component.literal("\n"))
                 .append(divider.copy());
-        player.sendMessage(body, false);
-        world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 0.9f, 0.7f);
+        player.sendSystemMessage(body, false);
+        world.playSound(null, player.blockPosition(), SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 0.9f, 0.7f);
         refreshQuestUi(world, player);
     }
 
-    private static void applyRingReachBonus(ServerPlayerEntity player) {
-        EntityAttributeInstance instance = player.getAttributeInstance(EntityAttributes.BLOCK_INTERACTION_RANGE);
+    private static void applyRingReachBonus(ServerPlayer player) {
+        AttributeInstance instance = player.getAttribute(Attributes.BLOCK_INTERACTION_RANGE);
         if (instance == null) {
             return;
         }
-        boolean shouldHaveBonus = player.getOffHandStack().isOf(ModItems.STARREACH_RING);
+        boolean shouldHaveBonus = GuildArchiveService.isValidOwnedStack((ServerLevel) player.level(), player,
+                player.getOffhandItem(), ArchiveItem.STARREACH_RING);
         if (shouldHaveBonus) {
             if (!instance.hasModifier(STARREACH_REACH_ID)) {
-                instance.addPersistentModifier(STARREACH_REACH_MODIFIER);
+                instance.addPermanentModifier(STARREACH_REACH_MODIFIER);
             }
         } else if (instance.hasModifier(STARREACH_REACH_ID)) {
             instance.removeModifier(STARREACH_REACH_ID);
@@ -924,51 +990,51 @@ public final class ShardRelicQuestService {
 
     private static ItemStack createRingStack() {
         ItemStack stack = new ItemStack(ModItems.STARREACH_RING);
-        stack.set(DataComponentTypes.ITEM_NAME, Text.translatable("item.village-quest.starreach_ring").formatted(Formatting.AQUA));
-        stack.set(DataComponentTypes.LORE, new LoreComponent(List.of(
-                Text.translatable("item.village-quest.starreach_ring.lore").formatted(Formatting.GRAY)
+        stack.set(DataComponents.ITEM_NAME, Component.translatable("item.village-quest.starreach_ring").withStyle(ChatFormatting.AQUA));
+        stack.set(DataComponents.LORE, new ItemLore(List.of(
+                Component.translatable("item.village-quest.starreach_ring.lore").withStyle(ChatFormatting.GRAY)
         )));
         return stack;
     }
 
-    private static boolean consumeInventoryItem(ServerPlayerEntity player, Item item, int amount) {
+    private static boolean consumeInventoryItem(ServerPlayer player, Item item, int amount) {
         if (player == null || item == null || amount <= 0) {
             return false;
         }
         if (DailyQuestService.countInventoryItem(player, item) < amount) {
             return false;
         }
-        PlayerInventory inventory = player.getInventory();
+        Inventory inventory = player.getInventory();
         int remaining = amount;
-        for (int i = 0; i < inventory.size() && remaining > 0; i++) {
-            ItemStack stack = inventory.getStack(i);
-            if (stack.isEmpty() || !stack.isOf(item)) {
+        for (int i = 0; i < inventory.getContainerSize() && remaining > 0; i++) {
+            ItemStack stack = inventory.getItem(i);
+            if (stack.isEmpty() || !stack.is(item)) {
                 continue;
             }
             int removed = Math.min(remaining, stack.getCount());
-            stack.decrement(removed);
+            stack.shrink(removed);
             remaining -= removed;
         }
-        player.playerScreenHandler.sendContentUpdates();
+        player.inventoryMenu.broadcastChanges();
         return remaining <= 0;
     }
 
-    private static void giveOrDrop(ServerPlayerEntity player, ItemStack stack) {
+    private static void giveOrDrop(ServerPlayer player, ItemStack stack) {
         ItemStack remainder = stack.copy();
-        boolean inserted = player.getInventory().insertStack(remainder);
+        boolean inserted = player.getInventory().add(remainder);
         if (!inserted || !remainder.isEmpty()) {
             if (!remainder.isEmpty()) {
-                player.dropItem(remainder, false);
+                player.drop(remainder, false);
             }
-            player.sendMessage(Text.translatable("message.village-quest.daily.inventory_full.prefix").formatted(Formatting.GRAY)
-                    .append(stack.toHoverableText())
-                    .append(Text.translatable("message.village-quest.daily.inventory_full.suffix").formatted(Formatting.GRAY)), false);
+            player.sendSystemMessage(Component.translatable("message.village-quest.daily.inventory_full.prefix").withStyle(ChatFormatting.GRAY)
+                    .append(stack.getDisplayName())
+                    .append(Component.translatable("message.village-quest.daily.inventory_full.suffix").withStyle(ChatFormatting.GRAY)), false);
         } else {
-            player.playerScreenHandler.sendContentUpdates();
+            player.inventoryMenu.broadcastChanges();
         }
     }
 
-    private static Text title() {
-        return Text.translatable("quest.village-quest.special.shards.title");
+    private static Component title() {
+        return Component.translatable("quest.village-quest.special.shards.title");
     }
 }

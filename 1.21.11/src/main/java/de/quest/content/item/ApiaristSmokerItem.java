@@ -1,36 +1,40 @@
 package de.quest.content.item;
 
+import de.quest.archive.GuildArchiveService;
+import de.quest.archive.GuildArchiveService.ArchiveItem;
 import de.quest.quest.special.ApiaristSmokerQuestService;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.ItemUsageContext;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.Formatting;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.UseOnContext;
 
 public final class ApiaristSmokerItem extends Item {
-    public ApiaristSmokerItem(Settings settings) {
+    public ApiaristSmokerItem(Properties settings) {
         super(settings);
     }
 
     @Override
-    public Text getName(ItemStack stack) {
-        return Text.translatable(this.getTranslationKey()).formatted(Formatting.GOLD);
+    public Component getName(ItemStack stack) {
+        return Component.translatable(this.getDescriptionId()).withStyle(ChatFormatting.GOLD);
     }
 
     @Override
-    public boolean hasGlint(ItemStack stack) {
-        return true;
+    public boolean isFoil(ItemStack stack) {
+        return !GuildArchiveService.isSuperseded(stack);
     }
 
     @Override
-    public ActionResult useOnBlock(ItemUsageContext context) {
-        if (!(context.getWorld() instanceof ServerWorld world)
-                || !(context.getPlayer() instanceof ServerPlayerEntity player)) {
-            return ActionResult.SUCCESS;
+    public InteractionResult useOn(UseOnContext context) {
+        if (!(context.getLevel() instanceof ServerLevel world)
+                || !(context.getPlayer() instanceof ServerPlayer player)) {
+            return InteractionResult.SUCCESS;
         }
-        return ApiaristSmokerQuestService.useSmoker(world, player, context.getBlockPos(), world.getBlockState(context.getBlockPos()));
+        if (!GuildArchiveService.validateUse(world, player, context.getItemInHand(),
+                ArchiveItem.APIARISTS_SMOKER)) return InteractionResult.FAIL;
+        return ApiaristSmokerQuestService.useSmoker(world, player, context.getClickedPos(), world.getBlockState(context.getClickedPos()));
     }
 }

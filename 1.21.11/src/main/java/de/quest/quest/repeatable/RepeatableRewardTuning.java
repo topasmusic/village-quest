@@ -1,6 +1,6 @@
 package de.quest.quest.repeatable;
 
-import net.minecraft.item.ItemStack;
+import net.minecraft.world.item.ItemStack;
 
 public final class RepeatableRewardTuning {
     private RepeatableRewardTuning() {}
@@ -38,7 +38,7 @@ public final class RepeatableRewardTuning {
         int nextCount = switch (profile == null ? RepeatableTargetProfile.NORMAL : profile) {
             case LIGHT -> currentCount > 1 ? currentCount - 1 : currentCount;
             case NORMAL -> currentCount;
-            case HEAVY -> Math.min(adjusted.getMaxCount(), currentCount + 1);
+            case HEAVY -> Math.min(adjusted.getMaxStackSize(), currentCount + 1);
         };
         adjusted.setCount(Math.max(1, nextCount));
         return adjusted;

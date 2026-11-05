@@ -1,80 +1,95 @@
 package de.quest.entity;
 
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.data.DataTracker;
-import net.minecraft.entity.data.TrackedData;
-import net.minecraft.entity.data.TrackedDataHandlerRegistry;
-import net.minecraft.entity.ai.goal.LookAroundGoal;
-import net.minecraft.entity.ai.goal.LookAtEntityGoal;
-import net.minecraft.entity.ai.goal.SwimGoal;
-import net.minecraft.entity.attribute.DefaultAttributeContainer;
-import net.minecraft.entity.attribute.EntityAttributes;
-import net.minecraft.entity.mob.MobEntity;
-import net.minecraft.entity.mob.PathAwareEntity;
-import net.minecraft.entity.ai.pathing.PathNodeType;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.storage.ReadView;
-import net.minecraft.storage.WriteView;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.Hand;
-import net.minecraft.world.World;
+import de.quest.caravan.CaravanRole;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.PathfinderMob;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.goal.FloatGoal;
+import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
+import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.pathfinder.PathType;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 
-public final class CaravanMerchantEntity extends PathAwareEntity {
+public final class CaravanMerchantEntity extends PathfinderMob {
     public static final int DEFAULT_DESPAWN_TICKS = 20 * 60 * 8;
     private static final int DEFENSE_COOLDOWN_TICKS = 60;
-    private static final TrackedData<Integer> ROUTE_INDEX =
-            DataTracker.registerData(CaravanMerchantEntity.class, TrackedDataHandlerRegistry.INTEGER);
-    private static final TrackedData<Integer> LIVERY_INDEX =
-            DataTracker.registerData(CaravanMerchantEntity.class, TrackedDataHandlerRegistry.INTEGER);
+    private static final EntityDataAccessor<Integer> ROUTE_INDEX =
+            SynchedEntityData.defineId(CaravanMerchantEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> LIVERY_INDEX =
+            SynchedEntityData.defineId(CaravanMerchantEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Integer> CREW_ROLE =
+            SynchedEntityData.defineId(CaravanMerchantEntity.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Boolean> COURIER_ROLE =
+            SynchedEntityData.defineId(CaravanMerchantEntity.class, EntityDataSerializers.BOOLEAN);
+    private static final EntityDataAccessor<Boolean> FEMALE =
+            SynchedEntityData.defineId(CaravanMerchantEntity.class,EntityDataSerializers.BOOLEAN);
 
+    private net.minecraft.network.chat.Component lastAutomaticName;
+    public void refreshAutomaticName(net.minecraft.network.chat.Component name) {
+        if(getCustomName()==null || getCustomName().equals(lastAutomaticName)) { lastAutomaticName=name.copy(); setCustomName(name); }
+    }
     private int despawnTicks = DEFAULT_DESPAWN_TICKS;
     private int encounterControlTicks;
     private int defenseCooldownTicks;
-    private boolean courier;
     private boolean encounterGuard;
 
-    public CaravanMerchantEntity(EntityType<? extends PathAwareEntity> entityType, World world) {
+    public CaravanMerchantEntity(EntityType<? extends PathfinderMob> entityType, Level world) {
         super(entityType, world);
-        this.setPersistent();
-        this.setEquipmentDropChance(EquipmentSlot.MAINHAND, 0.0f);
-        this.setPathfindingPenalty(PathNodeType.LEAVES, -1.0f);
-        this.setPathfindingPenalty(PathNodeType.POWDER_SNOW, -1.0f);
+        this.setPersistenceRequired();
+        this.setDropChance(EquipmentSlot.MAINHAND, 0.0f);
+        // Vanilla ground navigation considers leaf canopies walkable. Trade-route
+        // NPCs must stay on roads and terrain instead of climbing treetops.
+        this.setPathfindingMalus(PathType.LEAVES, -1.0f);
+        this.setPathfindingMalus(PathType.POWDER_SNOW, -1.0f);
     }
 
     @Override
-    protected void initGoals() {
-        this.goalSelector.add(0, new SwimGoal(this));
-        this.goalSelector.add(1, new LookAtEntityGoal(this, PlayerEntity.class, 10.0f));
-        this.goalSelector.add(2, new LookAroundGoal(this));
+    protected void registerGoals() {
+        this.goalSelector.addGoal(0, new FloatGoal(this));
+        this.goalSelector.addGoal(1, new LookAtPlayerGoal(this, Player.class, 10.0f));
+        this.goalSelector.addGoal(2, new RandomLookAroundGoal(this));
     }
 
     @Override
-    protected void initDataTracker(DataTracker.Builder builder) {
-        super.initDataTracker(builder);
-        builder.add(ROUTE_INDEX, 0);
-        builder.add(LIVERY_INDEX, 0);
+    protected void defineSynchedData(SynchedEntityData.Builder builder) {
+        super.defineSynchedData(builder);
+        builder.define(ROUTE_INDEX, 0);
+        builder.define(LIVERY_INDEX, 0);
+        builder.define(CREW_ROLE, CaravanRole.MASTER.ordinal());
+        builder.define(COURIER_ROLE, false);
+        builder.define(FEMALE,false);
     }
 
-    public static DefaultAttributeContainer.Builder createAttributes() {
-        return MobEntity.createMobAttributes()
-                .add(EntityAttributes.MAX_HEALTH, 90.0)
-                .add(EntityAttributes.ATTACK_DAMAGE, 1.0)
-                .add(EntityAttributes.MOVEMENT_SPEED, 0.26)
-                .add(EntityAttributes.FOLLOW_RANGE, 24.0)
-                .add(EntityAttributes.ARMOR, 2.0);
+    public static AttributeSupplier.Builder createAttributes() {
+        return Mob.createMobAttributes()
+                .add(Attributes.MAX_HEALTH, 90.0)
+                .add(Attributes.ATTACK_DAMAGE, 1.0)
+                .add(Attributes.MOVEMENT_SPEED, 0.26)
+                .add(Attributes.FOLLOW_RANGE, 24.0)
+                .add(Attributes.ARMOR, 2.0);
     }
 
     @Override
     public void tick() {
         super.tick();
-        if (this.getEntityWorld().isClient()) {
+        if (this.level().isClientSide()) {
             return;
         }
         if (this.encounterControlTicks > 0) {
@@ -96,12 +111,18 @@ public final class CaravanMerchantEntity extends PathAwareEntity {
     }
 
     @Override
-    protected ActionResult interactMob(PlayerEntity player, Hand hand) {
-        if (player instanceof ServerPlayerEntity serverPlayer) {
-            this.getLookControl().lookAt(serverPlayer.getX(), serverPlayer.getEyeY(), serverPlayer.getZ());
+    protected InteractionResult mobInteract(Player player, InteractionHand hand) {
+        if (player instanceof ServerPlayer serverPlayer) {
+            this.getLookControl().setLookAt(serverPlayer.getX(), serverPlayer.getEyeY(), serverPlayer.getZ());
+            if(serverPlayer.distanceToSqr(this)<=64 && (lastGreeting<0 || level().getGameTime()<lastGreeting || level().getGameTime()-lastGreeting>=100)) {
+                lastGreeting=level().getGameTime();
+                de.quest.kingdom.NpcSpeechService.privateLine(serverPlayer,this,net.minecraft.network.chat.Component.translatable(
+                        "message.village-quest.dialogue.caravan."+(isCourier()?"courier":"greeting")));
+            }
         }
-        return ActionResult.SUCCESS;
+        return InteractionResult.SUCCESS;
     }
+    private long lastGreeting=-1;
 
     @Override
     public boolean isPushable() {
@@ -109,46 +130,62 @@ public final class CaravanMerchantEntity extends PathAwareEntity {
     }
 
     @Override
-    protected void writeCustomData(WriteView data) {
-        super.writeCustomData(data);
+    protected void addAdditionalSaveData(ValueOutput data) {
+        super.addAdditionalSaveData(data);
+        if(lastAutomaticName!=null) data.store("LivingKingdomsAutomaticName",net.minecraft.network.chat.ComponentSerialization.CODEC,lastAutomaticName);
         data.putInt("DespawnTicks", this.despawnTicks);
-        data.putBoolean("Courier", this.courier);
+        data.putBoolean("Courier", isCourier());
+        data.putBoolean("LivingKingdomsFemale",isFemale());
+        data.putInt("CrewRole", getCrewRole().ordinal());
         data.putInt("RouteIndex", getRouteIndex());
         data.putInt("LiveryIndex", getLiveryIndex());
     }
 
     @Override
-    protected void readCustomData(ReadView data) {
-        super.readCustomData(data);
-        this.despawnTicks = Math.max(0, data.getInt("DespawnTicks", DEFAULT_DESPAWN_TICKS));
-        this.courier = data.getBoolean("Courier", false);
-        setRouteIndex(data.getInt("RouteIndex", 0));
-        setLiveryIndex(data.getInt("LiveryIndex", getRouteIndex()));
+    protected void readAdditionalSaveData(ValueInput data) {
+        super.readAdditionalSaveData(data);
+        lastAutomaticName=data.read("LivingKingdomsAutomaticName",net.minecraft.network.chat.ComponentSerialization.CODEC).orElse(null);
+        this.despawnTicks = Math.max(0, data.getIntOr("DespawnTicks", DEFAULT_DESPAWN_TICKS));
+        setCourier(data.getBooleanOr("Courier", false));
+        setFemale(data.getBooleanOr("LivingKingdomsFemale",false));
+        setCrewRole(CaravanRole.byId(data.getIntOr("CrewRole", 0)));
+        setRouteIndex(data.getIntOr("RouteIndex", 0));
+        setLiveryIndex(data.getIntOr("LiveryIndex", getRouteIndex()));
     }
 
     public void setCourier(boolean courier) {
-        this.courier = courier;
+        this.entityData.set(COURIER_ROLE, courier);
         updateHeldItemState();
     }
 
     public boolean isCourier() {
-        return this.courier;
+        return this.entityData.get(COURIER_ROLE);
+    }
+    public boolean isFemale() { return entityData.get(FEMALE); }
+    public void setFemale(boolean female) { entityData.set(FEMALE,female); }
+
+    public CaravanRole getCrewRole() {
+        return CaravanRole.byId(this.entityData.get(CREW_ROLE));
+    }
+
+    public void setCrewRole(CaravanRole role) {
+        this.entityData.set(CREW_ROLE, role == null ? CaravanRole.MASTER.ordinal() : role.ordinal());
     }
 
     public int getRouteIndex() {
-        return Math.max(0, Math.min(4, this.dataTracker.get(ROUTE_INDEX)));
+        return Math.max(0, Math.min(4, this.entityData.get(ROUTE_INDEX)));
     }
 
     public void setRouteIndex(int routeIndex) {
-        this.dataTracker.set(ROUTE_INDEX, Math.max(0, Math.min(4, routeIndex)));
+        this.entityData.set(ROUTE_INDEX, Math.max(0, Math.min(4, routeIndex)));
     }
 
     public int getLiveryIndex() {
-        return Math.max(0, Math.min(4, this.dataTracker.get(LIVERY_INDEX)));
+        return Math.max(0, Math.min(4, this.entityData.get(LIVERY_INDEX)));
     }
 
     public void setLiveryIndex(int liveryIndex) {
-        this.dataTracker.set(LIVERY_INDEX, Math.max(0, Math.min(4, liveryIndex)));
+        this.entityData.set(LIVERY_INDEX, Math.max(0, Math.min(4, liveryIndex)));
     }
 
     public void setDespawnTicks(int despawnTicks) {
@@ -168,24 +205,24 @@ public final class CaravanMerchantEntity extends PathAwareEntity {
         updateHeldItemState();
     }
 
-    public boolean tryDefendAgainst(ServerWorld world, LivingEntity target) {
+    public boolean tryDefendAgainst(ServerLevel world, LivingEntity target) {
         if (!isEncounterGuardActive() || world == null || target == null || this.defenseCooldownTicks > 0) {
             return false;
         }
-        if (!target.isAlive() || target.isRemoved() || this.squaredDistanceTo(target) > 2.7D * 2.7D) {
+        if (!target.isAlive() || target.isRemoved() || this.distanceToSqr(target) > 2.7D * 2.7D) {
             return false;
         }
         this.defenseCooldownTicks = DEFENSE_COOLDOWN_TICKS;
-        this.swingHand(Hand.MAIN_HAND);
-        return this.tryAttack(world, target);
+        this.swing(InteractionHand.MAIN_HAND);
+        return this.doHurtTarget(world, target);
     }
 
     private boolean isEncounterGuardActive() {
-        return this.encounterGuard && this.encounterControlTicks > 0 && !this.courier;
+        return this.encounterGuard && this.encounterControlTicks > 0 && !isCourier();
     }
 
     private void updateHeldItemState() {
-        if (this.courier) {
+        if (isCourier()) {
             setHeldItem(Items.PAPER);
             return;
         }
@@ -193,7 +230,7 @@ public final class CaravanMerchantEntity extends PathAwareEntity {
             setHeldItem(Items.WOODEN_SWORD);
             return;
         }
-        if (this.getEntityWorld() != null && this.getEntityWorld().isNight()) {
+        if (isNight()) {
             setHeldItem(Items.TORCH);
             return;
         }
@@ -201,16 +238,24 @@ public final class CaravanMerchantEntity extends PathAwareEntity {
     }
 
     private void setHeldItem(Item item) {
-        ItemStack current = this.getMainHandStack();
+        ItemStack current = this.getMainHandItem();
         if (item == null) {
             if (!current.isEmpty()) {
-                this.setStackInHand(Hand.MAIN_HAND, ItemStack.EMPTY);
+                this.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
             }
             return;
         }
-        if (current.isOf(item) && current.getCount() == 1) {
+        if (current.is(item) && current.getCount() == 1) {
             return;
         }
-        this.setStackInHand(Hand.MAIN_HAND, new ItemStack(item));
+        this.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(item));
+    }
+
+    private boolean isNight() {
+        if (this.level() == null) {
+            return false;
+        }
+        long dayTime = Math.floorMod(this.level().getDayTime(), 24000L);
+        return dayTime >= 13000L && dayTime <= 23000L;
     }
 }

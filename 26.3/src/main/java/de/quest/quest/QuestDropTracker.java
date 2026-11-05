@@ -15,6 +15,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.animal.sheep.Sheep;
@@ -122,6 +123,11 @@ public final class QuestDropTracker {
                     ENTITY_DROP_RADIUS_SQR,
                     Map.of(Items.ENDER_PEARL, MAX_MOB_DROP)
             ));
+        } else if (killedEntity.getType() == EntityTypes.CHICKEN || killedEntity.getType() == EntityTypes.SQUID) {
+            Item supply = killedEntity.getType() == EntityTypes.CHICKEN ? Items.FEATHER : Items.INK_SAC;
+            PENDING_SOURCES.add(PendingDropSource.entityDrop(world, player.getUUID(),
+                    killedEntity.getX(), killedEntity.getY(), killedEntity.getZ(),
+                    ENTITY_DROP_RADIUS_SQR, Map.of(supply, MAX_MOB_DROP)));
         } else if (killedEntity instanceof Blaze) {
             PENDING_SOURCES.add(PendingDropSource.entityDrop(
                     world,
@@ -165,8 +171,8 @@ public final class QuestDropTracker {
         }
     }
 
-    public static void onTrackedItemPickup(ServerPlayer player, ItemEntity itemEntity, int count) {
-        if (player == null || itemEntity == null || count <= 0) {
+    public static void onTrackedItemPickup(ServerPlayer player, ItemEntity itemEntity, ItemStack pickedUpStack, int count) {
+        if (player == null || itemEntity == null || pickedUpStack == null || pickedUpStack.isEmpty() || count <= 0) {
             return;
         }
 
@@ -177,7 +183,6 @@ public final class QuestDropTracker {
             return;
         }
 
-        ItemStack pickedUpStack = itemEntity.getItem().copyWithCount(count);
         DailyQuestService.onTrackedItemPickup((ServerLevel) player.level(), player, pickedUpStack, count);
     }
 
@@ -533,7 +538,8 @@ public final class QuestDropTracker {
         }
 
         private boolean matches(ServerLevel world, ItemEntity itemEntity) {
-            if (this.world != world || isExpired() || itemEntity == null) {
+            if (this.world != world || isExpired() || itemEntity == null
+                    || ((TrackedQuestDrop) itemEntity).villageQuest$hasThrower()) {
                 return false;
             }
 

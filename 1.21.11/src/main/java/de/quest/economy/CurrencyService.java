@@ -3,15 +3,14 @@ package de.quest.economy;
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
 import de.quest.registry.ModItems;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.item.ItemStack;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-
 import java.util.UUID;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.ItemStack;
 
 public final class CurrencyService {
     public static final long SILVERMARK = 1L;
@@ -22,14 +21,29 @@ public final class CurrencyService {
 
     private CurrencyService() {}
 
-    public static long getBalance(ServerWorld world, UUID playerId) {
+    /** Native market caller uses the existing wallet, with its receipt proof in the same QuestState document. */
+    public static boolean applyMarketReceipt(ServerLevel world,UUID actor,de.quest.kingdom.MarketTransferMarker after) {
+        if(world==null || actor==null) return false;
+        var state=QuestState.get(world.getServer()); var data=state.getPlayerData(actor); long before=data.getCurrencyBalance();
+        if(!applyMarketBalance(data,actor,after)) return false;
+        ProsperityService.recordCurrencyDelta(world,actor,data.getCurrencyBalance()-before); state.setDirty(); return true;
+    }
+    public static boolean applyMarketBalance(PlayerQuestData data,UUID actor,de.quest.kingdom.MarketTransferMarker after) {
+        if(data==null || after==null || !after.actor().equals(actor) || after.stage()!=de.quest.kingdom.MarketTransferMarker.Stage.AFTER) return false;
+        var current=data.marketWallet().marker();
+        if(current.isEmpty() || current.get().stage()!=de.quest.kingdom.MarketTransferMarker.Stage.BEFORE
+                || !current.get().sameTransfer(after) || data.getCurrencyBalance()!=after.beforeBalance() || !data.marketWallet().advance(after)) return false;
+        data.setCurrencyBalance(after.afterBalance()); return true;
+    }
+
+    public static long getBalance(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
             return 0L;
         }
         return QuestState.get(world.getServer()).getPlayerData(playerId).getCurrencyBalance();
     }
 
-    public static long addBalance(ServerWorld world, UUID playerId, long amount) {
+    public static long addBalance(ServerLevel world, UUID playerId, long amount) {
         if (world == null || playerId == null || amount == 0L) {
             return getBalance(world, playerId);
         }
@@ -40,12 +54,12 @@ public final class CurrencyService {
             long appliedDelta = next - data.getCurrencyBalance();
             data.setCurrencyBalance(next);
             ProsperityService.recordCurrencyDelta(world, playerId, appliedDelta);
-            QuestState.get(world.getServer()).markDirty();
+            QuestState.get(world.getServer()).setDirty();
         }
         return next;
     }
 
-    public static long setBalance(ServerWorld world, UUID playerId, long amount) {
+    public static long setBalance(ServerLevel world, UUID playerId, long amount) {
         if (world == null || playerId == null) {
             return 0L;
         }
@@ -54,19 +68,20 @@ public final class CurrencyService {
         long next = Math.max(0L, amount);
         if (next != data.getCurrencyBalance()) {
             data.setCurrencyBalance(next);
-            QuestState.get(world.getServer()).markDirty();
+            QuestState.get(world.getServer()).setDirty();
         }
         return next;
     }
 
-    public static boolean canAfford(ServerWorld world, UUID playerId, long amount) {
+    public static boolean canAfford(ServerLevel world, UUID playerId, long amount) {
+        if (de.quest.shrine.VillageIntroRequestService.blocksActions(world,playerId)) return false;
         if (amount <= 0L) {
             return true;
         }
         return getBalance(world, playerId) >= amount;
     }
 
-    public static boolean removeBalance(ServerWorld world, UUID playerId, long amount) {
+    public static boolean removeBalance(ServerLevel world, UUID playerId, long amount) {
         if (amount <= 0L) {
             return true;
         }
@@ -77,64 +92,64 @@ public final class CurrencyService {
         return true;
     }
 
-    public static Text formatBalance(long amount) {
+    public static Component formatBalance(long amount) {
         long clamped = Math.max(0L, amount);
         if (clamped == 0L) {
-            return Text.empty()
-                    .append(Text.literal("0").formatted(Formatting.GRAY))
-                    .append(Text.literal(" ").formatted(Formatting.DARK_GRAY))
-                    .append(Text.translatable("text.village-quest.currency.unit.silvermark.other").formatted(Formatting.GRAY));
+            return Component.empty()
+                    .append(Component.literal("0").withStyle(ChatFormatting.GRAY))
+                    .append(Component.literal(" ").withStyle(ChatFormatting.DARK_GRAY))
+                    .append(Component.translatable("text.village-quest.currency.unit.silvermark.other").withStyle(ChatFormatting.GRAY));
         }
         long crowns = clamped / CROWN;
         long silvermarks = clamped % CROWN;
 
-        MutableText text = Text.empty();
+        MutableComponent text = Component.empty();
         boolean appended = false;
         appended = appendUnit(text, appended, crowns,
                 "text.village-quest.currency.unit.crown.one",
                 "text.village-quest.currency.unit.crown.other",
-                Formatting.GOLD);
+                ChatFormatting.GOLD);
         appended = appendUnit(text, appended, silvermarks,
                 "text.village-quest.currency.unit.silvermark.one",
                 "text.village-quest.currency.unit.silvermark.other",
-                Formatting.GRAY);
+                ChatFormatting.GRAY);
 
         if (!appended) {
-            return Text.empty()
-                    .append(Text.literal("0").formatted(Formatting.GRAY))
-                    .append(Text.literal(" ").formatted(Formatting.DARK_GRAY))
-                    .append(Text.translatable("text.village-quest.currency.unit.silvermark.other").formatted(Formatting.GRAY));
+            return Component.empty()
+                    .append(Component.literal("0").withStyle(ChatFormatting.GRAY))
+                    .append(Component.literal(" ").withStyle(ChatFormatting.DARK_GRAY))
+                    .append(Component.translatable("text.village-quest.currency.unit.silvermark.other").withStyle(ChatFormatting.GRAY));
         }
         return text;
     }
 
-    public static Text formatDelta(long amount) {
+    public static Component formatDelta(long amount) {
         long absolute = Math.abs(amount);
-        MutableText text = Text.empty();
+        MutableComponent text = Component.empty();
         if (amount > 0L) {
-            text.append(Text.literal("+").formatted(Formatting.GREEN));
+            text.append(Component.literal("+").withStyle(ChatFormatting.GREEN));
         } else if (amount < 0L) {
-            text.append(Text.literal("-").formatted(Formatting.RED));
+            text.append(Component.literal("-").withStyle(ChatFormatting.RED));
         }
         text.append(formatBalance(absolute));
         return text;
     }
 
-    private static boolean appendUnit(MutableText text,
+    private static boolean appendUnit(MutableComponent text,
                                       boolean appended,
                                       long amount,
                                       String singularKey,
                                       String pluralKey,
-                                      Formatting color) {
+                                      ChatFormatting color) {
         if (amount <= 0L) {
             return appended;
         }
         if (appended) {
-            text.append(Text.literal(" ").formatted(Formatting.DARK_GRAY));
+            text.append(Component.literal(" ").withStyle(ChatFormatting.DARK_GRAY));
         }
-        text.append(Text.literal(Long.toString(amount)).formatted(color));
-        text.append(Text.literal(" ").formatted(Formatting.DARK_GRAY));
-        text.append(Text.translatable(amount == 1L ? singularKey : pluralKey).formatted(color));
+        text.append(Component.literal(Long.toString(amount)).withStyle(color));
+        text.append(Component.literal(" ").withStyle(ChatFormatting.DARK_GRAY));
+        text.append(Component.translatable(amount == 1L ? singularKey : pluralKey).withStyle(color));
         return true;
     }
 
@@ -160,77 +175,77 @@ public final class CurrencyService {
         return amount * factor;
     }
 
-    public static LegacyCoinConversion convertLegacyCoins(ServerWorld world, ServerPlayerEntity player) {
+    public static LegacyCoinConversion convertLegacyCoins(ServerLevel world, ServerPlayer player) {
         if (world == null || player == null) {
             return new LegacyCoinConversion(0, 0, 0, 0L, 0L);
         }
 
-        PlayerInventory inventory = player.getInventory();
+        Inventory inventory = player.getInventory();
         int copperCount = 0;
         int ironCount = 0;
         int goldCount = 0;
 
-        for (int i = 0; i < inventory.size(); i++) {
-            ItemStack stack = inventory.getStack(i);
+        for (int i = 0; i < inventory.getContainerSize(); i++) {
+            ItemStack stack = inventory.getItem(i);
             if (stack.isEmpty()) {
                 continue;
             }
-            if (stack.isOf(ModItems.LEGACY_COPPER_PENNY)) {
+            if (stack.is(ModItems.LEGACY_COPPER_PENNY)) {
                 copperCount += stack.getCount();
-                inventory.setStack(i, ItemStack.EMPTY);
+                inventory.setItem(i, ItemStack.EMPTY);
                 continue;
             }
-            if (stack.isOf(ModItems.SILVERMARK)) {
+            if (stack.is(ModItems.SILVERMARK)) {
                 ironCount += stack.getCount();
-                inventory.setStack(i, ItemStack.EMPTY);
+                inventory.setItem(i, ItemStack.EMPTY);
                 continue;
             }
-            if (stack.isOf(ModItems.CROWN)) {
+            if (stack.is(ModItems.CROWN)) {
                 goldCount += stack.getCount();
-                inventory.setStack(i, ItemStack.EMPTY);
+                inventory.setItem(i, ItemStack.EMPTY);
             }
         }
 
         long addedAmount = (long) copperCount * LEGACY_COPPER
                 + (long) ironCount * LEGACY_IRON
                 + (long) goldCount * LEGACY_GOLD;
-        long newBalance = getBalance(world, player.getUuid());
+        long newBalance = getBalance(world, player.getUUID());
         if (addedAmount > 0L) {
-            newBalance = addBalance(world, player.getUuid(), addedAmount);
-            player.playerScreenHandler.sendContentUpdates();
+            newBalance = addBalance(world, player.getUUID(), addedAmount);
+            player.inventoryMenu.broadcastChanges();
         }
         return new LegacyCoinConversion(copperCount, ironCount, goldCount, addedAmount, newBalance);
     }
 
-    public static Text formatLegacyCoinBreakdown(int copperCount, int ironCount, int goldCount) {
-        MutableText text = Text.empty();
+    public static Component formatLegacyCoinBreakdown(int copperCount, int ironCount, int goldCount) {
+        MutableComponent text = Component.empty();
         boolean appended = false;
-        appended = appendLegacyCount(text, appended, goldCount, "item.village-quest.crown", Formatting.GOLD);
-        appended = appendLegacyCount(text, appended, ironCount, "item.village-quest.silvermark", Formatting.GRAY);
-        appended = appendLegacyCount(text, appended, copperCount, "item.village-quest.legacy_copper_penny", Formatting.GRAY);
+        appended = appendLegacyCount(text, appended, goldCount, "item.village-quest.crown", ChatFormatting.GOLD);
+        appended = appendLegacyCount(text, appended, ironCount, "item.village-quest.silvermark", ChatFormatting.GRAY);
+        appended = appendLegacyCount(text, appended, copperCount, "item.village-quest.legacy_copper_penny", ChatFormatting.GRAY);
         if (!appended) {
-            return Text.empty()
-                    .append(Text.literal("0").formatted(Formatting.GRAY))
-                    .append(Text.literal(" ").formatted(Formatting.DARK_GRAY))
-                    .append(Text.translatable("item.village-quest.legacy_copper_penny").formatted(Formatting.GRAY));
+            return Component.empty()
+                    .append(Component.literal("0").withStyle(ChatFormatting.GRAY))
+                    .append(Component.literal(" ").withStyle(ChatFormatting.DARK_GRAY))
+                    .append(Component.translatable("item.village-quest.legacy_copper_penny").withStyle(ChatFormatting.GRAY));
         }
         return text;
     }
 
-    private static boolean appendLegacyCount(MutableText text,
+    private static boolean appendLegacyCount(MutableComponent text,
                                              boolean appended,
                                              int count,
                                              String translationKey,
-                                             Formatting color) {
+                                             ChatFormatting color) {
         if (count <= 0) {
             return appended;
         }
         if (appended) {
-            text.append(Text.literal(", ").formatted(Formatting.DARK_GRAY));
+            text.append(Component.literal(", ").withStyle(ChatFormatting.DARK_GRAY));
         }
-        text.append(Text.literal(Integer.toString(count)).formatted(color));
-        text.append(Text.literal(" ").formatted(Formatting.DARK_GRAY));
-        text.append(Text.translatable(translationKey).formatted(color));
+        text.append(Component.literal(Integer.toString(count)).withStyle(color));
+        text.append(Component.literal(" ").withStyle(ChatFormatting.DARK_GRAY));
+        text.append(Component.translatable(translationKey).withStyle(color));
         return true;
     }
 

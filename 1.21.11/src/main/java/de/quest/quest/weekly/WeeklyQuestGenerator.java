@@ -7,10 +7,9 @@ import de.quest.content.weekly.NightWatchWeeklyQuest;
 import de.quest.content.weekly.RoadWardenWeeklyQuest;
 import de.quest.content.weekly.SmithWeekWeeklyQuest;
 import de.quest.content.weekly.StallAndPastureWeeklyQuest;
-import net.minecraft.server.world.ServerWorld;
-
 import java.util.ArrayList;
 import java.util.List;
+import net.minecraft.server.level.ServerLevel;
 
 public final class WeeklyQuestGenerator {
     private static final List<WeeklyQuestDefinition> DEFINITIONS = List.of(
@@ -28,17 +27,17 @@ public final class WeeklyQuestGenerator {
 
     private WeeklyQuestGenerator() {}
 
-    public static WeeklyQuestDefinition pick(ServerWorld world) {
+    public static WeeklyQuestDefinition pick(ServerLevel world) {
         return pick(world, null, null);
     }
 
-    public static WeeklyQuestDefinition pick(ServerWorld world,
+    public static WeeklyQuestDefinition pick(ServerLevel world,
                                              WeeklyQuestService.WeeklyQuestType excludedType,
                                              WeeklyQuestService.WeeklyQuestCategory excludedCategory) {
         return pick(world, excludedType, excludedCategory, true);
     }
 
-    public static WeeklyQuestDefinition pick(ServerWorld world,
+    public static WeeklyQuestDefinition pick(ServerLevel world,
                                              WeeklyQuestService.WeeklyQuestType excludedType,
                                              WeeklyQuestService.WeeklyQuestCategory excludedCategory,
                                              boolean allowMarketWeek) {
@@ -51,7 +50,7 @@ public final class WeeklyQuestGenerator {
         if (!allowMarketWeek) {
             candidates = withoutType(candidates, WeeklyQuestService.WeeklyQuestType.MARKET_WEEK);
         }
-        return candidates.get(world.random.nextInt(candidates.size()));
+        return candidates.get(world.getRandom().nextInt(candidates.size()));
     }
 
     public static WeeklyQuestDefinition definition(WeeklyQuestService.WeeklyQuestType type) {

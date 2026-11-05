@@ -3,7 +3,7 @@ package de.quest.client.ui;
 import de.quest.VillageQuest;
 import de.quest.client.compat.ClientModCompat;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Minecraft;
 
 public final class InventoryJournalCompat {
     private static final String STATUS_EFFECT_BARS_MOD_ID = "status-effect-bars";
@@ -13,26 +13,26 @@ public final class InventoryJournalCompat {
 
     private InventoryJournalCompat() {}
 
-    public static boolean isInventoryJournalButtonEnabled(MinecraftClient client) {
+    public static boolean isInventoryJournalButtonEnabled(Minecraft client) {
         return client != null;
     }
 
-    public static boolean shouldRenderInventoryJournalOverlay(MinecraftClient client) {
+    public static boolean shouldRenderInventoryJournalOverlay(Minecraft client) {
         return isInventoryJournalButtonEnabled(client) && !overlayDisabledForSession;
     }
 
-    public static boolean shouldUseWidgetFallbackButton(MinecraftClient client) {
+    public static boolean shouldUseWidgetFallbackButton(Minecraft client) {
         return isInventoryJournalButtonEnabled(client) && overlayDisabledForSession;
     }
 
-    public static boolean shouldUseTopRightFallback(MinecraftClient client) {
-        if (!shouldRenderInventoryJournalOverlay(client) || client == null || client.player == null) {
+    public static boolean shouldUseTopRightFallback(Minecraft client) {
+        if (!shouldRenderInventoryJournalOverlay(client) || client.player == null) {
             return false;
         }
         if (!isStatusEffectBarsLoaded()) {
             return false;
         }
-        return !client.player.getStatusEffects().isEmpty();
+        return !client.player.getActiveEffects().isEmpty();
     }
 
     public static void disableInventoryJournalOverlayForSession(String phase, Throwable throwable) {

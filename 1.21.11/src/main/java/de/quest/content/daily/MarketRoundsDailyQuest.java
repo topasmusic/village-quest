@@ -5,17 +5,16 @@ import de.quest.quest.daily.DailyQuestCompletion;
 import de.quest.quest.daily.DailyQuestDefinition;
 import de.quest.quest.daily.DailyQuestKeys;
 import de.quest.quest.daily.DailyQuestService;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.passive.VillagerEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.village.VillagerProfession;
-
 import java.util.UUID;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.Holder;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.entity.npc.villager.VillagerProfession;
+import net.minecraft.world.item.ItemStack;
 
 public final class MarketRoundsDailyQuest implements DailyQuestDefinition {
     private static final int VILLAGER_TARGET = 10;
@@ -27,66 +26,66 @@ public final class MarketRoundsDailyQuest implements DailyQuestDefinition {
     }
 
     @Override
-    public Text title() {
-        return Text.translatable("quest.village-quest.daily.market_rounds.title");
+    public Component title() {
+        return Component.translatable("quest.village-quest.daily.market_rounds.title");
     }
 
     @Override
-    public Text offerParagraph1() {
-        return Text.translatable("quest.village-quest.daily.market_rounds.offer.1").formatted(Formatting.GRAY);
+    public Component offerParagraph1() {
+        return Component.translatable("quest.village-quest.daily.market_rounds.offer.1").withStyle(ChatFormatting.GRAY);
     }
 
     @Override
-    public Text offerParagraph2() {
-        return Text.translatable("quest.village-quest.daily.market_rounds.offer.2").formatted(Formatting.GRAY);
+    public Component offerParagraph2() {
+        return Component.translatable("quest.village-quest.daily.market_rounds.offer.2").withStyle(ChatFormatting.GRAY);
     }
 
     @Override
-    public Text progressLine(ServerWorld world, UUID playerId) {
-        return Text.translatable(
+    public Component progressLine(ServerLevel world, UUID playerId) {
+        return Component.translatable(
                 "quest.village-quest.daily.market_rounds.progress",
                 DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.MARKET_ROUNDS_VISITS),
                 VILLAGER_TARGET,
                 DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.MARKET_ROUNDS_TRADES),
                 TRADE_TARGET
-        ).formatted(Formatting.GRAY);
+        ).withStyle(ChatFormatting.GRAY);
     }
 
     @Override
-    public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
-        UUID playerId = player.getUuid();
+    public boolean isComplete(ServerLevel world, ServerPlayer player) {
+        UUID playerId = player.getUUID();
         return DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.MARKET_ROUNDS_VISITS) >= VILLAGER_TARGET
                 && DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.MARKET_ROUNDS_TRADES) >= TRADE_TARGET;
     }
 
     @Override
-    public DailyQuestCompletion buildCompletion(ServerWorld world) {
+    public DailyQuestCompletion buildCompletion(ServerLevel world) {
         return DailyQuestService.buildCompletion(
                 type(),
                 title(),
-                Text.translatable("quest.village-quest.daily.market_rounds.completion.1").formatted(Formatting.GRAY),
-                Text.translatable("quest.village-quest.daily.market_rounds.completion.2").formatted(Formatting.GRAY),
-                Text.translatable("quest.village-quest.daily.market_rounds.completion.3").formatted(Formatting.GRAY),
+                Component.translatable("quest.village-quest.daily.market_rounds.completion.1").withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.daily.market_rounds.completion.2").withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.daily.market_rounds.completion.3").withStyle(ChatFormatting.GRAY),
                 ItemStack.EMPTY,
                 ItemStack.EMPTY
         );
     }
 
     @Override
-    public void onEntityUse(ServerWorld world, ServerPlayerEntity player, Entity entity, ItemStack inHand) {
-        if (!DailyQuestService.isTrackingQuest(world, player.getUuid(), type())) {
+    public void onEntityUse(ServerLevel world, ServerPlayer player, Entity entity, ItemStack inHand) {
+        if (!DailyQuestService.isTrackingQuest(world, player.getUUID(), type())) {
             return;
         }
-        if (!(entity instanceof VillagerEntity villager) || villager.isBaby()) {
+        if (!(entity instanceof Villager villager) || villager.isBaby()) {
             return;
         }
-        RegistryEntry<VillagerProfession> profession = villager.getVillagerData().profession();
-        if (profession.matchesKey(VillagerProfession.NONE) || profession.matchesKey(VillagerProfession.NITWIT)) {
+        Holder<VillagerProfession> profession = villager.getVillagerData().profession();
+        if (profession.is(VillagerProfession.NONE) || profession.is(VillagerProfession.NITWIT)) {
             return;
         }
 
-        UUID playerId = player.getUuid();
-        String visitFlag = DailyQuestKeys.MARKET_ROUNDS_VISITED_PREFIX + entity.getUuidAsString();
+        UUID playerId = player.getUUID();
+        String visitFlag = DailyQuestKeys.MARKET_ROUNDS_VISITED_PREFIX + entity.getStringUUID();
         if (DailyQuestService.hasQuestFlag(world, playerId, visitFlag)) {
             return;
         }
@@ -102,12 +101,12 @@ public final class MarketRoundsDailyQuest implements DailyQuestDefinition {
     }
 
     @Override
-    public void onVillagerTrade(ServerWorld world, ServerPlayerEntity player, ItemStack stack) {
-        if (!DailyQuestService.isTrackingQuest(world, player.getUuid(), type())) {
+    public void onVillagerTrade(ServerLevel world, ServerPlayer player, ItemStack stack) {
+        if (!DailyQuestService.isTrackingQuest(world, player.getUUID(), type())) {
             return;
         }
 
-        UUID playerId = player.getUuid();
+        UUID playerId = player.getUUID();
         int trades = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.MARKET_ROUNDS_TRADES);
         if (trades < TRADE_TARGET) {
             DailyQuestService.setQuestInt(world, playerId, DailyQuestKeys.MARKET_ROUNDS_TRADES, Math.min(TRADE_TARGET, trades + 1));

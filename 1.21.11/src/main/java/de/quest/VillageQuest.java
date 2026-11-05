@@ -10,16 +10,19 @@ import de.quest.config.VillageQuestServerConfig;
 import de.quest.network.QuestNetworking;
 import de.quest.quest.QuestService;
 import de.quest.registry.ModBlocks;
+import de.quest.registry.ModBlockEntities;
+import de.quest.registry.ModCreativeTabs;
 import de.quest.registry.ModEntities;
 import de.quest.registry.ModItems;
+import de.quest.registry.ModRecipeBookCategories;
 import net.fabricmc.api.ModInitializer;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.LoreComponent;
-import net.minecraft.component.type.ProfileComponent;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.ItemLore;
+import net.minecraft.world.item.component.ResolvableProfile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,12 +40,35 @@ public class VillageQuest implements ModInitializer {
     public void onInitialize() {
         LOGGER.info("Initializing {}", MOD_ID);
         VillageQuestServerConfig.bootstrap();
+        ModRecipeBookCategories.register();
         ModBlocks.register();
+        ModBlockEntities.register();
         ModItems.register();
+        ModCreativeTabs.register();
         ModEntities.register();
+        de.quest.shrine.VillageIntroRequestService.initializeAttachment();
+        de.quest.data.PersonalResetService.initializeAttachment();
+        net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.JOIN.register((handler,sender,server) -> {
+            if(de.quest.network.ProgressionProtocol.require(handler.player))
+                de.quest.shrine.VillageIntroRequestService.recoverBeforeActions(handler.player);
+        });
+        net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.DISCONNECT.register((handler,server) ->
+                de.quest.network.ProgressionProtocol.disconnected(handler.player.getUUID()));
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents.SERVER_STOPPED.register(server -> de.quest.network.ProgressionProtocol.stopped());
         QuestService.registerEvents();
+        de.quest.quest.special.WayfarersTokenService.register();
+        de.quest.quest.WorldNewsService.register();
         QuestNetworking.register();
+        de.quest.kingdom.KingdomNpcService.register();
+        de.quest.kingdom.NpcSpeechService.register();
+        de.quest.ambient.AmbientAdventurerService.register();
+        de.quest.ambient.EncounterQuestService.register();
+        de.quest.kingdom.KingdomBuildingService.register();
+        de.quest.kingdom.KingdomMarketSourceService.register();
+        de.quest.kingdom.KingdomMarketTransferService.register();
+        de.quest.kingdom.KingdomMarketUiService.register();
         QuestCommands.register();
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(de.quest.reward.VanillaRewardService::onTick);
         AdminCommands.register();
     }
 
@@ -65,23 +91,21 @@ public class VillageQuest implements ModInitializer {
         PropertyMap properties = new PropertyMap(backing);
         UUID profileId = UUID.nameUUIDFromBytes((MOD_ID + ":" + profileName).getBytes(StandardCharsets.UTF_8));
         GameProfile profile = new GameProfile(profileId, packetSafeProfileName(profileName, profileId), properties);
-        stack.set(DataComponentTypes.PROFILE, ProfileComponent.ofStatic(profile));
-        stack.set(DataComponentTypes.CUSTOM_NAME, Text.translatable(titleKey).formatted(Formatting.GREEN));
+        stack.set(DataComponents.PROFILE, ResolvableProfile.createResolved(profile));
+        stack.set(DataComponents.CUSTOM_NAME, Component.translatable(titleKey).withStyle(ChatFormatting.GREEN));
         if (loreKey != null && !loreKey.isBlank()) {
-            stack.set(DataComponentTypes.LORE, new LoreComponent(List.of(
-                    Text.translatable(loreKey).formatted(Formatting.DARK_GRAY)
+            stack.set(DataComponents.LORE, new ItemLore(List.of(
+                    Component.translatable(loreKey).withStyle(ChatFormatting.DARK_GRAY)
             )));
         }
         return stack;
     }
 
     private static String packetSafeProfileName(String profileName, UUID profileId) {
-        if (profileName == null || profileName.isBlank()) {
-            return "vq_" + profileId.toString().replace("-", "").substring(0, 13);
-        }
-        if (profileName.length() <= 16) {
+        if (profileName != null && !profileName.isBlank() && profileName.length() <= 16) {
             return profileName;
         }
-        return "vq_" + profileId.toString().replace("-", "").substring(0, 13);
+        String compactId = profileId.toString().replace("-", "");
+        return "vq_" + compactId.substring(0, 13);
     }
 }

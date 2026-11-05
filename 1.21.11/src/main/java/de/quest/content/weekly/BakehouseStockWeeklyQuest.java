@@ -7,12 +7,12 @@ import de.quest.quest.weekly.WeeklyQuestKeys;
 import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.reputation.ReputationService;
 import de.quest.util.Texts;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 
 import java.util.List;
 import java.util.Map;
@@ -30,42 +30,42 @@ public final class BakehouseStockWeeklyQuest implements WeeklyQuestDefinition {
     }
 
     @Override
-    public Text title() {
-        return Text.translatable("quest.village-quest.weekly.bakehouse.title");
+    public Component title() {
+        return Component.translatable("quest.village-quest.weekly.bakehouse.title");
     }
 
     @Override
-    public Text offerParagraph1() {
-        return Text.translatable("quest.village-quest.weekly.bakehouse.offer.1").formatted(Formatting.GRAY);
+    public Component offerParagraph1() {
+        return Component.translatable("quest.village-quest.weekly.bakehouse.offer.1").withStyle(ChatFormatting.GRAY);
     }
 
     @Override
-    public Text offerParagraph2() {
-        return Text.translatable("quest.village-quest.weekly.bakehouse.offer.2").formatted(Formatting.GRAY);
+    public Component offerParagraph2() {
+        return Component.translatable("quest.village-quest.weekly.bakehouse.offer.2").withStyle(ChatFormatting.GRAY);
     }
 
     @Override
-    public List<Text> progressLines(ServerWorld world, UUID playerId) {
-        Text line1 = Text.translatable(
+    public List<Component> progressLines(ServerLevel world, UUID playerId) {
+        Component line1 = Component.translatable(
                 "quest.village-quest.weekly.bakehouse.progress.1",
                 WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.BAKEHOUSE_BREAD),
                 WeeklyQuestService.bakehouseBreadTarget(),
                 WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.BAKEHOUSE_PIE),
                 WeeklyQuestService.bakehousePieTarget()
-        ).formatted(Formatting.GRAY);
-        Text line2 = Text.translatable(
+        ).withStyle(ChatFormatting.GRAY);
+        Component line2 = Component.translatable(
                 "quest.village-quest.weekly.bakehouse.progress.2",
                 WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.BAKEHOUSE_POTATO),
                 WeeklyQuestService.bakehousePotatoTarget()
-        ).formatted(Formatting.GRAY);
-        ServerPlayerEntity player = world == null ? null : world.getServer().getPlayerManager().getPlayer(playerId);
-        Text blocked = player == null ? null : claimBlockedMessage(world, player);
+        ).withStyle(ChatFormatting.GRAY);
+        ServerPlayer player = world == null ? null : world.getServer().getPlayerList().getPlayer(playerId);
+        Component blocked = player == null ? null : claimBlockedMessage(world, player, true);
         return blocked == null ? List.of(line1, line2) : List.of(line1, line2, blocked);
     }
 
     @Override
-    public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
-        UUID playerId = player.getUuid();
+    public boolean isComplete(ServerLevel world, ServerPlayer player) {
+        UUID playerId = player.getUUID();
         return WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.BAKEHOUSE_BREAD) >= WeeklyQuestService.bakehouseBreadTarget()
                 && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.BAKEHOUSE_PIE) >= WeeklyQuestService.bakehousePieTarget()
                 && WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.BAKEHOUSE_POTATO) >= WeeklyQuestService.bakehousePotatoTarget()
@@ -78,9 +78,9 @@ public final class BakehouseStockWeeklyQuest implements WeeklyQuestDefinition {
     public WeeklyQuestCompletion buildCompletion() {
         return WeeklyQuestService.buildCompletion(
                 title(),
-                Text.translatable("quest.village-quest.weekly.bakehouse.completion.1").formatted(Formatting.GRAY),
-                Text.translatable("quest.village-quest.weekly.bakehouse.completion.2").formatted(Formatting.GRAY),
-                Text.translatable("quest.village-quest.weekly.bakehouse.completion.3").formatted(Formatting.GRAY),
+                Component.translatable("quest.village-quest.weekly.bakehouse.completion.1").withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.weekly.bakehouse.completion.2").withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.weekly.bakehouse.completion.3").withStyle(ChatFormatting.GRAY),
                 WeeklyQuestService.reward(2, 6),
                 WeeklyQuestService.magicShardReward(1),
                 ItemStack.EMPTY,
@@ -91,25 +91,34 @@ public final class BakehouseStockWeeklyQuest implements WeeklyQuestDefinition {
     }
 
     @Override
-    public boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) {
+    public boolean consumeCompletionRequirements(ServerLevel world, ServerPlayer player) {
         if (WeeklyQuestService.countCompletionItem(world, player, Items.BREAD) < WeeklyQuestService.bakehouseBreadTarget()
                 || WeeklyQuestService.countCompletionItem(world, player, Items.PUMPKIN_PIE) < WeeklyQuestService.bakehousePieTarget()
                 || WeeklyQuestService.countCompletionItem(world, player, Items.BAKED_POTATO) < WeeklyQuestService.bakehousePotatoTarget()) {
             return false;
         }
-        return WeeklyQuestService.consumeCompletionItemRequirements(world, player, Map.of(
-                Items.BREAD, WeeklyQuestService.bakehouseBreadTarget(),
-                Items.PUMPKIN_PIE, WeeklyQuestService.bakehousePieTarget(),
-                Items.BAKED_POTATO, WeeklyQuestService.bakehousePotatoTarget()
-        ));
+        return WeeklyQuestService.consumeCompletionItemRequirements(
+                world,
+                player,
+                Map.of(
+                        Items.BREAD, WeeklyQuestService.bakehouseBreadTarget(),
+                        Items.PUMPKIN_PIE, WeeklyQuestService.bakehousePieTarget(),
+                        Items.BAKED_POTATO, WeeklyQuestService.bakehousePotatoTarget()
+                )
+        );
     }
 
     @Override
-    public Text claimBlockedMessage(ServerWorld world, ServerPlayerEntity player) {
+    public Component claimBlockedMessage(ServerLevel world, ServerPlayer player) {
+        return claimBlockedMessage(world, player, false);
+    }
+
+    @Override
+    public Component claimBlockedMessage(ServerLevel world, ServerPlayer player, boolean allRequirements) {
         if (player == null || world == null) {
             return null;
         }
-        UUID playerId = player.getUuid();
+        UUID playerId = player.getUUID();
         int breadTarget = WeeklyQuestService.bakehouseBreadTarget();
         int pieTarget = WeeklyQuestService.bakehousePieTarget();
         int potatoTarget = WeeklyQuestService.bakehousePotatoTarget();
@@ -121,33 +130,33 @@ public final class BakehouseStockWeeklyQuest implements WeeklyQuestDefinition {
                 && WeeklyQuestService.countCompletionItem(world, player, Items.BAKED_POTATO) >= potatoTarget)) {
             return null;
         }
-        return Texts.turnInMissing(
-                Items.BREAD.getDefaultStack().toHoverableText(),
+        return Texts.turnInMissing(allRequirements,
+                Items.BREAD.getDefaultInstance().getDisplayName(),
                 WeeklyQuestService.countCompletionItem(world, player, Items.BREAD),
                 breadTarget,
-                Items.PUMPKIN_PIE.getDefaultStack().toHoverableText(),
+                Items.PUMPKIN_PIE.getDefaultInstance().getDisplayName(),
                 WeeklyQuestService.countCompletionItem(world, player, Items.PUMPKIN_PIE),
                 pieTarget,
-                Items.BAKED_POTATO.getDefaultStack().toHoverableText(),
+                Items.BAKED_POTATO.getDefaultInstance().getDisplayName(),
                 WeeklyQuestService.countCompletionItem(world, player, Items.BAKED_POTATO),
                 potatoTarget
         );
     }
 
     @Override
-    public void onAccepted(ServerWorld world, ServerPlayerEntity player) {
-        UUID playerId = player.getUuid();
+    public void onAccepted(ServerLevel world, ServerPlayer player) {
+        UUID playerId = player.getUUID();
         WeeklyQuestService.setQuestInt(world, playerId, WeeklyQuestKeys.BAKEHOUSE_LAST_BREAD, WeeklyQuestService.getCraftedStat(player, Items.BREAD) + 1);
         WeeklyQuestService.setQuestInt(world, playerId, WeeklyQuestKeys.BAKEHOUSE_LAST_PIE, WeeklyQuestService.getCraftedStat(player, Items.PUMPKIN_PIE) + 1);
     }
 
     @Override
-    public void onServerTick(ServerWorld world, ServerPlayerEntity player) {
-        if (!WeeklyQuestService.isAcceptedThisWeek(world, player.getUuid()) || WeeklyQuestService.hasCompletedThisWeek(world, player.getUuid())) {
+    public void onServerTick(ServerLevel world, ServerPlayer player) {
+        if (!WeeklyQuestService.isAcceptedThisWeek(world, player.getUUID()) || WeeklyQuestService.hasCompletedThisWeek(world, player.getUUID())) {
             return;
         }
 
-        UUID playerId = player.getUuid();
+        UUID playerId = player.getUUID();
         int craftedBread = WeeklyQuestService.getCraftedStat(player, Items.BREAD);
         int storedBread = WeeklyQuestService.getQuestInt(world, playerId, WeeklyQuestKeys.BAKEHOUSE_LAST_BREAD);
         if (storedBread == 0) {
@@ -176,15 +185,15 @@ public final class BakehouseStockWeeklyQuest implements WeeklyQuestDefinition {
     }
 
     @Override
-    public void onFurnaceOutput(ServerWorld world, ServerPlayerEntity player, ItemStack stack) {
-        if (!WeeklyQuestService.isAcceptedThisWeek(world, player.getUuid()) || WeeklyQuestService.hasCompletedThisWeek(world, player.getUuid())) {
+    public void onFurnaceOutput(ServerLevel world, ServerPlayer player, ItemStack stack) {
+        if (!WeeklyQuestService.isAcceptedThisWeek(world, player.getUUID()) || WeeklyQuestService.hasCompletedThisWeek(world, player.getUUID())) {
             return;
         }
-        if (!stack.isOf(Items.BAKED_POTATO)) {
+        if (!stack.is(Items.BAKED_POTATO)) {
             return;
         }
 
-        WeeklyQuestService.addQuestIntClamped(world, player.getUuid(), WeeklyQuestKeys.BAKEHOUSE_POTATO, stack.getCount(), WeeklyQuestService.bakehousePotatoTarget());
+        WeeklyQuestService.addQuestIntClamped(world, player.getUUID(), WeeklyQuestKeys.BAKEHOUSE_POTATO, stack.getCount(), WeeklyQuestService.bakehousePotatoTarget());
         WeeklyQuestService.completeIfEligible(world, player);
     }
 }

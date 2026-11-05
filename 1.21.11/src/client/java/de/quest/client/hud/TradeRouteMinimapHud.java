@@ -5,6 +5,7 @@ import de.quest.client.config.VillageQuestClientConfig;
 import de.quest.client.screen.TradeRouteMapScreen;
 import de.quest.client.ui.SurfaceMapRenderer;
 import de.quest.client.ui.VillageUiTheme;
+import de.quest.client.ui.KingdomUiAssets;
 import de.quest.network.Payloads;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -13,19 +14,20 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
-import net.minecraft.client.option.KeyBinding;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
+import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import de.quest.client.compat.GuiGraphics;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import org.lwjgl.glfw.GLFW;
 
 /** Compact, non-pausing overview of the player's registered trade network. */
 public final class TradeRouteMinimapHud {
     private static final Identifier HUD_LAYER_ID =
-            Identifier.of(VillageQuest.MOD_ID, "trade_route_minimap");
+            Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "trade_route_minimap");
     private static final int WIDTH = 120;
     private static final int HEIGHT = 94;
     private static final int MAP_X = 5;
@@ -49,16 +51,16 @@ public final class TradeRouteMinimapHud {
 
     private static Payloads.TradeRouteMapPayload data;
     private static boolean enabled;
-    private static KeyBinding toggleKey;
-    private static KeyBinding.Category keyCategory;
+    private static KeyMapping toggleKey;
+    private static KeyMapping.Category keyCategory;
 
     private TradeRouteMinimapHud() {}
 
     public static void register() {
-        toggleKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+        toggleKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
                 "key.village-quest.trade_route_minimap", GLFW.GLFW_KEY_COMMA, keyCategory()));
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            while (toggleKey.wasPressed()) {
+            while (toggleKey.consumeClick()) {
                 if (client.player != null && ClientPlayNetworking.canSend(Payloads.TradeRouteActionPayload.ID)) {
                     ClientPlayNetworking.send(new Payloads.TradeRouteActionPayload(
                             Payloads.TradeRouteActionPayload.ACTION_MINIMAP_TOGGLE, -1));
@@ -67,13 +69,17 @@ public final class TradeRouteMinimapHud {
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) ->
                 client.execute(TradeRouteMinimapHud::disable));
-        HudRenderCallback.EVENT.register((context, tickCounter) -> render(context));
+        HudElementRegistry.attachElementAfter(
+                VanillaHudElements.BOSS_BAR,
+                HUD_LAYER_ID,
+                (extractor, tickCounter) -> render(new GuiGraphics(extractor))
+        );
     }
 
-    public static KeyBinding.Category keyCategory() {
+    public static KeyMapping.Category keyCategory() {
         if (keyCategory == null) {
-            keyCategory = KeyBinding.Category.create(
-                    Identifier.of(VillageQuest.MOD_ID, "trade_routes"));
+            keyCategory = KeyMapping.Category.register(
+                    Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "trade_routes"));
         }
         return keyCategory;
     }
@@ -97,18 +103,18 @@ public final class TradeRouteMinimapHud {
         return enabled;
     }
 
-    private static void render(DrawContext graphics) {
-        MinecraftClient client = MinecraftClient.getInstance();
+    private static void render(GuiGraphics graphics) {
+        Minecraft client = Minecraft.getInstance();
         Payloads.TradeRouteMapPayload current = data;
-        if (!enabled || current == null || client.player == null || client.options.hudHidden
-                || client.currentScreen instanceof TradeRouteMapScreen) {
+        if (!enabled || current == null || client.player == null || client.options.hideGui
+                || client.screen instanceof TradeRouteMapScreen) {
             return;
         }
 
         VillageQuestClientConfig config = VillageQuestClientConfig.get();
         float scale = config.minimapScale();
-        int logicalWidth = Math.max(1, (int) Math.floor(graphics.getScaledWindowWidth() / scale));
-        int logicalHeight = Math.max(1, (int) Math.floor(graphics.getScaledWindowHeight() / scale));
+        int logicalWidth = Math.max(1, (int) Math.floor(graphics.guiWidth() / scale));
+        int logicalHeight = Math.max(1, (int) Math.floor(graphics.guiHeight() / scale));
         int margin = Math.max(4, Math.round(8.0f / scale));
         int left = switch (config.minimapPosition()) {
             case TOP_LEFT, BOTTOM_LEFT -> margin;
@@ -118,30 +124,26 @@ public final class TradeRouteMinimapHud {
             case TOP_LEFT, TOP_RIGHT -> margin;
             case BOTTOM_LEFT, BOTTOM_RIGHT -> logicalHeight - HEIGHT - margin;
         };
-        var matrices = graphics.getMatrices();
+        var matrices = graphics.pose();
         matrices.pushMatrix();
         matrices.scale(scale, scale);
         renderPanel(graphics, client, current, config, left, top);
         matrices.popMatrix();
     }
 
-    private static void renderPanel(DrawContext graphics,
-                                    MinecraftClient client,
+    private static void renderPanel(GuiGraphics graphics,
+                                    Minecraft client,
                                     Payloads.TradeRouteMapPayload current,
                                     VillageQuestClientConfig config,
                                     int left,
                                     int top) {
-        TextRenderer font = client.textRenderer;
-        graphics.fill(left + 2, top + 2, left + WIDTH + 4, top + HEIGHT + 4, alpha(0x70000000, config.minimapOpacity()));
-        graphics.fill(left - 2, top - 2, left + WIDTH + 2, top + HEIGHT + 2, alpha(0xEE21140D, config.minimapOpacity()));
-        graphics.fill(left - 1, top - 1, left + WIDTH + 1, top + HEIGHT + 1, alpha(0xFFB5792E, config.minimapOpacity()));
-        graphics.fill(left, top, left + WIDTH, top + HEIGHT, alpha(0xFFF0D99F, config.minimapOpacity()));
-        VillageUiTheme.blitScaled(graphics, VillageUiTheme.control("button_normal"),
-                left + 3, top + 2, WIDTH - 6, 15, 120, 32);
-        String title = Text.translatable("hud.village-quest.trade_route_minimap").getString();
+        Font font = client.font;
+        VillageUiTheme.drawHudPaper(graphics,left-2,top-2,WIDTH+4,HEIGHT+4,config.minimapOpacity());
+        graphics.fill(left+2,top+2,left+WIDTH-2,top+16,alpha(VillageUiTheme.TEAL,config.minimapOpacity()));
         float titleScale = 0.75f;
+        String title = VillageUiTheme.ellipsize(font,Component.translatable("hud.village-quest.trade_route_minimap").getString(),(int)((WIDTH-12)/titleScale));
         VillageUiTheme.drawStringScaled(graphics, font, title,
-                left + (WIDTH - font.getWidth(title) * titleScale) / 2.0f,
+                left + (WIDTH - font.width(title) * titleScale) / 2.0f,
                 top + 5, VillageUiTheme.LIGHT_TEXT, titleScale);
         graphics.fill(left + MAP_X - 1, top + MAP_Y - 1,
                 left + MAP_X + MAP_WIDTH + 1, top + MAP_Y + MAP_HEIGHT + 1, 0xFF684223);
@@ -209,30 +211,29 @@ public final class TradeRouteMinimapHud {
         if (config.showVillageMarkers()) {
             for (Payloads.TradeRouteNodeData node : current.nodes()) {
                 Point point = pointFor(node.worldX(), node.worldZ(), bounds, left, top, true);
-                graphics.fill(point.x() - 2, point.y() - 2, point.x() + 3, point.y() + 3, FRAME);
-                graphics.fill(point.x() - 1, point.y() - 1, point.x() + 2, point.y() + 2,
-                        node.playerYard() ? 0xFF9A6620 : node.home() ? HOME : VILLAGE);
+                KingdomUiAssets.detailIcon(graphics,node.home()?KingdomUiAssets.DetailIcon.THRONE:KingdomUiAssets.DetailIcon.FOUNDING,
+                        point.x()-6,point.y()-6,12);
             }
         }
 
         drawPlayerMarker(graphics, client, config, bounds, left, top);
         graphics.disableScissor();
 
-        String footer = Text.translatable("hud.village-quest.trade_route_minimap.footer",
+        String footer = Component.translatable("hud.village-quest.trade_route_minimap.footer",
                 routes.size(), nearby, client.player.getBlockX(), client.player.getBlockZ()).getString();
-        if (font.getWidth(footer) > WIDTH - 10) {
+        if (font.width(footer) > WIDTH - 10) {
             footer = positionText(client);
         }
         int footerX = left + 5;
         if (hasEvent) {
-            graphics.drawText(font, "!", footerX, top + HEIGHT - 11, DANGEROUS, false);
-            footerX += font.getWidth("!") + 3;
+            graphics.drawString(font, "!", footerX, top + HEIGHT - 11, DANGEROUS, false);
+            footerX += font.width("!") + 3;
         }
-        graphics.drawText(font, footer, footerX, top + HEIGHT - 11, INK, false);
+        graphics.drawString(font, footer, footerX, top + HEIGHT - 11, INK, false);
     }
 
-    private static void drawPlayerMarker(DrawContext graphics,
-                                         MinecraftClient client,
+    private static void drawPlayerMarker(GuiGraphics graphics,
+                                         Minecraft client,
                                          VillageQuestClientConfig config,
                                          Bounds bounds,
                                          int left,
@@ -244,12 +245,12 @@ public final class TradeRouteMinimapHud {
         VillageUiTheme.drawMarker(graphics, "player", player.x(), player.y(), 11);
     }
 
-    private static void drawPositionFooter(DrawContext graphics, TextRenderer font, MinecraftClient client,
+    private static void drawPositionFooter(GuiGraphics graphics, Font font, Minecraft client,
                                            int left, int top) {
-        graphics.drawText(font, positionText(client), left + 5, top + HEIGHT - 11, INK, false);
+        graphics.drawString(font, positionText(client), left + 5, top + HEIGHT - 11, INK, false);
     }
 
-    private static String positionText(MinecraftClient client) {
+    private static String positionText(Minecraft client) {
         return "X " + client.player.getBlockX() + "  Z " + client.player.getBlockZ();
     }
 
@@ -259,7 +260,7 @@ public final class TradeRouteMinimapHud {
         return adjusted << 24 | color & 0x00FFFFFF;
     }
 
-    private static Bounds localBounds(MinecraftClient client) {
+    private static Bounds localBounds(Minecraft client) {
         int radius = 192;
         int centerX = Math.floorDiv(client.player.getBlockX(), 8) * 8;
         int centerZ = Math.floorDiv(client.player.getBlockZ(), 8) * 8;
@@ -319,7 +320,7 @@ public final class TradeRouteMinimapHud {
         return new Point(x, y);
     }
 
-    private static void drawLine(DrawContext graphics, int x0, int y0, int x1, int y1, int color) {
+    private static void drawLine(GuiGraphics graphics, int x0, int y0, int x1, int y1, int color) {
         int dx = Math.abs(x1 - x0);
         int sx = x0 < x1 ? 1 : -1;
         int dy = -Math.abs(y1 - y0);
@@ -342,7 +343,7 @@ public final class TradeRouteMinimapHud {
         }
     }
 
-    private static void drawDashedLine(DrawContext graphics, int x0, int y0, int x1, int y1,
+    private static void drawDashedLine(GuiGraphics graphics, int x0, int y0, int x1, int y1,
                                        int color, int dashLength, int gapLength) {
         double length = Math.hypot(x1 - x0, y1 - y0);
         if (length <= 0.0) {

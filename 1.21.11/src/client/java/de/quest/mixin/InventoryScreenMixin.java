@@ -4,16 +4,18 @@ import de.quest.client.ui.InventoryJournalButtonLayout;
 import de.quest.client.ui.InventoryJournalCompat;
 import de.quest.client.ui.InventoryJournalTutorialState;
 import de.quest.client.ui.TutorialHintRenderer;
+import de.quest.client.ui.VillageUiTheme;
+import de.quest.client.ui.VillageTooltip;
+import net.minecraft.client.Minecraft;
+import de.quest.client.compat.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
+import net.minecraft.util.Mth;
 import de.quest.VillageQuest;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.screen.ingame.InventoryScreen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.text.Text;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.MathHelper;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -24,7 +26,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class InventoryScreenMixin extends Screen {
     @Unique
     private static final Identifier VILLAGE_QUEST$JOURNAL_BUTTON_TEXTURE =
-            Identifier.of(VillageQuest.MOD_ID, "textures/gui/journal_inventory_button.png");
+            Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "textures/gui/journal_inventory_button.png");
     @Unique
     private static final int VILLAGE_QUEST$JOURNAL_ICON_SIZE = 14;
     @Unique
@@ -40,15 +42,20 @@ public abstract class InventoryScreenMixin extends Screen {
     @Unique
     private float villageQuest$journalRevealProgress = 0.0f;
     @Unique
-    private ButtonWidget villageQuest$journalFallbackButton;
+    private Button villageQuest$journalFallbackButton;
 
-    protected InventoryScreenMixin(Text title) {
+    protected InventoryScreenMixin(Component title) {
         super(title);
     }
 
     @Unique
     private InventoryJournalButtonLayout.Layout villageQuest$journalLayout() {
         return InventoryJournalButtonLayout.resolve((HandledScreenAccessor) (Object) this, villageQuest$useTopRightFallback());
+    }
+
+    @Unique
+    private int villageQuest$inventoryLeft() {
+        return ((HandledScreenAccessor) (Object) this).villageQuest$getX();
     }
 
     @Unique
@@ -64,41 +71,41 @@ public abstract class InventoryScreenMixin extends Screen {
 
     @Unique
     private boolean villageQuest$useTopRightFallback() {
-        return InventoryJournalCompat.shouldUseTopRightFallback(MinecraftClient.getInstance());
+        return InventoryJournalCompat.shouldUseTopRightFallback(Minecraft.getInstance());
     }
 
     @Unique
     private boolean villageQuest$isJournalButtonEnabled() {
-        return InventoryJournalCompat.isInventoryJournalButtonEnabled(MinecraftClient.getInstance());
+        return InventoryJournalCompat.isInventoryJournalButtonEnabled(Minecraft.getInstance());
     }
 
     @Unique
     private boolean villageQuest$shouldRenderJournalOverlay() {
-        return InventoryJournalCompat.shouldRenderInventoryJournalOverlay(MinecraftClient.getInstance());
+        return InventoryJournalCompat.shouldRenderInventoryJournalOverlay(Minecraft.getInstance());
     }
 
     @Unique
     private boolean villageQuest$shouldUseWidgetFallbackButton() {
-        return InventoryJournalCompat.shouldUseWidgetFallbackButton(MinecraftClient.getInstance());
+        return InventoryJournalCompat.shouldUseWidgetFallbackButton(Minecraft.getInstance());
     }
 
     @Unique
     private boolean villageQuest$shouldShowJournalTutorial() {
-        MinecraftClient client = MinecraftClient.getInstance();
+        Minecraft client = Minecraft.getInstance();
         return client != null
-                && villageQuest$isJournalButtonEnabled()
+                && (villageQuest$shouldRenderJournalOverlay() || villageQuest$shouldUseWidgetFallbackButton())
                 && client.player != null
                 && InventoryJournalTutorialState.shouldShowInventoryHint();
     }
 
     @Unique
     private void villageQuest$sendJournalCommand() {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.player == null || client.player.networkHandler == null) {
+        Minecraft client = Minecraft.getInstance();
+        if (client == null || client.player == null || client.player.connection == null) {
             return;
         }
         InventoryJournalTutorialState.markInventoryHintSeen();
-        client.player.networkHandler.sendChatCommand("vq journal open");
+        client.player.connection.sendCommand("vq journal open");
     }
 
     @Unique
@@ -112,18 +119,21 @@ public abstract class InventoryScreenMixin extends Screen {
         if (!visible) {
             return;
         }
-        int x = ((HandledScreenAccessor) (Object) this).villageQuest$getX() + VILLAGE_QUEST$FALLBACK_BUTTON_X_OFFSET;
-        int y = ((HandledScreenAccessor) (Object) this).villageQuest$getY() + VILLAGE_QUEST$FALLBACK_BUTTON_Y_OFFSET;
+        int x = villageQuest$inventoryLeft() + VILLAGE_QUEST$FALLBACK_BUTTON_X_OFFSET;
+        int y = villageQuest$inventoryTop() + VILLAGE_QUEST$FALLBACK_BUTTON_Y_OFFSET;
         this.villageQuest$journalFallbackButton.setPosition(x, y);
     }
 
     @Inject(method = "init", at = @At("TAIL"))
     private void villageQuest$initFallbackJournalButton(CallbackInfo ci) {
         if (this.villageQuest$journalFallbackButton == null) {
-            this.villageQuest$journalFallbackButton = ButtonWidget.builder(Text.literal("J"), button -> villageQuest$sendJournalCommand())
-                    .dimensions(0, 0, VILLAGE_QUEST$FALLBACK_BUTTON_WIDTH, VILLAGE_QUEST$FALLBACK_BUTTON_HEIGHT)
+            this.villageQuest$journalFallbackButton = Button.builder(
+                            Component.translatable("screen.village-quest.inventory.journal_button"),
+                            button -> villageQuest$sendJournalCommand()
+                    )
+                    .bounds(0, 0, VILLAGE_QUEST$FALLBACK_BUTTON_WIDTH, VILLAGE_QUEST$FALLBACK_BUTTON_HEIGHT)
                     .build();
-            addDrawableChild(this.villageQuest$journalFallbackButton);
+            addRenderableWidget(this.villageQuest$journalFallbackButton);
         }
         villageQuest$updateFallbackButton();
     }
@@ -165,8 +175,8 @@ public abstract class InventoryScreenMixin extends Screen {
         return villageQuest$isHoveringJournalButton(mouseX, mouseY, villageQuest$journalRevealProgress);
     }
 
-    @Inject(method = "drawBackground", at = @At("HEAD"))
-    private void villageQuest$renderJournalButtonBehindInventory(DrawContext context, float delta, int mouseX, int mouseY, CallbackInfo ci) {
+    @Inject(method = "renderBg", at = @At("HEAD"))
+    private void villageQuest$renderJournalButtonBehindInventory(net.minecraft.client.gui.GuiGraphics context, float delta, int mouseX, int mouseY, CallbackInfo ci) {
         villageQuest$updateFallbackButton();
         if (!villageQuest$shouldRenderJournalOverlay()) {
             return;
@@ -175,7 +185,7 @@ public abstract class InventoryScreenMixin extends Screen {
             InventoryJournalButtonLayout.Layout layout = villageQuest$journalLayout();
             boolean hovered = villageQuest$isHoveringJournalButton(mouseX, mouseY);
             boolean tutorialVisible = villageQuest$shouldShowJournalTutorial();
-            villageQuest$journalRevealProgress = MathHelper.lerp(0.35f, villageQuest$journalRevealProgress, hovered || tutorialVisible ? 1.0f : 0.0f);
+            villageQuest$journalRevealProgress = Mth.lerp(0.35f, villageQuest$journalRevealProgress, hovered || tutorialVisible ? 1.0f : 0.0f);
             if (villageQuest$journalRevealProgress < 0.02f) {
                 villageQuest$journalRevealProgress = 0.0f;
             } else if (villageQuest$journalRevealProgress > 0.98f) {
@@ -186,35 +196,8 @@ public abstract class InventoryScreenMixin extends Screen {
             int y = layout.renderY(villageQuest$journalRevealProgress);
             int width = layout.width();
             int height = layout.height();
-            int border = hovered ? 0xFFF0D7A7 : 0xFF6F4A2C;
-            int inner = hovered ? 0xCC3A2617 : 0xCC24170E;
-            int accent = hovered ? 0x99F5E1B7 : 0x664A3420;
-
-            if (layout.mode() == InventoryJournalButtonLayout.LayoutMode.BOOKMARK_TAB_RIGHT) {
-                int overlap = layout.overlap();
-                int contentWidth = layout.contentWidth();
-                int contentX = x + overlap;
-
-                context.fill(x, y, x + width, y + height, border);
-                context.fill(x + 1, y + 1, x + width - 1, y + height - 1, inner);
-                context.fill(contentX + 1, y + 3, x + width - 2, y + 4, accent);
-                context.fill(contentX + 1, y + height - 5, x + width - 2, y + height - 4, accent);
-                context.fill(x + 2, y + 5, x + overlap + 1, y + 7, hovered ? 0xFFF0D7A7 : 0xFFB88A46);
-                context.fill(x + 2, y + height - 8, x + overlap + 1, y + height - 6, hovered ? 0xFFF0D7A7 : 0xFFB88A46);
-            } else if (layout.mode() == InventoryJournalButtonLayout.LayoutMode.BOOKMARK_TAB_TOP_RIGHT) {
-                int overlap = layout.overlap();
-                int contentHeight = layout.contentHeight();
-                int contentY = y;
-
-                context.fill(x, y, x + width, y + height, border);
-                context.fill(x + 1, y + 1, x + width - 1, y + height - 1, inner);
-                context.fill(x + 3, contentY + 1, x + 4, y + contentHeight - 1, accent);
-                context.fill(x + width - 5, contentY + 1, x + width - 4, y + contentHeight - 1, accent);
-                context.fill(x + 5, y + height - overlap - 1, x + width - 5, y + height - overlap + 1, hovered ? 0xFFF0D7A7 : 0xFFB88A46);
-            } else {
-                context.fill(x, y, x + width, y + height, border);
-                context.fill(x + 1, y + 1, x + width - 1, y + height - 1, inner);
-            }
+            // Same tab surface as the journal. Existing reveal geometry and fallback stay intact.
+            VillageUiTheme.drawTab(new GuiGraphics(context),x,y,width,height,false,hovered);
 
             int iconAreaWidth = layout.mode() == InventoryJournalButtonLayout.LayoutMode.BOOKMARK_TAB_RIGHT
                     ? layout.contentWidth()
@@ -230,7 +213,7 @@ public abstract class InventoryScreenMixin extends Screen {
                     : y;
             int iconX = iconBaseX + Math.max(1, (iconAreaWidth - VILLAGE_QUEST$JOURNAL_ICON_SIZE) / 2);
             int iconY = iconBaseY + Math.max(1, (iconAreaHeight - VILLAGE_QUEST$JOURNAL_ICON_SIZE) / 2);
-            context.drawTexture(
+            context.blit(
                     RenderPipelines.GUI_TEXTURED,
                     VILLAGE_QUEST$JOURNAL_BUTTON_TEXTURE,
                     iconX,
@@ -249,7 +232,7 @@ public abstract class InventoryScreenMixin extends Screen {
     }
 
     @Unique
-    private void villageQuest$renderJournalTutorial(DrawContext context) {
+    private void villageQuest$renderJournalTutorial(net.minecraft.client.gui.GuiGraphics context) {
         if (!villageQuest$shouldShowJournalTutorial()) {
             return;
         }
@@ -276,9 +259,9 @@ public abstract class InventoryScreenMixin extends Screen {
         }
 
         TutorialHintRenderer.drawHint(
-                context,
-                MinecraftClient.getInstance().textRenderer,
-                Text.translatable("screen.village-quest.inventory.journal_button_tutorial"),
+                new GuiGraphics(context),
+                Minecraft.getInstance().font,
+                Component.translatable("screen.village-quest.inventory.journal_button_tutorial"),
                 this.width,
                 this.height,
                 targetX,
@@ -292,16 +275,26 @@ public abstract class InventoryScreenMixin extends Screen {
     }
 
     @Inject(method = "render", at = @At("TAIL"))
-    private void villageQuest$renderJournalTooltip(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    private void villageQuest$renderJournalTooltip(net.minecraft.client.gui.GuiGraphics context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+        var tooltip=new VillageTooltip();
         villageQuest$updateFallbackButton();
+        if(villageQuest$shouldUseWidgetFallbackButton() && villageQuest$journalFallbackButton!=null && villageQuest$journalFallbackButton.visible) {
+            var button=villageQuest$journalFallbackButton;
+            var graphics=new GuiGraphics(context);
+            VillageUiTheme.drawTab(graphics,button.getX(),button.getY(),button.getWidth(),button.getHeight(),false,button.isHoveredOrFocused());
+            VillageUiTheme.drawIcon(graphics,VillageUiTheme.icon("story"),button.getX()+3,button.getY()+2,14);
+            if(button.isHoveredOrFocused()) tooltip.set(Component.translatable("screen.village-quest.inventory.journal_button"));
+        }
         villageQuest$renderJournalTutorial(context);
         if (!villageQuest$shouldRenderJournalOverlay()) {
+            tooltip.draw(new GuiGraphics(context),Minecraft.getInstance().font,mouseX,mouseY);
             return;
         }
         boolean hovered = villageQuest$isHoveringJournalButton(mouseX, mouseY);
         if (hovered) {
-            context.drawTooltip(MinecraftClient.getInstance().textRenderer, Text.translatable("screen.village-quest.inventory.journal_button"), mouseX, mouseY);
+            tooltip.set(Component.translatable("screen.village-quest.inventory.journal_button"));
         }
+        tooltip.draw(new GuiGraphics(context),Minecraft.getInstance().font,mouseX,mouseY);
     }
 
     @Unique

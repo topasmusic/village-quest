@@ -4,14 +4,13 @@ import de.quest.quest.daily.DailyQuestCompletion;
 import de.quest.quest.daily.DailyQuestDefinition;
 import de.quest.quest.daily.DailyQuestKeys;
 import de.quest.quest.daily.DailyQuestService;
-import net.minecraft.entity.passive.AnimalEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-
 import java.util.UUID;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.item.ItemStack;
 
 public final class StallNewLifeDailyQuest implements DailyQuestDefinition {
     @Override
@@ -20,52 +19,52 @@ public final class StallNewLifeDailyQuest implements DailyQuestDefinition {
     }
 
     @Override
-    public Text title() {
-        return Text.translatable("quest.village-quest.daily.stall.title");
+    public Component title() {
+        return Component.translatable("quest.village-quest.daily.stall.title");
     }
 
     @Override
-    public Text offerParagraph1() {
-        return Text.translatable("quest.village-quest.daily.stall.offer.1").formatted(Formatting.GRAY);
+    public Component offerParagraph1() {
+        return Component.translatable("quest.village-quest.daily.stall.offer.1").withStyle(ChatFormatting.GRAY);
     }
 
     @Override
-    public Text offerParagraph2() {
-        return Text.translatable("quest.village-quest.daily.stall.offer.2").formatted(Formatting.GRAY);
+    public Component offerParagraph2() {
+        return Component.translatable("quest.village-quest.daily.stall.offer.2").withStyle(ChatFormatting.GRAY);
     }
 
     @Override
-    public Text progressLine(ServerWorld world, UUID playerId) {
-        return Text.translatable(
+    public Component progressLine(ServerLevel world, UUID playerId) {
+        return Component.translatable(
                 "quest.village-quest.daily.stall.progress",
                 DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.STALL_BREED_PROGRESS),
                 DailyQuestService.stallBreedTarget()
-        ).formatted(Formatting.GRAY);
+        ).withStyle(ChatFormatting.GRAY);
     }
 
     @Override
-    public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
-        return DailyQuestService.getQuestInt(world, player.getUuid(), DailyQuestKeys.STALL_BREED_PROGRESS) >= DailyQuestService.stallBreedTarget();
+    public boolean isComplete(ServerLevel world, ServerPlayer player) {
+        return DailyQuestService.getQuestInt(world, player.getUUID(), DailyQuestKeys.STALL_BREED_PROGRESS) >= DailyQuestService.stallBreedTarget();
     }
 
     @Override
-    public DailyQuestCompletion buildCompletion(ServerWorld world) {
+    public DailyQuestCompletion buildCompletion(ServerLevel world) {
         return DailyQuestService.buildCompletion(
                 type(),
                 title(),
-                Text.translatable("quest.village-quest.daily.stall.completion.1").formatted(Formatting.GRAY),
-                Text.translatable("quest.village-quest.daily.stall.completion.2").formatted(Formatting.GRAY),
-                Text.translatable("quest.village-quest.daily.stall.completion.3").formatted(Formatting.GRAY),
+                Component.translatable("quest.village-quest.daily.stall.completion.1").withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.daily.stall.completion.2").withStyle(ChatFormatting.GRAY),
+                Component.translatable("quest.village-quest.daily.stall.completion.3").withStyle(ChatFormatting.GRAY),
                 ItemStack.EMPTY,
                 ItemStack.EMPTY
         );
     }
 
     @Override
-    public void onAnimalLove(ServerWorld world, ServerPlayerEntity player, AnimalEntity animal) {
-        if (!DailyQuestService.isTrackingQuest(world, player.getUuid(), type())) return;
+    public void onAnimalLove(ServerLevel world, ServerPlayer player, Animal animal) {
+        if (!DailyQuestService.isTrackingQuest(world, player.getUUID(), type())) return;
 
-        UUID playerId = player.getUuid();
+        UUID playerId = player.getUUID();
         int current = DailyQuestService.getQuestInt(world, playerId, DailyQuestKeys.STALL_BREED_PROGRESS);
         if (current >= DailyQuestService.stallBreedTarget()) {
             return;

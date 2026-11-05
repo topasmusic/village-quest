@@ -1,5 +1,6 @@
 package de.quest.quest;
 
+import de.quest.network.Payloads;
 import de.quest.network.Payloads.JournalPayload;
 import de.quest.economy.CurrencyService;
 import de.quest.pilgrim.PilgrimContractService;
@@ -13,17 +14,27 @@ import de.quest.quest.story.VillageProjectService;
 import de.quest.quest.story.VillageProjectType;
 import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.quest.weekly.WeeklyQuestStatus;
+import de.quest.questmaster.QuestMasterUiService;
 import de.quest.reputation.ReputationService;
+import de.quest.shrine.VillageBondService;
+import de.quest.shrine.VillageWelcomeService;
+import de.quest.village.LivingVillageNetworkState;
+import de.quest.village.LivingVillageNetworkService;
+import de.quest.config.VillageQuestServerConfig;
+import de.quest.guild.VillageGuildService;
+import de.quest.guildtown.GuildTownService;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.minecraft.item.Item;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.Item;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class QuestBookHelper {
@@ -32,37 +43,51 @@ public final class QuestBookHelper {
 
     private QuestBookHelper() {}
 
-    private static JournalPayload buildPayload(ServerWorld world, ServerPlayerEntity player, int action) {
-        UUID pid = player.getUuid();
+    private static JournalPayload buildPayload(ServerLevel world, ServerPlayer player, int action) {
+        UUID pid = player.getUUID();
 
         DailyQuestService.QuestStatus daily = DailyQuestService.openQuestStatus(world, pid);
         boolean dailyActive = daily != null;
-        Text dailyTitle = dailyActive ? daily.title() : Text.empty();
-        Text dailyProgress = dailyActive ? daily.progressLine() : Text.empty();
+        Component dailyTitle = dailyActive ? daily.title() : Component.empty();
+        Component dailyProgress = dailyActive ? daily.progressLine() : Component.empty();
         WeeklyQuestStatus weekly = WeeklyQuestService.openStatus(world, pid);
         boolean weeklyActive = weekly != null;
-        Text weeklyTitle = weeklyActive ? weekly.title() : Text.empty();
-        Text weeklyProgress = weeklyActive
-                ? Text.literal(String.join("\n", weekly.lines().stream().map(Text::getString).toList()))
-                : Text.empty();
+        Component weeklyTitle = weeklyActive ? weekly.title() : Component.empty();
+        Component weeklyProgress = weeklyActive
+                ? de.quest.reward.VanillaRewardService.joinLines(weekly.lines())
+                : Component.empty();
+        if(!dailyActive && DailyQuestService.hasCompletedToday(world,pid)) {
+            dailyTitle=Component.translatable("screen.village-quest.questmaster.daily.completed_today");
+            dailyProgress=Component.translatable("screen.village-quest.questmaster.daily.next_reset",
+                    de.quest.util.QuestCalendarService.remaining(false));
+        }
+        if(!weeklyActive && WeeklyQuestService.hasCompletedThisWeek(world,pid)) {
+            weeklyTitle=Component.translatable("screen.village-quest.questmaster.weekly.completed");
+            weeklyProgress=Component.translatable("screen.village-quest.questmaster.weekly.next_reset_in",
+                    de.quest.util.QuestCalendarService.remaining(true));
+        }
         StoryQuestStatus story = StoryQuestService.openStatus(world, pid);
         boolean storyActive = story != null;
-        Text storyTitle = storyActive ? story.title() : Text.empty();
-        Text storyProgress = storyActive
-                ? Text.literal(String.join("\n", story.lines().stream().map(Text::getString).toList()))
-                : Text.empty();
+        Component storyTitle = storyActive ? story.title() : Component.empty();
+        Component storyProgress = storyActive
+                ? de.quest.reward.VanillaRewardService.joinLines(story.lines())
+                : Component.empty();
+        if (!storyActive && !de.quest.questmaster.QuestMasterProgressionService.isStoryCategoryUnlocked(world,pid)) {
+            storyTitle=StoryQuestService.definition(de.quest.quest.story.StoryArcType.FAILING_HARVEST).title();
+            storyProgress=QuestGuidanceService.firstStory().action();
+        }
         PilgrimContractService.PilgrimContractStatus pilgrim = PilgrimContractService.openStatus(world, pid);
         boolean pilgrimActive = pilgrim != null;
-        Text pilgrimTitle = pilgrimActive ? pilgrim.title() : Text.empty();
-        Text pilgrimProgress = pilgrimActive
-                ? Text.literal(String.join("\n", pilgrim.lines().stream().map(Text::getString).toList()))
-                : Text.empty();
+        Component pilgrimTitle = pilgrimActive ? pilgrim.title() : Component.empty();
+        Component pilgrimProgress = pilgrimActive
+                ? de.quest.reward.VanillaRewardService.joinLines(pilgrim.lines())
+                : Component.empty();
         SpecialQuestStatus special = SpecialQuestService.openStatus(world, pid);
         boolean specialActive = special != null;
-        Text specialTitle = specialActive ? special.title() : Text.empty();
-        Text specialProgress = specialActive
-                ? Text.literal(String.join("\n", special.lines().stream().map(Text::getString).toList()))
-                : Text.empty();
+        Component specialTitle = specialActive ? special.title() : Component.empty();
+        Component specialProgress = specialActive
+                ? de.quest.reward.VanillaRewardService.joinLines(special.lines())
+                : Component.empty();
 
         int total = DailyQuestService.getDailyQuestCount()
                 + WeeklyQuestService.getWeeklyQuestCount()
@@ -100,6 +125,67 @@ public final class QuestBookHelper {
         boolean hasPastureCharterProject = VillageProjectService.isUnlocked(world, pid, VillageProjectType.PASTURE_CHARTER);
         boolean hasWatchBellProject = VillageProjectService.isUnlocked(world, pid, VillageProjectType.WATCH_BELL);
         boolean hasCaravanYardProject = VillageProjectService.isUnlocked(world, pid, VillageProjectType.CARAVAN_YARD);
+        boolean hasWayshrineNetworkProject = VillageProjectService.isUnlocked(world, pid, VillageProjectType.WAYSHRINE_NETWORK);
+        LivingVillageNetworkState.NetworkSnapshot networkProgress =
+                LivingVillageNetworkState.get(world.getServer()).network(pid);
+        List<VillageBondService.VillageBondView> networkVillages = VillageBondService.villages(world, pid);
+        Payloads.NetworkSummaryData networkSummary = new Payloads.NetworkSummaryData(
+                networkProgress.rank(),
+                networkProgress.renown(),
+                networkProgress.nextRankThreshold(),
+                LivingVillageNetworkService.honorLabel(networkProgress.rank()),
+                networkProgress.specialization().label(),
+                Component.translatable("text.village-quest.adventure_profile."
+                        + VillageQuestServerConfig.get().adventureProfile().name().toLowerCase(Locale.ROOT)));
+        var social = de.quest.data.QuestState.get(world.getServer()).getPlayerData(pid).socialReputation();
+        String socialDimension = world.dimension().identifier().toString();
+        List<Payloads.NetworkVillageData> networkVillageData = networkVillages.stream()
+                .map(village -> new Payloads.NetworkVillageData(
+                        village.index(),
+                        de.quest.kingdom.KingdomVillageService.identityLabel(world, village.x(), village.z(), village.type().label()),
+                        village.level().label(),
+                        village.network().condition().label(),
+                        village.network().condition().key(),
+                        village.network().need().label(),
+                        village.network().support(),
+                        village.network().energyProgress(),
+                        social.localTrust(new de.quest.village.VillageLifeState.VillageKey(socialDimension, village.x(), village.z())),
+                        de.quest.reputation.SocialReputationService.enabled() && social.activeCase() != null
+                                && social.activeCase().affected().contains(new de.quest.village.VillageLifeState.VillageKey(socialDimension, village.x(), village.z())),
+                        de.quest.kingdom.LivingKingdomsState.get(world.getServer()).byLegacy(
+                                new de.quest.village.VillageLifeState.VillageKey(socialDimension,village.x(),village.z()))
+                                .map(de.quest.kingdom.LivingKingdomsState.VillageView::id).orElse(de.quest.network.BuildingPayloads.NONE),
+                        de.quest.kingdom.KingdomVillageService.lastKnown(world,village.x(),village.z()),
+                        de.quest.kingdom.KingdomVillageService.journalStats(world,pid,village.x(),village.z()),
+                        de.quest.reputation.VillageRelationship.project(de.quest.data.QuestState.get(world.getServer()).getPlayerData(pid), village.index(),
+                                new de.quest.village.VillageLifeState.VillageKey(socialDimension,village.x(),village.z()),pid,
+                                de.quest.kingdom.LivingKingdomsState.get(world.getServer()),de.quest.reputation.SocialReputationService.enabled())))
+                .toList();
+        List<Component> networkGuildLines = new java.util.ArrayList<>(VillageGuildService.statusLines(world, pid));
+        networkGuildLines.add(Component.translatable("message.village-quest.kingdom.attack_warning.rules"));
+        networkGuildLines.addAll(de.quest.kingdom.KingdomVillageService.guestArrivals(world,pid));
+        var artifactData=de.quest.data.QuestState.get(world.getServer()).getPlayerData(pid);
+        if(artifactData.hasMilestoneFlag(de.quest.kingdom.ArtifactJourneyProgress.PREFIX+"finale")) {
+            networkGuildLines.add(Component.translatable("quest.village-quest.story.artifact_journey.title_earned"));
+            networkGuildLines.add(Component.translatable(de.quest.kingdom.ArtifactJourneyProgress.choice(artifactData)==1
+                    ?"quest.village-quest.story.artifact_journey.epilogue_reserve":"quest.village-quest.story.artifact_journey.epilogue_road"));
+        }
+        VillageBondService.VillageBondView priorityVillage = networkVillages.stream()
+                .min(Comparator.comparingInt(village -> village.network().support())).orElse(null);
+        Component introductionNextAction = VillageWelcomeService.journalNextAction(world, pid);
+        if (introductionNextAction.getString().isBlank()
+                && StoryQuestService.activeArcType(world,pid,de.quest.quest.story.StoryLane.KINGDOM)!=null)
+            introductionNextAction=QuestGuidanceService.story(world,player,de.quest.quest.story.StoryArcType.LIVING_KINGDOMS).action();
+        Component guildTownNextAction = GuildTownService.journalNextAction(world, pid);
+        Component networkNextAction = !introductionNextAction.getString().isBlank()
+                ? introductionNextAction
+                : !guildTownNextAction.getString().isBlank()
+                        ? guildTownNextAction
+                : priorityVillage == null
+                        ? Component.translatable("screen.village-quest.journal.network.next.discover")
+                        : Component.translatable("screen.village-quest.journal.network.next.supply",
+                        de.quest.kingdom.KingdomVillageService.identityLabel(world, priorityVillage.x(), priorityVillage.z(), priorityVillage.type().label()), priorityVillage.network().need().label(),
+                        priorityVillage.network().support(), 100);
 
         return new JournalPayload(
                 action,
@@ -140,30 +226,39 @@ public final class QuestBookHelper {
                 hasMarketCharterProject,
                 hasPastureCharterProject,
                 hasWatchBellProject,
-                hasCaravanYardProject
+                hasCaravanYardProject,
+                hasWayshrineNetworkProject,
+                QuestMasterUiService.buildGuildPathNodes(world, player),
+                networkNextAction,
+                networkSummary,
+                networkVillageData,
+                networkGuildLines, QuestTrackerService.journalEntries(world,player)
         );
     }
 
-    public static boolean openJournal(ServerWorld world, ServerPlayerEntity player) {
-        UUID pid = player.getUuid();
+    public static boolean openJournal(ServerLevel world, ServerPlayer player) {
+        if (!de.quest.network.ProgressionProtocol.require(player)) return false;
+        UUID pid = player.getUUID();
         JOURNAL_ENABLED.add(pid);
         sendPayload(player, buildPayload(world, player, JournalPayload.ACTION_OPEN));
         return true;
     }
 
-    public static boolean toggleJournal(ServerWorld world, ServerPlayerEntity player) {
-        if (JOURNAL_ENABLED.contains(player.getUuid())) {
+    public static boolean isJournalOpen(UUID player) { return JOURNAL_ENABLED.contains(player); }
+
+    public static boolean toggleJournal(ServerLevel world, ServerPlayer player) {
+        if (JOURNAL_ENABLED.contains(player.getUUID())) {
             closeJournal(player);
             return false;
         }
         return openJournal(world, player);
     }
 
-    public static void closeJournal(ServerPlayerEntity player) {
+    public static void closeJournal(ServerPlayer player) {
         if (player == null) {
             return;
         }
-        UUID pid = player.getUuid();
+        UUID pid = player.getUUID();
         if (!JOURNAL_ENABLED.remove(pid)) {
             return;
         }
@@ -187,27 +282,34 @@ public final class QuestBookHelper {
                 false,
                 false,
                 false,
-                Text.empty(),
-                Text.empty(),
+                Component.empty(),
+                Component.empty(),
                 false,
-                Text.empty(),
-                Text.empty(),
+                Component.empty(),
+                Component.empty(),
                 false,
-                Text.empty(),
-                Text.empty(),
+                Component.empty(),
+                Component.empty(),
                 false,
-                Text.empty(),
-                Text.empty(),
+                Component.empty(),
+                Component.empty(),
                 false,
-                Text.empty(),
-                Text.empty(),
-                false,
-                false,
+                Component.empty(),
+                Component.empty(),
                 false,
                 false,
                 false,
                 false,
-                false
+                false,
+                false,
+                false,
+                false,
+                java.util.List.of(),
+                Component.empty(),
+                new Payloads.NetworkSummaryData(0, 0, 0,
+                        Component.empty(), Component.empty(), Component.empty()),
+                java.util.List.of(),
+                java.util.List.of()
         ));
     }
 
@@ -221,17 +323,18 @@ public final class QuestBookHelper {
             return;
         }
         JOURNAL_ENABLED.remove(playerId);
+        de.quest.reputation.ReputationInteractionService.remove(playerId);
         LAST_JOURNAL_REFRESH.remove(playerId);
     }
 
     public static void onServerTick(MinecraftServer server) {
-        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-            UUID pid = player.getUuid();
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            UUID pid = player.getUUID();
             if (!JOURNAL_ENABLED.contains(pid)) {
                 continue;
             }
-            ServerWorld world = (ServerWorld) player.getEntityWorld();
-            long now = world.getTime();
+            ServerLevel world = (ServerLevel) player.level();
+            long now = world.getGameTime();
             long last = LAST_JOURNAL_REFRESH.getOrDefault(pid, -200L);
             if ((now - last) >= 40L) {
                 refreshQuestBook(world, player);
@@ -240,26 +343,28 @@ public final class QuestBookHelper {
         }
     }
 
-    public static void refreshQuestBook(ServerWorld world, ServerPlayerEntity player) {
-        if (!JOURNAL_ENABLED.contains(player.getUuid())) {
+    public static void refreshQuestBook(ServerLevel world, ServerPlayer player) {
+        if (!JOURNAL_ENABLED.contains(player.getUUID())) {
             return;
         }
         sendPayload(player, buildPayload(world, player, JournalPayload.ACTION_UPDATE));
     }
 
-    private static void sendPayload(ServerPlayerEntity player, JournalPayload payload) {
+    private static void sendPayload(ServerPlayer player, JournalPayload payload) {
+        if (!de.quest.network.ProgressionProtocol.require(player)) return;
         ServerPlayNetworking.send(player, payload);
+        if (payload.action() != JournalPayload.ACTION_CLOSE) de.quest.reputation.ReputationInteractionService.sendJournal(player);
     }
 
-    private static boolean hasInventoryItem(ServerPlayerEntity player, Item item) {
+    private static boolean hasInventoryItem(ServerPlayer player, Item item) {
         if (player == null || item == null) {
             return false;
         }
-        for (int i = 0; i < player.getInventory().size(); i++) {
-            if (player.getInventory().getStack(i).isOf(item)) {
+        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+            if (player.getInventory().getItem(i).is(item)) {
                 return true;
             }
         }
-        return player.getOffHandStack().isOf(item);
+        return player.getOffhandItem().is(item);
     }
 }

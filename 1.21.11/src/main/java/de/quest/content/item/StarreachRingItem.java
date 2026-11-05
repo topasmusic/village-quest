@@ -1,22 +1,23 @@
 package de.quest.content.item;
 
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import de.quest.archive.GuildArchiveService;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 
 public final class StarreachRingItem extends Item {
-    public StarreachRingItem(Settings settings) {
+    public StarreachRingItem(Properties settings) {
         super(settings);
     }
 
     @Override
-    public Text getName(ItemStack stack) {
-        return Text.translatable(this.getTranslationKey()).formatted(Formatting.GOLD);
+    public Component getName(ItemStack stack) {
+        return Component.translatable(this.getDescriptionId()).withStyle(ChatFormatting.GOLD);
     }
 
     @Override
-    public boolean hasGlint(ItemStack stack) {
-        return true;
+    public boolean isFoil(ItemStack stack) {
+        return !GuildArchiveService.isSuperseded(stack);
     }
 }

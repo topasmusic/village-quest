@@ -11,15 +11,15 @@ import de.quest.quest.story.StoryQuestService;
 import de.quest.quest.story.VillageProjectType;
 import de.quest.reputation.ReputationService;
 import de.quest.util.Texts;
-import net.minecraft.block.BeehiveBlock;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.world.level.block.BeehiveBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 
 import java.util.List;
 import java.util.Map;
@@ -48,8 +48,8 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
     }
 
     @Override
-    public Text title() {
-        return Text.translatable("quest.village-quest.story.failing_harvest.title");
+    public Component title() {
+        return Component.translatable("quest.village-quest.story.failing_harvest.title");
     }
 
     @Override
@@ -66,54 +66,54 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
     }
 
     private abstract static class FailingHarvestChapter implements StoryChapterDefinition {
-        protected void addProgress(ServerWorld world, ServerPlayerEntity player, String key, int amount, int target) {
-            StoryQuestService.addQuestIntClamped(world, player.getUuid(), key, amount, target);
+        protected void addProgress(ServerLevel world, ServerPlayer player, String key, int amount, int target) {
+            StoryQuestService.addQuestIntClamped(world, player.getUUID(), key, amount, target);
             StoryQuestService.completeIfEligible(world, player);
         }
 
-        protected int progress(ServerWorld world, UUID playerId, String key) {
+        protected int progress(ServerLevel world, UUID playerId, String key) {
             return StoryQuestService.getQuestInt(world, playerId, key);
         }
 
-        protected boolean hasItem(ServerWorld world, ServerPlayerEntity player, net.minecraft.item.Item item, int amount) {
-            return player != null && StoryQuestService.countCompletionItem(world, player.getUuid(), item) >= amount;
+        protected boolean hasItem(ServerLevel world, ServerPlayer player, net.minecraft.world.item.Item item, int amount) {
+            return player != null && StoryQuestService.countCompletionItem(world, player.getUUID(), item) >= amount;
         }
 
-        protected boolean consumeItem(ServerWorld world, ServerPlayerEntity player, net.minecraft.item.Item item, int amount) {
-            return player != null && StoryQuestService.consumeCompletionItem(world, player.getUuid(), item, amount);
+        protected boolean consumeItem(ServerLevel world, ServerPlayer player, net.minecraft.world.item.Item item, int amount) {
+            return player != null && StoryQuestService.consumeCompletionItem(world, player.getUUID(), item, amount);
         }
     }
 
     private static final class ThinFieldsChapter extends FailingHarvestChapter {
         @Override
-        public Text title() {
-            return Text.translatable("quest.village-quest.story.failing_harvest.chapter_1.title");
+        public Component title() {
+            return Component.translatable("quest.village-quest.story.failing_harvest.chapter_1.title");
         }
 
         @Override
-        public Text offerParagraph1() {
-            return Text.translatable("quest.village-quest.story.failing_harvest.chapter_1.offer.1").formatted(Formatting.GRAY);
+        public Component offerParagraph1() {
+            return Component.translatable("quest.village-quest.story.failing_harvest.chapter_1.offer.1").withStyle(ChatFormatting.GRAY);
         }
 
         @Override
-        public Text offerParagraph2() {
-            return Text.translatable("quest.village-quest.story.failing_harvest.chapter_1.offer.2").formatted(Formatting.GRAY);
+        public Component offerParagraph2() {
+            return Component.translatable("quest.village-quest.story.failing_harvest.chapter_1.offer.2").withStyle(ChatFormatting.GRAY);
         }
 
         @Override
-        public List<Text> progressLines(ServerWorld world, UUID playerId) {
-            return List.of(Text.translatable(
+        public List<Component> progressLines(ServerLevel world, UUID playerId) {
+            return List.of(Component.translatable(
                     "quest.village-quest.story.failing_harvest.chapter_1.progress",
                     progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_WHEAT),
                     THIN_FIELDS_WHEAT_TARGET,
                     progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_POTATO),
                     THIN_FIELDS_POTATO_TARGET
-            ).formatted(Formatting.GRAY));
+            ).withStyle(ChatFormatting.GRAY));
         }
 
         @Override
-        public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
-            UUID playerId = player.getUuid();
+        public boolean isComplete(ServerLevel world, ServerPlayer player) {
+            UUID playerId = player.getUUID();
             return progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_WHEAT) >= THIN_FIELDS_WHEAT_TARGET
                     && progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_POTATO) >= THIN_FIELDS_POTATO_TARGET
                     && hasItem(world, player, Items.WHEAT, THIN_FIELDS_WHEAT_TARGET)
@@ -121,10 +121,10 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
         }
 
         @Override
-        public boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) {
+        public boolean consumeCompletionRequirements(ServerLevel world, ServerPlayer player) {
             return isComplete(world, player) && StoryQuestService.consumeCompletionItems(
                     world,
-                    player.getUuid(),
+                    player.getUUID(),
                     Map.of(
                             Items.WHEAT, THIN_FIELDS_WHEAT_TARGET,
                             Items.POTATO, THIN_FIELDS_POTATO_TARGET
@@ -133,22 +133,27 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
         }
 
         @Override
-        public Text claimBlockedMessage(ServerWorld world, ServerPlayerEntity player) {
+        public Component claimBlockedMessage(ServerLevel world, ServerPlayer player) {
+            return claimBlockedMessage(world, player, false);
+        }
+
+        @Override
+        public Component claimBlockedMessage(ServerLevel world, ServerPlayer player, boolean allRequirements) {
             if (player == null || world == null) {
                 return null;
             }
-            UUID playerId = player.getUuid();
+            UUID playerId = player.getUUID();
             if (progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_WHEAT) < THIN_FIELDS_WHEAT_TARGET
                     || progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_POTATO) < THIN_FIELDS_POTATO_TARGET
                     || (hasItem(world, player, Items.WHEAT, THIN_FIELDS_WHEAT_TARGET)
                     && hasItem(world, player, Items.POTATO, THIN_FIELDS_POTATO_TARGET))) {
                 return null;
             }
-            return Texts.turnInMissing(
-                    Items.WHEAT.getDefaultStack().toHoverableText(),
+            return Texts.turnInMissing(allRequirements,
+                    Items.WHEAT.getDefaultInstance().getDisplayName(),
                     StoryQuestService.countCompletionItem(world, playerId, Items.WHEAT),
                     THIN_FIELDS_WHEAT_TARGET,
-                    Items.POTATO.getDefaultStack().toHoverableText(),
+                    Items.POTATO.getDefaultInstance().getDisplayName(),
                     StoryQuestService.countCompletionItem(world, playerId, Items.POTATO),
                     THIN_FIELDS_POTATO_TARGET
             );
@@ -158,9 +163,9 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
         public StoryChapterCompletion buildCompletion() {
             return new StoryChapterCompletion(
                     title(),
-                    Text.translatable("quest.village-quest.story.failing_harvest.chapter_1.complete.1").formatted(Formatting.GRAY),
-                    Text.translatable("quest.village-quest.story.failing_harvest.chapter_1.complete.2").formatted(Formatting.GRAY),
-                    Text.translatable("quest.village-quest.story.failing_harvest.chapter_1.complete.3").formatted(Formatting.GRAY),
+                    Component.translatable("quest.village-quest.story.failing_harvest.chapter_1.complete.1").withStyle(ChatFormatting.GRAY),
+                    Component.translatable("quest.village-quest.story.failing_harvest.chapter_1.complete.2").withStyle(ChatFormatting.GRAY),
+                    Component.translatable("quest.village-quest.story.failing_harvest.chapter_1.complete.3").withStyle(ChatFormatting.GRAY),
                     CurrencyService.SILVERMARK * 8L,
                     8,
                     ReputationService.ReputationTrack.FARMING,
@@ -170,10 +175,10 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
         }
 
         @Override
-        public void onTrackedItemPickup(ServerWorld world, ServerPlayerEntity player, ItemStack stack, int count) {
-            if (stack.isOf(Items.WHEAT)) {
+        public void onTrackedItemPickup(ServerLevel world, ServerPlayer player, ItemStack stack, int count) {
+            if (stack.is(Items.WHEAT)) {
                 addProgress(world, player, StoryQuestKeys.FAILING_HARVEST_WHEAT, count, THIN_FIELDS_WHEAT_TARGET);
-            } else if (stack.isOf(Items.POTATO)) {
+            } else if (stack.is(Items.POTATO)) {
                 addProgress(world, player, StoryQuestKeys.FAILING_HARVEST_POTATO, count, THIN_FIELDS_POTATO_TARGET);
             }
         }
@@ -181,45 +186,48 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
 
     private static final class QuietHivesChapter extends FailingHarvestChapter {
         @Override
-        public Text title() {
-            return Text.translatable("quest.village-quest.story.failing_harvest.chapter_2.title");
+        public Component title() {
+            return Component.translatable("quest.village-quest.story.failing_harvest.chapter_2.title");
         }
 
         @Override
-        public Text offerParagraph1() {
-            return Text.translatable("quest.village-quest.story.failing_harvest.chapter_2.offer.1").formatted(Formatting.GRAY);
+        public Component offerParagraph1() {
+            return Component.translatable("quest.village-quest.story.failing_harvest.chapter_2.offer.1").withStyle(ChatFormatting.GRAY);
         }
 
         @Override
-        public Text offerParagraph2() {
-            return Text.translatable("quest.village-quest.story.failing_harvest.chapter_2.offer.2").formatted(Formatting.GRAY);
+        public Component offerParagraph2() {
+            return Component.translatable("quest.village-quest.story.failing_harvest.chapter_2.offer.2").withStyle(ChatFormatting.GRAY);
         }
 
         @Override
-        public List<Text> progressLines(ServerWorld world, UUID playerId) {
-            return List.of(Text.translatable(
-                    "quest.village-quest.story.failing_harvest.chapter_2.progress",
+        public List<Component> progressLines(ServerLevel world, UUID playerId) {
+            int honeyReady = Math.max(
                     progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_HONEY),
-                    QUIET_HIVES_HONEY_TARGET,
+                    StoryQuestService.countCompletionItem(world, playerId, Items.HONEY_BOTTLE));
+            int combReady = Math.max(
                     progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_COMB),
+                    StoryQuestService.countCompletionItem(world, playerId, Items.HONEYCOMB));
+            return List.of(Component.translatable(
+                    "quest.village-quest.story.failing_harvest.chapter_2.progress",
+                    Math.min(honeyReady, QUIET_HIVES_HONEY_TARGET),
+                    QUIET_HIVES_HONEY_TARGET,
+                    Math.min(combReady, QUIET_HIVES_COMB_TARGET),
                     QUIET_HIVES_COMB_TARGET
-            ).formatted(Formatting.GRAY));
+            ).withStyle(ChatFormatting.GRAY));
         }
 
         @Override
-        public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
-            UUID playerId = player.getUuid();
-            return progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_HONEY) >= QUIET_HIVES_HONEY_TARGET
-                    && progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_COMB) >= QUIET_HIVES_COMB_TARGET
-                    && hasItem(world, player, Items.HONEY_BOTTLE, QUIET_HIVES_HONEY_TARGET)
+        public boolean isComplete(ServerLevel world, ServerPlayer player) {
+            return hasItem(world, player, Items.HONEY_BOTTLE, QUIET_HIVES_HONEY_TARGET)
                     && hasItem(world, player, Items.HONEYCOMB, QUIET_HIVES_COMB_TARGET);
         }
 
         @Override
-        public boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) {
+        public boolean consumeCompletionRequirements(ServerLevel world, ServerPlayer player) {
             return isComplete(world, player) && StoryQuestService.consumeCompletionItems(
                     world,
-                    player.getUuid(),
+                    player.getUUID(),
                     Map.of(
                             Items.HONEY_BOTTLE, QUIET_HIVES_HONEY_TARGET,
                             Items.HONEYCOMB, QUIET_HIVES_COMB_TARGET
@@ -228,22 +236,25 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
         }
 
         @Override
-        public Text claimBlockedMessage(ServerWorld world, ServerPlayerEntity player) {
+        public Component claimBlockedMessage(ServerLevel world, ServerPlayer player) {
+            return claimBlockedMessage(world, player, false);
+        }
+
+        @Override
+        public Component claimBlockedMessage(ServerLevel world, ServerPlayer player, boolean allRequirements) {
             if (player == null || world == null) {
                 return null;
             }
-            UUID playerId = player.getUuid();
-            if (progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_HONEY) < QUIET_HIVES_HONEY_TARGET
-                    || progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_COMB) < QUIET_HIVES_COMB_TARGET
-                    || (hasItem(world, player, Items.HONEY_BOTTLE, QUIET_HIVES_HONEY_TARGET)
-                    && hasItem(world, player, Items.HONEYCOMB, QUIET_HIVES_COMB_TARGET))) {
+            UUID playerId = player.getUUID();
+            if (hasItem(world, player, Items.HONEY_BOTTLE, QUIET_HIVES_HONEY_TARGET)
+                    && hasItem(world, player, Items.HONEYCOMB, QUIET_HIVES_COMB_TARGET)) {
                 return null;
             }
-            return Texts.turnInMissing(
-                    Items.HONEY_BOTTLE.getDefaultStack().toHoverableText(),
+            return Texts.turnInMissing(allRequirements,
+                    Items.HONEY_BOTTLE.getDefaultInstance().getDisplayName(),
                     StoryQuestService.countCompletionItem(world, playerId, Items.HONEY_BOTTLE),
                     QUIET_HIVES_HONEY_TARGET,
-                    Items.HONEYCOMB.getDefaultStack().toHoverableText(),
+                    Items.HONEYCOMB.getDefaultInstance().getDisplayName(),
                     StoryQuestService.countCompletionItem(world, playerId, Items.HONEYCOMB),
                     QUIET_HIVES_COMB_TARGET
             );
@@ -253,9 +264,9 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
         public StoryChapterCompletion buildCompletion() {
             return new StoryChapterCompletion(
                     title(),
-                    Text.translatable("quest.village-quest.story.failing_harvest.chapter_2.complete.1").formatted(Formatting.GRAY),
-                    Text.translatable("quest.village-quest.story.failing_harvest.chapter_2.complete.2").formatted(Formatting.GRAY),
-                    Text.translatable("quest.village-quest.story.failing_harvest.chapter_2.complete.3").formatted(Formatting.GRAY),
+                    Component.translatable("quest.village-quest.story.failing_harvest.chapter_2.complete.1").withStyle(ChatFormatting.GRAY),
+                    Component.translatable("quest.village-quest.story.failing_harvest.chapter_2.complete.2").withStyle(ChatFormatting.GRAY),
+                    Component.translatable("quest.village-quest.story.failing_harvest.chapter_2.complete.3").withStyle(ChatFormatting.GRAY),
                     CurrencyService.CROWN,
                     10,
                     ReputationService.ReputationTrack.FARMING,
@@ -265,16 +276,16 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
         }
 
         @Override
-        public void onBeeNestInteract(ServerWorld world, ServerPlayerEntity player, BlockState state, ItemStack inHand) {
-            if (!state.isOf(Blocks.BEE_NEST) && !state.isOf(Blocks.BEEHIVE)) {
+        public void onBeeNestInteract(ServerLevel world, ServerPlayer player, BlockState state, ItemStack inHand) {
+            if (!state.is(Blocks.BEE_NEST) && !state.is(Blocks.BEEHIVE)) {
                 return;
             }
-            if (!state.contains(BeehiveBlock.HONEY_LEVEL) || state.get(BeehiveBlock.HONEY_LEVEL) < 5) {
+            if (!state.hasProperty(BeehiveBlock.HONEY_LEVEL) || state.getValue(BeehiveBlock.HONEY_LEVEL) < 5) {
                 return;
             }
-            if (inHand.isOf(Items.GLASS_BOTTLE)) {
+            if (inHand.is(Items.GLASS_BOTTLE)) {
                 addProgress(world, player, StoryQuestKeys.FAILING_HARVEST_HONEY, 1, QUIET_HIVES_HONEY_TARGET);
-            } else if (inHand.isOf(Items.SHEARS)) {
+            } else if (inHand.is(Items.SHEARS)) {
                 addProgress(world, player, StoryQuestKeys.FAILING_HARVEST_COMB, 1, QUIET_HIVES_COMB_TARGET);
             }
         }
@@ -282,37 +293,37 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
 
     private static final class BreadForTheSquareChapter extends FailingHarvestChapter {
         @Override
-        public Text title() {
-            return Text.translatable("quest.village-quest.story.failing_harvest.chapter_3.title");
+        public Component title() {
+            return Component.translatable("quest.village-quest.story.failing_harvest.chapter_3.title");
         }
 
         @Override
-        public Text offerParagraph1() {
-            return Text.translatable("quest.village-quest.story.failing_harvest.chapter_3.offer.1").formatted(Formatting.GRAY);
+        public Component offerParagraph1() {
+            return Component.translatable("quest.village-quest.story.failing_harvest.chapter_3.offer.1").withStyle(ChatFormatting.GRAY);
         }
 
         @Override
-        public Text offerParagraph2() {
-            return Text.translatable("quest.village-quest.story.failing_harvest.chapter_3.offer.2").formatted(Formatting.GRAY);
+        public Component offerParagraph2() {
+            return Component.translatable("quest.village-quest.story.failing_harvest.chapter_3.offer.2").withStyle(ChatFormatting.GRAY);
         }
 
         @Override
-        public List<Text> progressLines(ServerWorld world, UUID playerId) {
-            Text line = Text.translatable(
+        public List<Component> progressLines(ServerLevel world, UUID playerId) {
+            Component line = Component.translatable(
                     "quest.village-quest.story.failing_harvest.chapter_3.progress",
                     progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_BREAD),
                     BREAD_BREAD_TARGET,
                     progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_BAKED_POTATO),
                     BREAD_POTATO_TARGET
-            ).formatted(Formatting.GRAY);
-            ServerPlayerEntity player = world == null ? null : world.getServer().getPlayerManager().getPlayer(playerId);
-            Text blocked = player == null ? null : claimBlockedMessage(world, player);
+            ).withStyle(ChatFormatting.GRAY);
+            ServerPlayer player = world == null ? null : world.getServer().getPlayerList().getPlayer(playerId);
+            Component blocked = player == null ? null : claimBlockedMessage(world, player, true);
             return blocked == null ? List.of(line) : List.of(line, blocked);
         }
 
         @Override
-        public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
-            UUID playerId = player.getUuid();
+        public boolean isComplete(ServerLevel world, ServerPlayer player) {
+            UUID playerId = player.getUUID();
             return progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_BREAD) >= BREAD_BREAD_TARGET
                     && progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_BAKED_POTATO) >= BREAD_POTATO_TARGET
                     && hasItem(world, player, Items.BREAD, BREAD_BREAD_TARGET)
@@ -320,13 +331,13 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
         }
 
         @Override
-        public boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) {
+        public boolean consumeCompletionRequirements(ServerLevel world, ServerPlayer player) {
             if (!isComplete(world, player)) {
                 return false;
             }
             return StoryQuestService.consumeCompletionItems(
                     world,
-                    player.getUuid(),
+                    player.getUUID(),
                     Map.of(
                             Items.BREAD, BREAD_BREAD_TARGET,
                             Items.BAKED_POTATO, BREAD_POTATO_TARGET
@@ -335,22 +346,27 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
         }
 
         @Override
-        public Text claimBlockedMessage(ServerWorld world, ServerPlayerEntity player) {
+        public Component claimBlockedMessage(ServerLevel world, ServerPlayer player) {
+            return claimBlockedMessage(world, player, false);
+        }
+
+        @Override
+        public Component claimBlockedMessage(ServerLevel world, ServerPlayer player, boolean allRequirements) {
             if (player == null || world == null) {
                 return null;
             }
-            UUID playerId = player.getUuid();
+            UUID playerId = player.getUUID();
             if (progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_BREAD) < BREAD_BREAD_TARGET
                     || progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_BAKED_POTATO) < BREAD_POTATO_TARGET
                     || (hasItem(world, player, Items.BREAD, BREAD_BREAD_TARGET)
                     && hasItem(world, player, Items.BAKED_POTATO, BREAD_POTATO_TARGET))) {
                 return null;
             }
-            return Texts.turnInMissing(
-                    Items.BREAD.getDefaultStack().toHoverableText(),
+            return Texts.turnInMissing(allRequirements,
+                    Items.BREAD.getDefaultInstance().getDisplayName(),
                     StoryQuestService.countCompletionItem(world, playerId, Items.BREAD),
                     BREAD_BREAD_TARGET,
-                    Items.BAKED_POTATO.getDefaultStack().toHoverableText(),
+                    Items.BAKED_POTATO.getDefaultInstance().getDisplayName(),
                     StoryQuestService.countCompletionItem(world, playerId, Items.BAKED_POTATO),
                     BREAD_POTATO_TARGET
             );
@@ -360,9 +376,9 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
         public StoryChapterCompletion buildCompletion() {
             return new StoryChapterCompletion(
                     title(),
-                    Text.translatable("quest.village-quest.story.failing_harvest.chapter_3.complete.1").formatted(Formatting.GRAY),
-                    Text.translatable("quest.village-quest.story.failing_harvest.chapter_3.complete.2").formatted(Formatting.GRAY),
-                    Text.translatable("quest.village-quest.story.failing_harvest.chapter_3.complete.3").formatted(Formatting.GRAY),
+                    Component.translatable("quest.village-quest.story.failing_harvest.chapter_3.complete.1").withStyle(ChatFormatting.GRAY),
+                    Component.translatable("quest.village-quest.story.failing_harvest.chapter_3.complete.2").withStyle(ChatFormatting.GRAY),
+                    Component.translatable("quest.village-quest.story.failing_harvest.chapter_3.complete.3").withStyle(ChatFormatting.GRAY),
                     CurrencyService.CROWN + (CurrencyService.SILVERMARK * 4L),
                     12,
                     ReputationService.ReputationTrack.FARMING,
@@ -372,18 +388,18 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
         }
 
         @Override
-        public void onAccepted(ServerWorld world, ServerPlayerEntity player) {
+        public void onAccepted(ServerLevel world, ServerPlayer player) {
             StoryQuestService.setQuestInt(
                     world,
-                    player.getUuid(),
+                    player.getUUID(),
                     StoryQuestKeys.FAILING_HARVEST_BREAD_BASELINE,
                     DailyQuestService.getCraftedStat(player, Items.BREAD) + 1
             );
         }
 
         @Override
-        public void onServerTick(ServerWorld world, ServerPlayerEntity player) {
-            UUID playerId = player.getUuid();
+        public void onServerTick(ServerLevel world, ServerPlayer player) {
+            UUID playerId = player.getUUID();
             int craftedBread = DailyQuestService.getCraftedStat(player, Items.BREAD);
             int storedBaseline = StoryQuestService.getQuestInt(world, playerId, StoryQuestKeys.FAILING_HARVEST_BREAD_BASELINE);
             if (storedBaseline == 0) {
@@ -400,8 +416,8 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
         }
 
         @Override
-        public void onFurnaceOutput(ServerWorld world, ServerPlayerEntity player, ItemStack stack) {
-            if (!stack.isOf(Items.BAKED_POTATO)) {
+        public void onFurnaceOutput(ServerLevel world, ServerPlayer player, ItemStack stack) {
+            if (!stack.is(Items.BAKED_POTATO)) {
                 return;
             }
             addProgress(world, player, StoryQuestKeys.FAILING_HARVEST_BAKED_POTATO, stack.getCount(), BREAD_POTATO_TARGET);
@@ -410,34 +426,34 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
 
     private static final class MarketReliefChapter extends FailingHarvestChapter {
         @Override
-        public Text title() {
-            return Text.translatable("quest.village-quest.story.failing_harvest.chapter_4.title");
+        public Component title() {
+            return Component.translatable("quest.village-quest.story.failing_harvest.chapter_4.title");
         }
 
         @Override
-        public Text offerParagraph1() {
-            return Text.translatable("quest.village-quest.story.failing_harvest.chapter_4.offer.1").formatted(Formatting.GRAY);
+        public Component offerParagraph1() {
+            return Component.translatable("quest.village-quest.story.failing_harvest.chapter_4.offer.1").withStyle(ChatFormatting.GRAY);
         }
 
         @Override
-        public Text offerParagraph2() {
-            return Text.translatable("quest.village-quest.story.failing_harvest.chapter_4.offer.2").formatted(Formatting.GRAY);
+        public Component offerParagraph2() {
+            return Component.translatable("quest.village-quest.story.failing_harvest.chapter_4.offer.2").withStyle(ChatFormatting.GRAY);
         }
 
         @Override
-        public List<Text> progressLines(ServerWorld world, UUID playerId) {
-            return List.of(Text.translatable(
+        public List<Component> progressLines(ServerLevel world, UUID playerId) {
+            return List.of(Component.translatable(
                     "quest.village-quest.story.failing_harvest.chapter_4.progress",
                     progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_TRADES),
                     MARKET_TRADES_TARGET,
                     progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_EMERALDS),
                     MARKET_EMERALDS_TARGET
-            ).formatted(Formatting.GRAY));
+            ).withStyle(ChatFormatting.GRAY));
         }
 
         @Override
-        public boolean isComplete(ServerWorld world, ServerPlayerEntity player) {
-            UUID playerId = player.getUuid();
+        public boolean isComplete(ServerLevel world, ServerPlayer player) {
+            UUID playerId = player.getUUID();
             return progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_TRADES) >= MARKET_TRADES_TARGET
                     && progress(world, playerId, StoryQuestKeys.FAILING_HARVEST_EMERALDS) >= MARKET_EMERALDS_TARGET;
         }
@@ -446,9 +462,9 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
         public StoryChapterCompletion buildCompletion() {
             return new StoryChapterCompletion(
                     title(),
-                    Text.translatable("quest.village-quest.story.failing_harvest.chapter_4.complete.1").formatted(Formatting.GRAY),
-                    Text.translatable("quest.village-quest.story.failing_harvest.chapter_4.complete.2").formatted(Formatting.GRAY),
-                    Text.translatable("quest.village-quest.story.failing_harvest.chapter_4.complete.3").formatted(Formatting.GRAY),
+                    Component.translatable("quest.village-quest.story.failing_harvest.chapter_4.complete.1").withStyle(ChatFormatting.GRAY),
+                    Component.translatable("quest.village-quest.story.failing_harvest.chapter_4.complete.2").withStyle(ChatFormatting.GRAY),
+                    Component.translatable("quest.village-quest.story.failing_harvest.chapter_4.complete.3").withStyle(ChatFormatting.GRAY),
                     CurrencyService.CROWN * 2L,
                     20,
                     ReputationService.ReputationTrack.FARMING,
@@ -458,9 +474,9 @@ public final class FailingHarvestStoryArc implements StoryArcDefinition {
         }
 
         @Override
-        public void onVillagerTrade(ServerWorld world, ServerPlayerEntity player, ItemStack stack) {
+        public void onVillagerTrade(ServerLevel world, ServerPlayer player, ItemStack stack) {
             addProgress(world, player, StoryQuestKeys.FAILING_HARVEST_TRADES, 1, MARKET_TRADES_TARGET);
-            if (stack.isOf(Items.EMERALD)) {
+            if (stack.is(Items.EMERALD)) {
                 addProgress(world, player, StoryQuestKeys.FAILING_HARVEST_EMERALDS, stack.getCount(), MARKET_EMERALDS_TARGET);
             }
         }

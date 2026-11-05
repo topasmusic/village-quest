@@ -1,8 +1,7 @@
 package de.quest.quest.weekly;
 
-import net.minecraft.text.Text;
-
 import java.util.List;
+import net.minecraft.network.chat.Component;
 
-public record WeeklyQuestStatus(Text title, List<Text> lines) {
+public record WeeklyQuestStatus(Component title, List<Component> lines) {
 }

@@ -1,0 +1,20 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "village-quest:block/inn_barrel",
+      "y": 0
+    },
+    "facing=east": {
+      "model": "village-quest:block/inn_barrel",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "village-quest:block/inn_barrel",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "village-quest:block/inn_barrel",
+      "y": 270
+    }
+  }
+}

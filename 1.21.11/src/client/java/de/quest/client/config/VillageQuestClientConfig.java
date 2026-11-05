@@ -37,9 +37,11 @@ public final class VillageQuestClientConfig {
 
     private static final String FILE_NAME = "client.properties";
     private static VillageQuestClientConfig instance = defaults();
+    private boolean speechBubblesEnabled=true;
+    public boolean speechBubblesEnabled() { return speechBubblesEnabled; }
 
     private final boolean questTrackerEnabledByDefault;
-    private final HudPosition questTrackerPosition;
+    private HudPosition questTrackerPosition;
     private final float questTrackerScale;
     private final float questTrackerBackgroundOpacity;
     private final boolean questAvailableChatNotifications;
@@ -119,6 +121,35 @@ public final class VillageQuestClientConfig {
         }
     }
 
+    public record Presentation(boolean tracker, boolean minimap, boolean questNotifications,
+                               boolean caravanNotifications, boolean sounds, boolean speechBubbles) {
+        public static Presentation recommended() { return new Presentation(true, false, true, true, true, true); }
+    }
+    public Presentation presentation() {
+        return new Presentation(questTrackerEnabledByDefault, minimapEnabledByDefault,
+                questAvailableChatNotifications, caravanEventNotifications, questProgressSounds, speechBubblesEnabled);
+    }
+    public boolean savePresentation(Presentation value) {
+        try {
+            instance = savePresentation(configPath(), value);
+            return true;
+        } catch (IOException failure) {
+            VillageQuest.LOGGER.warn("Could not save journal presentation settings", failure);
+            return false;
+        }
+    }
+    static VillageQuestClientConfig savePresentation(Path path, Presentation value) throws IOException {
+        var properties = new Properties();
+        if (Files.isRegularFile(path)) try (var input = Files.newInputStream(path)) { properties.load(input); }
+        properties.setProperty("quest_tracker_enabled_by_default", Boolean.toString(value.tracker()));
+        properties.setProperty("minimap_enabled_by_default", Boolean.toString(value.minimap()));
+        properties.setProperty("quest_available_chat_notifications", Boolean.toString(value.questNotifications()));
+        properties.setProperty("caravan_event_notifications", Boolean.toString(value.caravanNotifications()));
+        properties.setProperty("quest_progress_sounds", Boolean.toString(value.sounds()));
+        properties.setProperty("speech_bubbles_enabled", Boolean.toString(value.speechBubbles()));
+        store(path, properties);
+        return load(path);
+    }
     public static VillageQuestClientConfig get() {
         return instance;
     }
@@ -145,13 +176,22 @@ public final class VillageQuestClientConfig {
     public int mapCacheRetentionDays() { return mapCacheRetentionDays; }
     public boolean tutorialHints() { return tutorialHints; }
 
-    private static VillageQuestClientConfig load(Path path) throws IOException {
+    static VillageQuestClientConfig load(Path path) throws IOException {
         Properties properties = new Properties();
         try (InputStream input = Files.newInputStream(path)) {
             properties.load(input);
         }
+        // Upgrade only former stock defaults. Explicit custom scale/opacity stay intact.
+        if (!"1".equals(properties.getProperty("quest_tracker_style_version"))) {
+            if ("1.0".equals(properties.getProperty("quest_tracker_scale", "").trim()))
+                properties.setProperty("quest_tracker_scale", "0.85");
+            if ("0.55".equals(properties.getProperty("quest_tracker_background_opacity", "").trim()))
+                properties.setProperty("quest_tracker_background_opacity", "0.5");
+            properties.setProperty("quest_tracker_style_version", "1");
+            store(path, properties);
+        }
         VillageQuestClientConfig defaults = defaults();
-        return new VillageQuestClientConfig(
+        var config = new VillageQuestClientConfig(
                 bool(properties, "quest_tracker_enabled_by_default", defaults.questTrackerEnabledByDefault),
                 enumValue(properties, "quest_tracker_position", defaults.questTrackerPosition, HudPosition.class),
                 decimal(properties, "quest_tracker_scale", defaults.questTrackerScale, 0.65f, 1.75f),
@@ -174,11 +214,44 @@ public final class VillageQuestClientConfig {
                 integer(properties, "map_cache_retention_days", defaults.mapCacheRetentionDays, 1, 3650),
                 bool(properties, "tutorial_hints", defaults.tutorialHints)
         );
+        config.speechBubblesEnabled=bool(properties,"speech_bubbles_enabled",true);
+        return config;
+    }
+
+    public boolean setQuestTrackerSide(boolean right) {
+        boolean bottom=questTrackerPosition==HudPosition.BOTTOM_LEFT || questTrackerPosition==HudPosition.BOTTOM_RIGHT;
+        HudPosition position=right?(bottom?HudPosition.BOTTOM_RIGHT:HudPosition.TOP_RIGHT)
+                :(bottom?HudPosition.BOTTOM_LEFT:HudPosition.TOP_LEFT);
+        try {
+            saveQuestTrackerPosition(configPath(),position);
+            return true;
+        } catch(IOException exception) {
+            VillageQuest.LOGGER.warn("Could not save quest tracker position",exception);
+            return false;
+        }
+    }
+
+    void saveQuestTrackerPosition(Path path,HudPosition position) throws IOException {
+        Properties properties=new Properties();
+        if(Files.isRegularFile(path)) try(InputStream input=Files.newInputStream(path)) {properties.load(input);}
+        properties.setProperty("quest_tracker_position",position.name());
+        store(path,properties);
+        questTrackerPosition=position;
+    }
+
+    private static void store(Path path,Properties properties) throws IOException {
+        Files.createDirectories(path.getParent());
+        Path temporary=Files.createTempFile(path.getParent(),"client-",".tmp");
+        try {
+            try(var output=Files.newOutputStream(temporary)) {properties.store(output,"Village Quest local client settings");}
+            try {Files.move(temporary,path,java.nio.file.StandardCopyOption.ATOMIC_MOVE,java.nio.file.StandardCopyOption.REPLACE_EXISTING);}
+            catch(java.nio.file.AtomicMoveNotSupportedException ignored) {Files.move(temporary,path,java.nio.file.StandardCopyOption.REPLACE_EXISTING);}
+        } finally {Files.deleteIfExists(temporary);}
     }
 
     private static VillageQuestClientConfig defaults() {
         return new VillageQuestClientConfig(
-                true, HudPosition.TOP_LEFT, 1.0f, 0.55f,
+                true, HudPosition.TOP_LEFT, 0.85f, 0.5f,
                 true, true, true, 1.0f,
                 false, HudPosition.TOP_RIGHT, 1.0f, 1.0f,
                 true, true, true, true,
@@ -244,11 +317,13 @@ public final class VillageQuestClientConfig {
                 # Restart Minecraft after changing this file.
                 quest_tracker_enabled_by_default=true
                 quest_tracker_position=TOP_LEFT
-                quest_tracker_scale=1.0
-                quest_tracker_background_opacity=0.55
+                quest_tracker_style_version=1
+                quest_tracker_scale=0.85
+                quest_tracker_background_opacity=0.5
 
                 quest_available_chat_notifications=true
                 caravan_event_notifications=true
+                speech_bubbles_enabled=true
                 quest_progress_sounds=true
                 quest_progress_sound_volume=1.0
 

@@ -10,7 +10,7 @@ Open the board from the Journal after relevant village progression exists, or us
 
 Existing saves do not restart. Completed charter projects and installed routes are read directly, while all new ranks, commissions, bonuses, collection unlocks, and liveries use persistent player state.
 
-Prosperity is project-gated, not globally trade-route-gated. Completing any matching `Apiary Charter`, `Forge Charter`, `Market Charter`, `Pasture Charter`, or `Watch Bell` project opens the board and its relevant branch. Apiary, Forge, and Pasture investment can therefore begin before a trade route exists. The Market path is the route tutorial: `Market Road Troubles` awards the `Market Charter`, ledger map, and one provisional route; `The Empty Caravan` later expands that preview to the full five-route Caravan Yard.
+Prosperity opens after a matching village project or when trade-route access is unlocked, including a local route permit. Each investment branch still requires its own project. Completing any matching `Apiary Charter`, `Forge Charter`, `Market Charter`, `Pasture Charter`, or `Watch Bell` project opens the board and its relevant branch. Apiary, Forge, and Pasture investment can therefore begin before a trade route exists. The Market path is the route tutorial: `Market Road Troubles` awards the `Market Charter`, ledger map, and one provisional route; `The Empty Caravan` later expands that preview to the full five-route Caravan Yard.
 
 The board uses the same visual rules as the Journal and Pilgrim Trader. The five section symbols and Collection artwork are centered in their controls, the current Crown/Silvermark balance is always shown with item icons in the upper-right wood header, and every long list uses the same brass-and-oak double-arrow scroll handle.
 
@@ -20,11 +20,13 @@ Each branch requires its matching permanent village project. Every branch has th
 
 | Rank | Cost |
 |---|---:|
-| `Foundation` | `6 Crowns` |
-| `Established` | `12 Crowns` |
-| `Legacy` | `24 Crowns` |
+| `Foundation` | `2 Crowns` |
+| `Established` | `6 Crowns` |
+| `Legacy` | `14 Crowns` |
 
 The currently selected rank shows this Crown price directly above `Invest`, so the charge is visible before confirmation.
+
+The five branches now cost `110 Crowns` in total instead of `210`. Discounts and permanent effects retain their existing caps; purchased ranks remain owned.
 
 There are `15` ranks across the complete village:
 
@@ -45,7 +47,7 @@ Market `Foundation` unlocks prepaid commissions for every currently unlocked Pil
 - the goods use their normal Prosperity-discounted price
 - the commission fee is `3 Crowns` at Foundation, `2` at Established, and `1` at Legacy
 - only one commission can wait at a time
-- delivery happens on the first Pilgrim visit after the next dawn
+- delivery happens on the first Pilgrim visit after the next daily quest reset
 - delivery counts as a real Pilgrim purchase for compatible quest and collection progress
 
 Commissions make a known good planable, but the player still has to meet and visit the traveling Pilgrim.
@@ -59,10 +61,12 @@ Services are repeatable Crown sinks with bounded effects:
 | Road Patrol | `8 Crowns` | prevents incidents on the selected route for its next three journeys |
 | Survey Report | `5 Crowns` | adds `15` road-quality points to the selected route, up to `100` |
 | Emergency Recall | `10 Crowns` | clears an incident and returns the selected caravan to its nearest endpoint |
-| Village Festival | `15 Crowns` | adds `25%` currency to the next three Daily, Weekly, or normal Pilgrim-contract payouts |
-| Guild Ceremony | `25 Crowns` | at Trade Guild rank `3`, adds `25%` currency to the next three completed freight contracts |
+| Village Festival | `1 Crown` | adds `25%` (at least `4 Silvermarks`) to each of the next three Daily, Weekly, or normal Pilgrim-contract payouts |
+| Guild Ceremony | `2 Crowns` | at Trade Guild rank `3`, adds `25%` (at least `8 Silvermarks`) to each of the next three completed freight contracts |
 
 These effects do not stack without limit. Buying a new Festival or Ceremony resets its remaining uses to three.
+
+The minimum bonuses now match the descriptions. Three minimum Festival uses return `12 SM` for a `10 SM` service, and three minimum Ceremony uses return `24 SM` for `20 SM`. The small gain rewards completing work; buying repeatedly without completing eligible quests creates no money and discards remaining uses.
 
 ## Prestige Collection
 
@@ -112,3 +116,22 @@ The test setup:
 - opens `Prosperity & Prestige`
 
 Use the ranks progressively rather than buying everything at once. Verify prices before and after each relevant rank, place one commission and advance to a later day, buy route-targeted services on different routes, apply all five liveries, and inspect the economy ledger after each action.
+
+Village Quest 2.5 adds [chosen Vanilla reward packages and saved collection](vanilla-rewards.md), including `/vq rewards claim`. Existing accepted contracts and prepaid orders retain their original conditions.
+
+## Trade and management screens
+
+Trade and management share the Journal's wood/gold frame and quiet paper panels. Market goods stay at four rows per page, with exact server quotes and stock. Scroll inside a Prosperity description to read its last line; its action stays fixed. Scrolling the entry list keeps the selected details until another entry is clicked. Escape returns from a building management subpage before closing the desk.
+
+
+## Market screen
+
+The market layout separates the goods table from price details. Select
+an item row to read its explanation in the right-hand panel; use that panel's
+arrows to read every page. Goods pagination has its own arrows below the table.
+Buy/Sell still uses the shown fixed lot and exact server quote. Player balance,
+trader funds, stock, own inventory and village demand remain separate values.
+Unavailable/waiting actions stay disabled. Refresh requests current server data;
+Escape or the close button closes the market directly.
+
+For 2.6 market rules and regional prices see [Markets](kingdom-market.md).

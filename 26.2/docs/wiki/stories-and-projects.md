@@ -1,5 +1,16 @@
 # Stories and Village Projects
 
+## Writing supplies and honey
+
+For **Ink Between Villages**, accept the story and stay within 128 horizontal
+blocks of the selected village centre. Craft Paper, or kill ordinary Squids /
+Chickens yourself and collect their Ink Sacs / Feathers. These sources count
+12 supplies in total alongside 3 villager trades. Player-discarded items and
+untracked chest/automated drops do not count; partial pickups count only the
+units that fit. The final displayed Book and Quill bundle is still required.
+Successful bottle and shear harvests count with or without effective campfire
+smoke. This applies to both full Bee Nests and Beehives.
+
 ## Progression overhaul in 2.6.3
 
 Accepted freight contracts and shared guild projects appear separately in the

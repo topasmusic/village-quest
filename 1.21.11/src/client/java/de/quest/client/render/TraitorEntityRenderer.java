@@ -3,25 +3,26 @@ package de.quest.client.render;
 import de.quest.VillageQuest;
 import de.quest.client.compat.ClientModCompat;
 import de.quest.entity.TraitorEntity;
-import net.minecraft.client.model.Dilation;
-import net.minecraft.client.render.entity.EntityRendererFactory;
-import net.minecraft.client.render.entity.MobEntityRenderer;
-import net.minecraft.client.render.entity.feature.HeldItemFeatureRenderer;
-import net.minecraft.client.render.entity.model.EntityModelLayer;
-import net.minecraft.client.render.entity.model.PlayerEntityModel;
-import net.minecraft.client.render.entity.state.ArmedEntityRenderState;
-import net.minecraft.client.render.entity.state.PlayerEntityRenderState;
-import net.minecraft.client.item.ItemModelManager;
-import net.minecraft.entity.player.PlayerSkinType;
-import net.minecraft.entity.player.SkinTextures;
-import net.minecraft.util.AssetInfo;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.model.geom.ModelLayerLocation;
+import net.minecraft.client.model.geom.builders.CubeDeformation;
+import net.minecraft.client.model.geom.builders.LayerDefinition;
+import net.minecraft.client.model.player.PlayerModel;
+import net.minecraft.client.renderer.entity.EntityRendererProvider;
+import net.minecraft.client.renderer.entity.MobRenderer;
+import net.minecraft.client.renderer.entity.layers.ItemInHandLayer;
+import net.minecraft.client.renderer.entity.state.ArmedEntityRenderState;
+import net.minecraft.client.renderer.entity.state.AvatarRenderState;
+import net.minecraft.client.renderer.item.ItemModelResolver;
+import net.minecraft.core.ClientAsset;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.player.PlayerModelType;
+import net.minecraft.world.entity.player.PlayerSkin;
 
-public final class TraitorEntityRenderer extends MobEntityRenderer<TraitorEntity, PlayerEntityRenderState, PlayerEntityModel> {
-    public static final EntityModelLayer TRAITOR_LAYER =
-            new EntityModelLayer(Identifier.of(VillageQuest.MOD_ID, "traitor"), "main");
-    private static final Identifier TEXTURE = Identifier.of(VillageQuest.MOD_ID, "textures/entity/traitor.png");
-    private static final AssetInfo.TextureAsset TRAITOR_TEXTURE_ASSET = new AssetInfo.TextureAsset() {
+public final class TraitorEntityRenderer extends MobRenderer<TraitorEntity, AvatarRenderState, QuestNpcPlayerModel> {
+    public static final ModelLayerLocation TRAITOR_LAYER =
+            new ModelLayerLocation(Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "traitor"), "main");
+    private static final Identifier TEXTURE = Identifier.fromNamespaceAndPath(VillageQuest.MOD_ID, "textures/entity/traitor.png");
+    private static final ClientAsset.Texture TEXTURE_ASSET = new ClientAsset.Texture() {
         @Override
         public Identifier id() {
             return TEXTURE;
@@ -32,48 +33,43 @@ public final class TraitorEntityRenderer extends MobEntityRenderer<TraitorEntity
             return TEXTURE;
         }
     };
-    private static final SkinTextures TRAITOR_SKIN =
-            SkinTextures.create(TRAITOR_TEXTURE_ASSET, null, null, PlayerSkinType.WIDE);
-    private final ItemModelManager itemModelManager;
+    private static final PlayerSkin SKIN = PlayerSkin.insecure(TEXTURE_ASSET, null, null, PlayerModelType.WIDE);
+    private final ItemModelResolver itemModelManager;
     private final boolean heldItemRenderingEnabled;
 
-    public TraitorEntityRenderer(EntityRendererFactory.Context context) {
-        super(context, new PlayerEntityModel(context.getPart(TRAITOR_LAYER), false), 0.5f);
-        this.itemModelManager = context.getItemModelManager();
+    public TraitorEntityRenderer(EntityRendererProvider.Context context) {
+        super(context, new QuestNpcPlayerModel(context.bakeLayer(TRAITOR_LAYER), false), 0.55f);
+        this.itemModelManager = context.getItemModelResolver();
         this.heldItemRenderingEnabled = !ClientModCompat.shouldUseSafeNpcHeldItemFallback();
         if (this.heldItemRenderingEnabled) {
-            this.addFeature(new HeldItemFeatureRenderer<>(this));
+            this.addLayer(new ItemInHandLayer<>(this));
         } else {
-            this.addFeature(new QuestNpcHeldItemFeatureRenderer(this));
+            this.addLayer(new QuestNpcHeldItemLayer(this));
         }
     }
 
-    public static net.minecraft.client.model.TexturedModelData createModelData() {
-        return net.minecraft.client.model.TexturedModelData.of(
-                PlayerEntityModel.getTexturedModelData(Dilation.NONE, false),
-                64,
-                64
-        );
+    public static LayerDefinition createModelData() {
+        return LayerDefinition.create(PlayerModel.createMesh(CubeDeformation.NONE, false), 64, 64);
     }
 
     @Override
-    public PlayerEntityRenderState createRenderState() {
-        return new PlayerEntityRenderState();
+    public AvatarRenderState createRenderState() {
+        return new AvatarRenderState();
     }
 
     @Override
-    public void updateRenderState(TraitorEntity entity, PlayerEntityRenderState state, float tickDelta) {
-        super.updateRenderState(entity, state, tickDelta);
+    public void extractRenderState(TraitorEntity entity, AvatarRenderState state, float tickDelta) {
+        super.extractRenderState(entity, state, tickDelta);
         if (this.heldItemRenderingEnabled) {
-            ArmedEntityRenderState.updateRenderState(entity, state, this.itemModelManager, tickDelta);
+            ArmedEntityRenderState.extractArmedEntityRenderState(entity, state, this.itemModelManager, tickDelta);
         } else {
-            QuestNpcHeldItemStateHelper.updateSafeHeldItemState(entity, state, this.itemModelManager);
+            QuestNpcHeldItemStateHelper.extractSafeHeldItemState(entity, state, this.itemModelManager);
         }
-        state.skinTextures = TRAITOR_SKIN;
+        state.skin = SKIN;
     }
 
     @Override
-    public Identifier getTexture(PlayerEntityRenderState state) {
+    public Identifier getTextureLocation(AvatarRenderState state) {
         return TEXTURE;
     }
 }

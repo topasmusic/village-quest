@@ -1,32 +1,35 @@
 package de.quest.mixin;
 
-import de.quest.quest.special.SpecialQuestService;
+import de.quest.access.ForgingQuickMoveState;
 import de.quest.quest.special.ShardRelicQuestService;
 import de.quest.quest.story.StoryQuestService;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.screen.AnvilScreenHandler;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AnvilMenu;
+import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Mixin(AnvilScreenHandler.class)
+@Mixin(AnvilMenu.class)
 public abstract class AnvilScreenHandlerMixin {
-    @Inject(method = "onTakeOutput", at = @At("HEAD"))
-    private void villageQuest$trackAnvilEnchant(PlayerEntity player, ItemStack stack, CallbackInfo ci) {
-        if (!(player instanceof ServerPlayerEntity serverPlayer) || stack.isEmpty()) {
+    @Inject(method = "onTake", at = @At("HEAD"))
+    private void villageQuest$trackAnvilEnchant(Player player, ItemStack stack, CallbackInfo ci) {
+        if (!(player instanceof ServerPlayer serverPlayer) || stack.isEmpty()) {
+            return;
+        }
+        if ((Object) this instanceof ForgingQuickMoveState quickMove
+                && quickMove.villageQuest$isQuickMovingResult()) {
             return;
         }
 
         ForgingScreenHandlerAccessor accessor = (ForgingScreenHandlerAccessor) this;
-        ItemStack leftInput = accessor.villageQuest$getInput().getStack(0).copy();
-        ItemStack rightInput = accessor.villageQuest$getInput().getStack(1).copy();
-        ServerWorld world = (ServerWorld) serverPlayer.getEntityWorld();
+        ItemStack leftInput = accessor.villageQuest$getInput().getItem(0).copy();
+        ItemStack rightInput = accessor.villageQuest$getInput().getItem(1).copy();
+        ServerLevel world = (ServerLevel) serverPlayer.level();
         StoryQuestService.onAnvilOutput(world, serverPlayer, leftInput, rightInput, stack.copy());
-        SpecialQuestService.onAnvilOutput(world, serverPlayer, leftInput, rightInput, stack.copy());
         ShardRelicQuestService.onAnvilOutput(serverPlayer, leftInput, rightInput, stack.copy());
     }
 }

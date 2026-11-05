@@ -1,8 +1,7 @@
 package de.quest.quest.special;
 
-import net.minecraft.text.Text;
-
 import java.util.List;
+import net.minecraft.network.chat.Component;
 
-public record SpecialQuestStatus(Text title, List<Text> lines) {
+public record SpecialQuestStatus(Component title, List<Component> lines) {
 }

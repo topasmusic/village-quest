@@ -2,16 +2,15 @@ package de.quest.quest.story;
 
 import de.quest.data.PlayerQuestData;
 import de.quest.data.QuestState;
-import de.quest.economy.QuestExperienceService;
 import de.quest.economy.CurrencyService;
+import de.quest.economy.QuestExperienceService;
 import de.quest.reputation.ReputationService;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 
 public final class VillageProjectService {
     private static final int APIARY_CHARTER_FARMING_BONUS = 5;
@@ -21,11 +20,11 @@ public final class VillageProjectService {
 
     private VillageProjectService() {}
 
-    private static PlayerQuestData data(ServerWorld world, UUID playerId) {
+    private static PlayerQuestData data(ServerLevel world, UUID playerId) {
         return QuestState.get(world.getServer()).getPlayerData(playerId);
     }
 
-    public static boolean isUnlocked(ServerWorld world, UUID playerId, VillageProjectType project) {
+    public static boolean isUnlocked(ServerLevel world, UUID playerId, VillageProjectType project) {
         if (project == null) {
             return false;
         }
@@ -35,7 +34,7 @@ public final class VillageProjectService {
         return world != null && playerId != null && data(world, playerId).hasUnlockedProject(project.id());
     }
 
-    public static boolean setUnlocked(ServerWorld world, UUID playerId, VillageProjectType project, boolean unlocked) {
+    public static boolean setUnlocked(ServerLevel world, UUID playerId, VillageProjectType project, boolean unlocked) {
         if (world == null || playerId == null || project == null || project.alwaysUnlocked()) {
             return false;
         }
@@ -44,15 +43,15 @@ public final class VillageProjectService {
             return false;
         }
         data.setUnlockedProject(project.id(), unlocked);
-        QuestState.get(world.getServer()).markDirty();
+        QuestState.get(world.getServer()).setDirty();
         return true;
     }
 
-    public static boolean unlock(ServerWorld world, UUID playerId, VillageProjectType project) {
+    public static boolean unlock(ServerLevel world, UUID playerId, VillageProjectType project) {
         return setUnlocked(world, playerId, project, true);
     }
 
-    public static int bonusReputation(ServerWorld world, UUID playerId, ReputationService.ReputationTrack track) {
+    public static int bonusReputation(ServerLevel world, UUID playerId, ReputationService.ReputationTrack track) {
         if (track == null) {
             return 0;
         }
@@ -63,21 +62,24 @@ public final class VillageProjectService {
         };
     }
 
-    public static int bonusLevels(ServerWorld world, UUID playerId, ReputationService.ReputationTrack track) {
+    public static int bonusLevels(ServerLevel world, UUID playerId, ReputationService.ReputationTrack track) {
         return bonusLevels(world, playerId, track, null);
     }
 
-    public static int bonusLevels(ServerWorld world, UUID playerId, ReputationService.ReputationTrack track,
+    public static int bonusLevels(ServerLevel world,
+                                  UUID playerId,
+                                  ReputationService.ReputationTrack track,
                                   VillageProjectType completingProject) {
         if (track != ReputationService.ReputationTrack.CRAFTING) {
             return 0;
         }
         return isUnlocked(world, playerId, VillageProjectType.FORGE_CHARTER)
                 || completingProject == VillageProjectType.FORGE_CHARTER
-                ? FORGE_CHARTER_CRAFTING_LEVEL_BONUS : 0;
+                ? FORGE_CHARTER_CRAFTING_LEVEL_BONUS
+                : 0;
     }
 
-    public static long bonusCurrency(ServerWorld world, UUID playerId, ReputationService.ReputationTrack track) {
+    public static long bonusCurrency(ServerLevel world, UUID playerId, ReputationService.ReputationTrack track) {
         if (track != ReputationService.ReputationTrack.ANIMALS) {
             return 0L;
         }
@@ -97,7 +99,7 @@ public final class VillageProjectService {
         };
     }
 
-    public static int applyReputationReward(ServerWorld world, UUID playerId, ReputationService.ReputationTrack track, int baseAmount) {
+    public static int applyReputationReward(ServerLevel world, UUID playerId, ReputationService.ReputationTrack track, int baseAmount) {
         if (world == null || playerId == null || track == null || baseAmount <= 0) {
             return 0;
         }
@@ -106,62 +108,62 @@ public final class VillageProjectService {
         return totalAmount;
     }
 
-    public static Text formatBonusRewardLine(ServerWorld world, UUID playerId, ReputationService.ReputationTrack track) {
+    public static Component formatBonusRewardLine(ServerLevel world, UUID playerId, ReputationService.ReputationTrack track) {
         if (world == null || playerId == null || track == null) {
-            return Text.empty();
+            return Component.empty();
         }
         VillageProjectType project = unlockedTrackProject(world, playerId, track);
         if (project == null) {
-            return Text.empty();
+            return Component.empty();
         }
 
         int reputationBonus = bonusReputation(world, playerId, track);
         if (reputationBonus > 0) {
-            return Text.translatable(
+            return Component.translatable(
                     "message.village-quest.project.reputation_bonus",
-                    Text.translatable("quest.village-quest.project." + project.id() + ".title"),
-                    Text.literal("+" + reputationBonus).formatted(track.color())
-            ).formatted(Formatting.GRAY);
+                    Component.translatable("quest.village-quest.project." + project.id() + ".title"),
+                    Component.literal("+" + reputationBonus).withStyle(track.color())
+            ).withStyle(ChatFormatting.GRAY);
         }
 
         int levelBonus = bonusLevels(world, playerId, track);
         if (levelBonus > 0) {
-            return Text.translatable(
+            return Component.translatable(
                     "message.village-quest.project.level_bonus",
-                    Text.translatable("quest.village-quest.project." + project.id() + ".title"),
+                    Component.translatable("quest.village-quest.project." + project.id() + ".title"),
                     QuestExperienceService.projectBonusAmount(levelBonus)
-            ).formatted(Formatting.GRAY);
+            ).withStyle(ChatFormatting.GRAY);
         }
 
         long currencyBonus = bonusCurrency(world, playerId, track);
         if (currencyBonus <= 0L) {
-            return Text.empty();
+            return Component.empty();
         }
 
-        return Text.translatable(
+        return Component.translatable(
                 "message.village-quest.project.currency_bonus",
-                Text.translatable("quest.village-quest.project." + project.id() + ".title"),
+                Component.translatable("quest.village-quest.project." + project.id() + ".title"),
                 CurrencyService.formatDelta(currencyBonus)
-        ).formatted(Formatting.GRAY);
+        ).withStyle(ChatFormatting.GRAY);
     }
 
-    public static Text formatQuestEchoLine(ServerWorld world, UUID playerId, ReputationService.ReputationTrack track) {
+    public static Component formatQuestEchoLine(ServerLevel world, UUID playerId, ReputationService.ReputationTrack track) {
         VillageProjectType project = unlockedTrackProject(world, playerId, track);
         if (project == null) {
-            return Text.empty();
+            return Component.empty();
         }
-        return Text.translatable("message.village-quest.project.quest_echo." + project.id()).formatted(Formatting.GRAY);
+        return Component.translatable("message.village-quest.project.quest_echo." + project.id()).withStyle(ChatFormatting.GRAY);
     }
 
-    public static Text formatRewardEchoLine(ServerWorld world, UUID playerId, ReputationService.ReputationTrack track) {
+    public static Component formatRewardEchoLine(ServerLevel world, UUID playerId, ReputationService.ReputationTrack track) {
         VillageProjectType project = unlockedTrackProject(world, playerId, track);
         if (project == null) {
-            return Text.empty();
+            return Component.empty();
         }
-        return Text.translatable("message.village-quest.project.reward_echo." + project.id()).formatted(Formatting.GRAY);
+        return Component.translatable("message.village-quest.project.reward_echo." + project.id()).withStyle(ChatFormatting.GRAY);
     }
 
-    private static VillageProjectType unlockedTrackProject(ServerWorld world, UUID playerId, ReputationService.ReputationTrack track) {
+    private static VillageProjectType unlockedTrackProject(ServerLevel world, UUID playerId, ReputationService.ReputationTrack track) {
         if (world == null || playerId == null || track == null) {
             return null;
         }
@@ -172,16 +174,16 @@ public final class VillageProjectService {
         return project;
     }
 
-    public static List<Text> buildOverview(ServerWorld world, UUID playerId) {
-        List<Text> lines = new ArrayList<>();
+    public static List<Component> buildOverview(ServerLevel world, UUID playerId) {
+        List<Component> lines = new ArrayList<>();
         for (VillageProjectType project : VillageProjectType.values()) {
             boolean unlocked = isUnlocked(world, playerId, project);
-            lines.add(Text.translatable(
+            lines.add(Component.translatable(
                     unlocked
                             ? "command.village-quest.questadmin.project.line.unlocked"
                             : "command.village-quest.questadmin.project.line.locked",
-                    Text.translatable("quest.village-quest.project." + project.id() + ".title")
-            ).formatted(unlocked ? Formatting.GREEN : Formatting.GRAY));
+                    Component.translatable("quest.village-quest.project." + project.id() + ".title")
+            ).withStyle(unlocked ? ChatFormatting.GREEN : ChatFormatting.GRAY));
         }
         return lines;
     }

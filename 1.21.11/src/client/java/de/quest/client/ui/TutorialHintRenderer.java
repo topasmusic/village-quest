@@ -1,18 +1,16 @@
 package de.quest.client.ui;
 
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.text.Text;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.client.gui.Font;
+import de.quest.client.compat.GuiGraphics;
+import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
 
 public final class TutorialHintRenderer {
     private static final int SCREEN_PADDING = 6;
-    private static final int BOX_PADDING = 4;
+    private static final int BOX_PADDING = 8;
     private static final int GAP = 10;
-    private static final int OUTER = 0xFFF0D7A7;
-    private static final int INNER = 0xEE2C1E12;
-    private static final int ACCENT = 0xCC5A3D23;
-    private static final int TEXT_COLOR = 0xFFF8EED8;
+    private static final int OUTER = VillageUiTheme.GOLD;
+    private static final int TEXT = VillageUiTheme.INK;
     private static final int ARROW_SHADOW = 0xAA1B130C;
     private static final int TARGET_OUTER = 0x99F0D7A7;
     private static final int TARGET_ACCENT = 0xCCB88A46;
@@ -20,9 +18,9 @@ public final class TutorialHintRenderer {
     private TutorialHintRenderer() {}
 
     public static void drawHint(
-            DrawContext context,
-            TextRenderer textRenderer,
-            Text label,
+            GuiGraphics context,
+            Font font,
+            Component label,
             int screenWidth,
             int screenHeight,
             int targetX,
@@ -34,8 +32,15 @@ public final class TutorialHintRenderer {
             int bobOffset
     ) {
         String text = label.getString();
-        int boxWidth = textRenderer.getWidth(text) + (BOX_PADDING * 2);
-        int boxHeight = textRenderer.fontHeight + (BOX_PADDING * 2);
+        var lines=new java.util.ArrayList<String>();
+        for(var sequence:font.split(label,Math.max(24,Math.min(240,screenWidth-SCREEN_PADDING*2-BOX_PADDING*2)))) {
+            var line=new StringBuilder();
+            sequence.accept((index,style,cp) -> { line.appendCodePoint(cp);return true; });
+            lines.add(line.toString());
+        }
+        if(lines.isEmpty()) return;
+        int boxWidth = lines.stream().mapToInt(font::width).max().orElse(0) + (BOX_PADDING * 2);
+        int boxHeight = lines.size()*(font.lineHeight+2) + (BOX_PADDING * 2);
         Placement placement = resolvePlacement(preferredPlacement, screenWidth, screenHeight, targetX, targetY, targetWidth, targetHeight, boxWidth, boxHeight);
 
         int boxX;
@@ -44,37 +49,35 @@ public final class TutorialHintRenderer {
             case LEFT -> {
                 boxX = targetX - GAP - boxWidth;
                 int preferredY = targetY + (targetHeight / 2) - (boxHeight / 2) + bobOffset;
-                boxY = MathHelper.clamp(preferredY, SCREEN_PADDING, Math.max(SCREEN_PADDING, screenHeight - boxHeight - SCREEN_PADDING));
+                boxY = Mth.clamp(preferredY, SCREEN_PADDING, Math.max(SCREEN_PADDING, screenHeight - boxHeight - SCREEN_PADDING));
             }
             case RIGHT -> {
                 boxX = targetX + targetWidth + GAP;
                 int preferredY = targetY + (targetHeight / 2) - (boxHeight / 2) + bobOffset;
-                boxY = MathHelper.clamp(preferredY, SCREEN_PADDING, Math.max(SCREEN_PADDING, screenHeight - boxHeight - SCREEN_PADDING));
+                boxY = Mth.clamp(preferredY, SCREEN_PADDING, Math.max(SCREEN_PADDING, screenHeight - boxHeight - SCREEN_PADDING));
             }
             case ABOVE -> {
                 int preferredX = targetX + (targetWidth / 2) - (boxWidth / 2);
-                boxX = MathHelper.clamp(preferredX, SCREEN_PADDING, Math.max(SCREEN_PADDING, screenWidth - boxWidth - SCREEN_PADDING));
+                boxX = Mth.clamp(preferredX, SCREEN_PADDING, Math.max(SCREEN_PADDING, screenWidth - boxWidth - SCREEN_PADDING));
                 boxY = targetY - GAP - boxHeight + bobOffset;
             }
             case BELOW -> {
                 int preferredX = targetX + (targetWidth / 2) - (boxWidth / 2);
-                boxX = MathHelper.clamp(preferredX, SCREEN_PADDING, Math.max(SCREEN_PADDING, screenWidth - boxWidth - SCREEN_PADDING));
+                boxX = Mth.clamp(preferredX, SCREEN_PADDING, Math.max(SCREEN_PADDING, screenWidth - boxWidth - SCREEN_PADDING));
                 boxY = targetY + targetHeight + GAP + bobOffset;
             }
             default -> throw new IllegalStateException("Unhandled placement: " + placement);
         }
 
-        boxX = MathHelper.clamp(boxX, SCREEN_PADDING, Math.max(SCREEN_PADDING, screenWidth - boxWidth - SCREEN_PADDING));
-        boxY = MathHelper.clamp(boxY, SCREEN_PADDING, Math.max(SCREEN_PADDING, screenHeight - boxHeight - SCREEN_PADDING));
+        boxX = Mth.clamp(boxX, SCREEN_PADDING, Math.max(SCREEN_PADDING, screenWidth - boxWidth - SCREEN_PADDING));
+        boxY = Mth.clamp(boxY, SCREEN_PADDING, Math.max(SCREEN_PADDING, screenHeight - boxHeight - SCREEN_PADDING));
 
         if (highlightTarget) {
             drawTargetHighlight(context, targetX, targetY, targetWidth, targetHeight);
         }
 
-        context.fill(boxX, boxY, boxX + boxWidth, boxY + boxHeight, OUTER);
-        context.fill(boxX + 1, boxY + 1, boxX + boxWidth - 1, boxY + boxHeight - 1, INNER);
-        context.fill(boxX + 2, boxY + 2, boxX + boxWidth - 2, boxY + 3, ACCENT);
-        context.drawText(textRenderer, text, boxX + BOX_PADDING, boxY + BOX_PADDING, TEXT_COLOR, false);
+        VillageUiTheme.drawPaper(context,boxX,boxY,boxWidth,boxHeight);
+        for(int i=0;i<lines.size();i++) context.drawString(font,lines.get(i),boxX+BOX_PADDING,boxY+BOX_PADDING+i*(font.lineHeight+2),TEXT,false);
 
         switch (placement) {
             case LEFT -> drawRightPointingArrow(context, targetX, boxY + (boxHeight / 2), boxX + boxWidth);
@@ -124,7 +127,7 @@ public final class TutorialHintRenderer {
         };
     }
 
-    private static void drawTargetHighlight(DrawContext context, int x, int y, int width, int height) {
+    private static void drawTargetHighlight(GuiGraphics context, int x, int y, int width, int height) {
         context.fill(x - 2, y - 2, x + width + 2, y - 1, TARGET_OUTER);
         context.fill(x - 2, y + height + 1, x + width + 2, y + height + 2, TARGET_OUTER);
         context.fill(x - 2, y - 1, x - 1, y + height + 1, TARGET_OUTER);
@@ -136,7 +139,7 @@ public final class TutorialHintRenderer {
         context.fill(x + width, y, x + width + 1, y + height, TARGET_ACCENT);
     }
 
-    private static void drawLeftPointingArrow(DrawContext context, int tipX, int centerY, int boxX) {
+    private static void drawLeftPointingArrow(GuiGraphics context, int tipX, int centerY, int boxX) {
         int shaftStart = tipX + 3;
         int shaftEnd = boxX - 2;
         if (shaftEnd > shaftStart) {
@@ -148,7 +151,7 @@ public final class TutorialHintRenderer {
         context.fill(tipX, centerY - 1, tipX + 2, centerY + 1, OUTER);
     }
 
-    private static void drawRightPointingArrow(DrawContext context, int tipX, int centerY, int boxRightX) {
+    private static void drawRightPointingArrow(GuiGraphics context, int tipX, int centerY, int boxRightX) {
         int shaftStart = boxRightX + 2;
         int shaftEnd = tipX - 3;
         if (shaftEnd > shaftStart) {
@@ -160,7 +163,7 @@ public final class TutorialHintRenderer {
         context.fill(tipX - 2, centerY - 1, tipX, centerY + 1, OUTER);
     }
 
-    private static void drawDownPointingArrow(DrawContext context, int centerX, int tipY, int boxBottomY) {
+    private static void drawDownPointingArrow(GuiGraphics context, int centerX, int tipY, int boxBottomY) {
         int shaftStart = boxBottomY + 2;
         int shaftEnd = tipY - 3;
         if (shaftEnd > shaftStart) {
@@ -172,7 +175,7 @@ public final class TutorialHintRenderer {
         context.fill(centerX - 1, tipY - 2, centerX + 1, tipY, OUTER);
     }
 
-    private static void drawUpPointingArrow(DrawContext context, int centerX, int tipY, int boxTopY) {
+    private static void drawUpPointingArrow(GuiGraphics context, int centerX, int tipY, int boxTopY) {
         int shaftStart = tipY + 3;
         int shaftEnd = boxTopY - 2;
         if (shaftEnd > shaftStart) {

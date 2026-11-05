@@ -4,57 +4,71 @@ import de.quest.pilgrim.PilgrimContractService;
 import de.quest.quest.daily.DailyQuestService;
 import de.quest.quest.special.SpecialQuestService;
 import de.quest.quest.story.StoryQuestService;
-import net.minecraft.block.BeehiveBlock;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.entity.BeehiveBlockEntity;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.BeehiveBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(BeehiveBlock.class)
 public abstract class BeehiveBlockMixin {
-    @Inject(method = "dropHoneycomb", at = @At("TAIL"))
-    private static void villageQuest$trackSuccessfulHoneycombCut(ServerWorld world,
-                                                                 ItemStack tool,
-                                                                 BlockState state,
-                                                                 BlockEntity blockEntity,
-                                                                 Entity interactingEntity,
-                                                                 BlockPos pos,
-                                                                 CallbackInfo ci) {
-        if (interactingEntity instanceof ServerPlayerEntity serverPlayer) {
-            villageQuest$trackSuccessfulHarvest(world, serverPlayer, state, Items.SHEARS.getDefaultStack());
-        }
+    @Inject(
+            method = "useItemOn",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/world/item/ItemStack;hurtAndBreak(ILnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/world/entity/EquipmentSlot;)V",
+                    shift = At.Shift.AFTER
+            )
+    )
+    private void villageQuest$trackSuccessfulHoneycombCut(ItemStack stack,
+                                                           BlockState state,
+                                                           Level level,
+                                                           BlockPos pos,
+                                                           Player player,
+                                                           InteractionHand hand,
+                                                           BlockHitResult hit,
+                                                           CallbackInfoReturnable<InteractionResult> cir) {
+        villageQuest$trackSuccessfulHarvest(level, player, state, Items.SHEARS.getDefaultInstance());
     }
 
     @Inject(
-            method = "takeHoney(Lnet/minecraft/world/World;Lnet/minecraft/block/BlockState;Lnet/minecraft/util/math/BlockPos;Lnet/minecraft/entity/player/PlayerEntity;Lnet/minecraft/block/entity/BeehiveBlockEntity$BeeState;)V",
-            at = @At("TAIL")
+            method = "useItemOn",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/world/item/ItemStack;shrink(I)V",
+                    shift = At.Shift.AFTER
+            )
     )
-    private void villageQuest$trackSuccessfulHoneyBottleFill(World world,
+    private void villageQuest$trackSuccessfulHoneyBottleFill(ItemStack stack,
                                                              BlockState state,
+                                                             Level level,
                                                              BlockPos pos,
-                                                             PlayerEntity player,
-                                                             BeehiveBlockEntity.BeeState beeState,
-                                                             CallbackInfo ci) {
-        if (world instanceof ServerWorld serverWorld && player instanceof ServerPlayerEntity serverPlayer) {
-            villageQuest$trackSuccessfulHarvest(serverWorld, serverPlayer, state, Items.GLASS_BOTTLE.getDefaultStack());
-        }
+                                                             Player player,
+                                                             InteractionHand hand,
+                                                             BlockHitResult hit,
+                                                             CallbackInfoReturnable<InteractionResult> cir) {
+        villageQuest$trackSuccessfulHarvest(level, player, state, Items.GLASS_BOTTLE.getDefaultInstance());
     }
 
-    private static void villageQuest$trackSuccessfulHarvest(ServerWorld world, ServerPlayerEntity player, BlockState state, ItemStack tool) {
-        DailyQuestService.onBeeNestInteract(world, player, state, tool);
-        StoryQuestService.onBeeNestInteract(world, player, state, tool);
-        SpecialQuestService.onBeeNestInteract(world, player, state, tool);
-        PilgrimContractService.onBeeNestInteract(world, player, state, tool);
+    private static void villageQuest$trackSuccessfulHarvest(Level level, Player player, BlockState state, ItemStack tool) {
+        if (!(level instanceof ServerLevel world) || !(player instanceof ServerPlayer serverPlayer)) {
+            return;
+        }
+        DailyQuestService.onBeeNestInteract(world, serverPlayer, state, tool);
+        StoryQuestService.onBeeNestInteract(world, serverPlayer, state, tool);
+        SpecialQuestService.onBeeNestInteract(world, serverPlayer, state, tool);
+        PilgrimContractService.onBeeNestInteract(world, serverPlayer, state, tool);
+        de.quest.guildtown.GuildTownService.onHoneyHarvest(world, serverPlayer);
     }
 }

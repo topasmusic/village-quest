@@ -10,6 +10,7 @@ import de.quest.quest.weekly.WeeklyQuestService;
 
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -26,7 +27,7 @@ public final class QuestShareProfiles {
                 Set.of()
         ));
         DAILY.put(DailyQuestService.DailyQuestType.PET_COLLAR, profile(
-                Set.of(),
+                Set.of(DailyQuestKeys.PET_COLLAR_PROGRESS),
                 Set.of(DailyQuestKeys.PET_COLLAR_DONE),
                 Set.of()
         ));
@@ -41,12 +42,12 @@ public final class QuestShareProfiles {
                 Set.of()
         ));
         DAILY.put(DailyQuestService.DailyQuestType.WOODCUTTING, profile(
-                Set.of(DailyQuestKeys.WOOD_PROGRESS),
+                Set.of(DailyQuestKeys.WOOD_PROGRESS, DailyQuestKeys.COAL_PROGRESS),
                 Set.of(),
                 Set.of()
         ));
         DAILY.put(DailyQuestService.DailyQuestType.COAL_MINING, profile(
-                Set.of(DailyQuestKeys.COAL_PROGRESS, DailyQuestKeys.IRON_PROGRESS),
+                Set.of(DailyQuestKeys.SMITH_COAL_PROGRESS, DailyQuestKeys.IRON_PROGRESS),
                 Set.of(),
                 Set.of()
         ));
@@ -224,6 +225,12 @@ public final class QuestShareProfiles {
                         StoryQuestKeys.SILENT_FORGE_PROTECTION_BOOK,
                         StoryQuestKeys.SILENT_FORGE_BLAST_PROTECTION_BOOK,
                         StoryQuestKeys.SILENT_FORGE_PROJECTILE_PROTECTION_BOOK,
+                        StoryQuestKeys.SILENT_FORGE_BOOK_MIGRATION,
+                        StoryQuestKeys.SILENT_FORGE_MASTER_EDGE_CRAFTED,
+                        StoryQuestKeys.SILENT_FORGE_MASTER_HELM_CRAFTED,
+                        StoryQuestKeys.SILENT_FORGE_MASTER_CHEST_CRAFTED,
+                        StoryQuestKeys.SILENT_FORGE_MASTER_LEGS_CRAFTED,
+                        StoryQuestKeys.SILENT_FORGE_MASTER_BOOTS_CRAFTED,
                         StoryQuestKeys.SILENT_FORGE_MASTER_EDGE,
                         StoryQuestKeys.SILENT_FORGE_MASTER_HELM,
                         StoryQuestKeys.SILENT_FORGE_MASTER_CHEST,
@@ -254,7 +261,7 @@ public final class QuestShareProfiles {
                         StoryQuestKeys.MARKET_ROAD_SHEPHERD,
                         StoryQuestKeys.MARKET_ROAD_LIBRARIAN
                 ),
-                Set.of()
+                Set.of("market_road_profession_")
         ));
         STORY.put(storyKey(StoryArcType.MARKET_ROAD_TROUBLES, 3), profile(
                 Set.of(StoryQuestKeys.MARKET_ROAD_VILLAGERS, StoryQuestKeys.MARKET_ROAD_BELL),
@@ -284,64 +291,97 @@ public final class QuestShareProfiles {
         ));
 
         STORY.put(storyKey(StoryArcType.NIGHT_BELLS, 0), profile(
-                Set.of(StoryQuestKeys.NIGHT_BELLS_ZOMBIES),
+                nightBellsInts(0,StoryQuestKeys.NIGHT_BELLS_ZOMBIES,
+                        StoryQuestKeys.NIGHT_BELLS_PEACEFUL_BELL,
+                        "night_bells_peaceful_marker_0_0", "night_bells_peaceful_marker_0_1",
+                        "night_bells_peaceful_marker_0_2", "night_bells_peaceful_marker_0_3"),
                 Set.of(),
                 Set.of()
         ));
         STORY.put(storyKey(StoryArcType.NIGHT_BELLS, 1), profile(
-                Set.of(StoryQuestKeys.NIGHT_BELLS_SKELETONS, StoryQuestKeys.NIGHT_BELLS_SPIDERS),
+                nightBellsInts(1,StoryQuestKeys.NIGHT_BELLS_SKELETONS, StoryQuestKeys.NIGHT_BELLS_SPIDERS,
+                        "night_bells_peaceful_marker_1_0", "night_bells_peaceful_marker_1_1",
+                        "night_bells_peaceful_marker_1_2", "night_bells_peaceful_marker_1_3"),
                 Set.of(),
                 Set.of()
         ));
         STORY.put(storyKey(StoryArcType.NIGHT_BELLS, 2), profile(
-                Set.of(StoryQuestKeys.NIGHT_BELLS_CREEPERS, StoryQuestKeys.NIGHT_BELLS_HOSTILES),
+                nightBellsInts(2,StoryQuestKeys.NIGHT_BELLS_CREEPERS, StoryQuestKeys.NIGHT_BELLS_HOSTILES,
+                        "night_bells_peaceful_marker_2_0", "night_bells_peaceful_marker_2_1",
+                        "night_bells_peaceful_marker_2_2", "night_bells_peaceful_marker_2_3"),
                 Set.of(),
                 Set.of()
         ));
         STORY.put(storyKey(StoryArcType.NIGHT_BELLS, 3), profile(
-                Set.of(StoryQuestKeys.NIGHT_BELLS_RAID_WON),
-                Set.of(StoryQuestKeys.NIGHT_BELLS_RAID_WAIT_FOR_FRESH),
+                nightBellsInts(3,StoryQuestKeys.NIGHT_BELLS_RAID_WON,
+                        StoryQuestKeys.NIGHT_BELLS_PEACEFUL_BELL,
+                        "night_bells_peaceful_marker_3_0", "night_bells_peaceful_marker_3_1",
+                        "night_bells_peaceful_marker_3_2", "night_bells_peaceful_marker_3_3"),
+                Set.of(StoryQuestKeys.NIGHT_BELLS_RAID_WAIT_FOR_FRESH,
+                        StoryQuestKeys.NIGHT_BELLS_PEACEFUL_GUARDIAN,
+                        StoryQuestKeys.NIGHT_BELLS_PEACEFUL_CONFIRMED),
                 Set.of()
         ));
 
+        for (int chapter=0; chapter<StoryArcType.LIVING_KINGDOMS.chapterCount(); chapter++)
+            STORY.put(storyKey(StoryArcType.LIVING_KINGDOMS,chapter),profile(Set.of(),Set.of(),Set.of()));
+
         PILGRIM.put(PilgrimContractType.QUENCH_FOR_THE_HALL, profile(
-                Set.of("pilgrim_lantern_skeletons"),
+                pilgrimInts("pilgrim_lantern_skeletons"),
                 Set.of(),
                 Set.of()
         ));
         PILGRIM.put(PilgrimContractType.WOOL_BEFORE_RAIN, profile(
-                Set.of("pilgrim_smoke_creepers"),
+                pilgrimInts("pilgrim_smoke_creepers"),
                 Set.of(),
                 Set.of()
         ));
         PILGRIM.put(PilgrimContractType.TRACKS_IN_THE_DARK, profile(
-                Set.of("pilgrim_tracks_zombies"),
+                pilgrimInts("pilgrim_tracks_zombies"),
                 Set.of(),
                 Set.of()
         ));
         PILGRIM.put(PilgrimContractType.FANGS_BY_THE_HEDGEROW, profile(
-                Set.of("pilgrim_fangs_spiders"),
+                pilgrimInts("pilgrim_fangs_spiders"),
                 Set.of(),
                 Set.of()
         ));
         PILGRIM.put(PilgrimContractType.ASH_ON_THE_PASS, profile(
-                Set.of("pilgrim_ash_blazes", "pilgrim_ash_wither_skeletons"),
+                pilgrimInts("pilgrim_ash_blazes", "pilgrim_ash_wither_skeletons"),
                 Set.of(),
                 Set.of()
         ));
         PILGRIM.put(PilgrimContractType.SMOKE_OVER_BLACKSTONE, profile(
-                Set.of("pilgrim_blackstone_magma_cubes", "pilgrim_blackstone_ghasts"),
+                pilgrimInts("pilgrim_blackstone_magma_cubes", "pilgrim_blackstone_ghasts"),
                 Set.of(),
                 Set.of()
         ));
         PILGRIM.put(PilgrimContractType.STILLNESS_BEYOND_THE_GATE, profile(
-                Set.of("pilgrim_stillness_endermen", "pilgrim_stillness_shulkers"),
+                pilgrimInts("pilgrim_stillness_endermen", "pilgrim_stillness_shulkers"),
                 Set.of(),
                 Set.of()
         ));
     }
 
     private QuestShareProfiles() {}
+
+    private static Set<String> nightBellsInts(int chapter,String... progressKeys) {
+        Set<String> keys = new HashSet<>(Set.of(progressKeys));
+        keys.addAll(de.quest.content.story.NightBellsMarkerProgress.keys(chapter));
+        keys.add(StoryQuestKeys.NIGHT_BELLS_VILLAGE_BOUND);
+        keys.add(StoryQuestKeys.NIGHT_BELLS_VILLAGE_X);
+        keys.add(StoryQuestKeys.NIGHT_BELLS_VILLAGE_Z);
+        return Set.copyOf(keys);
+    }
+
+    private static Set<String> pilgrimInts(String... combatKeys) {
+        Set<String> keys = new HashSet<>(Set.of(combatKeys));
+        keys.add("pilgrim_expedition_entered");
+        keys.add("pilgrim_expedition_distance");
+        keys.add("pilgrim_expedition_checkpoints");
+        keys.add("pilgrim_expedition_returned");
+        return Set.copyOf(keys);
+    }
 
     public static boolean isDailyShareable(DailyQuestService.DailyQuestType type) {
         return type != null && DAILY.containsKey(type);
@@ -378,7 +418,8 @@ public final class QuestShareProfiles {
     public static boolean isStoryShareable(StoryArcType type) {
         return type != null
                 && type != StoryArcType.SHADOWS_ON_THE_TRADE_ROAD
-                && type != StoryArcType.THE_EMPTY_CARAVAN;
+                && type != StoryArcType.THE_EMPTY_CARAVAN
+                && type != StoryArcType.ARTIFACT_JOURNEY;
     }
 
     public static boolean sharesStoryInt(StoryArcType type, int chapterIndex, String key) {

@@ -1,5 +1,6 @@
 package de.quest.quest.story;
 
+import de.quest.reward.VanillaRewardService;
 import de.quest.caravan.TradeRouteService;
 import de.quest.content.story.FailingHarvestStoryArc;
 import de.quest.content.story.MarketRoadTroublesStoryArc;
@@ -10,7 +11,9 @@ import de.quest.content.story.ShadowsTradeRoadEncounterService;
 import de.quest.content.story.SilentForgeStoryArc;
 import de.quest.content.story.EmptyCaravanStoryService;
 import de.quest.content.story.TheEmptyCaravanStoryArc;
+import de.quest.content.story.ShrinesBetweenRoadsStoryArc;
 import de.quest.data.PlayerQuestData;
+import de.quest.data.PersonalResetReceipts;
 import de.quest.data.QuestState;
 import de.quest.economy.CurrencyService;
 import de.quest.economy.QuestExperienceService;
@@ -24,20 +27,20 @@ import de.quest.quest.special.SurveyorCompassQuestService;
 import de.quest.questmaster.QuestMasterUiService;
 import de.quest.reputation.ReputationService;
 import de.quest.util.Texts;
-import net.minecraft.block.BlockState;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.passive.AnimalEntity;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -50,19 +53,22 @@ public final class StoryQuestService {
     private static final double STORY_CURRENCY_MULTIPLIER = 0.70d;
     private static final long STORY_ARC_COOLDOWN_MILLIS = 1L * 60L * 60L * 1000L;
 
-    private static final Map<StoryArcType, StoryArcDefinition> ARCS = Map.of(
-            StoryArcType.FAILING_HARVEST, new FailingHarvestStoryArc(),
-            StoryArcType.SILENT_FORGE, new SilentForgeStoryArc(),
-            StoryArcType.MARKET_ROAD_TROUBLES, new MarketRoadTroublesStoryArc(),
-            StoryArcType.RESTLESS_PENS, new RestlessPensStoryArc(),
-            StoryArcType.SHADOWS_ON_THE_TRADE_ROAD, new ShadowsOnTheTradeRoadStoryArc(),
-            StoryArcType.THE_EMPTY_CARAVAN, new TheEmptyCaravanStoryArc(),
-            StoryArcType.NIGHT_BELLS, new NightBellsStoryArc()
+    private static final Map<StoryArcType, StoryArcDefinition> ARCS = Map.ofEntries(
+            Map.entry(StoryArcType.FAILING_HARVEST, new FailingHarvestStoryArc()),
+            Map.entry(StoryArcType.SILENT_FORGE, new SilentForgeStoryArc()),
+            Map.entry(StoryArcType.MARKET_ROAD_TROUBLES, new MarketRoadTroublesStoryArc()),
+            Map.entry(StoryArcType.RESTLESS_PENS, new RestlessPensStoryArc()),
+            Map.entry(StoryArcType.SHADOWS_ON_THE_TRADE_ROAD, new ShadowsOnTheTradeRoadStoryArc()),
+            Map.entry(StoryArcType.THE_EMPTY_CARAVAN, new TheEmptyCaravanStoryArc()),
+            Map.entry(StoryArcType.SHRINES_BETWEEN_ROADS, new ShrinesBetweenRoadsStoryArc()),
+            Map.entry(StoryArcType.NIGHT_BELLS, new NightBellsStoryArc()),
+            Map.entry(StoryArcType.LIVING_KINGDOMS, new de.quest.content.story.LivingKingdomsStoryArc()),
+            Map.entry(StoryArcType.ARTIFACT_JOURNEY,new de.quest.content.story.ArtifactJourneyStoryArc())
     );
 
     private StoryQuestService() {}
 
-    public static boolean areCoreStoriesCompleted(ServerWorld world, UUID playerId) {
+    public static boolean areCoreStoriesCompleted(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
             return false;
         }
@@ -74,7 +80,7 @@ public final class StoryQuestService {
         return true;
     }
 
-    private static PlayerQuestData data(ServerWorld world, UUID playerId) {
+    private static PlayerQuestData data(ServerLevel world, UUID playerId) {
         return QuestState.get(world.getServer()).getPlayerData(playerId);
     }
 
@@ -82,7 +88,7 @@ public final class StoryQuestService {
         return StoryArcType.questmasterArcs().size();
     }
 
-    public static int getQuestInt(ServerWorld world, UUID playerId, String key) {
+    public static int getQuestInt(ServerLevel world, UUID playerId, String key) {
         if (world == null || playerId == null || key == null || key.isEmpty()) {
             return 0;
         }
@@ -94,7 +100,7 @@ public final class StoryQuestService {
         return data(world, playerId).getStoryInt(key);
     }
 
-    public static void setQuestInt(ServerWorld world, UUID playerId, String key, int value) {
+    public static void setQuestInt(ServerLevel world, UUID playerId, String key, int value) {
         setQuestInt(world, playerId, key, value, true);
     }
 
@@ -102,11 +108,11 @@ public final class StoryQuestService {
      * Updates visible story progress without playing the ordinary progress cue.
      * Stage-ready feedback remains handled by {@link #completeIfEligible}.
      */
-    public static void setQuestIntQuietly(ServerWorld world, UUID playerId, String key, int value) {
+    public static void setQuestIntQuietly(ServerLevel world, UUID playerId, String key, int value) {
         setQuestInt(world, playerId, key, value, false);
     }
 
-    private static void setQuestInt(ServerWorld world, UUID playerId, String key, int value, boolean playFeedback) {
+    private static void setQuestInt(ServerLevel world, UUID playerId, String key, int value, boolean playFeedback) {
         if (world == null || playerId == null || key == null || key.isEmpty()) {
             return;
         }
@@ -117,7 +123,7 @@ public final class StoryQuestService {
                 return;
             }
             List<UUID> recipients = QuestPartyService.activeStoryMembers(world, playerId, activeArc, chapterIndex);
-            Map<UUID, List<Text>> before = captureProgressSnapshots(world, recipients);
+            Map<UUID, List<Component>> before = captureProgressSnapshots(world, recipients);
             QuestPartyService.setSharedStoryInt(world, playerId, activeArc, chapterIndex, key, value);
             notifyProgressChange(world, recipients, before, playFeedback);
             return;
@@ -126,13 +132,13 @@ public final class StoryQuestService {
         if (data.getStoryInt(key) == value) {
             return;
         }
-        List<Text> before = currentProgressLines(world, playerId);
+        List<Component> before = currentProgressLines(world, playerId);
         data.setStoryInt(key, value);
-        QuestState.get(world.getServer()).markDirty();
+        QuestState.get(world.getServer()).setDirty();
         notifyProgressChange(world, playerId, before, playFeedback);
     }
 
-    public static void addQuestIntClamped(ServerWorld world, UUID playerId, String key, int amount, int target) {
+    public static void addQuestIntClamped(ServerLevel world, UUID playerId, String key, int amount, int target) {
         if (amount <= 0) {
             return;
         }
@@ -143,7 +149,7 @@ public final class StoryQuestService {
         setQuestInt(world, playerId, key, Math.min(target, current + amount));
     }
 
-    public static void addQuestIntClampedQuietly(ServerWorld world, UUID playerId, String key, int amount, int target) {
+    public static void addQuestIntClampedQuietly(ServerLevel world, UUID playerId, String key, int amount, int target) {
         if (amount <= 0) {
             return;
         }
@@ -154,7 +160,7 @@ public final class StoryQuestService {
         setQuestIntQuietly(world, playerId, key, Math.min(target, current + amount));
     }
 
-    public static boolean hasStoryFlag(ServerWorld world, UUID playerId, String key) {
+    public static boolean hasStoryFlag(ServerLevel world, UUID playerId, String key) {
         if (world == null || playerId == null || key == null || key.isEmpty()) {
             return false;
         }
@@ -166,7 +172,7 @@ public final class StoryQuestService {
         return data(world, playerId).hasStoryFlag(key);
     }
 
-    public static void setStoryFlag(ServerWorld world, UUID playerId, String key, boolean enabled) {
+    public static void setStoryFlag(ServerLevel world, UUID playerId, String key, boolean enabled) {
         if (world == null || playerId == null || key == null || key.isEmpty()) {
             return;
         }
@@ -177,7 +183,7 @@ public final class StoryQuestService {
                 return;
             }
             List<UUID> recipients = QuestPartyService.activeStoryMembers(world, playerId, activeArc, chapterIndex);
-            Map<UUID, List<Text>> before = captureProgressSnapshots(world, recipients);
+            Map<UUID, List<Component>> before = captureProgressSnapshots(world, recipients);
             QuestPartyService.setSharedStoryFlag(world, playerId, activeArc, chapterIndex, key, enabled);
             notifyProgressChange(world, recipients, before);
             return;
@@ -186,137 +192,181 @@ public final class StoryQuestService {
         if (data.hasStoryFlag(key) == enabled) {
             return;
         }
-        List<Text> before = currentProgressLines(world, playerId);
+        List<Component> before = currentProgressLines(world, playerId);
         data.setStoryFlag(key, enabled);
-        QuestState.get(world.getServer()).markDirty();
+        QuestState.get(world.getServer()).setDirty();
         notifyProgressChange(world, playerId, before);
     }
 
-    public static boolean acceptQuest(ServerWorld world, ServerPlayerEntity player, StoryArcType arcType) {
+    public static boolean acceptQuest(ServerLevel world, ServerPlayer player, StoryArcType arcType) {
         if (world == null || player == null || arcType == null || !StoryArcType.isQuestmasterArc(arcType)) {
             return false;
         }
 
-        PlayerQuestData data = data(world, player.getUuid());
-        if (data.getActiveStoryArc() != null
-                || isCompleted(world, player.getUuid(), arcType)
-                || isStoryCooldownActive(world, player.getUuid())) {
+        if (de.quest.shrine.VillageIntroRequestService.blocksActions(world, player.getUUID())) return false;
+        PlayerQuestData data = data(world, player.getUUID());
+        if (!de.quest.questmaster.QuestMasterProgressionService.isStoryCategoryUnlocked(world, player.getUUID())) return false;
+        StoryLane lane = laneFor(arcType);
+        if (!data.storyLanesWritable() || data.getActiveStoryArc(lane) != null
+                || isCompleted(world, player.getUUID(), arcType)
+                || lane == StoryLane.CORE && isStoryCooldownActive(world, player.getUUID())) {
             return false;
         }
 
         StoryArcDefinition arc = definition(arcType);
-        if (arc == null || !arc.isUnlocked(world, player.getUuid())) {
+        if (arc == null || !arc.isUnlocked(world, player.getUUID())) {
             return false;
         }
 
-        int chapterIndex = chapterIndex(world, player.getUuid(), arcType);
+        int chapterIndex = chapterIndex(world, player.getUUID(), arcType);
         StoryChapterDefinition chapter = arc.chapter(chapterIndex);
         if (chapter == null) {
             return false;
         }
         if (!chapter.canAccept(world, player)) {
-            Text blocked = chapter.acceptBlockedMessage(world, player);
+            Component blocked = chapter.acceptBlockedMessage(world, player);
             if (blocked != null) {
-                player.sendMessage(blocked, false);
+                player.sendSystemMessage(blocked, false);
             }
             return false;
         }
 
-        data.clearStoryProgress();
-        data.setActiveStoryArc(arcType);
+        if (chapterIndex == arcType.chapterCount() - 1 && !PersonalResetReceipts.storyPaid(data, arcType, chapterIndex) && !de.quest.reward.VanillaRewardService.prepare(world, player, rewardSlot(arcType),
+                QuestPartyService.rewardStoryKey(world, player.getUUID(), arcType, chapterIndex), arcType.id() + ":" + chapterIndex,
+                de.quest.quest.repeatable.RepeatableTargetProfile.NORMAL, () -> acceptQuest(world, player, arcType))) return false;
+        if (lane == StoryLane.CORE) data.clearStoryProgress();
+        data.setActiveStoryArc(lane, arcType);
         data.setStoryDiscovered(arcType.id(), true);
-        QuestState.get(world.getServer()).markDirty();
+        QuestState.get(world.getServer()).setDirty();
         chapter.onAccepted(world, player);
         QuestPartyService.onStoryQuestAccepted(world, player, arcType, chapterIndex, chapter);
-        player.sendMessage(Texts.acceptedTitle(chapter.title(), Formatting.GOLD), false);
+        player.sendSystemMessage(Texts.acceptedTitle(chapter.title(), ChatFormatting.GOLD), false);
         QuestSoundFeedback.playAccepted(world, player);
         QuestTrackerService.enableForAcceptedQuest(world, player);
-        refreshQuestUi(world, player.getUuid());
+        refreshQuestUi(world, player.getUUID());
         return true;
     }
 
-    public static boolean claimFromQuestMaster(ServerWorld world, ServerPlayerEntity player, StoryArcType arcType) {
-        if (world == null || player == null || arcType == null || !isActive(world, player.getUuid(), arcType)) {
+    public static boolean claimFromQuestMaster(ServerLevel world, ServerPlayer player, StoryArcType arcType) {
+        if (player != null && de.quest.shrine.VillageIntroRequestService.blocksActions(world,player.getUUID())) return false;
+        if (world == null || player == null || arcType == null || !isActive(world, player.getUUID(), arcType)) {
             return false;
         }
 
-        StoryChapterDefinition chapter = currentChapter(world, player.getUuid());
+        StoryChapterDefinition chapter = currentChapter(world, player.getUUID(), arcType);
         if (chapter == null) {
             return false;
         }
-        if (!chapter.isComplete(world, player)) {
-            Text blocked = chapter.claimBlockedMessage(world, player);
+        int chapterIndex = chapterIndex(world, player.getUUID(), arcType);
+        boolean shared = QuestPartyService.isSharedStoryMember(
+                world, player.getUUID(), arcType, chapterIndex);
+        boolean requirementsConsumed = QuestPartyService.storyTurnInRequirementsConsumed(
+                world, player.getUUID(), arcType, chapterIndex);
+        if (!requirementsConsumed && !chapter.isComplete(world, player)) {
+            Component blocked = chapter.claimBlockedMessage(world, player);
             if (blocked != null) {
-                player.sendMessage(blocked, false);
+                player.sendSystemMessage(blocked, false);
             }
             return false;
         }
-        if (!chapter.consumeCompletionRequirements(world, player)) {
+        if (!requirementsConsumed && !chapter.consumeCompletionRequirements(world, player)) {
             return false;
         }
+        if (!requirementsConsumed && shared) {
+            QuestPartyService.markStoryTurnInRequirementsConsumed(
+                    world, player.getUUID(), arcType, chapterIndex);
+        }
 
-        StoryChapterCompletion completion = chapter.buildCompletion();
-        int chapterIndex = chapterIndex(world, player.getUuid(), arcType);
-        if (QuestPartyService.isSharedStoryMember(world, player.getUuid(), arcType, chapterIndex)) {
-            List<UUID> recipients = QuestPartyService.activeStoryMembers(world, player.getUuid(), arcType, chapterIndex);
+        StoryChapterCompletion completion = chapter.buildCompletion(world, player.getUUID());
+        if (shared) {
+            List<UUID> recipients = QuestPartyService.activeStoryMembers(world, player.getUUID(), arcType, chapterIndex);
             for (UUID recipientId : recipients) {
-                ServerPlayerEntity recipient = world.getServer().getPlayerManager().getPlayer(recipientId);
+                if (de.quest.shrine.VillageIntroRequestService.blocksActions(world,recipientId)) continue;
+                ServerPlayer recipient = world.getServer().getPlayerList().getPlayer(recipientId);
                 if (recipient != null) {
-                    deliverCompletion(world, recipient, completion);
+                    deliverCompletion(world, recipient, arcType, chapterIndex, chapter.buildCompletion(world,recipientId));
                     chapter.onClaimed(world, recipient);
                 }
                 finishChapterProgress(world, recipientId, arcType, chapterIndex);
             }
-            QuestPartyService.clearStorySessionIfFinished(world, player.getUuid(), arcType, chapterIndex);
+            QuestPartyService.clearStorySessionIfFinished(world, player.getUUID(), arcType, chapterIndex);
             return !recipients.isEmpty();
         }
 
-        deliverCompletion(world, player, completion);
+        deliverCompletion(world, player, arcType, chapterIndex, completion);
         chapter.onClaimed(world, player);
-        finishChapterProgress(world, player.getUuid(), arcType, chapterIndex);
+        finishChapterProgress(world, player.getUUID(), arcType, chapterIndex);
         return true;
     }
 
-    public static boolean completeIfEligible(ServerWorld world, ServerPlayerEntity player) {
+    public static boolean isReadyForClaim(ServerLevel world, ServerPlayer player, StoryArcType arcType) {
+        if (world == null || player == null || arcType == null || !isActive(world, player.getUUID(), arcType)) {
+            return false;
+        }
+        StoryChapterDefinition chapter = currentChapter(world, player.getUUID(), arcType);
+        if (chapter == null) {
+            return false;
+        }
+        int chapterIndex = chapterIndex(world, player.getUUID(), arcType);
+        return QuestPartyService.storyTurnInRequirementsConsumed(world, player.getUUID(), arcType, chapterIndex)
+                || chapter.isComplete(world, player);
+    }
+
+    public static boolean completeIfEligible(ServerLevel world, ServerPlayer player) {
+        return completeIfEligible(world, player, player == null ? null : activeArcType(world, player.getUUID()));
+    }
+
+    public static boolean completeIfEligible(ServerLevel world, ServerPlayer player, StoryArcType activeArc) {
+        if (player != null && de.quest.shrine.VillageIntroRequestService.blocksActions(world,player.getUUID())) return false;
         if (world == null || player == null) {
             return false;
         }
-        StoryArcType activeArc = activeArcType(world, player.getUuid());
-        if (activeArc == null) {
+        if (activeArc == null || !isActive(world, player.getUUID(), activeArc)) {
             return false;
         }
-        StoryChapterDefinition chapter = currentChapter(world, player.getUuid());
-        if (chapter == null || !chapter.isComplete(world, player)) {
+        StoryChapterDefinition chapter = currentChapter(world, player.getUUID(), activeArc);
+        if (chapter == null) {
             return false;
         }
-        int chapterIndex = chapterIndex(world, player.getUuid(), activeArc);
-        PlayerQuestData data = data(world, player.getUuid());
+        int chapterIndex = chapterIndex(world, player.getUUID(), activeArc);
+        boolean requirementsConsumed = QuestPartyService.storyTurnInRequirementsConsumed(
+                world, player.getUUID(), activeArc, chapterIndex);
+        if (!requirementsConsumed && !chapter.isComplete(world, player)) {
+            return false;
+        }
+        PlayerQuestData data = data(world, player.getUUID());
         String readyFlag = readyFlagKey(activeArc, chapterIndex);
-        if (!data.hasStoryFlag(readyFlag)) {
-            data.setStoryFlag(readyFlag, true);
-            QuestState.get(world.getServer()).markDirty();
-            player.sendMessage(Text.translatable("message.village-quest.story.ready", chapter.title()).formatted(Formatting.GOLD), false);
+        boolean kingdom = laneFor(activeArc) == StoryLane.KINGDOM;
+        if (!(kingdom ? data.hasTradeRouteFlag(readyFlag) : data.hasStoryFlag(readyFlag))) {
+            if (kingdom) data.setTradeRouteFlag(readyFlag, true);
+            else data.setStoryFlag(readyFlag, true);
+            QuestState.get(world.getServer()).setDirty();
+            player.sendSystemMessage(Component.translatable("message.village-quest.story.ready", chapter.title()).withStyle(ChatFormatting.GOLD), false);
             QuestSoundFeedback.playReady(world, player);
         }
-        refreshQuestUi(world, player.getUuid());
+        refreshQuestUi(world, player.getUUID());
         return true;
     }
 
-    public static StoryQuestStatus openStatus(ServerWorld world, UUID playerId) {
-        StoryArcType activeArc = activeArcType(world, playerId);
-        StoryChapterDefinition chapter = currentChapter(world, playerId);
+    public static StoryQuestStatus openStatus(ServerLevel world, UUID playerId) {
+        return openStatus(world, playerId, StoryLane.CORE);
+    }
+
+    public static StoryQuestStatus openStatus(ServerLevel world, UUID playerId, StoryLane lane) {
+        StoryArcType activeArc = activeArcType(world, playerId, lane);
+        StoryChapterDefinition chapter = currentChapter(world, playerId, activeArc);
         if (activeArc == null || chapter == null) {
             return null;
         }
 
-        List<Text> lines = new ArrayList<>();
+        List<Component> lines = new ArrayList<>();
         int chapterNumber = chapterIndex(world, playerId, activeArc) + 1;
-        lines.add(Text.translatable("text.village-quest.story.chapter_label", chapterNumber, chapter.title()).formatted(Formatting.GOLD));
+        lines.add(Component.translatable("text.village-quest.story.chapter_label", chapterNumber, chapter.title()).withStyle(ChatFormatting.GOLD));
         lines.addAll(chapter.progressLines(world, playerId));
         return new StoryQuestStatus(definition(activeArc).title(), List.copyOf(lines));
     }
 
-    public static int discoveredCount(ServerWorld world, UUID playerId) {
+    public static int discoveredCount(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
             return 0;
         }
@@ -329,7 +379,7 @@ public final class StoryQuestService {
         return count;
     }
 
-    public static int completedCount(ServerWorld world, UUID playerId) {
+    public static int completedCount(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
             return 0;
         }
@@ -342,58 +392,71 @@ public final class StoryQuestService {
         return count;
     }
 
-    public static int activeCount(ServerWorld world, UUID playerId) {
-        return activeArcType(world, playerId) == null ? 0 : 1;
+    public static int activeCount(ServerLevel world, UUID playerId) {
+        return (activeArcType(world, playerId, StoryLane.CORE) == null ? 0 : 1)
+                + (activeArcType(world, playerId, StoryLane.KINGDOM) == null ? 0 : 1);
     }
 
-    public static boolean isActive(ServerWorld world, UUID playerId, StoryArcType arcType) {
-        return arcType != null && arcType == activeArcType(world, playerId);
+    public static boolean isActive(ServerLevel world, UUID playerId, StoryArcType arcType) {
+        return arcType != null && arcType == activeArcType(world, playerId, laneFor(arcType));
     }
 
-    public static boolean isCompleted(ServerWorld world, UUID playerId, StoryArcType arcType) {
+    public static boolean isCompleted(ServerLevel world, UUID playerId, StoryArcType arcType) {
         return world != null && playerId != null && arcType != null && data(world, playerId).hasStoryCompleted(arcType.id());
     }
 
-    public static StoryArcType activeArcType(ServerWorld world, UUID playerId) {
+    public static StoryLane laneFor(StoryArcType arc) { return StoryLane.forArc(arc); }
+
+    /** Storage bucket only; authored reward keys and durable payout identities never change. */
+    private static String rewardSlot(StoryArcType arc) {
+        return laneFor(arc) == StoryLane.KINGDOM ? "kingdom_story" : "story";
+    }
+
+    public static StoryArcType activeArcType(ServerLevel world, UUID playerId) {
+        return activeArcType(world, playerId, StoryLane.CORE);
+    }
+
+    public static StoryArcType activeArcType(ServerLevel world, UUID playerId, StoryLane lane) {
         if (world == null || playerId == null) {
             return null;
         }
-        StoryArcType active = data(world, playerId).getActiveStoryArc();
+        if (!data(world, playerId).storyLanesWritable()) return null;
+        StoryArcType active = data(world, playerId).getActiveStoryArc(lane);
         return StoryArcType.isQuestmasterArc(active) ? active : null;
     }
 
-    public static StoryArcType availableArcType(ServerWorld world, UUID playerId) {
+    public static StoryArcType availableArcType(ServerLevel world, UUID playerId) {
         return availableArcTypeInternal(world, playerId, true);
     }
 
-    public static StoryArcType availableArcTypeIgnoringCooldown(ServerWorld world, UUID playerId) {
+    public static StoryArcType availableArcTypeIgnoringCooldown(ServerLevel world, UUID playerId) {
         return availableArcTypeInternal(world, playerId, false);
     }
 
-    public static boolean isStoryCooldownActive(ServerWorld world, UUID playerId) {
+    public static boolean isStoryCooldownActive(ServerLevel world, UUID playerId) {
         return getStoryCooldownRemainingMillis(world, playerId) > 0L;
     }
 
-    public static long getStoryCooldownRemainingMillis(ServerWorld world, UUID playerId) {
+    public static long getStoryCooldownRemainingMillis(ServerLevel world, UUID playerId) {
         return Math.max(0L, getStoryCooldownUntil(world, playerId) - System.currentTimeMillis());
     }
 
-    public static long getStoryCooldownUntil(ServerWorld world, UUID playerId) {
-        if (world == null || playerId == null) {
+    public static long getStoryCooldownUntil(ServerLevel world, UUID playerId) {
+        if (!de.quest.config.VillageQuestServerConfig.get().storyCooldownEnabled() || world == null || playerId == null) {
             return 0L;
         }
         long cooldownUntil = data(world, playerId).getStoryCooldownUntil();
         return cooldownUntil > System.currentTimeMillis() ? cooldownUntil : 0L;
     }
 
-    public static int chapterIndex(ServerWorld world, UUID playerId, StoryArcType arcType) {
+    public static int chapterIndex(ServerLevel world, UUID playerId, StoryArcType arcType) {
         if (world == null || playerId == null || arcType == null) {
             return 0;
         }
         return Math.max(0, data(world, playerId).getStoryChapterProgress(arcType.id()));
     }
 
-    public static StoryChapterDefinition chapter(ServerWorld world, UUID playerId, StoryArcType arcType) {
+    public static StoryChapterDefinition chapter(ServerLevel world, UUID playerId, StoryArcType arcType) {
         StoryArcDefinition arc = definition(arcType);
         if (arc == null) {
             return null;
@@ -401,49 +464,66 @@ public final class StoryQuestService {
         return arc.chapter(chapterIndex(world, playerId, arcType));
     }
 
-    public static StoryChapterDefinition currentChapter(ServerWorld world, UUID playerId) {
+    public static StoryChapterDefinition currentChapter(ServerLevel world, UUID playerId) {
         StoryArcType activeArc = activeArcType(world, playerId);
         return activeArc == null ? null : chapter(world, playerId, activeArc);
+    }
+
+    public static StoryChapterDefinition currentChapter(ServerLevel world, UUID playerId, StoryArcType arcType) {
+        return isActive(world, playerId, arcType) ? chapter(world, playerId, arcType) : null;
     }
 
     public static StoryArcDefinition definition(StoryArcType arcType) {
         return ARCS.get(arcType);
     }
 
-    public static List<Text> previewRewardLines(StoryChapterCompletion completion) {
-        return previewRewardLines(null, null, completion);
+    public static List<Component> previewRewardLines(ServerLevel world,
+                                                     UUID playerId,
+                                                     StoryChapterCompletion completion) {
+        return previewRewardLines(world, playerId, null, completion);
     }
 
-    public static List<Text> previewRewardLines(ServerWorld world, UUID playerId, StoryChapterCompletion completion) {
+    public static List<Component> previewRewardLines(ServerLevel world, UUID playerId, StoryArcType arcType,
+                                                     StoryChapterCompletion completion) {
         if (completion == null) {
             return List.of();
         }
-        List<Text> rewards = new ArrayList<>();
-        long scaledCurrencyReward = scaledCurrencyReward(completion.currencyReward());
+        List<Component> rewards = new ArrayList<>();
+        boolean payout=arcType==null || !PersonalResetReceipts.storyPaid(data(world,playerId),arcType,
+                Math.min(chapterIndex(world,playerId,arcType),arcType.chapterCount()-1));
+        long scaledCurrencyReward = payout?scaledCurrencyReward(completion.currencyReward()):0;
         if (scaledCurrencyReward > 0L) {
-            rewards.add(Text.translatable("screen.village-quest.questmaster.reward.currency", CurrencyService.formatBalance(scaledCurrencyReward)).formatted(Formatting.GOLD));
+            rewards.add(Component.translatable("screen.village-quest.questmaster.reward.currency", CurrencyService.formatBalance(scaledCurrencyReward)).withStyle(ChatFormatting.GOLD));
         }
         if (completion.reputationTrack() != null && completion.reputationAmount() > 0) {
             rewards.add(ReputationService.formatRewardLine(completion.reputationTrack(), completion.reputationAmount()));
         }
         if (completion.unlockedProject() != null) {
-            rewards.add(Text.translatable(
+            rewards.add(Component.translatable(
                     "screen.village-quest.questmaster.reward.project",
-                    Text.translatable("quest.village-quest.project." + completion.unlockedProject().id() + ".title")
-            ).formatted(Formatting.AQUA));
-            rewards.add(Text.translatable("screen.village-quest.questmaster.reward.effect." + completion.unlockedProject().id()).formatted(Formatting.GRAY));
+                    Component.translatable("quest.village-quest.project." + completion.unlockedProject().id() + ".title")
+            ).withStyle(ChatFormatting.AQUA));
+            rewards.add(Component.translatable("screen.village-quest.questmaster.reward.effect." + completion.unlockedProject().id()).withStyle(ChatFormatting.GRAY));
         }
-        if (completion.levels() > 0) {
+        if (payout && completion.levels() > 0) {
             int projectExperienceBonus = VillageProjectService.bonusLevels(
-                    world, playerId, completion.reputationTrack(), completion.unlockedProject());
-            rewards.add(QuestExperienceService.rewardLine(completion.levels(), projectExperienceBonus,
-                    QuestExperienceService.RewardType.STORY));
+                    world,
+                    playerId,
+                    completion.reputationTrack(),
+                    completion.unlockedProject()
+            );
+            rewards.add(QuestExperienceService.rewardLine(
+                    completion.levels(),
+                    projectExperienceBonus,
+                    QuestExperienceService.RewardType.STORY
+            ));
         }
-        return rewards;
+        if(!payout){rewards.add(Component.translatable("message.village-quest.personal_reset.replay").withStyle(ChatFormatting.GRAY));return List.copyOf(rewards);}
+        return VanillaRewardService.withSaved(world,playerId,rewardSlot(arcType),rewards);
     }
 
-    public static List<Text> buildOverview(ServerWorld world, UUID playerId) {
-        List<Text> lines = new ArrayList<>();
+    public static List<Component> buildOverview(ServerLevel world, UUID playerId) {
+        List<Component> lines = new ArrayList<>();
         for (StoryArcType type : StoryArcType.questmasterArcs()) {
             StoryArcDefinition arc = definition(type);
             if (arc == null) {
@@ -460,23 +540,23 @@ public final class StoryQuestService {
                     : unlocked
                     ? "screen.village-quest.questmaster.status.available"
                     : "screen.village-quest.questmaster.status.locked";
-            lines.add(Text.translatable(
+            lines.add(Component.translatable(
                     "command.village-quest.questadmin.story.line",
                     arc.title(),
-                    Text.translatable(statusKey),
+                    Component.translatable(statusKey),
                     chapterNumber,
                     arc.chapterCount()
-            ).formatted(completed ? Formatting.AQUA : active ? Formatting.GREEN : unlocked ? Formatting.YELLOW : Formatting.DARK_GRAY));
+            ).withStyle(completed ? ChatFormatting.AQUA : active ? ChatFormatting.GREEN : unlocked ? ChatFormatting.YELLOW : ChatFormatting.DARK_GRAY));
         }
         return lines;
     }
 
-    public static boolean adminResetStoryState(ServerWorld world, UUID playerId) {
+    public static boolean adminResetStoryState(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
             return false;
         }
         PlayerQuestData data = data(world, playerId);
-        boolean hadState = data.getActiveStoryArc() != null
+        boolean hadState = data.getActiveStoryArc() != null || data.isKingdomStoryActive()
                 || !data.getStoryIntState().isEmpty()
                 || !data.getStoryFlags().isEmpty()
                 || !data.getStoryDiscovered().isEmpty()
@@ -487,43 +567,45 @@ public final class StoryQuestService {
             return false;
         }
         data.resetStoryState();
-        QuestState.get(world.getServer()).markDirty();
+        QuestState.get(world.getServer()).setDirty();
         refreshQuestUi(world, playerId);
         return true;
     }
 
-    public static boolean adminForceCompleteActiveChapter(ServerWorld world, ServerPlayerEntity player) {
+    public static boolean adminForceCompleteActiveChapter(ServerLevel world, ServerPlayer player) {
+        if (player != null && de.quest.shrine.VillageIntroRequestService.blocksActions(world,player.getUUID())) return false;
         if (world == null || player == null) {
             return false;
         }
-        StoryChapterDefinition chapter = currentChapter(world, player.getUuid());
-        StoryArcType arcType = activeArcType(world, player.getUuid());
+        StoryChapterDefinition chapter = currentChapter(world, player.getUUID());
+        StoryArcType arcType = activeArcType(world, player.getUUID());
         if (chapter == null || arcType == null) {
             return false;
         }
-        StoryChapterCompletion completion = chapter.buildCompletion();
-        int chapterIndex = chapterIndex(world, player.getUuid(), arcType);
-        if (QuestPartyService.isSharedStoryMember(world, player.getUuid(), arcType, chapterIndex)) {
-            List<UUID> recipients = QuestPartyService.activeStoryMembers(world, player.getUuid(), arcType, chapterIndex);
+        StoryChapterCompletion completion = chapter.buildCompletion(world, player.getUUID());
+        int chapterIndex = chapterIndex(world, player.getUUID(), arcType);
+        if (QuestPartyService.isSharedStoryMember(world, player.getUUID(), arcType, chapterIndex)) {
+            List<UUID> recipients = QuestPartyService.activeStoryMembers(world, player.getUUID(), arcType, chapterIndex);
             for (UUID recipientId : recipients) {
-                ServerPlayerEntity recipient = world.getServer().getPlayerManager().getPlayer(recipientId);
+                if (de.quest.shrine.VillageIntroRequestService.blocksActions(world,recipientId)) continue;
+                ServerPlayer recipient = world.getServer().getPlayerList().getPlayer(recipientId);
                 if (recipient != null) {
-                    deliverCompletion(world, recipient, completion);
+                    deliverCompletion(world, recipient, arcType, chapterIndex, chapter.buildCompletion(world,recipientId));
                     chapter.onClaimed(world, recipient);
                 }
-                finishChapterProgress(world, recipientId, arcType, chapterIndex);
+                finishChapterProgress(world, recipientId, arcType, chapterIndex, false);
             }
-            QuestPartyService.clearStorySessionIfFinished(world, player.getUuid(), arcType, chapterIndex);
+            QuestPartyService.clearStorySessionIfFinished(world, player.getUUID(), arcType, chapterIndex);
             return !recipients.isEmpty();
         }
 
-        deliverCompletion(world, player, completion);
+        deliverCompletion(world, player, arcType, chapterIndex, completion);
         chapter.onClaimed(world, player);
-        finishChapterProgress(world, player.getUuid(), arcType, chapterIndex);
+        finishChapterProgress(world, player.getUUID(), arcType, chapterIndex, false);
         return true;
     }
 
-    public static void adminUnlockEmptyCaravanForTesting(ServerWorld world, UUID playerId) {
+    public static void adminUnlockEmptyCaravanForTesting(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
             return;
         }
@@ -545,178 +627,213 @@ public final class StoryQuestService {
         data.setStoryDiscovered(StoryArcType.THE_EMPTY_CARAVAN.id(), false);
         data.setStoryChapterProgress(StoryArcType.THE_EMPTY_CARAVAN.id(), 0);
         data.setStoryCooldownUntil(0L);
-        QuestState.get(world.getServer()).setDirty(true);
+        QuestState.get(world.getServer()).setDirty();
         refreshQuestUi(world, playerId);
     }
 
+    /** Selects the final shrine chapter immediately before its guaranteed relay incident. */
+    public static boolean adminPrepareLastRelayForTesting(ServerLevel world, ServerPlayer player) {
+        if (world == null || player == null) return false;
+        UUID playerId = player.getUUID();
+        PlayerQuestData data = data(world, playerId);
+        data.clearStoryProgress();
+        data.setActiveStoryArc(StoryArcType.SHRINES_BETWEEN_ROADS);
+        data.setStoryDiscovered(StoryArcType.SHRINES_BETWEEN_ROADS.id(), true);
+        data.setStoryCompleted(StoryArcType.SHRINES_BETWEEN_ROADS.id(), false);
+        data.setStoryChapterProgress(StoryArcType.SHRINES_BETWEEN_ROADS.id(), 5);
+        data.setStoryInt(StoryQuestKeys.SHRINES_RELAY_CONTRACT_BASELINE,
+                Math.max(0, TradeRouteService.completedGuildContracts(world, playerId) - 1));
+        data.setStoryInt(StoryQuestKeys.SHRINES_RELAY_SUCCESS_BASELINE,
+                TradeRouteService.totalRouteSuccesses(world, playerId));
+        data.setStoryFlag(StoryQuestKeys.SHRINES_RELAY_READY, false);
+        data.setStoryCooldownUntil(0L);
+        QuestState.get(world.getServer()).setDirty();
+        refreshQuestUi(world, playerId);
+        return TradeRouteService.adminPrepareLastRelayTest(world, player);
+    }
+
     public static void onServerTick(MinecraftServer server) {
-        ServerWorld world = server.getOverworld();
+        ServerLevel world = server.overworld();
         ShadowsTradeRoadEncounterService.onServerTick(server);
         EmptyCaravanStoryService.onServerTick(server);
-        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             syncDerivedProgression(world, player);
-            StoryChapterDefinition chapter = currentChapter(world, player.getUuid());
+            StoryChapterDefinition chapter = currentChapter(world, player.getUUID());
             if (chapter != null) {
                 chapter.onServerTick(world, player);
             }
         }
     }
 
-    public static void onBlockBreak(ServerWorld world, ServerPlayerEntity player, BlockPos pos, BlockState state) {
-        StoryChapterDefinition chapter = currentChapter(world, player.getUuid());
+    public static void onBlockBreak(ServerLevel world, ServerPlayer player, BlockPos pos, BlockState state) {
+        StoryChapterDefinition chapter = currentChapter(world, player.getUUID());
         if (chapter != null) {
             chapter.onBlockBreak(world, player, pos, state);
         }
     }
 
-    public static void onUseBlock(ServerWorld world, ServerPlayerEntity player, BlockPos pos, BlockState state, ItemStack stack) {
-        StoryChapterDefinition chapter = currentChapter(world, player.getUuid());
+    public static void onUseBlock(ServerLevel world, ServerPlayer player, BlockPos pos, BlockState state, ItemStack stack) {
+        StoryChapterDefinition chapter = currentChapter(world, player.getUUID());
         if (chapter != null) {
             chapter.onUseBlock(world, player, pos, state, stack);
         }
     }
 
-    public static void onBeeNestInteract(ServerWorld world, ServerPlayerEntity player, BlockState state, ItemStack stack) {
-        StoryChapterDefinition chapter = currentChapter(world, player.getUuid());
+    public static void onBeeNestInteract(ServerLevel world, ServerPlayer player, BlockState state, ItemStack stack) {
+        StoryChapterDefinition chapter = currentChapter(world, player.getUUID());
         if (chapter != null) {
             chapter.onBeeNestInteract(world, player, state, stack);
         }
     }
 
-    public static void onEntityUse(ServerWorld world, ServerPlayerEntity player, Entity entity, ItemStack inHand) {
-        StoryChapterDefinition chapter = currentChapter(world, player.getUuid());
+    public static void onEntityUse(ServerLevel world, ServerPlayer player, Entity entity, ItemStack inHand) {
+        StoryChapterDefinition chapter = currentChapter(world, player.getUUID());
         if (chapter != null) {
             chapter.onEntityUse(world, player, entity, inHand);
         }
     }
 
-    public static void onSheepSheared(ServerWorld world, ServerPlayerEntity player, net.minecraft.entity.passive.SheepEntity sheep) {
-        StoryChapterDefinition chapter = currentChapter(world, player.getUuid());
+    public static void onSheepSheared(ServerLevel world, ServerPlayer player, net.minecraft.world.entity.animal.sheep.Sheep sheep) {
+        StoryChapterDefinition chapter = currentChapter(world, player.getUUID());
         if (chapter != null) {
             chapter.onSheepSheared(world, player, sheep);
         }
     }
 
-    public static void onTrackedItemPickup(ServerWorld world, ServerPlayerEntity player, ItemStack stack, int count) {
-        StoryChapterDefinition chapter = currentChapter(world, player.getUuid());
+    public static void onTrackedItemPickup(ServerLevel world, ServerPlayer player, ItemStack stack, int count) {
+        StoryChapterDefinition chapter = currentChapter(world, player.getUUID());
         if (chapter != null) {
             chapter.onTrackedItemPickup(world, player, stack, count);
         }
     }
 
-    public static void onFurnaceOutput(ServerWorld world, ServerPlayerEntity player, ItemStack stack) {
-        StoryChapterDefinition chapter = currentChapter(world, player.getUuid());
+    public static void onFurnaceOutput(ServerLevel world, ServerPlayer player, ItemStack stack) {
+        StoryChapterDefinition chapter = currentChapter(world, player.getUUID());
         if (chapter != null) {
             chapter.onFurnaceOutput(world, player, stack);
         }
     }
 
-    public static void onAnvilOutput(ServerWorld world,
-                                     ServerPlayerEntity player,
+    public static void onAnvilOutput(ServerLevel world,
+                                     ServerPlayer player,
                                      ItemStack leftInput,
                                      ItemStack rightInput,
                                      ItemStack output) {
-        StoryChapterDefinition chapter = currentChapter(world, player.getUuid());
+        StoryChapterDefinition chapter = currentChapter(world, player.getUUID());
         if (chapter != null) {
             chapter.onAnvilOutput(world, player, leftInput, rightInput, output);
         }
     }
 
-    public static void onVillagerTrade(ServerWorld world, ServerPlayerEntity player, ItemStack stack) {
-        StoryChapterDefinition chapter = currentChapter(world, player.getUuid());
+    public static void onVillagerTrade(ServerLevel world, ServerPlayer player, ItemStack stack) {
+        StoryChapterDefinition chapter = currentChapter(world, player.getUUID());
         if (chapter != null) {
             chapter.onVillagerTrade(world, player, stack);
         }
     }
 
-    public static void onAnimalLove(ServerWorld world, ServerPlayerEntity player, AnimalEntity animal) {
-        StoryChapterDefinition chapter = currentChapter(world, player.getUuid());
+    public static void onAnimalLove(ServerLevel world, ServerPlayer player, Animal animal) {
+        StoryChapterDefinition chapter = currentChapter(world, player.getUUID());
         if (chapter != null) {
             chapter.onAnimalLove(world, player, animal);
         }
     }
 
-    public static void onPilgrimPurchase(ServerWorld world, ServerPlayerEntity player, String offerId) {
-        StoryChapterDefinition chapter = currentChapter(world, player.getUuid());
+    public static void onPilgrimPurchase(ServerLevel world, ServerPlayer player, String offerId) {
+        StoryChapterDefinition chapter = currentChapter(world, player.getUUID());
         if (chapter != null) {
             chapter.onPilgrimPurchase(world, player, offerId);
         }
     }
 
-    public static void onMonsterKill(ServerWorld world, ServerPlayerEntity player, Entity killedEntity) {
-        StoryChapterDefinition chapter = currentChapter(world, player.getUuid());
+    public static void onMonsterKill(ServerLevel world, ServerPlayer player, Entity killedEntity) {
+        StoryChapterDefinition chapter = currentChapter(world, player.getUUID());
         if (chapter != null) {
             chapter.onMonsterKill(world, player, killedEntity);
         }
     }
 
-    private static void deliverCompletion(ServerWorld world, ServerPlayerEntity player, StoryChapterCompletion completion) {
+    private static void deliverCompletion(ServerLevel world, ServerPlayer player, StoryArcType arc, int chapter, StoryChapterCompletion completion) {
+        boolean payout = !PersonalResetReceipts.storyPaid(data(world, player.getUUID()), arc, chapter);
+        if (payout && arc != null && chapter == arc.chapterCount() - 1)
+            de.quest.reward.VanillaRewardService.complete(world, player, rewardSlot(arc), arc.id() + ":" + chapter);
         boolean unlockedProject = completion.unlockedProject() != null
-                && VillageProjectService.unlock(world, player.getUuid(), completion.unlockedProject());
+                && VillageProjectService.unlock(world, player.getUUID(), completion.unlockedProject());
         if (unlockedProject) {
             SurveyorCompassQuestService.onVillageProjectUnlocked(world, player, completion.unlockedProject());
             if (completion.unlockedProject() == VillageProjectType.MARKET_CHARTER) {
                 TradeRouteService.initializeProvisionalNetwork(world, player);
             }
         }
-        long actualCurrencyReward = scaledCurrencyReward(completion.currencyReward())
-                + VillageProjectService.bonusCurrency(world, player.getUuid(), completion.reputationTrack());
+        long actualCurrencyReward = payout ? scaledCurrencyReward(completion.currencyReward())
+                + VillageProjectService.bonusCurrency(world, player.getUUID(), completion.reputationTrack()) : 0L;
         if (actualCurrencyReward > 0L) {
-            CurrencyService.addBalance(world, player.getUuid(), actualCurrencyReward);
+            CurrencyService.addBalance(world, player.getUUID(), actualCurrencyReward);
         }
         int actualReputation = 0;
         if (completion.reputationTrack() != null && completion.reputationAmount() > 0) {
-            actualReputation = VillageProjectService.applyReputationReward(world, player.getUuid(), completion.reputationTrack(), completion.reputationAmount());
+            actualReputation = VillageProjectService.applyReputationReward(world, player.getUUID(), completion.reputationTrack(), completion.reputationAmount());
         }
-        int projectExperienceBonus = VillageProjectService.bonusLevels(
-                world, player.getUuid(), completion.reputationTrack(), completion.unlockedProject());
+        int projectExperienceBonus = !payout ? 0 : VillageProjectService.bonusLevels(
+                world,
+                player.getUUID(),
+                completion.reputationTrack(),
+                completion.unlockedProject()
+        );
 
-        Text divider = Text.literal("------------------------------").formatted(Formatting.GRAY);
-        Text rewardsTitle = Text.translatable("text.village-quest.daily.rewards").formatted(Formatting.GRAY);
-        Text levelLine = Text.empty().append(Text.literal("    "))
-                .append(QuestExperienceService.rewardLine(completion.levels(), projectExperienceBonus,
-                        QuestExperienceService.RewardType.STORY));
+        Component divider = Component.literal("------------------------------").withStyle(ChatFormatting.GRAY);
+        Component rewardsTitle = Component.translatable("text.village-quest.daily.rewards").withStyle(ChatFormatting.GRAY);
+        Component levelLine = Component.empty().append(Component.literal("    "))
+                .append(QuestExperienceService.rewardLine(
+                        payout ? completion.levels() : 0,
+                        projectExperienceBonus,
+                        QuestExperienceService.RewardType.STORY
+                ));
 
-        MutableText rewardBody = Text.empty()
-                .append(divider.copy()).append(Text.literal("\n"))
-                .append(Texts.completedTitle(completion.title(), Formatting.GOLD)).append(Text.literal("\n\n"))
-                .append(completion.completionLine1()).append(Text.literal("\n"))
-                .append(completion.completionLine2()).append(Text.literal("\n\n"))
-                .append(completion.completionLine3()).append(Text.literal("\n\n"))
-                .append(rewardsTitle).append(Text.literal(":\n\n"));
+        MutableComponent rewardBody = Component.empty()
+                .append(divider.copy()).append(Component.literal("\n"))
+                .append(Texts.completedTitle(completion.title(), ChatFormatting.GOLD)).append(Component.literal("\n\n"))
+                .append(completion.completionLine1()).append(Component.literal("\n"))
+                .append(completion.completionLine2()).append(Component.literal("\n\n"))
+                .append(completion.completionLine3()).append(Component.literal("\n\n"))
+                .append(rewardsTitle).append(Component.literal(":\n\n"));
 
         appendCurrencyRewardLine(rewardBody, actualCurrencyReward);
         if (completion.reputationTrack() != null && actualReputation > 0) {
             appendTextRewardLine(rewardBody, ReputationService.formatRewardLine(completion.reputationTrack(), actualReputation));
         }
-        appendTextRewardLine(rewardBody, VillageProjectService.formatBonusRewardLine(world, player.getUuid(), completion.reputationTrack()));
-        appendTextRewardLine(rewardBody, VillageProjectService.formatRewardEchoLine(world, player.getUuid(), completion.reputationTrack()));
+        appendTextRewardLine(rewardBody, VillageProjectService.formatBonusRewardLine(world, player.getUUID(), completion.reputationTrack()));
+        appendTextRewardLine(rewardBody, VillageProjectService.formatRewardEchoLine(world, player.getUUID(), completion.reputationTrack()));
         if (unlockedProject) {
-            appendTextRewardLine(rewardBody, Text.translatable(
+            appendTextRewardLine(rewardBody, Component.translatable(
                     "message.village-quest.story.project_unlocked",
-                    Text.translatable("quest.village-quest.project." + completion.unlockedProject().id() + ".title")
-            ).formatted(Formatting.AQUA));
+                    Component.translatable("quest.village-quest.project." + completion.unlockedProject().id() + ".title")
+            ).withStyle(ChatFormatting.AQUA));
         }
-        rewardBody.append(levelLine).append(Text.literal("\n")).append(divider.copy());
+        rewardBody.append(levelLine).append(Component.literal("\n")).append(divider.copy());
 
-        player.sendMessage(rewardBody, false);
-        world.playSound(null, player.getBlockPos(), SoundEvents.ENTITY_PLAYER_LEVELUP, SoundCategory.PLAYERS, 0.9f, 1.0f);
-        QuestExperienceService.grant(player, completion.levels(), projectExperienceBonus,
-                QuestExperienceService.RewardType.STORY);
+        player.sendSystemMessage(rewardBody, false);
+        world.playSound(null, player.blockPosition(), SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 0.9f, 1.0f);
+        QuestExperienceService.grant(
+                player,
+                payout ? completion.levels() : 0,
+                projectExperienceBonus,
+                QuestExperienceService.RewardType.STORY
+        );
     }
 
-    private static void appendCurrencyRewardLine(MutableText body, long amount) {
+    private static void appendCurrencyRewardLine(MutableComponent body, long amount) {
         if (amount <= 0L) {
             return;
         }
-        body.append(Text.empty().append(Text.literal("    ")).append(CurrencyService.formatDelta(amount))).append(Text.literal("\n"));
+        body.append(Component.empty().append(Component.literal("    ")).append(CurrencyService.formatDelta(amount))).append(Component.literal("\n"));
     }
 
-    private static void appendTextRewardLine(MutableText body, Text line) {
+    private static void appendTextRewardLine(MutableComponent body, Component line) {
         if (line == null || line.getString().isEmpty()) {
             return;
         }
-        body.append(Text.empty().append(Text.literal("    ")).append(line)).append(Text.literal("\n"));
+        body.append(Component.empty().append(Component.literal("    ")).append(line)).append(Component.literal("\n"));
     }
 
     private static long scaledCurrencyReward(long baseCurrencyReward) {
@@ -727,13 +844,15 @@ public final class StoryQuestService {
     }
 
     private static String readyFlagKey(StoryArcType arcType, int chapterIndex) {
-        return READY_FLAG_PREFIX + arcType.id() + "_" + chapterIndex;
+        return laneFor(arcType) == StoryLane.KINGDOM ? "kingdoms.story.ready." + chapterIndex
+                : READY_FLAG_PREFIX + arcType.id() + "_" + chapterIndex;
     }
 
-    private static StoryArcType availableArcTypeInternal(ServerWorld world, UUID playerId, boolean respectCooldown) {
+    private static StoryArcType availableArcTypeInternal(ServerLevel world, UUID playerId, boolean respectCooldown) {
         if (world == null || playerId == null) {
             return null;
         }
+        if (!de.quest.questmaster.QuestMasterProgressionService.isStoryCategoryUnlocked(world, playerId)) return null;
         StoryArcType activeArc = activeArcType(world, playerId);
         if (activeArc != null) {
             return activeArc;
@@ -742,6 +861,7 @@ public final class StoryQuestService {
             return null;
         }
         for (StoryArcType type : StoryArcType.questmasterArcs()) {
+            if (laneFor(type) != StoryLane.CORE) continue;
             StoryArcDefinition arc = definition(type);
             if (arc != null && arc.isUnlocked(world, playerId) && !isCompleted(world, playerId, type)) {
                 return type;
@@ -750,8 +870,8 @@ public final class StoryQuestService {
         return null;
     }
 
-    private static void armStoryCooldownIfNeeded(ServerWorld world, UUID playerId) {
-        if (world == null || playerId == null) {
+    private static void armStoryCooldownIfNeeded(ServerLevel world, UUID playerId) {
+        if (!de.quest.config.VillageQuestServerConfig.get().storyCooldownEnabled() || world == null || playerId == null) {
             return;
         }
         long cooldownUntil = availableArcTypeIgnoringCooldown(world, playerId) == null
@@ -762,16 +882,16 @@ public final class StoryQuestService {
             return;
         }
         data.setStoryCooldownUntil(cooldownUntil);
-        QuestState.get(world.getServer()).markDirty();
+        QuestState.get(world.getServer()).setDirty();
     }
 
-    private static void syncDerivedProgression(ServerWorld world, ServerPlayerEntity player) {
+    private static void syncDerivedProgression(ServerLevel world, ServerPlayer player) {
         if (world == null || player == null) {
             return;
         }
     }
 
-    public static int countCompletionItem(ServerWorld world, UUID playerId, Item item) {
+    public static int countCompletionItem(ServerLevel world, UUID playerId, Item item) {
         if (world == null || playerId == null || item == null) {
             return 0;
         }
@@ -779,11 +899,11 @@ public final class StoryQuestService {
         if (activeArc != null && QuestPartyService.isSharedStoryMember(world, playerId, activeArc, chapterIndex(world, playerId, activeArc))) {
             return QuestPartyService.countStoryTurnInItem(world, playerId, activeArc, chapterIndex(world, playerId, activeArc), item);
         }
-        ServerPlayerEntity player = world.getServer().getPlayerManager().getPlayer(playerId);
+        ServerPlayer player = world.getServer().getPlayerList().getPlayer(playerId);
         return player == null ? 0 : DailyQuestService.countInventoryItem(player, item);
     }
 
-    public static boolean consumeCompletionItem(ServerWorld world, UUID playerId, Item item, int amount) {
+    public static boolean consumeCompletionItem(ServerLevel world, UUID playerId, Item item, int amount) {
         if (world == null || playerId == null || item == null || amount <= 0) {
             return false;
         }
@@ -791,7 +911,7 @@ public final class StoryQuestService {
         if (activeArc != null && QuestPartyService.isSharedStoryMember(world, playerId, activeArc, chapterIndex(world, playerId, activeArc))) {
             return QuestPartyService.consumeStoryTurnInItem(world, playerId, activeArc, chapterIndex(world, playerId, activeArc), item, amount);
         }
-        ServerPlayerEntity player = world.getServer().getPlayerManager().getPlayer(playerId);
+        ServerPlayer player = world.getServer().getPlayerList().getPlayer(playerId);
         return player != null && DailyQuestService.consumeInventoryItem(player, item, amount);
     }
 
@@ -800,7 +920,7 @@ public final class StoryQuestService {
      * Quest claims run on the server thread, so the second pass is atomic with
      * respect to other quest actions and cannot leave a partial delivery behind.
      */
-    public static boolean consumeCompletionItems(ServerWorld world, UUID playerId, Map<Item, Integer> requirements) {
+    public static boolean consumeCompletionItems(ServerLevel world, UUID playerId, Map<Item, Integer> requirements) {
         if (world == null || playerId == null || requirements == null || requirements.isEmpty()) {
             return false;
         }
@@ -819,7 +939,7 @@ public final class StoryQuestService {
         return true;
     }
 
-    public static int countMatchingCompletionItems(ServerWorld world, UUID playerId, java.util.function.Predicate<ItemStack> matcher) {
+    public static int countMatchingCompletionItems(ServerLevel world, UUID playerId, java.util.function.Predicate<ItemStack> matcher) {
         if (world == null || playerId == null || matcher == null) {
             return 0;
         }
@@ -827,11 +947,11 @@ public final class StoryQuestService {
         if (activeArc != null && QuestPartyService.isSharedStoryMember(world, playerId, activeArc, chapterIndex(world, playerId, activeArc))) {
             return QuestPartyService.countStoryTurnInItems(world, playerId, activeArc, chapterIndex(world, playerId, activeArc), matcher);
         }
-        ServerPlayerEntity player = world.getServer().getPlayerManager().getPlayer(playerId);
+        ServerPlayer player = world.getServer().getPlayerList().getPlayer(playerId);
         return countMatchingInventory(player, matcher);
     }
 
-    public static boolean consumeMatchingCompletionItems(ServerWorld world, UUID playerId, java.util.function.Predicate<ItemStack> matcher, int amount) {
+    public static boolean consumeMatchingCompletionItems(ServerLevel world, UUID playerId, java.util.function.Predicate<ItemStack> matcher, int amount) {
         if (world == null || playerId == null || matcher == null || amount <= 0) {
             return false;
         }
@@ -839,17 +959,17 @@ public final class StoryQuestService {
         if (activeArc != null && QuestPartyService.isSharedStoryMember(world, playerId, activeArc, chapterIndex(world, playerId, activeArc))) {
             return QuestPartyService.consumeStoryTurnInItems(world, playerId, activeArc, chapterIndex(world, playerId, activeArc), matcher, amount);
         }
-        ServerPlayerEntity player = world.getServer().getPlayerManager().getPlayer(playerId);
+        ServerPlayer player = world.getServer().getPlayerList().getPlayer(playerId);
         return consumeMatchingInventory(player, matcher, amount);
     }
 
-    private static int countMatchingInventory(ServerPlayerEntity player, java.util.function.Predicate<ItemStack> matcher) {
+    private static int countMatchingInventory(ServerPlayer player, java.util.function.Predicate<ItemStack> matcher) {
         if (player == null || matcher == null) {
             return 0;
         }
         int total = 0;
-        for (int i = 0; i < player.getInventory().size(); i++) {
-            ItemStack stack = player.getInventory().getStack(i);
+        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+            ItemStack stack = player.getInventory().getItem(i);
             if (matcher.test(stack)) {
                 total += stack.getCount();
             }
@@ -857,102 +977,119 @@ public final class StoryQuestService {
         return total;
     }
 
-    private static boolean consumeMatchingInventory(ServerPlayerEntity player, java.util.function.Predicate<ItemStack> matcher, int amount) {
+    private static boolean consumeMatchingInventory(ServerPlayer player, java.util.function.Predicate<ItemStack> matcher, int amount) {
         if (player == null || matcher == null || amount <= 0 || countMatchingInventory(player, matcher) < amount) {
             return false;
         }
         int remaining = amount;
-        for (int i = 0; i < player.getInventory().size() && remaining > 0; i++) {
-            ItemStack stack = player.getInventory().getStack(i);
+        for (int i = 0; i < player.getInventory().getContainerSize() && remaining > 0; i++) {
+            ItemStack stack = player.getInventory().getItem(i);
             if (!matcher.test(stack)) {
                 continue;
             }
             int removed = Math.min(remaining, stack.getCount());
-            stack.decrement(removed);
+            stack.shrink(removed);
             remaining -= removed;
         }
-        player.currentScreenHandler.sendContentUpdates();
+        player.inventoryMenu.broadcastChanges();
         return remaining <= 0;
     }
 
-    private static void finishChapterProgress(ServerWorld world, UUID playerId, StoryArcType arcType, int chapterIndex) {
+    private static void finishChapterProgress(ServerLevel world, UUID playerId, StoryArcType arcType, int chapterIndex) {
+        finishChapterProgress(world, playerId, arcType, chapterIndex, true);
+    }
+
+    private static void finishChapterProgress(ServerLevel world, UUID playerId, StoryArcType arcType, int chapterIndex,
+                                              boolean awardTrust) {
         if (world == null || playerId == null || arcType == null) {
             return;
         }
         PlayerQuestData data = data(world, playerId);
-        data.clearStoryProgress();
-        data.setActiveStoryArc(null);
+        PersonalResetReceipts.storyPaidThrough(data, arcType, chapterIndex + 1);
+        StoryLane lane = laneFor(arcType);
+        if (lane == StoryLane.CORE) data.clearStoryProgress();
+        else data.setTradeRouteFlag(readyFlagKey(arcType, chapterIndex), false);
+        data.setActiveStoryArc(lane, null);
         int nextChapter = chapterIndex + 1;
         data.setStoryChapterProgress(arcType.id(), nextChapter);
         boolean completedArc = nextChapter >= definition(arcType).chapterCount();
         if (completedArc) {
             data.setStoryCompleted(arcType.id(), true);
+            if (awardTrust) de.quest.reputation.SocialReputationService.recordNamedBenefit(world.getServer(), playerId,
+                    de.quest.reputation.SocialReputationRules.BenefitKind.STORY,
+                    "arc:" + arcType.id(), java.util.List.of());
         }
-        QuestState.get(world.getServer()).markDirty();
-        ServerPlayerEntity player = world.getServer().getPlayerManager().getPlayer(playerId);
+        QuestState.get(world.getServer()).setDirty();
+        ServerPlayer player = world.getServer().getPlayerList().getPlayer(playerId);
         if (player != null) {
             syncDerivedProgression(world, player);
-        } else if (completedArc) {
+        } else if (completedArc && lane == StoryLane.CORE) {
             armStoryCooldownIfNeeded(world, playerId);
         }
-        if (completedArc) {
+        if (completedArc && lane == StoryLane.CORE) {
             armStoryCooldownIfNeeded(world, playerId);
         }
         refreshQuestUi(world, playerId);
     }
 
-    private static void refreshRecipients(ServerWorld world, List<UUID> recipients) {
+    private static void refreshRecipients(ServerLevel world, List<UUID> recipients) {
         if (world == null || recipients == null) {
             return;
         }
         for (UUID recipientId : recipients) {
+                if (de.quest.shrine.VillageIntroRequestService.blocksActions(world,recipientId)) continue;
             refreshQuestUi(world, recipientId);
         }
     }
 
-    private static List<Text> currentProgressLines(ServerWorld world, UUID playerId) {
-        StoryQuestStatus status = openStatus(world, playerId);
-        return status == null ? List.of() : status.lines();
+    private static List<Component> currentProgressLines(ServerLevel world, UUID playerId) {
+        StoryChapterDefinition chapter = currentChapter(world, playerId);
+        if (chapter == null) {
+            return List.of();
+        }
+        return List.copyOf(chapter.progressLines(world, playerId));
     }
 
-    private static Map<UUID, List<Text>> captureProgressSnapshots(ServerWorld world, List<UUID> recipients) {
-        Map<UUID, List<Text>> snapshots = new LinkedHashMap<>();
+    private static Map<UUID, List<Component>> captureProgressSnapshots(ServerLevel world, List<UUID> recipients) {
+        Map<UUID, List<Component>> snapshots = new LinkedHashMap<>();
         if (recipients == null) {
             return snapshots;
         }
         for (UUID recipientId : recipients) {
+                if (de.quest.shrine.VillageIntroRequestService.blocksActions(world,recipientId)) continue;
             snapshots.put(recipientId, currentProgressLines(world, recipientId));
         }
         return snapshots;
     }
 
-    private static void notifyProgressChange(ServerWorld world, UUID playerId, List<Text> before) {
+    private static void notifyProgressChange(ServerLevel world, UUID playerId, List<Component> before) {
         notifyProgressChange(world, playerId, before, true);
     }
 
-    private static void notifyProgressChange(ServerWorld world, UUID playerId, List<Text> before,
+    private static void notifyProgressChange(ServerLevel world, UUID playerId, List<Component> before,
                                              boolean playFeedback) {
         notifyProgressChange(world, List.of(playerId),
                 Map.of(playerId, before == null ? List.of() : before), playFeedback);
     }
 
-    private static void notifyProgressChange(ServerWorld world,
+    private static void notifyProgressChange(ServerLevel world,
                                              List<UUID> recipients,
-                                             Map<UUID, List<Text>> beforeSnapshots) {
+                                             Map<UUID, List<Component>> beforeSnapshots) {
         notifyProgressChange(world, recipients, beforeSnapshots, true);
     }
 
-    private static void notifyProgressChange(ServerWorld world,
+    private static void notifyProgressChange(ServerLevel world,
                                              List<UUID> recipients,
-                                             Map<UUID, List<Text>> beforeSnapshots,
+                                             Map<UUID, List<Component>> beforeSnapshots,
                                              boolean playFeedback) {
         if (world == null || recipients == null) {
             return;
         }
         for (UUID recipientId : recipients) {
-            List<Text> after = currentProgressLines(world, recipientId);
+                if (de.quest.shrine.VillageIntroRequestService.blocksActions(world,recipientId)) continue;
+            List<Component> after = currentProgressLines(world, recipientId);
             refreshQuestUi(world, recipientId);
-            ServerPlayerEntity player = world.getServer().getPlayerManager().getPlayer(recipientId);
+            ServerPlayer player = world.getServer().getPlayerList().getPlayer(recipientId);
             if (player != null && playFeedback) {
                 QuestSoundFeedback.playProgressChange(
                         world,
@@ -964,11 +1101,11 @@ public final class StoryQuestService {
         }
     }
 
-    private static void refreshQuestUi(ServerWorld world, UUID playerId) {
+    private static void refreshQuestUi(ServerLevel world, UUID playerId) {
         if (world == null || playerId == null) {
             return;
         }
-        ServerPlayerEntity player = world.getServer().getPlayerManager().getPlayer(playerId);
+        ServerPlayer player = world.getServer().getPlayerList().getPlayer(playerId);
         if (player == null) {
             return;
         }

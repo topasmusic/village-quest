@@ -1,6 +1,7 @@
 package de.quest.quest;
 
 import de.quest.quest.daily.DailyQuestService;
+import de.quest.util.WoolItems;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -9,39 +10,43 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
-import net.minecraft.block.CropBlock;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.ItemEntity;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.mob.BlazeEntity;
-import net.minecraft.entity.mob.EndermanEntity;
-import net.minecraft.entity.passive.SheepEntity;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.DyeColor;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.animal.sheep.Sheep;
+import net.minecraft.world.entity.monster.Blaze;
+import net.minecraft.world.entity.monster.EnderMan;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.CropBlock;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 
 public final class QuestDropTracker {
     private static final long DROP_SOURCE_EXPIRE_TICKS = 5L;
     private static final int MAX_WOOL_SHEAR_DROP = 3;
     private static final int MAX_MOB_DROP = 4;
-    private static final double BLOCK_BREAK_RADIUS_SQUARED = 4.0D;
-    private static final double ENTITY_DROP_RADIUS_SQUARED = 9.0D;
+    private static final double BLOCK_BREAK_RADIUS_SQR = 4.0D;
+    private static final double ENTITY_DROP_RADIUS_SQR = 9.0D;
 
     private static final List<PendingDropSource> PENDING_SOURCES = new ArrayList<>();
     private static final List<PendingShearSource> PENDING_SHEARS = new ArrayList<>();
 
     private QuestDropTracker() {}
 
+    public static void clearPlayer(UUID owner) {
+        PENDING_SOURCES.removeIf(source -> owner.equals(source.playerId));
+        PENDING_SHEARS.removeIf(source -> owner.equals(source.playerId));
+    }
     public static void clear() {
         PENDING_SOURCES.clear();
         PENDING_SHEARS.clear();
@@ -53,8 +58,8 @@ public final class QuestDropTracker {
         cleanupExpiredShears();
     }
 
-    public static void onBlockBreakStart(ServerWorld world,
-                                         ServerPlayerEntity player,
+    public static void onBlockBreakStart(ServerLevel world,
+                                         ServerPlayer player,
                                          BlockPos pos,
                                          BlockState state,
                                          BlockEntity blockEntity) {
@@ -63,36 +68,18 @@ public final class QuestDropTracker {
         if (expectedDrops.isEmpty()) {
             return;
         }
-        PENDING_SOURCES.add(PendingDropSource.blockBreak(world, player.getUuid(), pos, expectedDrops));
+        PENDING_SOURCES.add(PendingDropSource.blockBreak(world, player.getUUID(), pos, expectedDrops));
     }
 
-    public static void onBlockBreakCanceled(ServerWorld world, ServerPlayerEntity player, BlockPos pos) {
-        removeBlockBreakSource(world, player.getUuid(), pos);
+    public static void onBlockBreakCanceled(ServerLevel world, ServerPlayer player, BlockPos pos) {
+        removeBlockBreakSource(world, player.getUUID(), pos);
     }
 
-    public static void onBlockBreakFinished(ServerWorld world, ServerPlayerEntity player, BlockPos pos) {
-        if (world == null || player == null || pos == null) {
-            return;
-        }
-        Iterator<PendingDropSource> iterator = PENDING_SOURCES.iterator();
-        while (iterator.hasNext()) {
-            PendingDropSource source = iterator.next();
-            if (source.kind != PendingDropKind.BLOCK_BREAK
-                    || source.world != world
-                    || !Objects.equals(source.playerId, player.getUuid())
-                    || source.originBlockPos == null
-                    || !source.originBlockPos.equals(pos)) {
-                continue;
-            }
-
-            if (source.capturedBlockResource) {
-                iterator.remove();
-            }
-            return;
-        }
+    public static void onBlockBreakFinished(ServerLevel world, ServerPlayer player, BlockPos pos) {
+        dispatchBlockBreakSource(world, player, pos);
     }
 
-    public static void onBlockResourceDrop(ServerWorld world, BlockPos pos, ItemStack stack) {
+    public static void onBlockResourceDrop(ServerLevel world, BlockPos pos, ItemStack stack) {
         if (world == null || pos == null || stack == null || stack.isEmpty() || !isTrackedBlockDrop(stack.getItem())) {
             return;
         }
@@ -103,7 +90,7 @@ public final class QuestDropTracker {
                 continue;
             }
 
-            ServerPlayerEntity player = world.getServer().getPlayerManager().getPlayer(source.playerId);
+            ServerPlayer player = world.getServer().getPlayerList().getPlayer(source.playerId);
             if (player == null) {
                 return;
             }
@@ -115,41 +102,46 @@ public final class QuestDropTracker {
         }
     }
 
-    public static void onEntityUse(ServerWorld world, ServerPlayerEntity player, Entity entity, ItemStack stack) {
+    public static void onEntityUse(ServerLevel world, ServerPlayer player, Entity entity, ItemStack stack) {
         cleanupExpiredSources();
-        if (!(entity instanceof SheepEntity sheep) || stack == null || !stack.isOf(Items.SHEARS) || !sheep.isShearable()) {
+        if (!(entity instanceof Sheep sheep) || stack == null || !stack.is(Items.SHEARS) || !sheep.readyForShearing()) {
             return;
         }
-        removePendingShear(world, sheep.getUuid());
-        PENDING_SHEARS.add(PendingShearSource.create(world, player.getUuid(), sheep.getUuid()));
+        removePendingShear(world, sheep.getUUID());
+        PENDING_SHEARS.add(PendingShearSource.create(world, player.getUUID(), sheep.getUUID()));
     }
 
-    public static void onKilledOtherEntity(ServerWorld world, ServerPlayerEntity player, LivingEntity killedEntity) {
+    public static void onKilledOtherEntity(ServerLevel world, ServerPlayer player, LivingEntity killedEntity) {
         cleanupExpiredSources();
-        if (killedEntity instanceof EndermanEntity) {
+        if (killedEntity instanceof EnderMan) {
             PENDING_SOURCES.add(PendingDropSource.entityDrop(
                     world,
-                    player.getUuid(),
+                    player.getUUID(),
                     killedEntity.getX(),
                     killedEntity.getY(),
                     killedEntity.getZ(),
-                    ENTITY_DROP_RADIUS_SQUARED,
+                    ENTITY_DROP_RADIUS_SQR,
                     Map.of(Items.ENDER_PEARL, MAX_MOB_DROP)
             ));
-        } else if (killedEntity instanceof BlazeEntity) {
+        } else if (killedEntity.getType() == EntityType.CHICKEN || killedEntity.getType() == EntityType.SQUID) {
+            Item supply = killedEntity.getType() == EntityType.CHICKEN ? Items.FEATHER : Items.INK_SAC;
+            PENDING_SOURCES.add(PendingDropSource.entityDrop(world, player.getUUID(),
+                    killedEntity.getX(), killedEntity.getY(), killedEntity.getZ(),
+                    ENTITY_DROP_RADIUS_SQR, Map.of(supply, MAX_MOB_DROP)));
+        } else if (killedEntity instanceof Blaze) {
             PENDING_SOURCES.add(PendingDropSource.entityDrop(
                     world,
-                    player.getUuid(),
+                    player.getUUID(),
                     killedEntity.getX(),
                     killedEntity.getY(),
                     killedEntity.getZ(),
-                    ENTITY_DROP_RADIUS_SQUARED,
+                    ENTITY_DROP_RADIUS_SQR,
                     Map.of(Items.BLAZE_ROD, MAX_MOB_DROP)
             ));
         }
     }
 
-    public static void onEntityLoad(Entity entity, ServerWorld world) {
+    public static void onEntityLoad(Entity entity, ServerLevel world) {
         if (!(entity instanceof ItemEntity itemEntity)) {
             return;
         }
@@ -163,7 +155,7 @@ public final class QuestDropTracker {
                 continue;
             }
 
-            double distance = itemEntity.squaredDistanceTo(source.originX, source.originY, source.originZ);
+            double distance = itemEntity.distanceToSqr(source.originX, source.originY, source.originZ);
             if (bestMatch == null || distance < bestDistance) {
                 bestMatch = source;
                 bestDistance = distance;
@@ -179,54 +171,52 @@ public final class QuestDropTracker {
         }
     }
 
-    public static void onTrackedItemPickup(ServerPlayerEntity player, ItemEntity itemEntity, int count) {
-        if (player == null || itemEntity == null || count <= 0) {
+    public static void onTrackedItemPickup(ServerPlayer player, ItemEntity itemEntity, ItemStack pickedUpStack, int count) {
+        if (player == null || itemEntity == null || pickedUpStack == null || pickedUpStack.isEmpty() || count <= 0) {
             return;
         }
 
         TrackedQuestDrop trackedDrop = (TrackedQuestDrop) itemEntity;
         UUID trackedPlayerId = trackedDrop.villageQuest$getTrackedPlayerId();
-        if (!Objects.equals(trackedPlayerId, player.getUuid())
-                && !tryTrackAtPickup((ServerWorld) player.getEntityWorld(), player.getUuid(), itemEntity)) {
+        if (!Objects.equals(trackedPlayerId, player.getUUID())
+                && !tryTrackAtPickup((ServerLevel) player.level(), player.getUUID(), itemEntity)) {
             return;
         }
 
-        ItemStack pickedUpStack = itemEntity.getStack().copy();
-        pickedUpStack.setCount(count);
-        DailyQuestService.onTrackedItemPickup((ServerWorld) player.getEntityWorld(), player, pickedUpStack, count);
+        DailyQuestService.onTrackedItemPickup((ServerLevel) player.level(), player, pickedUpStack, count);
     }
 
-    public static void onShearedDrop(ServerWorld world, SheepEntity sheep, ItemStack stack) {
+    public static void onShearedDrop(ServerLevel world, Sheep sheep, ItemStack stack) {
         if (world == null || sheep == null || stack == null || stack.isEmpty() || !isWool(stack.getItem())) {
             return;
         }
 
         cleanupExpiredShears();
-        PendingShearSource match = findPendingShear(world, sheep.getUuid());
+        PendingShearSource match = findPendingShear(world, sheep.getUUID());
         if (match == null) {
             return;
         }
 
-        ServerPlayerEntity player = world.getServer().getPlayerManager().getPlayer(match.playerId);
+        ServerPlayer player = world.getServer().getPlayerList().getPlayer(match.playerId);
         if (player == null) {
             return;
         }
         DailyQuestService.onTrackedItemPickup(world, player, stack.copy(), stack.getCount());
     }
 
-    public static void onShearedFinished(ServerWorld world, SheepEntity sheep) {
+    public static void onShearedFinished(ServerLevel world, Sheep sheep) {
         if (world == null || sheep == null) {
             return;
         }
         cleanupExpiredShears();
-        PendingShearSource match = findPendingShear(world, sheep.getUuid());
+        PendingShearSource match = findPendingShear(world, sheep.getUUID());
         if (match != null) {
-            ServerPlayerEntity player = world.getServer().getPlayerManager().getPlayer(match.playerId);
+            ServerPlayer player = world.getServer().getPlayerList().getPlayer(match.playerId);
             if (player != null) {
                 DailyQuestService.onSheepSheared(world, player, sheep);
             }
         }
-        removePendingShear(world, sheep.getUuid());
+        removePendingShear(world, sheep.getUUID());
     }
 
     private static void cleanupExpiredSources() {
@@ -255,17 +245,17 @@ public final class QuestDropTracker {
                 continue;
             }
 
-            Box searchBox = new Box(source.originX, source.originY, source.originZ, source.originX, source.originY, source.originZ)
-                    .expand(Math.sqrt(source.radiusSquared));
-            List<ItemEntity> nearbyItems = source.world.getEntitiesByClass(
+            AABB searchBox = new AABB(source.originX, source.originY, source.originZ, source.originX, source.originY, source.originZ)
+                    .inflate(Math.sqrt(source.radiusSqr));
+            List<ItemEntity> nearbyItems = source.world.getEntitiesOfClass(
                     ItemEntity.class,
                     searchBox,
                     itemEntity -> itemEntity != null
                             && !itemEntity.isRemoved()
-                            && itemEntity.getItemAge() <= DROP_SOURCE_EXPIRE_TICKS
+                            && itemEntity.getAge() <= DROP_SOURCE_EXPIRE_TICKS
             );
             nearbyItems.sort(Comparator.comparingDouble(
-                    itemEntity -> itemEntity.squaredDistanceTo(source.originX, source.originY, source.originZ)
+                    itemEntity -> itemEntity.distanceToSqr(source.originX, source.originY, source.originZ)
             ));
 
             for (ItemEntity itemEntity : nearbyItems) {
@@ -281,8 +271,8 @@ public final class QuestDropTracker {
         }
     }
 
-    private static boolean tryTrackAtPickup(ServerWorld world, UUID playerId, ItemEntity itemEntity) {
-        if (world == null || playerId == null || itemEntity == null || itemEntity.getItemAge() > DROP_SOURCE_EXPIRE_TICKS) {
+    private static boolean tryTrackAtPickup(ServerLevel world, UUID playerId, ItemEntity itemEntity) {
+        if (world == null || playerId == null || itemEntity == null || itemEntity.getAge() > DROP_SOURCE_EXPIRE_TICKS) {
             return false;
         }
 
@@ -297,7 +287,7 @@ public final class QuestDropTracker {
                 continue;
             }
 
-            double distance = itemEntity.squaredDistanceTo(source.originX, source.originY, source.originZ);
+            double distance = itemEntity.distanceToSqr(source.originX, source.originY, source.originZ);
             if (bestMatch == null || distance < bestDistance) {
                 bestMatch = source;
                 bestDistance = distance;
@@ -313,7 +303,7 @@ public final class QuestDropTracker {
         return true;
     }
 
-    private static void removeBlockBreakSource(ServerWorld world, UUID playerId, BlockPos pos) {
+    private static void removeBlockBreakSource(ServerLevel world, UUID playerId, BlockPos pos) {
         Iterator<PendingDropSource> iterator = PENDING_SOURCES.iterator();
         while (iterator.hasNext()) {
             PendingDropSource source = iterator.next();
@@ -327,7 +317,7 @@ public final class QuestDropTracker {
         }
     }
 
-    private static void removePendingShear(ServerWorld world, UUID sheepId) {
+    private static void removePendingShear(ServerLevel world, UUID sheepId) {
         Iterator<PendingShearSource> iterator = PENDING_SHEARS.iterator();
         while (iterator.hasNext()) {
             PendingShearSource source = iterator.next();
@@ -337,7 +327,7 @@ public final class QuestDropTracker {
         }
     }
 
-    private static PendingShearSource findPendingShear(ServerWorld world, UUID sheepId) {
+    private static PendingShearSource findPendingShear(ServerLevel world, UUID sheepId) {
         for (PendingShearSource source : PENDING_SHEARS) {
             if (source.matches(world, sheepId)) {
                 return source;
@@ -346,8 +336,30 @@ public final class QuestDropTracker {
         return null;
     }
 
-    private static Map<Item, Integer> getTrackedBlockDrops(ServerWorld world,
-                                                           ServerPlayerEntity player,
+    private static void dispatchBlockBreakSource(ServerLevel world, ServerPlayer player, BlockPos pos) {
+        if (world == null || player == null || pos == null) {
+            return;
+        }
+        Iterator<PendingDropSource> iterator = PENDING_SOURCES.iterator();
+        while (iterator.hasNext()) {
+            PendingDropSource source = iterator.next();
+            if (source.kind != PendingDropKind.BLOCK_BREAK
+                    || source.world != world
+                    || !Objects.equals(source.playerId, player.getUUID())
+                    || source.originBlockPos == null
+                    || !source.originBlockPos.equals(pos)) {
+                continue;
+            }
+
+            if (source.capturedBlockResource) {
+                iterator.remove();
+            }
+            return;
+        }
+    }
+
+    private static Map<Item, Integer> getTrackedBlockDrops(ServerLevel world,
+                                                           ServerPlayer player,
                                                            BlockPos pos,
                                                            BlockState state,
                                                            BlockEntity blockEntity) {
@@ -360,7 +372,7 @@ public final class QuestDropTracker {
             return Map.of(matureCropItem, 1);
         }
 
-        List<ItemStack> drops = Block.getDroppedStacks(state, world, pos, blockEntity, player, player.getMainHandStack());
+        List<ItemStack> drops = Block.getDrops(state, world, pos, blockEntity, player, player.getMainHandItem());
         if (drops.isEmpty()) {
             return Map.of();
         }
@@ -370,6 +382,7 @@ public final class QuestDropTracker {
             if (drop.isEmpty()) {
                 continue;
             }
+
             Item item = drop.getItem();
             if (isTrackedBlockDrop(item) && (!isActualHarvestDrop(item) || isMatureCrop(state))) {
                 trackedDrops.merge(item, drop.getCount(), Integer::sum);
@@ -398,64 +411,28 @@ public final class QuestDropTracker {
     private static boolean isMatureCrop(BlockState state) {
         return state != null
                 && state.getBlock() instanceof CropBlock crop
-                && state.contains(CropBlock.AGE)
-                && state.get(CropBlock.AGE) >= crop.getMaxAge();
+                && state.hasProperty(CropBlock.AGE)
+                && state.getValue(CropBlock.AGE) >= crop.getMaxAge();
     }
 
     private static Item matureCropItem(BlockState state) {
         if (!isMatureCrop(state)) {
             return null;
         }
-        if (state.isOf(Blocks.WHEAT)) {
+        if (state.is(Blocks.WHEAT)) {
             return Items.WHEAT;
         }
-        if (state.isOf(Blocks.POTATOES)) {
+        if (state.is(Blocks.POTATOES)) {
             return Items.POTATO;
         }
-        if (state.isOf(Blocks.CARROTS)) {
+        if (state.is(Blocks.CARROTS)) {
             return Items.CARROT;
         }
         return null;
     }
 
     private static boolean isWool(Item item) {
-        return item == Items.WHITE_WOOL
-                || item == Items.ORANGE_WOOL
-                || item == Items.MAGENTA_WOOL
-                || item == Items.LIGHT_BLUE_WOOL
-                || item == Items.YELLOW_WOOL
-                || item == Items.LIME_WOOL
-                || item == Items.PINK_WOOL
-                || item == Items.GRAY_WOOL
-                || item == Items.LIGHT_GRAY_WOOL
-                || item == Items.CYAN_WOOL
-                || item == Items.PURPLE_WOOL
-                || item == Items.BLUE_WOOL
-                || item == Items.BROWN_WOOL
-                || item == Items.GREEN_WOOL
-                || item == Items.RED_WOOL
-                || item == Items.BLACK_WOOL;
-    }
-
-    private static Item woolItemFor(DyeColor color) {
-        return switch (color) {
-            case WHITE -> Items.WHITE_WOOL;
-            case ORANGE -> Items.ORANGE_WOOL;
-            case MAGENTA -> Items.MAGENTA_WOOL;
-            case LIGHT_BLUE -> Items.LIGHT_BLUE_WOOL;
-            case YELLOW -> Items.YELLOW_WOOL;
-            case LIME -> Items.LIME_WOOL;
-            case PINK -> Items.PINK_WOOL;
-            case GRAY -> Items.GRAY_WOOL;
-            case LIGHT_GRAY -> Items.LIGHT_GRAY_WOOL;
-            case CYAN -> Items.CYAN_WOOL;
-            case PURPLE -> Items.PURPLE_WOOL;
-            case BLUE -> Items.BLUE_WOOL;
-            case BROWN -> Items.BROWN_WOOL;
-            case GREEN -> Items.GREEN_WOOL;
-            case RED -> Items.RED_WOOL;
-            case BLACK -> Items.BLACK_WOOL;
-        };
+        return WoolItems.isWool(item);
     }
 
     private enum PendingDropKind {
@@ -464,51 +441,51 @@ public final class QuestDropTracker {
     }
 
     private static final class PendingShearSource {
-        private final ServerWorld world;
+        private final ServerLevel world;
         private final UUID playerId;
         private final UUID sheepId;
         private final long expiresAtTick;
 
-        private PendingShearSource(ServerWorld world, UUID playerId, UUID sheepId, long expiresAtTick) {
+        private PendingShearSource(ServerLevel world, UUID playerId, UUID sheepId, long expiresAtTick) {
             this.world = world;
             this.playerId = playerId;
             this.sheepId = sheepId;
             this.expiresAtTick = expiresAtTick;
         }
 
-        private static PendingShearSource create(ServerWorld world, UUID playerId, UUID sheepId) {
-            return new PendingShearSource(world, playerId, sheepId, world.getTime() + DROP_SOURCE_EXPIRE_TICKS);
+        private static PendingShearSource create(ServerLevel world, UUID playerId, UUID sheepId) {
+            return new PendingShearSource(world, playerId, sheepId, world.getGameTime() + DROP_SOURCE_EXPIRE_TICKS);
         }
 
-        private boolean matches(ServerWorld world, UUID sheepId) {
+        private boolean matches(ServerLevel world, UUID sheepId) {
             return this.world == world && Objects.equals(this.sheepId, sheepId) && !isExpired();
         }
 
         private boolean isExpired() {
-            return world == null || world.getTime() > expiresAtTick;
+            return world == null || world.getGameTime() > expiresAtTick;
         }
     }
 
     private static final class PendingDropSource {
         private final PendingDropKind kind;
-        private final ServerWorld world;
+        private final ServerLevel world;
         private final UUID playerId;
         private final double originX;
         private final double originY;
         private final double originZ;
-        private final double radiusSquared;
+        private final double radiusSqr;
         private final long expiresAtTick;
         private final BlockPos originBlockPos;
         private final Map<Item, Integer> remainingCounts;
         private boolean capturedBlockResource;
 
         private PendingDropSource(PendingDropKind kind,
-                                  ServerWorld world,
+                                  ServerLevel world,
                                   UUID playerId,
                                   double originX,
                                   double originY,
                                   double originZ,
-                                  double radiusSquared,
+                                  double radiusSqr,
                                   long expiresAtTick,
                                   BlockPos originBlockPos,
                                   Map<Item, Integer> remainingCounts) {
@@ -518,13 +495,13 @@ public final class QuestDropTracker {
             this.originX = originX;
             this.originY = originY;
             this.originZ = originZ;
-            this.radiusSquared = radiusSquared;
+            this.radiusSqr = radiusSqr;
             this.expiresAtTick = expiresAtTick;
             this.originBlockPos = originBlockPos;
             this.remainingCounts = new HashMap<>(remainingCounts);
         }
 
-        private static PendingDropSource blockBreak(ServerWorld world, UUID playerId, BlockPos pos, Map<Item, Integer> remainingCounts) {
+        private static PendingDropSource blockBreak(ServerLevel world, UUID playerId, BlockPos pos, Map<Item, Integer> remainingCounts) {
             return new PendingDropSource(
                     PendingDropKind.BLOCK_BREAK,
                     world,
@@ -532,19 +509,19 @@ public final class QuestDropTracker {
                     pos.getX() + 0.5D,
                     pos.getY() + 0.5D,
                     pos.getZ() + 0.5D,
-                    BLOCK_BREAK_RADIUS_SQUARED,
-                    world.getTime() + DROP_SOURCE_EXPIRE_TICKS,
-                    pos.toImmutable(),
+                    BLOCK_BREAK_RADIUS_SQR,
+                    world.getGameTime() + DROP_SOURCE_EXPIRE_TICKS,
+                    pos.immutable(),
                     remainingCounts
             );
         }
 
-        private static PendingDropSource entityDrop(ServerWorld world,
+        private static PendingDropSource entityDrop(ServerLevel world,
                                                     UUID playerId,
                                                     double originX,
                                                     double originY,
                                                     double originZ,
-                                                    double radiusSquared,
+                                                    double radiusSqr,
                                                     Map<Item, Integer> remainingCounts) {
             return new PendingDropSource(
                     PendingDropKind.ENTITY_DROP,
@@ -553,24 +530,25 @@ public final class QuestDropTracker {
                     originX,
                     originY,
                     originZ,
-                    radiusSquared,
-                    world.getTime() + DROP_SOURCE_EXPIRE_TICKS,
+                    radiusSqr,
+                    world.getGameTime() + DROP_SOURCE_EXPIRE_TICKS,
                     null,
                     remainingCounts
             );
         }
 
-        private boolean matches(ServerWorld world, ItemEntity itemEntity) {
-            if (this.world != world || isExpired() || itemEntity == null) {
+        private boolean matches(ServerLevel world, ItemEntity itemEntity) {
+            if (this.world != world || isExpired() || itemEntity == null
+                    || ((TrackedQuestDrop) itemEntity).villageQuest$hasThrower()) {
                 return false;
             }
 
-            Item item = itemEntity.getStack().getItem();
+            Item item = itemEntity.getItem().getItem();
             int remaining = remainingCounts.getOrDefault(item, 0);
-            return remaining > 0 && itemEntity.squaredDistanceTo(originX, originY, originZ) <= radiusSquared;
+            return remaining > 0 && itemEntity.distanceToSqr(originX, originY, originZ) <= radiusSqr;
         }
 
-        private boolean matchesBlockResource(ServerWorld world, BlockPos pos, Item item) {
+        private boolean matchesBlockResource(ServerLevel world, BlockPos pos, Item item) {
             return kind == PendingDropKind.BLOCK_BREAK
                     && this.world == world
                     && !isExpired()
@@ -596,7 +574,7 @@ public final class QuestDropTracker {
         }
 
         private boolean tryTrack(ItemEntity itemEntity) {
-            if (!matches(world, itemEntity) || itemEntity.getItemAge() > DROP_SOURCE_EXPIRE_TICKS) {
+            if (!matches(world, itemEntity) || itemEntity.getAge() > DROP_SOURCE_EXPIRE_TICKS) {
                 return false;
             }
 
@@ -606,12 +584,12 @@ public final class QuestDropTracker {
             }
 
             trackedDrop.villageQuest$setTrackedPlayerId(playerId);
-            consume(itemEntity.getStack().getItem(), itemEntity.getStack().getCount());
+            consume(itemEntity.getItem().getItem(), itemEntity.getItem().getCount());
             return true;
         }
 
         private boolean isExpired() {
-            return world == null || world.getTime() > expiresAtTick;
+            return world == null || world.getGameTime() > expiresAtTick;
         }
 
         private boolean isExhausted() {

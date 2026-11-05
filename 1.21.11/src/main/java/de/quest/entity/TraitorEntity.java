@@ -1,55 +1,56 @@
 package de.quest.entity;
 
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.ai.goal.LookAroundGoal;
-import net.minecraft.entity.ai.goal.LookAtEntityGoal;
-import net.minecraft.entity.ai.goal.MeleeAttackGoal;
-import net.minecraft.entity.ai.goal.SwimGoal;
-import net.minecraft.entity.attribute.DefaultAttributeContainer;
-import net.minecraft.entity.attribute.EntityAttributes;
-import net.minecraft.entity.effect.StatusEffectInstance;
-import net.minecraft.entity.effect.StatusEffects;
-import net.minecraft.entity.mob.HostileEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.world.World;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.goal.FloatGoal;
+import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
+import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
+import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
+import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.Level;
 
-public final class TraitorEntity extends HostileEntity {
+public final class TraitorEntity extends Monster {
     private static final int POISON_TICKS = 60;
 
-    public TraitorEntity(EntityType<? extends HostileEntity> entityType, World world) {
+    public TraitorEntity(EntityType<? extends Monster> entityType, Level world) {
         super(entityType, world);
-        this.setPersistent();
-        this.setEquipmentDropChance(EquipmentSlot.MAINHAND, 0.0f);
+        this.setPersistenceRequired();
+        this.setDropChance(EquipmentSlot.MAINHAND, 0.0f);
         equipWeapon();
     }
 
     @Override
-    protected void initGoals() {
-        this.goalSelector.add(0, new SwimGoal(this));
-        this.goalSelector.add(1, new MeleeAttackGoal(this, 1.05, false));
-        this.goalSelector.add(2, new LookAtEntityGoal(this, PlayerEntity.class, 10.0f));
-        this.goalSelector.add(3, new LookAroundGoal(this));
+    protected void registerGoals() {
+        this.goalSelector.addGoal(0, new FloatGoal(this));
+        this.goalSelector.addGoal(1, new MeleeAttackGoal(this, 1.05, false));
+        this.goalSelector.addGoal(2, new LookAtPlayerGoal(this, Player.class, 10.0f));
+        this.goalSelector.addGoal(3, new RandomLookAroundGoal(this));
     }
 
-    public static DefaultAttributeContainer.Builder createAttributes() {
-        return HostileEntity.createHostileAttributes()
-                .add(EntityAttributes.MAX_HEALTH, 38.4)
-                .add(EntityAttributes.ATTACK_DAMAGE, 7.0)
-                .add(EntityAttributes.MOVEMENT_SPEED, 0.34)
-                .add(EntityAttributes.FOLLOW_RANGE, 32.0)
-                .add(EntityAttributes.ARMOR, 4.0);
+    public static AttributeSupplier.Builder createAttributes() {
+        return Monster.createMonsterAttributes()
+                .add(Attributes.MAX_HEALTH, 38.4)
+                .add(Attributes.ATTACK_DAMAGE, 7.0)
+                .add(Attributes.MOVEMENT_SPEED, 0.34)
+                .add(Attributes.FOLLOW_RANGE, 32.0)
+                .add(Attributes.ARMOR, 4.0);
     }
 
     @Override
     public void tick() {
         super.tick();
-        if (!this.getEntityWorld().isClient()) {
+        if (!this.level().isClientSide()) {
             equipWeapon();
         }
     }
@@ -60,17 +61,17 @@ public final class TraitorEntity extends HostileEntity {
     }
 
     @Override
-    public boolean tryAttack(ServerWorld world, Entity target) {
-        boolean hit = super.tryAttack(world, target);
+    public boolean doHurtTarget(ServerLevel world, Entity target) {
+        boolean hit = super.doHurtTarget(world, target);
         if (hit && target instanceof LivingEntity living) {
-            living.addStatusEffect(new StatusEffectInstance(StatusEffects.POISON, POISON_TICKS, 0), this);
+            living.addEffect(new MobEffectInstance(MobEffects.POISON, POISON_TICKS, 0), this);
         }
         return hit;
     }
 
     private void equipWeapon() {
-        if (!this.getMainHandStack().isOf(Items.DIAMOND_SWORD)) {
-            this.setStackInHand(net.minecraft.util.Hand.MAIN_HAND, new ItemStack(Items.DIAMOND_SWORD));
+        if (!this.getMainHandItem().is(Items.DIAMOND_SWORD)) {
+            this.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.DIAMOND_SWORD));
         }
     }
 }

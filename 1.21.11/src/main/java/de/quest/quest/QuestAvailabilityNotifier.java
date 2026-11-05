@@ -10,12 +10,12 @@ import de.quest.quest.story.StoryQuestService;
 import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.questmaster.QuestMasterProgressionService;
 import de.quest.questmaster.QuestMasterUiService;
-import de.quest.util.TimeUtil;
+import de.quest.util.QuestCalendarService;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 
 /**
  * Announces each newly available repeatable or story assignment once.
@@ -23,90 +23,111 @@ import net.minecraft.util.Formatting;
  */
 public final class QuestAvailabilityNotifier {
     private static final int CHECK_INTERVAL_TICKS = 20;
+    private static final int LOGIN_DELAY_TICKS = 20 * 20;
+    private static final java.util.Map<java.util.UUID, Long> READY_AT = new java.util.HashMap<>();
+
+    public static void handleJoin(ServerPlayer player) {
+        READY_AT.put(player.getUUID(), (long) player.level().getServer().getTickCount() + LOGIN_DELAY_TICKS);
+    }
+    public static void handleDisconnect(java.util.UUID player) { READY_AT.remove(player); }
+    public static void resetRuntimeState() { READY_AT.clear(); }
 
     private QuestAvailabilityNotifier() {
     }
 
     public static void onServerTick(MinecraftServer server) {
-        if (server == null) {
+        if (server == null || server.getTickCount() % CHECK_INTERVAL_TICKS != 0) {
             return;
         }
 
-        ServerWorld world = server.getOverworld();
-        if (world == null || world.getTime() % CHECK_INTERVAL_TICKS != 0) {
-            return;
-        }
-
+        ServerLevel world = server.overworld();
         QuestState state = QuestState.get(server);
         boolean changed = false;
-        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-            PlayerQuestData data = state.getPlayerData(player.getUuid());
-            boolean playerChanged = notifyDaily(world, player, data);
-            playerChanged |= notifyWeekly(world, player, data);
-            playerChanged |= notifyStory(world, player, data);
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            long readyAt = READY_AT.computeIfAbsent(player.getUUID(),
+                    id -> (long) server.getTickCount() + LOGIN_DELAY_TICKS);
+            if (server.getTickCount() < readyAt) continue;
+            PlayerQuestData data = state.getPlayerData(player.getUUID());
+            boolean daily = notifyDaily(world, player, data);
+            boolean weekly = notifyWeekly(world, player, data);
+            boolean story = notifyStory(world, player, data);
+            boolean playerChanged = daily || weekly || story;
             if (playerChanged) {
+                String key = switch ((daily ? 1 : 0) | (weekly ? 2 : 0) | (story ? 4 : 0)) {
+                    case 1 -> "message.village-quest.questmaster.new_offers.daily";
+                    case 2 -> "message.village-quest.questmaster.new_offers.weekly";
+                    case 3 -> "message.village-quest.questmaster.new_offers.daily_weekly";
+                    case 4 -> "message.village-quest.questmaster.new_offers.story";
+                    case 5 -> "message.village-quest.questmaster.new_offers.daily_story";
+                    case 6 -> "message.village-quest.questmaster.new_offers.weekly_story";
+                    default -> "message.village-quest.questmaster.new_offers.daily_weekly_story";
+                };
+                announce(world, player, key);
                 QuestMasterUiService.refreshIfOpen(world, player);
             }
             changed |= playerChanged;
         }
         if (changed) {
-            state.markDirty();
+            state.setDirty();
         }
     }
 
-    private static boolean notifyDaily(ServerWorld world, ServerPlayerEntity player, PlayerQuestData data) {
-        long day = TimeUtil.currentDay();
+    private static boolean notifyDaily(ServerLevel world, ServerPlayer player, PlayerQuestData data) {
+        long day = QuestCalendarService.currentDay();
         if (data.getDailyOfferNoticeDay() == day
-                || !DailyQuestService.canShowDailyOffer(world, player.getUuid())
-                || DailyQuestService.previewQuestChoice(world, player.getUuid()) == null) {
+                || !DailyQuestService.canShowDailyOffer(world, player.getUUID())
+                || DailyQuestService.previewQuestChoice(world, player.getUUID()) == null) {
             return false;
         }
         data.setDailyOfferNoticeDay(day);
-        announce(world, player, "message.village-quest.questmaster.new_daily");
         return true;
     }
 
-    private static boolean notifyWeekly(ServerWorld world, ServerPlayerEntity player, PlayerQuestData data) {
-        long cycle = TimeUtil.currentWeekCycle();
+    private static boolean notifyWeekly(ServerLevel world, ServerPlayer player, PlayerQuestData data) {
+        long cycle = QuestCalendarService.currentWeekCycle();
         if (data.getWeeklyOfferNoticeCycle() == cycle
-                || WeeklyQuestService.isAcceptedThisWeek(world, player.getUuid())
-                || WeeklyQuestService.hasCompletedThisWeek(world, player.getUuid())
-                || WeeklyQuestService.previewQuestChoice(world, player.getUuid()) == null) {
+                || WeeklyQuestService.isAcceptedThisWeek(world, player.getUUID())
+                || WeeklyQuestService.hasCompletedThisWeek(world, player.getUUID())
+                || WeeklyQuestService.previewQuestChoice(world, player.getUUID()) == null) {
             return false;
         }
         data.setWeeklyOfferNoticeCycle(cycle);
-        announce(world, player, "message.village-quest.questmaster.new_weekly");
         return true;
     }
 
-    private static boolean notifyStory(ServerWorld world, ServerPlayerEntity player, PlayerQuestData data) {
-        if (!QuestMasterProgressionService.isStoryCategoryUnlocked(world, player.getUuid())
-                || StoryQuestService.activeArcType(world, player.getUuid()) != null) {
-            return false;
-        }
+    private static boolean notifyStory(ServerLevel world, ServerPlayer player, PlayerQuestData data) {
+        if (!QuestMasterProgressionService.isStoryCategoryUnlocked(world, player.getUUID())
+                || !data.storyLanesWritable()) return false;
+        boolean changed = false;
+        if (StoryQuestService.activeArcType(world, player.getUUID()) == null)
+            changed = rememberStoryOffer(world, player, data,
+                    StoryQuestService.availableArcType(world, player.getUUID()), false);
+        var kingdom = StoryArcType.LIVING_KINGDOMS;
+        var arc = StoryQuestService.definition(kingdom);
+        if (!StoryQuestService.isActive(world, player.getUUID(), kingdom)
+                && !StoryQuestService.isCompleted(world, player.getUUID(), kingdom)
+                && arc != null && arc.isUnlocked(world, player.getUUID()))
+            changed |= rememberStoryOffer(world, player, data, kingdom, true);
+        return changed;
+    }
 
-        StoryArcType story = StoryQuestService.availableArcType(world, player.getUuid());
-        if (story == null) {
-            return false;
-        }
-        int chapterIndex = StoryQuestService.chapterIndex(world, player.getUuid(), story);
-        StoryChapterDefinition chapter = StoryQuestService.chapter(world, player.getUuid(), story);
-        if (chapter == null || !chapter.canAccept(world, player)) {
-            return false;
-        }
-
+    private static boolean rememberStoryOffer(ServerLevel world, ServerPlayer player, PlayerQuestData data,
+                                               StoryArcType story, boolean kingdom) {
+        if (story == null) return false;
+        int chapterIndex = StoryQuestService.chapterIndex(world, player.getUUID(), story);
+        StoryChapterDefinition chapter = StoryQuestService.chapter(world, player.getUUID(), story);
+        if (chapter == null || !chapter.canAccept(world, player)) return false;
         String offerKey = story.id() + ":" + chapterIndex;
-        if (offerKey.equals(data.getStoryOfferNoticeKey())) {
-            return false;
-        }
-        data.setStoryOfferNoticeKey(offerKey);
-        announce(world, player, "message.village-quest.questmaster.new_story");
+        String previous = kingdom ? data.getTradeRouteString("kingdoms.story.offer_notice") : data.getStoryOfferNoticeKey();
+        if (offerKey.equals(previous)) return false;
+        if (kingdom) data.setTradeRouteString("kingdoms.story.offer_notice", offerKey);
+        else data.setStoryOfferNoticeKey(offerKey);
         return true;
     }
 
-    private static void announce(ServerWorld world, ServerPlayerEntity player, String translationKey) {
+    private static void announce(ServerLevel world, ServerPlayer player, String translationKey) {
         if (ClientPreferenceService.questAvailableChatNotifications(player)) {
-            player.sendMessage(Text.translatable(translationKey).formatted(Formatting.GOLD), false);
+            player.sendSystemMessage(Component.translatable(translationKey).withStyle(ChatFormatting.GOLD), false);
         }
         QuestSoundFeedback.playNewOffer(world, player);
     }

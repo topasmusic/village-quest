@@ -12,42 +12,50 @@ import de.quest.caravan.TradeGuildService;
 import de.quest.caravan.TradeRouteEventType;
 import de.quest.caravan.TradeRouteSpecialization;
 import de.quest.caravan.TradeRouteUpgrade;
-import de.quest.content.story.EmptyCaravanStoryService;
-import de.quest.content.story.ShadowsTradeRoadEncounterService;
+import de.quest.caravan.TradeRouteIncidentApproach;
 import de.quest.economy.CurrencyService;
 import de.quest.economy.ProsperityService;
 import de.quest.party.QuestPartyService;
 import de.quest.pilgrim.PilgrimContractService;
 import de.quest.pilgrim.PilgrimService;
 import de.quest.quest.QuestDropTracker;
+import de.quest.quest.QuestHarvestTracker;
+import de.quest.quest.QuestSoundFeedback;
 import de.quest.quest.QuestTrackerService;
 import de.quest.questmaster.QuestMasterService;
 import de.quest.questmaster.QuestMasterUiService;
 import de.quest.quest.QuestBookHelper;
 import de.quest.quest.daily.DailyQuestService;
-import de.quest.quest.special.AdminCoreTestQuestService;
+import de.quest.quest.daily.FirstDailyChoiceService;
 import de.quest.quest.special.MerchantSealQuestService;
 import de.quest.quest.special.ShardRelicQuestService;
 import de.quest.quest.special.SpecialQuestService;
 import de.quest.quest.special.SurveyorCompassQuestService;
+import de.quest.content.story.ShadowsTradeRoadEncounterService;
+import de.quest.content.story.EmptyCaravanStoryService;
 import de.quest.quest.story.StoryQuestService;
 import de.quest.quest.story.VillageProjectService;
 import de.quest.quest.story.VillageProjectType;
 import de.quest.quest.weekly.WeeklyQuestService;
 import de.quest.reputation.ReputationService;
+import de.quest.shrine.VillageBondService;
+import de.quest.shrine.VillageBondLevel;
+import de.quest.village.LivingVillageNetworkState;
+import de.quest.guild.VillageGuildState;
+import de.quest.guildtown.GuildTownSharedState;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
-import net.minecraft.command.argument.EntityArgumentType;
-import net.minecraft.text.Text;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.util.Formatting;
+import net.minecraft.ChatFormatting;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
 
-import static net.minecraft.server.command.CommandManager.argument;
-import static net.minecraft.server.command.CommandManager.literal;
+import static net.minecraft.commands.Commands.argument;
+import static net.minecraft.commands.Commands.literal;
 
 public final class QuestCommands {
-    private static final SuggestionProvider<ServerCommandSource> QUEST_SUGGESTIONS = (ctx, builder) -> {
+    private static final SuggestionProvider<CommandSourceStack> QUEST_SUGGESTIONS = (ctx, builder) -> {
         builder.suggest("honey");
         builder.suggest("pet");
         builder.suggest("bakery");
@@ -67,21 +75,21 @@ public final class QuestCommands {
         return builder.buildFuture();
     };
 
-    private static final SuggestionProvider<ServerCommandSource> WALLET_UNIT_SUGGESTIONS = (ctx, builder) -> {
+    private static final SuggestionProvider<CommandSourceStack> WALLET_UNIT_SUGGESTIONS = (ctx, builder) -> {
         for (CurrencyService.CurrencyUnit unit : CurrencyService.CurrencyUnit.values()) {
             builder.suggest(unit.id());
         }
         return builder.buildFuture();
     };
 
-    private static final SuggestionProvider<ServerCommandSource> REPUTATION_TRACK_SUGGESTIONS = (ctx, builder) -> {
+    private static final SuggestionProvider<CommandSourceStack> REPUTATION_TRACK_SUGGESTIONS = (ctx, builder) -> {
         for (ReputationService.ReputationTrack track : ReputationService.ReputationTrack.values()) {
             builder.suggest(track.id());
         }
         return builder.buildFuture();
     };
 
-    private static final SuggestionProvider<ServerCommandSource> PROJECT_SUGGESTIONS = (ctx, builder) -> {
+    private static final SuggestionProvider<CommandSourceStack> PROJECT_SUGGESTIONS = (ctx, builder) -> {
         for (VillageProjectType project : VillageProjectType.values()) {
             if (!project.alwaysUnlocked()) {
                 builder.suggest(project.id());
@@ -90,19 +98,24 @@ public final class QuestCommands {
         return builder.buildFuture();
     };
 
-    private static final SuggestionProvider<ServerCommandSource> ROUTE_SPECIALIZATION_SUGGESTIONS = (ctx, builder) -> {
+    private static final SuggestionProvider<CommandSourceStack> ROUTE_SPECIALIZATION_SUGGESTIONS = (ctx, builder) -> {
         for (TradeRouteSpecialization value : TradeRouteSpecialization.values()) builder.suggest(value.key());
         return builder.buildFuture();
     };
 
-    private static final SuggestionProvider<ServerCommandSource> ROUTE_UPGRADE_SUGGESTIONS = (ctx, builder) -> {
+    private static final SuggestionProvider<CommandSourceStack> ROUTE_UPGRADE_SUGGESTIONS = (ctx, builder) -> {
         for (TradeRouteUpgrade value : TradeRouteUpgrade.values()) builder.suggest(value.key());
         return builder.buildFuture();
     };
 
-    private static final SuggestionProvider<ServerCommandSource> ROUTE_EVENT_SUGGESTIONS = (ctx, builder) -> {
+    private static final SuggestionProvider<CommandSourceStack> ROUTE_EVENT_SUGGESTIONS = (ctx, builder) -> {
         builder.suggest("clear");
         for (TradeRouteEventType value : TradeRouteEventType.values()) builder.suggest(value.key());
+        return builder.buildFuture();
+    };
+
+    private static final SuggestionProvider<CommandSourceStack> ROUTE_APPROACH_SUGGESTIONS = (ctx, builder) -> {
+        for (TradeRouteIncidentApproach value : TradeRouteIncidentApproach.values()) builder.suggest(value.key());
         return builder.buildFuture();
     };
 
@@ -110,120 +123,121 @@ public final class QuestCommands {
 
     public static void register() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
-            LiteralArgumentBuilder<ServerCommandSource> setQuestCommand = literal("setquest")
+            LiteralArgumentBuilder<CommandSourceStack> setQuestCommand = literal("setquest")
                     .requires(AdminCommands::canManageRespawn)
                     .executes(ctx -> {
-                        ctx.getSource().sendFeedback(() -> Text.translatable("command.village-quest.setquest.usage").formatted(Formatting.GRAY), false);
+                        ctx.getSource().sendSuccess(() -> Component.translatable("command.village-quest.setquest.usage").withStyle(ChatFormatting.GRAY), false);
                         return 0;
                     })
                     .then(argument("quest", StringArgumentType.word())
                             .suggests(QUEST_SUGGESTIONS)
                             .executes(ctx -> {
                                 var player = ctx.getSource().getPlayer();
-                                if (player instanceof ServerPlayerEntity sp) {
-                                    var world = ctx.getSource().getServer().getOverworld();
+                                if (player instanceof ServerPlayer sp) {
+                                    var world = ctx.getSource().getServer().overworld();
                                     String arg = StringArgumentType.getString(ctx, "quest");
                                     DailyQuestService.DailyQuestType chosen = DailyQuestService.questFromString(arg);
                                     if (chosen == null) {
-                                        sp.sendMessage(Text.translatable("command.village-quest.setquest.invalid").formatted(Formatting.RED), false);
+                                        sp.sendSystemMessage(Component.translatable("command.village-quest.setquest.invalid").withStyle(ChatFormatting.RED), false);
                                         return 0;
                                     }
-                                    DailyQuestService.setQuestChoiceForToday(world, sp.getUuid(), chosen);
-                                    sp.sendMessage(Text.translatable("command.village-quest.setquest.success", DailyQuestService.displayKey(chosen)).formatted(Formatting.GREEN), false);
+                                    DailyQuestService.setQuestChoiceForToday(world, sp.getUUID(), chosen);
+                                    sp.sendSystemMessage(Component.translatable("command.village-quest.setquest.success", DailyQuestService.displayKey(chosen)).withStyle(ChatFormatting.GREEN), false);
                                 }
                                 return 1;
                             }));
 
-            LiteralArgumentBuilder<ServerCommandSource> questAdminCommand = literal("admin")
+            LiteralArgumentBuilder<CommandSourceStack> questAdminCommand = literal("admin")
                     .requires(AdminCommands::canManageRespawn)
+                    .then(ReputationCommands.command())
                     .then(setQuestCommand)
                     .then(literal("resetdaily")
                             .executes(ctx -> resetDailyForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                            .then(argument("player", EntityArgumentType.player())
+                            .then(argument("player", EntityArgument.player())
                                     .executes(ctx -> resetDailyForPlayer(
                                             ctx.getSource(),
-                                            EntityArgumentType.getPlayer(ctx, "player")
+                                            EntityArgument.getPlayer(ctx, "player")
                                     ))))
                     .then(literal("nextdaily")
                             .executes(ctx -> prepareNextDailyForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                            .then(argument("player", EntityArgumentType.player())
+                            .then(argument("player", EntityArgument.player())
                                     .executes(ctx -> prepareNextDailyForPlayer(
                                             ctx.getSource(),
-                                            EntityArgumentType.getPlayer(ctx, "player")
+                                            EntityArgument.getPlayer(ctx, "player")
                                     ))))
                     .then(literal("resetweekly")
                             .executes(ctx -> resetWeeklyForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                            .then(argument("player", EntityArgumentType.player())
+                            .then(argument("player", EntityArgument.player())
                                     .executes(ctx -> resetWeeklyForPlayer(
                                             ctx.getSource(),
-                                            EntityArgumentType.getPlayer(ctx, "player")
+                                            EntityArgument.getPlayer(ctx, "player")
                                     ))))
                     .then(literal("nextweekly")
                             .executes(ctx -> prepareNextWeeklyForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                            .then(argument("player", EntityArgumentType.player())
+                            .then(argument("player", EntityArgument.player())
                                     .executes(ctx -> prepareNextWeeklyForPlayer(
                                             ctx.getSource(),
-                                            EntityArgumentType.getPlayer(ctx, "player")
+                                            EntityArgument.getPlayer(ctx, "player")
                                     ))))
                     .then(literal("completeweekly")
                             .executes(ctx -> completeWeeklyForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                            .then(argument("player", EntityArgumentType.player())
+                            .then(argument("player", EntityArgument.player())
                                     .executes(ctx -> completeWeeklyForPlayer(
                                             ctx.getSource(),
-                                            EntityArgumentType.getPlayer(ctx, "player")
+                                            EntityArgument.getPlayer(ctx, "player")
                                     ))))
                     .then(literal("story")
                             .then(literal("show")
                                     .executes(ctx -> showStoryForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                                    .then(argument("player", EntityArgumentType.player())
+                                    .then(argument("player", EntityArgument.player())
                                             .executes(ctx -> showStoryForPlayer(
                                                     ctx.getSource(),
-                                                    EntityArgumentType.getPlayer(ctx, "player")
+                                                    EntityArgument.getPlayer(ctx, "player")
                                             ))))
                             .then(literal("reset")
                                     .executes(ctx -> resetStoryForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                                    .then(argument("player", EntityArgumentType.player())
+                                    .then(argument("player", EntityArgument.player())
                                             .executes(ctx -> resetStoryForPlayer(
                                                     ctx.getSource(),
-                                                    EntityArgumentType.getPlayer(ctx, "player")
+                                                    EntityArgument.getPlayer(ctx, "player")
                                             ))))
                             .then(literal("complete")
                                     .executes(ctx -> completeStoryForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                                    .then(argument("player", EntityArgumentType.player())
+                                    .then(argument("player", EntityArgument.player())
                                             .executes(ctx -> completeStoryForPlayer(
                                                     ctx.getSource(),
-                                                    EntityArgumentType.getPlayer(ctx, "player")
+                                                    EntityArgument.getPlayer(ctx, "player")
                                             ))))
                             .then(literal("shadows")
                                     .then(literal("unlock")
                                             .executes(ctx -> unlockShadowsForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                                            .then(argument("player", EntityArgumentType.player())
+                                            .then(argument("player", EntityArgument.player())
                                                     .executes(ctx -> unlockShadowsForPlayer(
                                                             ctx.getSource(),
-                                                            EntityArgumentType.getPlayer(ctx, "player")
+                                                            EntityArgument.getPlayer(ctx, "player")
                                                     ))))
                                     .then(literal("testrescue")
                                             .executes(ctx -> prepareShadowsEncounterTest(ctx.getSource(), ctx.getSource().getPlayer(), false))
-                                            .then(argument("player", EntityArgumentType.player())
+                                            .then(argument("player", EntityArgument.player())
                                                     .executes(ctx -> prepareShadowsEncounterTest(
                                                             ctx.getSource(),
-                                                            EntityArgumentType.getPlayer(ctx, "player"),
+                                                            EntityArgument.getPlayer(ctx, "player"),
                                                             false
                                                     ))))
                                     .then(literal("testfinal")
                                             .executes(ctx -> prepareShadowsEncounterTest(ctx.getSource(), ctx.getSource().getPlayer(), true))
-                                            .then(argument("player", EntityArgumentType.player())
+                                            .then(argument("player", EntityArgument.player())
                                                     .executes(ctx -> prepareShadowsEncounterTest(
                                                             ctx.getSource(),
-                                                            EntityArgumentType.getPlayer(ctx, "player"),
+                                                            EntityArgument.getPlayer(ctx, "player"),
                                                             true
                                                     ))))))
                     .then(literal("completedaily")
                             .executes(ctx -> completeDailyForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                            .then(argument("player", EntityArgumentType.player())
+                            .then(argument("player", EntityArgument.player())
                                     .executes(ctx -> completeDailyForPlayer(
                                             ctx.getSource(),
-                                            EntityArgumentType.getPlayer(ctx, "player")
+                                            EntityArgument.getPlayer(ctx, "player")
                                     ))))
                     .then(literal("reset")
                             .then(literal("complete")
@@ -231,38 +245,38 @@ public final class QuestCommands {
                     .then(literal("project")
                             .then(literal("show")
                                     .executes(ctx -> showProjectsForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                                    .then(argument("player", EntityArgumentType.player())
+                                    .then(argument("player", EntityArgument.player())
                                             .executes(ctx -> showProjectsForPlayer(
                                                     ctx.getSource(),
-                                                    EntityArgumentType.getPlayer(ctx, "player")
+                                                    EntityArgument.getPlayer(ctx, "player")
                                             ))))
                             .then(literal("unlock")
-                                    .then(argument("player", EntityArgumentType.player())
+                                    .then(argument("player", EntityArgument.player())
                                             .then(argument("project", StringArgumentType.word())
                                                     .suggests(PROJECT_SUGGESTIONS)
                                                     .executes(ctx -> setProjectForPlayer(
                                                             ctx.getSource(),
-                                                            EntityArgumentType.getPlayer(ctx, "player"),
+                                                            EntityArgument.getPlayer(ctx, "player"),
                                                             parseProject(StringArgumentType.getString(ctx, "project")),
                                                             true
                                                     )))))
                             .then(literal("lock")
-                                    .then(argument("player", EntityArgumentType.player())
+                                    .then(argument("player", EntityArgument.player())
                                             .then(argument("project", StringArgumentType.word())
                                                     .suggests(PROJECT_SUGGESTIONS)
                                                     .executes(ctx -> setProjectForPlayer(
                                                             ctx.getSource(),
-                                                            EntityArgumentType.getPlayer(ctx, "player"),
+                                                            EntityArgument.getPlayer(ctx, "player"),
                                                             parseProject(StringArgumentType.getString(ctx, "project")),
-                                                            false
+                                                    false
                                                     ))))))
                     .then(literal("routes")
                             .then(literal("testsetup")
                                     .executes(ctx -> setupRouteTest(ctx.getSource(), ctx.getSource().getPlayer()))
-                                    .then(argument("player", EntityArgumentType.player())
+                                    .then(argument("player", EntityArgument.player())
                                             .executes(ctx -> setupRouteTest(
                                                     ctx.getSource(),
-                                                    EntityArgumentType.getPlayer(ctx, "player")
+                                                    EntityArgument.getPlayer(ctx, "player")
                                             ))))
                             .then(literal("testevent")
                                     .then(argument("route", IntegerArgumentType.integer(1, TradeRouteService.MAX_ROUTES))
@@ -275,83 +289,70 @@ public final class QuestCommands {
                                                     )))))
                             .then(literal("reset")
                                     .executes(ctx -> resetRoutesForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                                    .then(argument("player", EntityArgumentType.player())
+                                    .then(argument("player", EntityArgument.player())
                                             .executes(ctx -> resetRoutesForPlayer(
                                                     ctx.getSource(),
-                                                    EntityArgumentType.getPlayer(ctx, "player")
+                                                    EntityArgument.getPlayer(ctx, "player")
                                             )))))
                     .then(literal("economy")
                             .then(literal("testsetup")
                                     .executes(ctx -> setupEconomyTest(ctx.getSource(), ctx.getSource().getPlayer()))
-                                    .then(argument("player", EntityArgumentType.player())
+                                    .then(argument("player", EntityArgument.player())
                                             .executes(ctx -> setupEconomyTest(
                                                     ctx.getSource(),
-                                                    EntityArgumentType.getPlayer(ctx, "player")
+                                                    EntityArgument.getPlayer(ctx, "player")
                                             )))))
-                    .then(literal("uitest")
-                            .then(literal("questmaster")
-                                    .executes(ctx -> openQuestMasterUiTest(ctx.getSource())))
-                            .then(literal("pilgrim")
-                                    .executes(ctx -> openPilgrimUiTest(ctx.getSource()))))
+                    .then(literal("shrines")
+                            .then(literal("testsetup")
+                                    .executes(ctx -> setupShrineTest(ctx.getSource(), ctx.getSource().getPlayer()))
+                                    .then(argument("player", EntityArgument.player())
+                                            .executes(ctx -> setupShrineTest(
+                                                    ctx.getSource(), EntityArgument.getPlayer(ctx, "player")
+                                            ))))
+                            .then(literal("reverse")
+                                    .executes(ctx -> reverseShrineTest(ctx.getSource(), ctx.getSource().getPlayer()))
+                                    .then(argument("player", EntityArgument.player())
+                                            .executes(ctx -> reverseShrineTest(
+                                                    ctx.getSource(), EntityArgument.getPlayer(ctx, "player")
+                                            )))))
+                            .then(buildUiTestCommand())
                     .then(literal("shardcache")
                             .executes(ctx -> startShardCacheForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                            .then(argument("player", EntityArgumentType.player())
+                            .then(argument("player", EntityArgument.player())
                                     .executes(ctx -> startShardCacheForPlayer(
                                             ctx.getSource(),
-                                            EntityArgumentType.getPlayer(ctx, "player")
+                                            EntityArgument.getPlayer(ctx, "player")
                                     ))))
                     .then(literal("shardcachetp")
                             .executes(ctx -> teleportToShardCacheForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                            .then(argument("player", EntityArgumentType.player())
+                            .then(argument("player", EntityArgument.player())
                                     .executes(ctx -> teleportToShardCacheForPlayer(
                                             ctx.getSource(),
-                                            EntityArgumentType.getPlayer(ctx, "player")
+                                            EntityArgument.getPlayer(ctx, "player")
                                     ))))
-                    .then(literal("coretest")
-                            .then(literal("start")
-                                    .executes(ctx -> startCoreTestForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                                    .then(argument("player", EntityArgumentType.player())
-                                            .executes(ctx -> startCoreTestForPlayer(
-                                                    ctx.getSource(),
-                                                    EntityArgumentType.getPlayer(ctx, "player")
-                                            ))))
-                            .then(literal("reset")
-                                    .executes(ctx -> resetCoreTestForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                                    .then(argument("player", EntityArgumentType.player())
-                                            .executes(ctx -> resetCoreTestForPlayer(
-                                                    ctx.getSource(),
-                                                    EntityArgumentType.getPlayer(ctx, "player")
-                                            ))))
-                            .then(literal("show")
-                                    .executes(ctx -> showCoreTestForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                                    .then(argument("player", EntityArgumentType.player())
-                                            .executes(ctx -> showCoreTestForPlayer(
-                                                    ctx.getSource(),
-                                                    EntityArgumentType.getPlayer(ctx, "player")
-                                            )))))
                     .then(literal("pilgrim")
                             .then(literal("spawn")
                                     .executes(ctx -> spawnPilgrimForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                                    .then(argument("player", EntityArgumentType.player())
+                                    .then(argument("player", EntityArgument.player())
                                             .executes(ctx -> spawnPilgrimForPlayer(
                                                     ctx.getSource(),
-                                                    EntityArgumentType.getPlayer(ctx, "player")
+                                                    EntityArgument.getPlayer(ctx, "player")
                                             ))))
                             .then(literal("rumor")
                                     .then(literal("unlock")
                                             .executes(ctx -> setPilgrimRumorOverride(ctx.getSource(), ctx.getSource().getPlayer(), true))
-                                            .then(argument("player", EntityArgumentType.player())
+                                            .then(argument("player", EntityArgument.player())
                                                     .executes(ctx -> setPilgrimRumorOverride(
                                                             ctx.getSource(),
-                                                            EntityArgumentType.getPlayer(ctx, "player"),
+                                                            EntityArgument.getPlayer(ctx, "player"),
                                                             true
                                                     ))))
                                     .then(literal("lock")
                                             .executes(ctx -> setPilgrimRumorOverride(ctx.getSource(), ctx.getSource().getPlayer(), false))
-                                            .then(argument("player", EntityArgumentType.player())
+                                            .then(argument("player", EntityArgument.player())
                                                     .executes(ctx -> setPilgrimRumorOverride(
                                                             ctx.getSource(),
-                                                            EntityArgumentType.getPlayer(ctx, "player"),
+                                                            EntityArgument.getPlayer(ctx, "player"),
                                                             false
                                                     )))))
                             .then(literal("despawn")
@@ -359,66 +360,73 @@ public final class QuestCommands {
                     .then(buildAdminWalletCommand())
                     .then(buildAdminReputationCommand());
 
-            LiteralArgumentBuilder<ServerCommandSource> journalCommand = literal("journal")
+            LiteralArgumentBuilder<CommandSourceStack> journalCommand = literal("journal")
                     .executes(ctx -> {
                         var player = ctx.getSource().getPlayer();
-                        if (player instanceof ServerPlayerEntity sp) {
-                            var world = ctx.getSource().getServer().getOverworld();
+                        if (player instanceof ServerPlayer sp) {
+                            var world = ctx.getSource().getServer().overworld();
                             QuestBookHelper.toggleJournal(world, sp);
                         }
                         return 1;
                     })
                     .then(literal("open").executes(ctx -> {
                         var player = ctx.getSource().getPlayer();
-                        if (player instanceof ServerPlayerEntity sp) {
-                            QuestBookHelper.openJournal(ctx.getSource().getServer().getOverworld(), sp);
+                        if (player instanceof ServerPlayer sp) {
+                            QuestBookHelper.openJournal(ctx.getSource().getServer().overworld(), sp);
                         }
                         return 1;
                     }))
                     .then(literal("close").executes(ctx -> {
                         var player = ctx.getSource().getPlayer();
-                        if (player instanceof ServerPlayerEntity sp) {
+                        if (player instanceof ServerPlayer sp) {
                             QuestBookHelper.closeJournal(sp);
                         }
                         return 1;
                     }));
 
-            LiteralArgumentBuilder<ServerCommandSource> questMasterCommand = literal("questmaster")
+            LiteralArgumentBuilder<CommandSourceStack> questMasterCommand = literal("questmaster")
                     .executes(ctx -> summonQuestMaster(ctx.getSource()));
 
-            LiteralArgumentBuilder<ServerCommandSource> prosperityCommand = literal("prosperity")
+            LiteralArgumentBuilder<CommandSourceStack> prosperityCommand = literal("prosperity")
                     .executes(ctx -> {
                         var player = ctx.getSource().getPlayer();
-                        if (player instanceof ServerPlayerEntity sp) {
+                        if (player instanceof ServerPlayer sp) {
                             QuestBookHelper.closeJournal(sp);
-                            ProsperityService.open(ctx.getSource().getServer().getOverworld(), sp);
+                            ProsperityService.open(ctx.getSource().getServer().overworld(), sp);
                         }
                         return 1;
                     });
 
-            LiteralArgumentBuilder<ServerCommandSource> questTrackerCommand = literal("questtracker")
+            LiteralArgumentBuilder<CommandSourceStack> questTrackerCommand = literal("questtracker")
                     .executes(ctx -> toggleQuestTracker(ctx.getSource()))
                     .then(literal("on").executes(ctx -> setQuestTracker(ctx.getSource(), true)))
-                    .then(literal("off").executes(ctx -> setQuestTracker(ctx.getSource(), false)));
+                    .then(literal("off").executes(ctx -> setQuestTracker(ctx.getSource(), false)))
+                    .then(literal("left").executes(ctx -> positionQuestTracker(ctx.getSource(), false)))
+                    .then(literal("right").executes(ctx -> positionQuestTracker(ctx.getSource(), true)));
 
-            LiteralArgumentBuilder<ServerCommandSource> diagnoseCommand = literal("diagnose")
+            LiteralArgumentBuilder<CommandSourceStack> diagnoseCommand = literal("diagnose")
                     .executes(ctx -> diagnose(ctx.getSource(), ctx.getSource().getPlayer()))
-                    .then(argument("player", EntityArgumentType.player())
+                    .then(argument("player", EntityArgument.player())
                             .requires(AdminCommands::canManageRespawn)
-                            .executes(ctx -> diagnose(ctx.getSource(), EntityArgumentType.getPlayer(ctx, "player"))));
+                            .executes(ctx -> diagnose(ctx.getSource(), EntityArgument.getPlayer(ctx, "player"))));
 
-            LiteralArgumentBuilder<ServerCommandSource> dailyQuestCommand = literal("daily")
+            LiteralArgumentBuilder<CommandSourceStack> dailyQuestCommand = literal("daily")
                     .then(literal("accept").executes(ctx -> acceptQuest(ctx.getSource())))
+                    .then(literal("choose")
+                            .then(argument("quest", StringArgumentType.word())
+                                    .executes(ctx -> chooseFirstDaily(
+                                            ctx.getSource(),
+                                            StringArgumentType.getString(ctx, "quest")))))
                     .then(literal("reroll").executes(ctx -> rerollDailyQuest(ctx.getSource())));
 
-            LiteralArgumentBuilder<ServerCommandSource> partyCommand = literal("party")
+            LiteralArgumentBuilder<CommandSourceStack> partyCommand = literal("party")
                     .executes(ctx -> showParty(ctx.getSource()))
                     .then(literal("show").executes(ctx -> showParty(ctx.getSource())))
                     .then(literal("invite")
-                            .then(argument("player", EntityArgumentType.player())
+                            .then(argument("player", EntityArgument.player())
                                     .executes(ctx -> inviteToParty(
                                             ctx.getSource(),
-                                            EntityArgumentType.getPlayer(ctx, "player")
+                                            EntityArgument.getPlayer(ctx, "player")
                                     ))))
                     .then(literal("accept").executes(ctx -> acceptPartyInvite(ctx.getSource())))
                     .then(literal("decline").executes(ctx -> declinePartyInvite(ctx.getSource())))
@@ -430,24 +438,35 @@ public final class QuestCommands {
                                     .then(literal("accept").executes(ctx -> acceptPartyWeeklyShare(ctx.getSource())))
                                     .then(literal("decline").executes(ctx -> declinePartyWeeklyShare(ctx.getSource()))))
                             .then(literal("story")
-                                    .then(literal("accept").executes(ctx -> acceptPartyStoryShare(ctx.getSource())))
-                                    .then(literal("decline").executes(ctx -> declinePartyStoryShare(ctx.getSource()))))
+                                    .then(literal("accept").executes(ctx -> acceptPartyStoryShare(ctx.getSource()))
+                                            .then(literal("core").executes(ctx -> partyStoryShare(ctx.getSource(), de.quest.quest.story.StoryLane.CORE, true)))
+                                            .then(literal("kingdom").executes(ctx -> partyStoryShare(ctx.getSource(), de.quest.quest.story.StoryLane.KINGDOM, true))))
+                                    .then(literal("decline").executes(ctx -> declinePartyStoryShare(ctx.getSource()))
+                                            .then(literal("core").executes(ctx -> partyStoryShare(ctx.getSource(), de.quest.quest.story.StoryLane.CORE, false)))
+                                            .then(literal("kingdom").executes(ctx -> partyStoryShare(ctx.getSource(), de.quest.quest.story.StoryLane.KINGDOM, false)))))
                             .then(literal("pilgrim")
                                     .then(literal("accept").executes(ctx -> acceptPartyPilgrimShare(ctx.getSource())))
                                     .then(literal("decline").executes(ctx -> declinePartyPilgrimShare(ctx.getSource())))))
                     .then(literal("leave").executes(ctx -> leaveParty(ctx.getSource())))
                     .then(literal("disband").executes(ctx -> disbandParty(ctx.getSource())));
 
-            LiteralArgumentBuilder<ServerCommandSource> walletCommand = literal("wallet")
+            LiteralArgumentBuilder<CommandSourceStack> walletCommand = literal("wallet")
                     .executes(ctx -> showWallet(ctx.getSource()));
 
-            LiteralArgumentBuilder<ServerCommandSource> reputationCommand = literal("reputation")
+            LiteralArgumentBuilder<CommandSourceStack> reputationCommand = literal("reputation")
                     .executes(ctx -> showReputation(ctx.getSource()));
 
-            LiteralArgumentBuilder<ServerCommandSource> routesCommand = literal("routes")
+            LiteralArgumentBuilder<CommandSourceStack> routesCommand = literal("routes")
                     .executes(ctx -> openRoutes(ctx.getSource()))
                     .then(literal("minimap").executes(ctx -> toggleRouteMinimap(ctx.getSource())))
                     .then(literal("guild").executes(ctx -> showTradeGuild(ctx.getSource())))
+                    .then(literal("approach")
+                            .then(argument("route", IntegerArgumentType.integer(1, TradeRouteService.MAX_ROUTES))
+                                    .then(argument("approach", StringArgumentType.word())
+                                            .suggests(ROUTE_APPROACH_SUGGESTIONS)
+                                            .executes(ctx -> setRouteApproach(ctx.getSource(),
+                                                    IntegerArgumentType.getInteger(ctx, "route"),
+                                                    StringArgumentType.getString(ctx, "approach"))))))
                     .then(literal("specialize")
                             .then(argument("route", IntegerArgumentType.integer(1, TradeRouteService.MAX_ROUTES))
                                     .then(argument("specialization", StringArgumentType.word())
@@ -492,7 +511,29 @@ public final class QuestCommands {
                             .then(literal("finish").executes(ctx -> finishRouteSurvey(ctx.getSource())))
                             .then(literal("cancel").executes(ctx -> cancelRouteSurvey(ctx.getSource()))));
 
-            CommandNode<ServerCommandSource> villageQuestCommand = dispatcher.register(literal("villagequest")
+            CommandNode<CommandSourceStack> villageQuestCommand = dispatcher.register(literal("villagequest")
+                    .then(PersonalResetCommand.command())
+                    .then(NpcSkinPreviewService.command())
+                    .then(literal("friends").then(argument("body",StringArgumentType.word()).then(argument("action",StringArgumentType.word()).executes(ctx -> de.quest.quest.special.FriendsQuestService.command(ctx.getSource().getPlayer(),StringArgumentType.getString(ctx,"body"),StringArgumentType.getString(ctx,"action"))))))
+                    .then(literal("settings").executes(ctx -> {
+                        ServerPlayer player = ctx.getSource().getPlayer();
+                        if (player == null) return 0;
+                        de.quest.config.QuestSetupService.open(player); return 1;
+                    }))
+                    .then(literal("aid")
+                            .then(literal("repair").executes(ctx -> de.quest.kingdom.KingdomAttackService.apologize(ctx.getSource().getPlayer())))
+                            .then(literal("help").then(argument("incident",StringArgumentType.word()).executes(ctx ->
+                                    de.quest.kingdom.KingdomAttackService.choose(ctx.getSource().getPlayer(),StringArgumentType.getString(ctx,"incident"),true))))
+                            .then(literal("refuse").then(argument("incident",StringArgumentType.word()).executes(ctx ->
+                                    de.quest.kingdom.KingdomAttackService.choose(ctx.getSource().getPlayer(),StringArgumentType.getString(ctx,"incident"),false)))))
+                    .then(literal("artifacts")
+                            .then(literal("target").executes(ctx -> artifactCouncil(ctx.getSource(),"target")))
+                            .then(literal("reserve").executes(ctx -> artifactCouncil(ctx.getSource(),"reserve")))
+                            .then(literal("road").executes(ctx -> artifactCouncil(ctx.getSource(),"road"))))
+                    .then(literal("rewards").then(literal("claim").executes(ctx -> {
+                        ServerPlayer player = ctx.getSource().getPlayer();
+                        return player == null ? 0 : de.quest.reward.VanillaRewardService.claim(ctx.getSource().getServer().overworld(), player);
+                    })))
                     .then(questAdminCommand)
                     .then(journalCommand)
                     .then(prosperityCommand)
@@ -503,26 +544,33 @@ public final class QuestCommands {
                     .then(partyCommand)
                     .then(walletCommand)
                     .then(reputationCommand)
-                    .then(routesCommand));
+                    .then(routesCommand)
+                    .then(VillageNetworkCommands.townCommand())
+                    .then(VillageNetworkCommands.networkCommand())
+                    .then(VillageNetworkCommands.guildCommand()));
             dispatcher.register(literal("vq").redirect(villageQuestCommand));
         });
     }
 
-    private static LiteralArgumentBuilder<ServerCommandSource> buildAdminWalletCommand() {
+    private static int artifactCouncil(CommandSourceStack source,String action) {
+        var player=source.getPlayer(); return player!=null && de.quest.kingdom.ArtifactJourneyService.council(player,action)?1:0;
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> buildAdminWalletCommand() {
         return literal("wallet")
                 .then(literal("show")
                         .executes(ctx -> showWalletForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                        .then(argument("player", EntityArgumentType.player())
+                        .then(argument("player", EntityArgument.player())
                                 .executes(ctx -> showWalletForPlayer(
                                         ctx.getSource(),
-                                        EntityArgumentType.getPlayer(ctx, "player")
+                                        EntityArgument.getPlayer(ctx, "player")
                                 ))))
                 .then(literal("add")
-                        .then(argument("player", EntityArgumentType.player())
+                        .then(argument("player", EntityArgument.player())
                                 .then(argument("amount", LongArgumentType.longArg(1L))
                                         .executes(ctx -> adjustWalletForPlayer(
                                                 ctx.getSource(),
-                                                EntityArgumentType.getPlayer(ctx, "player"),
+                                                EntityArgument.getPlayer(ctx, "player"),
                                                 LongArgumentType.getLong(ctx, "amount"),
                                                 CurrencyService.CurrencyUnit.SILVERMARK,
                                                 WalletAdjustmentMode.ADD
@@ -531,17 +579,17 @@ public final class QuestCommands {
                                                 .suggests(WALLET_UNIT_SUGGESTIONS)
                                                 .executes(ctx -> adjustWalletForPlayer(
                                                         ctx.getSource(),
-                                                        EntityArgumentType.getPlayer(ctx, "player"),
+                                                        EntityArgument.getPlayer(ctx, "player"),
                                                         LongArgumentType.getLong(ctx, "amount"),
                                                         parseCurrencyUnit(StringArgumentType.getString(ctx, "unit")),
                                                         WalletAdjustmentMode.ADD
                                                 ))))))
                 .then(literal("remove")
-                        .then(argument("player", EntityArgumentType.player())
+                        .then(argument("player", EntityArgument.player())
                                 .then(argument("amount", LongArgumentType.longArg(1L))
                                         .executes(ctx -> adjustWalletForPlayer(
                                                 ctx.getSource(),
-                                                EntityArgumentType.getPlayer(ctx, "player"),
+                                                EntityArgument.getPlayer(ctx, "player"),
                                                 LongArgumentType.getLong(ctx, "amount"),
                                                 CurrencyService.CurrencyUnit.SILVERMARK,
                                                 WalletAdjustmentMode.REMOVE
@@ -550,17 +598,17 @@ public final class QuestCommands {
                                                 .suggests(WALLET_UNIT_SUGGESTIONS)
                                                 .executes(ctx -> adjustWalletForPlayer(
                                                         ctx.getSource(),
-                                                        EntityArgumentType.getPlayer(ctx, "player"),
+                                                        EntityArgument.getPlayer(ctx, "player"),
                                                         LongArgumentType.getLong(ctx, "amount"),
                                                         parseCurrencyUnit(StringArgumentType.getString(ctx, "unit")),
                                                         WalletAdjustmentMode.REMOVE
                                                 ))))))
                 .then(literal("set")
-                        .then(argument("player", EntityArgumentType.player())
+                        .then(argument("player", EntityArgument.player())
                                 .then(argument("amount", LongArgumentType.longArg(0L))
                                         .executes(ctx -> setWalletForPlayer(
                                                 ctx.getSource(),
-                                                EntityArgumentType.getPlayer(ctx, "player"),
+                                                EntityArgument.getPlayer(ctx, "player"),
                                                 LongArgumentType.getLong(ctx, "amount"),
                                                 CurrencyService.CurrencyUnit.SILVERMARK
                                         ))
@@ -568,326 +616,334 @@ public final class QuestCommands {
                                                 .suggests(WALLET_UNIT_SUGGESTIONS)
                                                 .executes(ctx -> setWalletForPlayer(
                                                         ctx.getSource(),
-                                                        EntityArgumentType.getPlayer(ctx, "player"),
+                                                        EntityArgument.getPlayer(ctx, "player"),
                                                         LongArgumentType.getLong(ctx, "amount"),
                                                         parseCurrencyUnit(StringArgumentType.getString(ctx, "unit"))
                                                 ))))));
     }
 
-    private static LiteralArgumentBuilder<ServerCommandSource> buildAdminReputationCommand() {
+    private static LiteralArgumentBuilder<CommandSourceStack> buildAdminReputationCommand() {
         return literal("reputation")
                 .then(literal("show")
                         .executes(ctx -> showReputationForPlayer(ctx.getSource(), ctx.getSource().getPlayer()))
-                        .then(argument("player", EntityArgumentType.player())
+                        .then(argument("player", EntityArgument.player())
                                 .executes(ctx -> showReputationForPlayer(
                                         ctx.getSource(),
-                                        EntityArgumentType.getPlayer(ctx, "player")
+                                        EntityArgument.getPlayer(ctx, "player")
                                 ))))
                 .then(literal("add")
-                        .then(argument("player", EntityArgumentType.player())
+                        .then(argument("player", EntityArgument.player())
                                 .then(argument("track", StringArgumentType.word())
                                         .suggests(REPUTATION_TRACK_SUGGESTIONS)
                                         .then(argument("amount", LongArgumentType.longArg(1L))
                                                 .executes(ctx -> adjustReputationForPlayer(
                                                         ctx.getSource(),
-                                                        EntityArgumentType.getPlayer(ctx, "player"),
+                                                        EntityArgument.getPlayer(ctx, "player"),
                                                         parseReputationTrack(StringArgumentType.getString(ctx, "track")),
                                                         LongArgumentType.getLong(ctx, "amount"),
                                                         false
                                                 ))))))
                 .then(literal("set")
-                        .then(argument("player", EntityArgumentType.player())
+                        .then(argument("player", EntityArgument.player())
                                 .then(argument("track", StringArgumentType.word())
                                         .suggests(REPUTATION_TRACK_SUGGESTIONS)
                                         .then(argument("amount", LongArgumentType.longArg(0L))
                                                 .executes(ctx -> adjustReputationForPlayer(
                                                         ctx.getSource(),
-                                                        EntityArgumentType.getPlayer(ctx, "player"),
+                                                        EntityArgument.getPlayer(ctx, "player"),
                                                         parseReputationTrack(StringArgumentType.getString(ctx, "track")),
                                                         LongArgumentType.getLong(ctx, "amount"),
                                                         true
                                                 ))))));
     }
 
-    private static int acceptQuest(ServerCommandSource source) {
+    private static int acceptQuest(CommandSourceStack source) {
         var player = source.getPlayer();
-        if (player instanceof ServerPlayerEntity sp) {
-            var world = source.getServer().getOverworld();
+        if (player instanceof ServerPlayer sp) {
+            var world = source.getServer().overworld();
             if (SpecialQuestService.acceptPendingOffer(world, sp)) {
-            } else if (DailyQuestService.consumePendingShardOffer(world, sp.getUuid())) {
+            } else if (DailyQuestService.consumePendingShardOffer(world, sp.getUUID())) {
                 DailyQuestService.activateShardBonusQuestOffer(world, sp);
-            } else if (DailyQuestService.consumePendingBonusOffer(world, sp.getUuid())) {
+            } else if (DailyQuestService.consumePendingBonusOffer(world, sp.getUUID())) {
                 DailyQuestService.acceptBonusQuest(world, sp);
-            } else if (DailyQuestService.consumePendingDailyOffer(world, sp.getUuid())) {
+            } else if (DailyQuestService.consumePendingDailyOffer(world, sp.getUUID())) {
                 DailyQuestService.acceptQuest(world, sp);
             }
         }
         return 1;
     }
 
-    private static int resetDailyForPlayer(ServerCommandSource source, ServerPlayerEntity target) {
+    private static int chooseFirstDaily(CommandSourceStack source, String choiceKey) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) return 0;
+        DailyQuestService.DailyQuestType choice = DailyQuestService.questFromString(choiceKey);
+        return FirstDailyChoiceService.accept(source.getServer().overworld(), player, choice) ? 1 : 0;
+    }
+
+    private static int resetDailyForPlayer(CommandSourceStack source, ServerPlayer target) {
         if (target == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
 
-        var world = source.getServer().getOverworld();
-        DailyQuestService.adminResetDailyState(world, target.getUuid());
+        var world = source.getServer().overworld();
+        DailyQuestService.adminResetDailyState(world, target.getUUID());
+        VillageBondService.adminResetDailyState(world, target.getUUID());
         refreshQuestUi(world, target);
 
-        ServerPlayerEntity sourcePlayer = source.getPlayer();
-        if (sourcePlayer != null && sourcePlayer.getUuid().equals(target.getUuid())) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.resetdaily.self").formatted(Formatting.GREEN), false);
+        ServerPlayer sourcePlayer = source.getPlayer();
+        if (sourcePlayer != null && sourcePlayer.getUUID().equals(target.getUUID())) {
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.resetdaily.self").withStyle(ChatFormatting.GREEN), false);
             return 1;
         }
 
-        source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.resetdaily.other", target.getDisplayName()).formatted(Formatting.GREEN), false);
-        target.sendMessage(Text.translatable("command.village-quest.questadmin.resetdaily.notify").formatted(Formatting.GRAY), false);
+        source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.resetdaily.other", target.getDisplayName()).withStyle(ChatFormatting.GREEN), false);
+        target.sendSystemMessage(Component.translatable("command.village-quest.questadmin.resetdaily.notify").withStyle(ChatFormatting.GRAY), false);
         return 1;
     }
 
-    private static int prepareNextDailyForPlayer(ServerCommandSource source, ServerPlayerEntity target) {
+    private static int prepareNextDailyForPlayer(CommandSourceStack source, ServerPlayer target) {
         if (target == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
 
-        var world = source.getServer().getOverworld();
-        DailyQuestService.DailyQuestType previousChoice = DailyQuestService.adminPrepareNextDaily(world, target.getUuid());
+        var world = source.getServer().overworld();
+        DailyQuestService.DailyQuestType previousChoice = DailyQuestService.adminPrepareNextDaily(world, target.getUUID());
         refreshQuestUi(world, target);
-        Text previousName = previousChoice == null
-                ? Text.literal("-")
+        Component previousName = previousChoice == null
+                ? Component.literal("-")
                 : DailyQuestService.displayKey(previousChoice);
 
-        ServerPlayerEntity sourcePlayer = source.getPlayer();
-        if (sourcePlayer != null && sourcePlayer.getUuid().equals(target.getUuid())) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.nextdaily.self", previousName).formatted(Formatting.GREEN), false);
+        ServerPlayer sourcePlayer = source.getPlayer();
+        if (sourcePlayer != null && sourcePlayer.getUUID().equals(target.getUUID())) {
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.nextdaily.self", previousName).withStyle(ChatFormatting.GREEN), false);
             return 1;
         }
 
-        source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.nextdaily.other", target.getDisplayName(), previousName).formatted(Formatting.GREEN), false);
-        target.sendMessage(Text.translatable("command.village-quest.questadmin.nextdaily.notify").formatted(Formatting.GRAY), false);
+        source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.nextdaily.other", target.getDisplayName(), previousName).withStyle(ChatFormatting.GREEN), false);
+        target.sendSystemMessage(Component.translatable("command.village-quest.questadmin.nextdaily.notify").withStyle(ChatFormatting.GRAY), false);
         return 1;
     }
 
-    private static int completeDailyForPlayer(ServerCommandSource source, ServerPlayerEntity target) {
+    private static int completeDailyForPlayer(CommandSourceStack source, ServerPlayer target) {
         if (target == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
 
-        var world = source.getServer().getOverworld();
-        DailyQuestService.DailyQuestType activeQuest = DailyQuestService.activeQuestType(world, target.getUuid());
+        var world = source.getServer().overworld();
+        DailyQuestService.DailyQuestType activeQuest = DailyQuestService.activeQuestType(world, target.getUUID());
         if (activeQuest == null || !DailyQuestService.adminForceCompleteDaily(world, target)) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.completedaily.none").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.completedaily.none").withStyle(ChatFormatting.RED), false);
             return 0;
         }
 
-        Text questName = DailyQuestService.displayKey(activeQuest);
-        ServerPlayerEntity sourcePlayer = source.getPlayer();
-        if (sourcePlayer != null && sourcePlayer.getUuid().equals(target.getUuid())) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.completedaily.self", questName).formatted(Formatting.GREEN), false);
+        Component questName = DailyQuestService.displayKey(activeQuest);
+        ServerPlayer sourcePlayer = source.getPlayer();
+        if (sourcePlayer != null && sourcePlayer.getUUID().equals(target.getUUID())) {
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.completedaily.self", questName).withStyle(ChatFormatting.GREEN), false);
             return 1;
         }
 
-        source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.completedaily.other", target.getDisplayName(), questName).formatted(Formatting.GREEN), false);
-        target.sendMessage(Text.translatable("command.village-quest.questadmin.completedaily.notify", questName).formatted(Formatting.GRAY), false);
+        source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.completedaily.other", target.getDisplayName(), questName).withStyle(ChatFormatting.GREEN), false);
+        target.sendSystemMessage(Component.translatable("command.village-quest.questadmin.completedaily.notify", questName).withStyle(ChatFormatting.GRAY), false);
         return 1;
     }
 
-    private static int resetWeeklyForPlayer(ServerCommandSource source, ServerPlayerEntity target) {
+    private static int resetWeeklyForPlayer(CommandSourceStack source, ServerPlayer target) {
         if (target == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
 
-        var world = source.getServer().getOverworld();
-        WeeklyQuestService.adminResetWeeklyState(world, target.getUuid());
+        var world = source.getServer().overworld();
+        WeeklyQuestService.adminResetWeeklyState(world, target.getUUID());
         refreshQuestUi(world, target);
 
-        ServerPlayerEntity sourcePlayer = source.getPlayer();
-        if (sourcePlayer != null && sourcePlayer.getUuid().equals(target.getUuid())) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.resetweekly.self").formatted(Formatting.GREEN), false);
+        ServerPlayer sourcePlayer = source.getPlayer();
+        if (sourcePlayer != null && sourcePlayer.getUUID().equals(target.getUUID())) {
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.resetweekly.self").withStyle(ChatFormatting.GREEN), false);
             return 1;
         }
 
-        source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.resetweekly.other", target.getDisplayName()).formatted(Formatting.GREEN), false);
-        target.sendMessage(Text.translatable("command.village-quest.questadmin.resetweekly.notify").formatted(Formatting.GRAY), false);
+        source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.resetweekly.other", target.getDisplayName()).withStyle(ChatFormatting.GREEN), false);
+        target.sendSystemMessage(Component.translatable("command.village-quest.questadmin.resetweekly.notify").withStyle(ChatFormatting.GRAY), false);
         return 1;
     }
 
-    private static int prepareNextWeeklyForPlayer(ServerCommandSource source, ServerPlayerEntity target) {
+    private static int prepareNextWeeklyForPlayer(CommandSourceStack source, ServerPlayer target) {
         if (target == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
 
-        var world = source.getServer().getOverworld();
-        WeeklyQuestService.WeeklyQuestType previousChoice = WeeklyQuestService.adminPrepareNextWeekly(world, target.getUuid());
+        var world = source.getServer().overworld();
+        WeeklyQuestService.WeeklyQuestType previousChoice = WeeklyQuestService.adminPrepareNextWeekly(world, target.getUUID());
         refreshQuestUi(world, target);
-        Text previousName = previousChoice == null ? Text.literal("-") : WeeklyQuestService.displayName(previousChoice);
+        Component previousName = previousChoice == null ? Component.literal("-") : WeeklyQuestService.displayName(previousChoice);
 
-        ServerPlayerEntity sourcePlayer = source.getPlayer();
-        if (sourcePlayer != null && sourcePlayer.getUuid().equals(target.getUuid())) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.nextweekly.self", previousName).formatted(Formatting.GREEN), false);
+        ServerPlayer sourcePlayer = source.getPlayer();
+        if (sourcePlayer != null && sourcePlayer.getUUID().equals(target.getUUID())) {
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.nextweekly.self", previousName).withStyle(ChatFormatting.GREEN), false);
             return 1;
         }
 
-        source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.nextweekly.other", target.getDisplayName(), previousName).formatted(Formatting.GREEN), false);
-        target.sendMessage(Text.translatable("command.village-quest.questadmin.nextweekly.notify").formatted(Formatting.GRAY), false);
+        source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.nextweekly.other", target.getDisplayName(), previousName).withStyle(ChatFormatting.GREEN), false);
+        target.sendSystemMessage(Component.translatable("command.village-quest.questadmin.nextweekly.notify").withStyle(ChatFormatting.GRAY), false);
         return 1;
     }
 
-    private static int completeWeeklyForPlayer(ServerCommandSource source, ServerPlayerEntity target) {
+    private static int completeWeeklyForPlayer(CommandSourceStack source, ServerPlayer target) {
         if (target == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
 
-        var world = source.getServer().getOverworld();
-        WeeklyQuestService.WeeklyQuestType activeQuest = WeeklyQuestService.activeQuestType(world, target.getUuid());
+        var world = source.getServer().overworld();
+        WeeklyQuestService.WeeklyQuestType activeQuest = WeeklyQuestService.activeQuestType(world, target.getUUID());
         if (activeQuest == null || !WeeklyQuestService.adminForceCompleteWeekly(world, target)) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.completeweekly.none").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.completeweekly.none").withStyle(ChatFormatting.RED), false);
             return 0;
         }
 
-        Text questName = WeeklyQuestService.displayName(activeQuest);
-        ServerPlayerEntity sourcePlayer = source.getPlayer();
-        if (sourcePlayer != null && sourcePlayer.getUuid().equals(target.getUuid())) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.completeweekly.self", questName).formatted(Formatting.GREEN), false);
+        Component questName = WeeklyQuestService.displayName(activeQuest);
+        ServerPlayer sourcePlayer = source.getPlayer();
+        if (sourcePlayer != null && sourcePlayer.getUUID().equals(target.getUUID())) {
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.completeweekly.self", questName).withStyle(ChatFormatting.GREEN), false);
             return 1;
         }
 
-        source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.completeweekly.other", target.getDisplayName(), questName).formatted(Formatting.GREEN), false);
-        target.sendMessage(Text.translatable("command.village-quest.questadmin.completeweekly.notify", questName).formatted(Formatting.GRAY), false);
+        source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.completeweekly.other", target.getDisplayName(), questName).withStyle(ChatFormatting.GREEN), false);
+        target.sendSystemMessage(Component.translatable("command.village-quest.questadmin.completeweekly.notify", questName).withStyle(ChatFormatting.GRAY), false);
         return 1;
     }
 
-    private static int showStoryForPlayer(ServerCommandSource source, ServerPlayerEntity target) {
+    private static int showStoryForPlayer(CommandSourceStack source, ServerPlayer target) {
         if (target == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
-        var world = source.getServer().getOverworld();
-        source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.story.header", target.getDisplayName()).formatted(Formatting.GOLD), false);
-        for (Text line : StoryQuestService.buildOverview(world, target.getUuid())) {
-            source.sendFeedback(() -> line, false);
+        var world = source.getServer().overworld();
+        source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.story.header", target.getDisplayName()).withStyle(ChatFormatting.GOLD), false);
+        for (Component line : StoryQuestService.buildOverview(world, target.getUUID())) {
+            source.sendSuccess(() -> line, false);
         }
         return 1;
     }
 
-    private static int resetStoryForPlayer(ServerCommandSource source, ServerPlayerEntity target) {
+    private static int resetStoryForPlayer(CommandSourceStack source, ServerPlayer target) {
         if (target == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
 
-        var world = source.getServer().getOverworld();
-        if (!StoryQuestService.adminResetStoryState(world, target.getUuid())) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.story.reset.none").formatted(Formatting.RED), false);
+        var world = source.getServer().overworld();
+        if (!StoryQuestService.adminResetStoryState(world, target.getUUID())) {
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.story.reset.none").withStyle(ChatFormatting.RED), false);
             return 0;
         }
-        ShadowsTradeRoadEncounterService.adminResetPlayer(world, target.getUuid());
+        ShadowsTradeRoadEncounterService.adminResetPlayer(world, target.getUUID());
         refreshQuestUi(world, target);
 
-        ServerPlayerEntity sourcePlayer = source.getPlayer();
-        if (sourcePlayer != null && sourcePlayer.getUuid().equals(target.getUuid())) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.story.reset.self").formatted(Formatting.GREEN), false);
+        ServerPlayer sourcePlayer = source.getPlayer();
+        if (sourcePlayer != null && sourcePlayer.getUUID().equals(target.getUUID())) {
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.story.reset.self").withStyle(ChatFormatting.GREEN), false);
             return 1;
         }
 
-        source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.story.reset.other", target.getDisplayName()).formatted(Formatting.GREEN), false);
-        target.sendMessage(Text.translatable("command.village-quest.questadmin.story.reset.notify").formatted(Formatting.GRAY), false);
+        source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.story.reset.other", target.getDisplayName()).withStyle(ChatFormatting.GREEN), false);
+        target.sendSystemMessage(Component.translatable("command.village-quest.questadmin.story.reset.notify").withStyle(ChatFormatting.GRAY), false);
         return 1;
     }
 
-    private static int completeStoryForPlayer(ServerCommandSource source, ServerPlayerEntity target) {
+    private static int completeStoryForPlayer(CommandSourceStack source, ServerPlayer target) {
         if (target == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
 
-        var world = source.getServer().getOverworld();
+        var world = source.getServer().overworld();
         if (!StoryQuestService.adminForceCompleteActiveChapter(world, target)) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.story.complete.none").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.story.complete.none").withStyle(ChatFormatting.RED), false);
             return 0;
         }
 
-        ServerPlayerEntity sourcePlayer = source.getPlayer();
-        if (sourcePlayer != null && sourcePlayer.getUuid().equals(target.getUuid())) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.story.complete.self").formatted(Formatting.GREEN), false);
+        ServerPlayer sourcePlayer = source.getPlayer();
+        if (sourcePlayer != null && sourcePlayer.getUUID().equals(target.getUUID())) {
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.story.complete.self").withStyle(ChatFormatting.GREEN), false);
             return 1;
         }
 
-        source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.story.complete.other", target.getDisplayName()).formatted(Formatting.GREEN), false);
-        target.sendMessage(Text.translatable("command.village-quest.questadmin.story.complete.notify").formatted(Formatting.GRAY), false);
+        source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.story.complete.other", target.getDisplayName()).withStyle(ChatFormatting.GREEN), false);
+        target.sendSystemMessage(Component.translatable("command.village-quest.questadmin.story.complete.notify").withStyle(ChatFormatting.GRAY), false);
         return 1;
     }
 
-    private static int unlockShadowsForPlayer(ServerCommandSource source, ServerPlayerEntity target) {
+    private static int unlockShadowsForPlayer(CommandSourceStack source, ServerPlayer target) {
         if (target == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
 
-        var world = source.getServer().getOverworld();
+        var world = source.getServer().overworld();
         if (!ShadowsTradeRoadEncounterService.adminUnlockForTesting(world, target)) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.story.shadows.unlock.none").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.story.shadows.unlock.none").withStyle(ChatFormatting.RED), false);
             return 0;
         }
-        source.sendFeedback(() -> Text.translatable(
+        source.sendSuccess(() -> Component.translatable(
                 "command.village-quest.questadmin.story.shadows.unlock.success",
                 target.getDisplayName()
-        ).formatted(Formatting.GREEN), false);
+        ).withStyle(ChatFormatting.GREEN), false);
         return 1;
     }
 
-    private static int prepareShadowsEncounterTest(ServerCommandSource source, ServerPlayerEntity target, boolean finalConvoy) {
+    private static int prepareShadowsEncounterTest(CommandSourceStack source, ServerPlayer target, boolean finalConvoy) {
         if (target == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
 
-        var world = source.getServer().getOverworld();
+        var world = source.getServer().overworld();
         if (!ShadowsTradeRoadEncounterService.adminPrepareEncounterTest(world, target, finalConvoy)) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.story.shadows.test.failed").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.story.shadows.test.failed").withStyle(ChatFormatting.RED), false);
             return 0;
         }
-        source.sendFeedback(() -> Text.translatable(
+        source.sendSuccess(() -> Component.translatable(
                 finalConvoy
                         ? "command.village-quest.questadmin.story.shadows.test.final"
                         : "command.village-quest.questadmin.story.shadows.test.rescue",
                 target.getDisplayName()
-        ).formatted(Formatting.GREEN), false);
+        ).withStyle(ChatFormatting.GREEN), false);
         return 1;
     }
 
-    private static int showProjectsForPlayer(ServerCommandSource source, ServerPlayerEntity target) {
+    private static int showProjectsForPlayer(CommandSourceStack source, ServerPlayer target) {
         if (target == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
-        var world = source.getServer().getOverworld();
-        source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.project.header", target.getDisplayName()).formatted(Formatting.GOLD), false);
-        for (Text line : VillageProjectService.buildOverview(world, target.getUuid())) {
-            source.sendFeedback(() -> line, false);
+        var world = source.getServer().overworld();
+        source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.project.header", target.getDisplayName()).withStyle(ChatFormatting.GOLD), false);
+        for (Component line : VillageProjectService.buildOverview(world, target.getUUID())) {
+            source.sendSuccess(() -> line, false);
         }
         return 1;
     }
 
-    private static int setProjectForPlayer(ServerCommandSource source, ServerPlayerEntity target, VillageProjectType project, boolean unlocked) {
+    private static int setProjectForPlayer(CommandSourceStack source, ServerPlayer target, VillageProjectType project, boolean unlocked) {
         if (target == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
         if (project == null || project.alwaysUnlocked()) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.project.invalid").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.project.invalid").withStyle(ChatFormatting.RED), false);
             return 0;
         }
 
-        var world = source.getServer().getOverworld();
-        if (!VillageProjectService.setUnlocked(world, target.getUuid(), project, unlocked)) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.project.no_change").formatted(Formatting.RED), false);
+        var world = source.getServer().overworld();
+        if (!VillageProjectService.setUnlocked(world, target.getUUID(), project, unlocked)) {
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.project.no_change").withStyle(ChatFormatting.RED), false);
             return 0;
         }
         if (unlocked && project == VillageProjectType.CARAVAN_YARD) {
@@ -897,645 +953,604 @@ public final class QuestCommands {
         }
         refreshQuestUi(world, target);
 
-        source.sendFeedback(() -> Text.translatable(
+        source.sendSuccess(() -> Component.translatable(
                 unlocked
                         ? "command.village-quest.questadmin.project.unlock"
                         : "command.village-quest.questadmin.project.lock",
                 target.getDisplayName(),
-                Text.translatable("quest.village-quest.project." + project.id() + ".title")
-        ).formatted(Formatting.GREEN), false);
+                Component.translatable("quest.village-quest.project." + project.id() + ".title")
+        ).withStyle(ChatFormatting.GREEN), false);
         return 1;
     }
 
-    private static int showWallet(ServerCommandSource source) {
-        ServerPlayerEntity player = source.getPlayer();
+    private static int showWallet(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
         if (player == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
 
-        long balance = CurrencyService.getBalance(source.getServer().getOverworld(), player.getUuid());
-        source.sendFeedback(() -> Text.empty()
-                .append(Text.translatable("command.village-quest.wallet.balance").formatted(Formatting.GRAY))
+        long balance = CurrencyService.getBalance(source.getServer().overworld(), player.getUUID());
+        source.sendSuccess(() -> Component.empty()
+                .append(Component.translatable("command.village-quest.wallet.balance").withStyle(ChatFormatting.GRAY))
                 .append(CurrencyService.formatBalance(balance)), false);
         return 1;
     }
 
-    private static int diagnose(ServerCommandSource source, ServerPlayerEntity player) {
+    private static int diagnose(CommandSourceStack source, ServerPlayer player) {
         if (player == null) {
-            source.sendError(Text.translatable("command.village-quest.diagnose.player_required"));
+            source.sendFailure(Component.translatable("command.village-quest.diagnose.player_required"));
             return 0;
         }
-        ServerWorld world = source.getServer().getOverworld();
-        for (Text line : TradeRouteService.diagnostics(world, player)) {
-            source.sendFeedback(() -> line, false);
+        ServerLevel world = source.getServer().overworld();
+        for (Component line : TradeRouteService.diagnostics(world, player)) {
+            source.sendSuccess(() -> line, false);
         }
         return 1;
     }
 
-    private static int openRoutes(ServerCommandSource source) {
-        ServerPlayerEntity player = source.getPlayer();
+    private static int openRoutes(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
         if (player == null) {
             return 0;
         }
         QuestBookHelper.closeJournal(player);
-        if (!TradeRouteService.hasRouteAccess(source.getServer().getOverworld(), player.getUuid())) {
-            player.sendMessage(Text.translatable("message.village-quest.trade_route.locked").formatted(Formatting.RED), false);
-            return 0;
-        }
-        TradeRouteService.openMap(source.getServer().getOverworld(), player);
+        TradeRouteService.openMap(source.getServer().overworld(), player);
         return 1;
     }
 
-    private static int registerRoute(ServerCommandSource source) {
-        ServerPlayerEntity player = source.getPlayer();
-        return player != null && TradeRouteService.registerCurrentVillage(source.getServer().getOverworld(), player) ? 1 : 0;
+    private static int registerRoute(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        return player != null && TradeRouteService.registerCurrentVillage(source.getServer().overworld(), player) ? 1 : 0;
     }
 
-    private static int registerYard(ServerCommandSource source) {
-        ServerPlayerEntity player = source.getPlayer();
-        return player != null && TradeRouteService.registerPlayerYard(source.getServer().getOverworld(), player) ? 1 : 0;
+    private static int registerYard(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        return player != null && TradeRouteService.registerPlayerYard(source.getServer().overworld(), player) ? 1 : 0;
     }
 
-    private static int rerollDailyQuest(ServerCommandSource source) {
-        ServerPlayerEntity player = source.getPlayer();
+    private static int rerollDailyQuest(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
         return player != null && DailyQuestService.rerollQuestForToday(
-                source.getServer().getOverworld(), player) ? 1 : 0;
+                source.getServer().overworld(), player) ? 1 : 0;
     }
 
-    private static int showTradeGuild(ServerCommandSource source) {
-        ServerPlayerEntity player = source.getPlayer();
+    private static int showTradeGuild(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
         if (player == null) return 0;
-        for (Text line : TradeGuildService.overview(source.getServer().getOverworld(), player.getUuid())) {
-            source.sendFeedback(() -> line, false);
+        for (Component line : TradeGuildService.overview(source.getServer().overworld(), player.getUUID())) {
+            source.sendSuccess(() -> line, false);
         }
         return 1;
     }
 
-    private static int specializeRoute(ServerCommandSource source, int routeNumber, String rawSpecialization) {
-        ServerPlayerEntity player = source.getPlayer();
+    private static int specializeRoute(CommandSourceStack source, int routeNumber, String rawSpecialization) {
+        ServerPlayer player = source.getPlayer();
         TradeRouteSpecialization specialization = TradeRouteSpecialization.fromName(rawSpecialization);
         return player != null && specialization != null && TradeRouteService.specialize(
-                source.getServer().getOverworld(), player, routeNumber - 1, specialization) ? 1 : 0;
+                source.getServer().overworld(), player, routeNumber - 1, specialization) ? 1 : 0;
     }
 
-    private static int upgradeRoute(ServerCommandSource source, int routeNumber, String rawUpgrade) {
-        ServerPlayerEntity player = source.getPlayer();
+    private static int upgradeRoute(CommandSourceStack source, int routeNumber, String rawUpgrade) {
+        ServerPlayer player = source.getPlayer();
         TradeRouteUpgrade upgrade = TradeRouteUpgrade.fromName(rawUpgrade);
         return player != null && upgrade != null && TradeRouteService.buyUpgrade(
-                source.getServer().getOverworld(), player, routeNumber - 1, upgrade) ? 1 : 0;
+                source.getServer().overworld(), player, routeNumber - 1, upgrade) ? 1 : 0;
     }
 
-    private static int showTradeContracts(ServerCommandSource source) {
-        ServerPlayerEntity player = source.getPlayer();
+    private static int showTradeContracts(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
         if (player == null) return 0;
-        for (Text line : TradeGuildService.contractBoard(source.getServer().getOverworld(), player.getUuid())) {
-            source.sendFeedback(() -> line, false);
+        for (Component line : TradeGuildService.contractBoard(source.getServer().overworld(), player.getUUID())) {
+            source.sendSuccess(() -> line, false);
         }
         return 1;
     }
 
-    private static int acceptTradeContract(ServerCommandSource source, int offer, int routeNumber) {
-        ServerPlayerEntity player = source.getPlayer();
+    private static int acceptTradeContract(CommandSourceStack source, int offer, int routeNumber) {
+        ServerPlayer player = source.getPlayer();
         return player != null && TradeGuildService.acceptContract(
-                source.getServer().getOverworld(), player, offer, routeNumber - 1) ? 1 : 0;
+                source.getServer().overworld(), player, offer, routeNumber - 1) ? 1 : 0;
     }
 
-    private static int supplyTradeContract(ServerCommandSource source) {
-        ServerPlayerEntity player = source.getPlayer();
+    private static int supplyTradeContract(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
         return player != null && TradeGuildService.supplyContract(
-                source.getServer().getOverworld(), player) ? 1 : 0;
+                source.getServer().overworld(), player) ? 1 : 0;
     }
 
-    private static int removeRoute(ServerCommandSource source, int routeNumber) {
-        ServerPlayerEntity player = source.getPlayer();
+    private static int removeRoute(CommandSourceStack source, int routeNumber) {
+        ServerPlayer player = source.getPlayer();
         return player != null && TradeRouteService.removeRoute(
-                source.getServer().getOverworld(), player, routeNumber - 1) ? 1 : 0;
+                source.getServer().overworld(), player, routeNumber - 1) ? 1 : 0;
     }
 
-    private static int renameRoute(ServerCommandSource source, int routeNumber, String name) {
-        ServerPlayerEntity player = source.getPlayer();
+    private static int renameRoute(CommandSourceStack source, int routeNumber, String name) {
+        ServerPlayer player = source.getPlayer();
         return player != null && TradeRouteService.renameRoute(
-                source.getServer().getOverworld(), player, routeNumber - 1, name) ? 1 : 0;
+                source.getServer().overworld(), player, routeNumber - 1, name) ? 1 : 0;
     }
 
-    private static int startRouteSurvey(ServerCommandSource source, int routeNumber) {
-        ServerPlayerEntity player = source.getPlayer();
+    private static int startRouteSurvey(CommandSourceStack source, int routeNumber) {
+        ServerPlayer player = source.getPlayer();
         return player != null && TradeRouteService.startRouteSurvey(
-                source.getServer().getOverworld(), player, routeNumber - 1) ? 1 : 0;
+                source.getServer().overworld(), player, routeNumber - 1) ? 1 : 0;
     }
 
-    private static int markRouteSurvey(ServerCommandSource source) {
-        ServerPlayerEntity player = source.getPlayer();
+    private static int markRouteSurvey(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
         return player != null && TradeRouteService.markSurveyWaypoint(
-                source.getServer().getOverworld(), player) ? 1 : 0;
+                source.getServer().overworld(), player) ? 1 : 0;
     }
 
-    private static int finishRouteSurvey(ServerCommandSource source) {
-        ServerPlayerEntity player = source.getPlayer();
+    private static int finishRouteSurvey(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
         return player != null && TradeRouteService.finishRouteSurvey(
-                source.getServer().getOverworld(), player, -1) ? 1 : 0;
+                source.getServer().overworld(), player, -1) ? 1 : 0;
     }
 
-    private static int cancelRouteSurvey(ServerCommandSource source) {
-        ServerPlayerEntity player = source.getPlayer();
+    private static int cancelRouteSurvey(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
         return player != null && TradeRouteService.cancelRouteSurvey(
-                source.getServer().getOverworld(), player, -1) ? 1 : 0;
+                source.getServer().overworld(), player, -1) ? 1 : 0;
     }
 
-    private static int resetRoutesForPlayer(ServerCommandSource source, ServerPlayerEntity target) {
+    private static int resetRoutesForPlayer(CommandSourceStack source, ServerPlayer target) {
         if (target == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
-        TradeRouteService.resetRoutes(source.getServer().getOverworld(), target.getUuid());
-        source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.routes.reset", target.getDisplayName())
-                .formatted(Formatting.GREEN), false);
+        TradeRouteService.resetRoutes(source.getServer().overworld(), target.getUUID());
+        source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.routes.reset", target.getDisplayName())
+                .withStyle(ChatFormatting.GREEN), false);
         return 1;
     }
 
-    private static int setupRouteTest(ServerCommandSource source, ServerPlayerEntity target) {
+    private static int setupRouteTest(CommandSourceStack source, ServerPlayer target) {
         if (target == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
-        var world = source.getServer().getOverworld();
-        StoryQuestService.adminUnlockEmptyCaravanForTesting(world, target.getUuid());
+        var world = source.getServer().overworld();
+        StoryQuestService.adminUnlockEmptyCaravanForTesting(world, target.getUUID());
         TradeRouteService.adminCreateTestNetwork(world, target);
-        source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.routes.testsetup", target.getDisplayName())
-                .formatted(Formatting.GREEN), false);
-        target.sendMessage(Text.translatable("command.village-quest.questadmin.routes.testsetup.hint")
-                .formatted(Formatting.GOLD), false);
+        source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.routes.testsetup", target.getDisplayName())
+                .withStyle(ChatFormatting.GREEN), false);
+        target.sendSystemMessage(Component.translatable("command.village-quest.questadmin.routes.testsetup.hint")
+                .withStyle(ChatFormatting.GOLD), false);
         return 1;
     }
 
-    private static int setupEconomyTest(ServerCommandSource source, ServerPlayerEntity target) {
+    private static int setupEconomyTest(CommandSourceStack source, ServerPlayer target) {
         if (target == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required")
-                    .formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required")
+                    .withStyle(ChatFormatting.RED), false);
             return 0;
         }
-        var world = source.getServer().getOverworld();
-        ProsperityService.resetForTesting(world, target.getUuid());
-        VillageProjectService.unlock(world, target.getUuid(), VillageProjectType.APIARY_CHARTER);
-        VillageProjectService.unlock(world, target.getUuid(), VillageProjectType.FORGE_CHARTER);
-        VillageProjectService.unlock(world, target.getUuid(), VillageProjectType.MARKET_CHARTER);
-        VillageProjectService.unlock(world, target.getUuid(), VillageProjectType.PASTURE_CHARTER);
-        VillageProjectService.unlock(world, target.getUuid(), VillageProjectType.WATCH_BELL);
-        StoryQuestService.adminUnlockEmptyCaravanForTesting(world, target.getUuid());
+        var world = source.getServer().overworld();
+        ProsperityService.resetForTesting(world, target.getUUID());
+        VillageProjectService.unlock(world, target.getUUID(), VillageProjectType.APIARY_CHARTER);
+        VillageProjectService.unlock(world, target.getUUID(), VillageProjectType.FORGE_CHARTER);
+        VillageProjectService.unlock(world, target.getUUID(), VillageProjectType.MARKET_CHARTER);
+        VillageProjectService.unlock(world, target.getUUID(), VillageProjectType.PASTURE_CHARTER);
+        VillageProjectService.unlock(world, target.getUUID(), VillageProjectType.WATCH_BELL);
+        StoryQuestService.adminUnlockEmptyCaravanForTesting(world, target.getUUID());
         TradeRouteService.adminCreateTestNetwork(world, target);
-        CurrencyService.setBalance(world, target.getUuid(), CurrencyService.CROWN * 500L);
+        CurrencyService.setBalance(world, target.getUUID(), CurrencyService.CROWN * 500L);
         ProsperityService.open(world, target);
-        source.sendFeedback(() -> Text.translatable(
+        source.sendSuccess(() -> Component.translatable(
                 "command.village-quest.questadmin.economy.testsetup", target.getDisplayName()
-        ).formatted(Formatting.GREEN), false);
-        target.sendMessage(Text.translatable(
+        ).withStyle(ChatFormatting.GREEN), false);
+        target.sendSystemMessage(Component.translatable(
                 "command.village-quest.questadmin.economy.testsetup.hint"
-        ).formatted(Formatting.GOLD), false);
+        ).withStyle(ChatFormatting.GOLD), false);
         return 1;
     }
 
-    private static int setRouteTestEvent(ServerCommandSource source, int routeNumber, String eventKey) {
-        ServerPlayerEntity player = source.getPlayer();
+    private static int setupShrineTest(CommandSourceStack source, ServerPlayer target) {
+        if (target == null) {
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required")
+                    .withStyle(ChatFormatting.RED), false);
+            return 0;
+        }
+        de.quest.shrine.VillageBondService.adminTestSetup(source.getServer().overworld(), target);
+        source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.shrines.testsetup",
+                target.getDisplayName()).withStyle(ChatFormatting.GREEN), false);
+        target.sendSystemMessage(Component.translatable("command.village-quest.questadmin.shrines.testsetup.hint")
+                .withStyle(ChatFormatting.GOLD), false);
+        return 1;
+    }
+
+    private static int reverseShrineTest(CommandSourceStack source, ServerPlayer target) {
+        if (target == null) {
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required")
+                    .withStyle(ChatFormatting.RED), false);
+            return 0;
+        }
+        VillageBondService.AdminReverseResult result = VillageBondService.adminReverseTestSetup(
+                source.getServer().overworld(), target);
+        if (!result.reversed()) {
+            source.sendSuccess(() -> Component.translatable(
+                    "command.village-quest.questadmin.shrines.reverse.no_test", target.getDisplayName()
+            ).withStyle(ChatFormatting.RED), false);
+            return 0;
+        }
+        source.sendSuccess(() -> Component.translatable(
+                "command.village-quest.questadmin.shrines.reverse",
+                target.getDisplayName(), CurrencyService.formatBalance(result.currencyRemoved())
+        ).withStyle(ChatFormatting.GREEN), false);
+        target.sendSystemMessage(Component.translatable(
+                "command.village-quest.questadmin.shrines.reverse.hint"
+        ).withStyle(ChatFormatting.GOLD), false);
+        return 1;
+    }
+
+    private static int setRouteTestEvent(CommandSourceStack source, int routeNumber, String eventKey) {
+        ServerPlayer player = source.getPlayer();
         if (player == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required")
-                    .formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required")
+                    .withStyle(ChatFormatting.RED), false);
             return 0;
         }
         boolean changed = TradeRouteService.adminSetTestEvent(
-                source.getServer().getOverworld(), player, routeNumber - 1, eventKey);
+                source.getServer().overworld(), player, routeNumber - 1, eventKey);
         return changed ? 1 : 0;
     }
 
-    private static int toggleRouteMinimap(ServerCommandSource source) {
-        ServerPlayerEntity player = source.getPlayer();
+    private static int toggleRouteMinimap(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
         if (player == null) {
             return 0;
         }
-        TradeRouteService.toggleMinimap(source.getServer().getOverworld(), player);
+        TradeRouteService.toggleMinimap(source.getServer().overworld(), player);
         return 1;
     }
 
-    private static int showReputation(ServerCommandSource source) {
-        ServerPlayerEntity player = source.getPlayer();
+    private static int showReputation(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
         if (player == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
         QuestBookHelper.closeJournal(player);
 
-        var world = source.getServer().getOverworld();
-        source.sendFeedback(() -> Text.translatable("command.village-quest.reputation.header").formatted(Formatting.GOLD), false);
-        for (Text line : ReputationService.buildOverview(world, player.getUuid())) {
-            source.sendFeedback(() -> line, false);
+        var world = source.getServer().overworld();
+        source.sendSuccess(() -> Component.translatable("command.village-quest.reputation.header").withStyle(ChatFormatting.GOLD), false);
+        for (Component line : ReputationService.buildOverview(world, player.getUUID())) {
+            source.sendSuccess(() -> line, false);
         }
         return 1;
     }
 
-    private static int showReputationForPlayer(ServerCommandSource source, ServerPlayerEntity target) {
+    private static int showReputationForPlayer(CommandSourceStack source, ServerPlayer target) {
         if (target == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
-        var world = source.getServer().getOverworld();
-        source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.reputation.header", target.getDisplayName()).formatted(Formatting.GOLD), false);
-        for (Text line : ReputationService.buildOverview(world, target.getUuid())) {
-            source.sendFeedback(() -> line, false);
+        var world = source.getServer().overworld();
+        source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.reputation.header", target.getDisplayName()).withStyle(ChatFormatting.GOLD), false);
+        for (Component line : ReputationService.buildOverview(world, target.getUUID())) {
+            source.sendSuccess(() -> line, false);
         }
         return 1;
     }
 
-    private static int adjustReputationForPlayer(ServerCommandSource source,
-                                                 ServerPlayerEntity target,
+    private static int adjustReputationForPlayer(CommandSourceStack source,
+                                                 ServerPlayer target,
                                                  ReputationService.ReputationTrack track,
                                                  long amount,
                                                  boolean setValue) {
         if (target == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
         if (track == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.reputation.track.invalid").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.reputation.track.invalid").withStyle(ChatFormatting.RED), false);
             return 0;
         }
 
-        var world = source.getServer().getOverworld();
+        var world = source.getServer().overworld();
         long clamped = Math.max(0L, Math.min(Integer.MAX_VALUE, amount));
-        int current = ReputationService.get(world, target.getUuid(), track);
+        int current = ReputationService.get(world, target.getUUID(), track);
         int next = setValue ? (int) clamped : current + (int) clamped;
         if (setValue) {
             int delta = next - current;
             if (delta != 0) {
-                ReputationService.add(world, target.getUuid(), track, delta);
+                ReputationService.add(world, target.getUUID(), track, delta);
             }
         } else {
-            ReputationService.add(world, target.getUuid(), track, (int) clamped);
+            ReputationService.add(world, target.getUUID(), track, (int) clamped);
         }
 
-        source.sendFeedback(() -> Text.translatable(
+        source.sendSuccess(() -> Component.translatable(
                 setValue ? "command.village-quest.questadmin.reputation.set" : "command.village-quest.questadmin.reputation.add",
                 target.getDisplayName(),
                 ReputationService.displayName(track),
                 next
-        ).formatted(Formatting.GREEN), false);
+        ).withStyle(ChatFormatting.GREEN), false);
         return 1;
     }
 
-    private static int summonQuestMaster(ServerCommandSource source) {
-        ServerPlayerEntity player = source.getPlayer();
+    static LiteralArgumentBuilder<CommandSourceStack> buildUiTestCommand() {
+        return literal("uitest").executes(ctx -> AdminUiPreviewService.start(ctx.getSource()));
+    }
+
+    private static int summonQuestMaster(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
         if (player == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
 
-        var world = source.getServer().getOverworld();
-        long summonCooldown = QuestMasterService.getPlayerSummonCooldownRemainingTicks(world, player.getUuid());
+        ServerLevel world = (ServerLevel) player.level();
+        long summonCooldown = QuestMasterService.getPlayerSummonCooldownRemainingTicks(world, player.getUUID());
         if (summonCooldown > 0L) {
-            source.sendFeedback(() -> Text.translatable(
+            source.sendSuccess(() -> Component.translatable(
                     "command.village-quest.questmaster.spawn.cooldown",
                     QuestMasterService.formatDuration(summonCooldown)
-            ).formatted(Formatting.RED), false);
+            ).withStyle(ChatFormatting.RED), false);
             return 0;
         }
         if (QuestMasterService.findNearbyQuestMaster(world, player.getX(), player.getY(), player.getZ()) != null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questmaster.spawn.exists").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questmaster.spawn.exists").withStyle(ChatFormatting.GRAY), false);
             return 0;
         }
 
         if (QuestMasterService.spawnNearPlayer(world, player) == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questmaster.spawn.failed").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questmaster.spawn.failed").withStyle(ChatFormatting.RED), false);
             return 0;
         }
 
-        source.sendFeedback(() -> Text.translatable("command.village-quest.questmaster.spawn.success").formatted(Formatting.GREEN), false);
+        source.sendSuccess(() -> Component.translatable("command.village-quest.questmaster.spawn.success").withStyle(ChatFormatting.GREEN), false);
         return 1;
     }
 
-    private static int openQuestMasterUiTest(ServerCommandSource source) {
-        ServerPlayerEntity player = source.getPlayer();
+    private static int toggleQuestTracker(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
         if (player == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required")
-                    .formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
-
-        var world = source.getServer().getOverworld();
-        var questMaster = QuestMasterService.findNearbyQuestMaster(
-                world, player.getX(), player.getY(), player.getZ());
-        if (questMaster == null) {
-            questMaster = QuestMasterService.spawnNearPlayer(world, player);
-        }
-        if (questMaster == null) {
-            source.sendFeedback(() -> Text.translatable(
-                    "command.village-quest.questmaster.spawn.failed").formatted(Formatting.RED), false);
-            return 0;
-        }
-
-        QuestMasterUiService.open(world, player, questMaster);
-        return 1;
-    }
-
-    private static int openPilgrimUiTest(ServerCommandSource source) {
-        ServerPlayerEntity player = source.getPlayer();
-        if (player == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required")
-                    .formatted(Formatting.RED), false);
-            return 0;
-        }
-
-        var world = source.getServer().getOverworld();
-        var pilgrim = PilgrimService.findActivePilgrim(world);
-        if (pilgrim == null) {
-            pilgrim = PilgrimService.spawnNearPlayer(world, player, true);
-        }
-        if (pilgrim != null && player.squaredDistanceTo(pilgrim) > 16.0d) {
-            pilgrim.setPos(player.getX() + 1.5d, player.getY(), player.getZ() + 1.5d);
-        }
-        if (pilgrim == null) {
-            source.sendFeedback(() -> Text.translatable(
-                    "command.village-quest.questadmin.pilgrim.spawn.failed").formatted(Formatting.RED), false);
-            return 0;
-        }
-
-        PilgrimService.openTrade(world, player, pilgrim);
-        return 1;
-    }
-
-    private static int toggleQuestTracker(ServerCommandSource source) {
-        ServerPlayerEntity player = source.getPlayer();
-        if (player == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
-            return 0;
-        }
-        boolean enabled = QuestTrackerService.toggle(source.getServer().getOverworld(), player);
-        source.sendFeedback(() -> Text.translatable(
+        boolean enabled = QuestTrackerService.toggle(source.getServer().overworld(), player);
+        source.sendSuccess(() -> Component.translatable(
                 enabled ? "command.village-quest.questtracker.enabled" : "command.village-quest.questtracker.disabled"
-        ).formatted(Formatting.GREEN), false);
+        ).withStyle(ChatFormatting.GREEN), false);
         return 1;
     }
 
-    private static int setQuestTracker(ServerCommandSource source, boolean enabled) {
-        ServerPlayerEntity player = source.getPlayer();
-        if (player == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+    private static int setRouteApproach(CommandSourceStack source, int routeNumber, String rawApproach) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) return 0;
+        TradeRouteIncidentApproach approach = TradeRouteIncidentApproach.byKey(rawApproach);
+        if (approach == null || !TradeRouteService.setIncidentApproach(
+                source.getServer().overworld(), player, routeNumber - 1, approach)) {
+            player.sendSystemMessage(Component.translatable("command.village-quest.routes.approach.invalid")
+                    .withStyle(ChatFormatting.RED), false);
             return 0;
         }
-        QuestTrackerService.setEnabled(source.getServer().getOverworld(), player, enabled);
-        source.sendFeedback(() -> Text.translatable(
-                enabled ? "command.village-quest.questtracker.enabled" : "command.village-quest.questtracker.disabled"
-        ).formatted(Formatting.GREEN), false);
+        player.sendSystemMessage(Component.translatable("command.village-quest.routes.approach.set",
+                routeNumber, approach.label(), approach.terms()).withStyle(ChatFormatting.AQUA), false);
         return 1;
     }
 
-    private static int startShardCacheForPlayer(ServerCommandSource source, ServerPlayerEntity target) {
+    private static int positionQuestTracker(CommandSourceStack source, boolean right) {
+        ServerPlayer player=source.getPlayer();
+        if(player==null) {
+            source.sendFailure(Component.translatable("command.village-quest.questadmin.player_required"));
+            return 0;
+        }
+        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player,new de.quest.network.QuestTrackerPositionPayload(right));
+        return 1;
+    }
+
+    private static int setQuestTracker(CommandSourceStack source, boolean enabled) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
+            return 0;
+        }
+        QuestTrackerService.setEnabled(source.getServer().overworld(), player, enabled);
+        source.sendSuccess(() -> Component.translatable(
+                enabled ? "command.village-quest.questtracker.enabled" : "command.village-quest.questtracker.disabled"
+        ).withStyle(ChatFormatting.GREEN), false);
+        return 1;
+    }
+
+    private static int startShardCacheForPlayer(CommandSourceStack source, ServerPlayer target) {
         if (target == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
 
-        var world = source.getServer().getOverworld();
+        var world = source.getServer().overworld();
         if (!ShardRelicQuestService.adminStartCacheHunt(world, target)) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.shardcache.failed").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.shardcache.failed").withStyle(ChatFormatting.RED), false);
             return 0;
         }
 
-        ServerPlayerEntity sourcePlayer = source.getPlayer();
-        if (sourcePlayer != null && sourcePlayer.getUuid().equals(target.getUuid())) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.shardcache.self").formatted(Formatting.GREEN), false);
+        ServerPlayer sourcePlayer = source.getPlayer();
+        if (sourcePlayer != null && sourcePlayer.getUUID().equals(target.getUUID())) {
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.shardcache.self").withStyle(ChatFormatting.GREEN), false);
             return 1;
         }
 
-        source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.shardcache.other", target.getDisplayName()).formatted(Formatting.GREEN), false);
-        target.sendMessage(Text.translatable("command.village-quest.questadmin.shardcache.notify").formatted(Formatting.GRAY), false);
+        source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.shardcache.other", target.getDisplayName()).withStyle(ChatFormatting.GREEN), false);
+        target.sendSystemMessage(Component.translatable("command.village-quest.questadmin.shardcache.notify").withStyle(ChatFormatting.GRAY), false);
         return 1;
     }
 
-    private static int teleportToShardCacheForPlayer(ServerCommandSource source, ServerPlayerEntity target) {
+    private static int teleportToShardCacheForPlayer(CommandSourceStack source, ServerPlayer target) {
         if (target == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
 
-        var world = source.getServer().getOverworld();
+        var world = source.getServer().overworld();
         if (!ShardRelicQuestService.adminTeleportToCache(world, target)) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.shardcachetp.failed").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.shardcachetp.failed").withStyle(ChatFormatting.RED), false);
             return 0;
         }
 
-        ServerPlayerEntity sourcePlayer = source.getPlayer();
-        if (sourcePlayer != null && sourcePlayer.getUuid().equals(target.getUuid())) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.shardcachetp.self").formatted(Formatting.GREEN), false);
+        ServerPlayer sourcePlayer = source.getPlayer();
+        if (sourcePlayer != null && sourcePlayer.getUUID().equals(target.getUUID())) {
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.shardcachetp.self").withStyle(ChatFormatting.GREEN), false);
             return 1;
         }
 
-        source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.shardcachetp.other", target.getDisplayName()).formatted(Formatting.GREEN), false);
-        target.sendMessage(Text.translatable("command.village-quest.questadmin.shardcachetp.notify").formatted(Formatting.GRAY), false);
+        source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.shardcachetp.other", target.getDisplayName()).withStyle(ChatFormatting.GREEN), false);
+        target.sendSystemMessage(Component.translatable("command.village-quest.questadmin.shardcachetp.notify").withStyle(ChatFormatting.GRAY), false);
         return 1;
     }
 
-    private static int startCoreTestForPlayer(ServerCommandSource source, ServerPlayerEntity target) {
+    private static int showWalletForPlayer(CommandSourceStack source, ServerPlayer target) {
         if (target == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
 
-        var world = source.getServer().getOverworld();
-        if (!AdminCoreTestQuestService.adminStart(world, target)) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.coretest.show.none", target.getDisplayName()).formatted(Formatting.RED), false);
-            return 0;
-        }
-
-        source.sendFeedback(() -> Text.translatable(
-                "command.village-quest.questadmin.coretest.start",
-                target.getDisplayName()
-        ).formatted(Formatting.GREEN), false);
-        return 1;
-    }
-
-    private static int resetCoreTestForPlayer(ServerCommandSource source, ServerPlayerEntity target) {
-        if (target == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
-            return 0;
-        }
-
-        var world = source.getServer().getOverworld();
-        AdminCoreTestQuestService.adminReset(world, target);
-        source.sendFeedback(() -> Text.translatable(
-                "command.village-quest.questadmin.coretest.reset",
-                target.getDisplayName()
-        ).formatted(Formatting.GREEN), false);
-        return 1;
-    }
-
-    private static int showCoreTestForPlayer(ServerCommandSource source, ServerPlayerEntity target) {
-        if (target == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
-            return 0;
-        }
-
-        var world = source.getServer().getOverworld();
-        var status = AdminCoreTestQuestService.openStatus(world, target.getUuid());
-        if (status == null) {
-            source.sendFeedback(() -> Text.translatable(
-                    "command.village-quest.questadmin.coretest.show.none",
-                    target.getDisplayName()
-            ).formatted(Formatting.RED), false);
-            return 0;
-        }
-
-        source.sendFeedback(() -> Text.translatable(
-                "command.village-quest.questadmin.coretest.show.header",
-                target.getDisplayName()
-        ).formatted(Formatting.GOLD), false);
-        source.sendFeedback(() -> status.title().copy().formatted(Formatting.AQUA), false);
-        for (Text line : status.lines()) {
-            source.sendFeedback(() -> line, false);
-        }
-        return 1;
-    }
-
-    private static int showWalletForPlayer(ServerCommandSource source, ServerPlayerEntity target) {
-        if (target == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
-            return 0;
-        }
-
-        long balance = CurrencyService.getBalance(source.getServer().getOverworld(), target.getUuid());
-        source.sendFeedback(() -> Text.translatable(
+        long balance = CurrencyService.getBalance(source.getServer().overworld(), target.getUUID());
+        source.sendSuccess(() -> Component.translatable(
                 "command.village-quest.questadmin.wallet.show",
                 target.getDisplayName(),
                 CurrencyService.formatBalance(balance)
-        ).formatted(Formatting.GREEN), false);
+        ).withStyle(ChatFormatting.GREEN), false);
         return 1;
     }
 
-    private static int adjustWalletForPlayer(ServerCommandSource source,
-                                             ServerPlayerEntity target,
+    private static int adjustWalletForPlayer(CommandSourceStack source,
+                                             ServerPlayer target,
                                              long amount,
                                              CurrencyService.CurrencyUnit unit,
                                              WalletAdjustmentMode mode) {
         if (target == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
         if (unit == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.wallet.unit.invalid").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.wallet.unit.invalid").withStyle(ChatFormatting.RED), false);
             return 0;
         }
 
-        var world = source.getServer().getOverworld();
+        var world = source.getServer().overworld();
+        if (de.quest.shrine.VillageIntroRequestService.blocksActions(world,target.getUUID())) {
+            source.sendFailure(Component.translatable("command.village-quest.personal_reset.blocked")); return 0;
+        }
         long delta = CurrencyService.toBase(amount, unit);
         long newBalance;
         if (mode == WalletAdjustmentMode.ADD) {
-            newBalance = CurrencyService.addBalance(world, target.getUuid(), delta);
+            newBalance = CurrencyService.addBalance(world, target.getUUID(), delta);
         } else {
-            long currentBalance = CurrencyService.getBalance(world, target.getUuid());
-            if (!CurrencyService.removeBalance(world, target.getUuid(), delta)) {
-                source.sendFeedback(() -> Text.translatable(
+            long currentBalance = CurrencyService.getBalance(world, target.getUUID());
+            if (!CurrencyService.removeBalance(world, target.getUUID(), delta)) {
+                source.sendSuccess(() -> Component.translatable(
                         "command.village-quest.questadmin.wallet.remove.insufficient",
                         target.getDisplayName(),
                         CurrencyService.formatBalance(currentBalance)
-                ).formatted(Formatting.RED), false);
+                ).withStyle(ChatFormatting.RED), false);
                 return 0;
             }
-            newBalance = CurrencyService.getBalance(world, target.getUuid());
+            newBalance = CurrencyService.getBalance(world, target.getUUID());
             delta = -delta;
         }
 
         long finalDelta = delta;
-        source.sendFeedback(() -> Text.translatable(
+        source.sendSuccess(() -> Component.translatable(
                 "command.village-quest.questadmin.wallet.adjust",
                 target.getDisplayName(),
                 CurrencyService.formatDelta(finalDelta),
                 CurrencyService.formatBalance(newBalance)
-        ).formatted(Formatting.GREEN), false);
+        ).withStyle(ChatFormatting.GREEN), false);
         if (shouldNotifyWalletTarget(source, target)) {
-            target.sendMessage(Text.translatable(
+            target.sendSystemMessage(Component.translatable(
                     "command.village-quest.questadmin.wallet.adjust.notify",
                     CurrencyService.formatDelta(finalDelta),
                     CurrencyService.formatBalance(newBalance)
-            ).formatted(Formatting.GRAY), false);
+            ).withStyle(ChatFormatting.GRAY), false);
         }
         return 1;
     }
 
-    private static int setWalletForPlayer(ServerCommandSource source,
-                                          ServerPlayerEntity target,
+    private static int setWalletForPlayer(CommandSourceStack source,
+                                          ServerPlayer target,
                                           long amount,
                                           CurrencyService.CurrencyUnit unit) {
         if (target == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
         if (unit == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.wallet.unit.invalid").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.wallet.unit.invalid").withStyle(ChatFormatting.RED), false);
             return 0;
         }
 
-        var world = source.getServer().getOverworld();
-        long newBalance = CurrencyService.setBalance(world, target.getUuid(), CurrencyService.toBase(amount, unit));
-        source.sendFeedback(() -> Text.translatable(
+        var world = source.getServer().overworld();
+        if (de.quest.shrine.VillageIntroRequestService.blocksActions(world,target.getUUID())) {
+            source.sendFailure(Component.translatable("command.village-quest.personal_reset.blocked")); return 0;
+        }
+        long newBalance = CurrencyService.setBalance(world, target.getUUID(), CurrencyService.toBase(amount, unit));
+        source.sendSuccess(() -> Component.translatable(
                 "command.village-quest.questadmin.wallet.set",
                 target.getDisplayName(),
                 CurrencyService.formatBalance(newBalance)
-        ).formatted(Formatting.GREEN), false);
+        ).withStyle(ChatFormatting.GREEN), false);
         if (shouldNotifyWalletTarget(source, target)) {
-            target.sendMessage(Text.translatable(
+            target.sendSystemMessage(Component.translatable(
                     "command.village-quest.questadmin.wallet.set.notify",
                     CurrencyService.formatBalance(newBalance)
-            ).formatted(Formatting.GRAY), false);
+            ).withStyle(ChatFormatting.GRAY), false);
         }
         return 1;
     }
 
-    private static boolean shouldNotifyWalletTarget(ServerCommandSource source, ServerPlayerEntity target) {
-        return !(source.getEntity() instanceof ServerPlayerEntity executor) || !executor.getUuid().equals(target.getUuid());
+    private static boolean shouldNotifyWalletTarget(CommandSourceStack source, ServerPlayer target) {
+        ServerPlayer executor = source.getPlayer();
+        return executor == null || !executor.getUUID().equals(target.getUUID());
     }
 
-    private static int spawnPilgrimForPlayer(ServerCommandSource source, ServerPlayerEntity target) {
+    private static int spawnPilgrimForPlayer(CommandSourceStack source, ServerPlayer target) {
         if (target == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
 
-        var world = source.getServer().getOverworld();
+        var world = source.getServer().overworld();
         if (PilgrimService.findActivePilgrim(world) != null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.pilgrim.spawn.exists").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.pilgrim.spawn.exists").withStyle(ChatFormatting.RED), false);
             return 0;
         }
 
         var pilgrim = PilgrimService.spawnNearPlayer(world, target, true);
         if (pilgrim == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.pilgrim.spawn.failed").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.pilgrim.spawn.failed").withStyle(ChatFormatting.RED), false);
             return 0;
         }
 
-        source.sendFeedback(() -> Text.translatable(
+        source.sendSuccess(() -> Component.translatable(
                 "command.village-quest.questadmin.pilgrim.spawn.success",
                 target.getDisplayName()
-        ).formatted(Formatting.GREEN), false);
+        ).withStyle(ChatFormatting.GREEN), false);
         return 1;
     }
 
-    private static int despawnPilgrims(ServerCommandSource source) {
-        int removed = PilgrimService.despawnAll(source.getServer().getOverworld());
+    private static int despawnPilgrims(CommandSourceStack source) {
+        int removed = PilgrimService.despawnAll(source.getServer().overworld());
         if (removed <= 0) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.pilgrim.despawn.none").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.pilgrim.despawn.none").withStyle(ChatFormatting.RED), false);
             return 0;
         }
-        source.sendFeedback(() -> Text.translatable(
+        source.sendSuccess(() -> Component.translatable(
                 "command.village-quest.questadmin.pilgrim.despawn.success",
                 removed
-        ).formatted(Formatting.GREEN), false);
+        ).withStyle(ChatFormatting.GREEN), false);
         return 1;
     }
 
-    private static int resetComplete(ServerCommandSource source) {
+    private static int resetComplete(CommandSourceStack source) {
         var server = source.getServer();
-        var world = server.getOverworld();
-        int onlinePlayers = server.getPlayerManager().getPlayerList().size();
+        var world = server.overworld();
+        int onlinePlayers = server.getPlayerList().getPlayers().size();
 
-        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             QuestMasterUiService.close(player);
             QuestBookHelper.closeJournal(player);
             QuestTrackerService.closeTracker(player);
@@ -1546,6 +1561,8 @@ public final class QuestCommands {
         QuestTrackerService.resetAllRuntimeState();
         QuestMasterUiService.resetAllSessions();
         QuestDropTracker.clear();
+        QuestHarvestTracker.clear();
+        QuestSoundFeedback.resetRuntimeState();
         QuestPartyService.resetRuntimeState();
         MerchantSealQuestService.resetRuntimeState();
         SurveyorCompassQuestService.resetRuntimeState();
@@ -1556,51 +1573,54 @@ public final class QuestCommands {
         int removedPilgrims = PilgrimService.despawnAll(world);
         int removedTradeRoad = ShadowsTradeRoadEncounterService.despawnAll(world);
         QuestState.get(server).resetAllProgress();
+        LivingVillageNetworkState.get(server).resetAllProgress();
+        VillageGuildState.get(server).resetAllProgress();
+        GuildTownSharedState.get(server).resetAllProgress();
 
-        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-            player.sendMessage(Text.translatable("command.village-quest.questadmin.reset.complete.notify").formatted(Formatting.GRAY), false);
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            player.sendSystemMessage(Component.translatable("command.village-quest.questadmin.reset.complete.notify").withStyle(ChatFormatting.GRAY), false);
         }
 
-        source.sendFeedback(() -> Text.translatable(
+        source.sendSuccess(() -> Component.translatable(
                 "command.village-quest.questadmin.reset.complete.success",
                 onlinePlayers,
                 removedQuestMasters,
                 removedPilgrims + removedTradeRoad
-        ).formatted(Formatting.GREEN), false);
+        ).withStyle(ChatFormatting.GREEN), false);
         return 1;
     }
 
-    private static int setPilgrimRumorOverride(ServerCommandSource source, ServerPlayerEntity target, boolean enabled) {
+    private static int setPilgrimRumorOverride(CommandSourceStack source, ServerPlayer target, boolean enabled) {
         if (target == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
 
-        var world = source.getServer().getOverworld();
+        var world = source.getServer().overworld();
         PilgrimContractService.adminSetRumorUnlocked(world, target, enabled);
         refreshQuestUi(world, target);
 
-        ServerPlayerEntity sourcePlayer = source.getPlayer();
-        if (sourcePlayer != null && sourcePlayer.getUuid().equals(target.getUuid())) {
-            source.sendFeedback(() -> Text.translatable(
+        ServerPlayer sourcePlayer = source.getPlayer();
+        if (sourcePlayer != null && sourcePlayer.getUUID().equals(target.getUUID())) {
+            source.sendSuccess(() -> Component.translatable(
                     enabled
                             ? "command.village-quest.questadmin.pilgrim.rumor.unlock.self"
                             : "command.village-quest.questadmin.pilgrim.rumor.lock.self"
-            ).formatted(Formatting.GREEN), false);
+            ).withStyle(ChatFormatting.GREEN), false);
             return 1;
         }
 
-        source.sendFeedback(() -> Text.translatable(
+        source.sendSuccess(() -> Component.translatable(
                 enabled
                         ? "command.village-quest.questadmin.pilgrim.rumor.unlock.other"
                         : "command.village-quest.questadmin.pilgrim.rumor.lock.other",
                 target.getDisplayName()
-        ).formatted(Formatting.GREEN), false);
-        target.sendMessage(Text.translatable(
+        ).withStyle(ChatFormatting.GREEN), false);
+        target.sendSystemMessage(Component.translatable(
                 enabled
                         ? "command.village-quest.questadmin.pilgrim.rumor.unlock.notify"
                         : "command.village-quest.questadmin.pilgrim.rumor.lock.notify"
-        ).formatted(Formatting.GRAY), false);
+        ).withStyle(ChatFormatting.GRAY), false);
         return 1;
     }
 
@@ -1608,151 +1628,159 @@ public final class QuestCommands {
         return CurrencyService.parseUnit(raw);
     }
 
-    private static int showParty(ServerCommandSource source) {
-        ServerPlayerEntity player = source.getPlayer();
+    private static int showParty(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
         if (player == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
         if (!QuestPartyService.isEnabled(source.getServer())) {
-            source.sendFeedback(() -> Text.translatable("message.village-quest.party.unavailable").formatted(Formatting.GRAY), false);
+            source.sendSuccess(() -> Component.translatable("message.village-quest.party.unavailable").withStyle(ChatFormatting.GRAY), false);
             return 0;
         }
         QuestPartyService.PartySnapshot snapshot = QuestPartyService.snapshot(player);
-        source.sendFeedback(() -> snapshot.summary().copy(), false);
+        source.sendSuccess(() -> snapshot.summary().copy(), false);
         if (!snapshot.hasParty()) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.party.none").formatted(Formatting.GRAY), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.party.none").withStyle(ChatFormatting.GRAY), false);
             return 1;
         }
         for (QuestPartyService.PartyMemberView member : snapshot.members()) {
-            net.minecraft.text.MutableText line = member.name().copy();
+            Component line = member.name().copy();
             if (member.leader()) {
-                line = line.append(Text.literal(" ")).append(Text.translatable("command.village-quest.party.member.leader").formatted(Formatting.GOLD));
+                line = line.copy().append(Component.literal(" ")).append(Component.translatable("command.village-quest.party.member.leader").withStyle(ChatFormatting.GOLD));
             }
             if (member.self()) {
-                line = line.append(Text.literal(" ")).append(Text.translatable("command.village-quest.party.member.self").formatted(Formatting.GRAY));
+                line = line.copy().append(Component.literal(" ")).append(Component.translatable("command.village-quest.party.member.self").withStyle(ChatFormatting.GRAY));
             }
-            Text finalLine = line;
-            source.sendFeedback(() -> finalLine, false);
+            Component finalLine = line;
+            source.sendSuccess(() -> finalLine, false);
         }
         return 1;
     }
 
-    private static int inviteToParty(ServerCommandSource source, ServerPlayerEntity target) {
-        ServerPlayerEntity player = source.getPlayer();
+    private static int inviteToParty(CommandSourceStack source, ServerPlayer target) {
+        ServerPlayer player = source.getPlayer();
         if (player == null || target == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
-        return QuestPartyService.invite(source.getServer().getOverworld(), player, target) ? 1 : 0;
+        return QuestPartyService.invite(source.getServer().overworld(), player, target) ? 1 : 0;
     }
 
-    private static int acceptPartyInvite(ServerCommandSource source) {
-        ServerPlayerEntity player = source.getPlayer();
+    private static int acceptPartyInvite(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
         if (player == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
-        return QuestPartyService.acceptInvite(source.getServer().getOverworld(), player) ? 1 : 0;
+        return QuestPartyService.acceptInvite(source.getServer().overworld(), player) ? 1 : 0;
     }
 
-    private static int declinePartyInvite(ServerCommandSource source) {
-        ServerPlayerEntity player = source.getPlayer();
+    private static int declinePartyInvite(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
         if (player == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
         return QuestPartyService.declineInvite(source.getServer(), player) ? 1 : 0;
     }
 
-    private static int leaveParty(ServerCommandSource source) {
-        ServerPlayerEntity player = source.getPlayer();
+    private static int leaveParty(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
         if (player == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
-        return QuestPartyService.leave(source.getServer().getOverworld(), player) ? 1 : 0;
+        return QuestPartyService.leave(source.getServer().overworld(), player) ? 1 : 0;
     }
 
-    private static int acceptPartyDailyShare(ServerCommandSource source) {
-        ServerPlayerEntity player = source.getPlayer();
+    private static int acceptPartyDailyShare(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
         if (player == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
-        return QuestPartyService.acceptDailyOffer(source.getServer().getOverworld(), player) ? 1 : 0;
+        return QuestPartyService.acceptDailyOffer(source.getServer().overworld(), player) ? 1 : 0;
     }
 
-    private static int declinePartyDailyShare(ServerCommandSource source) {
-        ServerPlayerEntity player = source.getPlayer();
+    private static int declinePartyDailyShare(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
         if (player == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
-        return QuestPartyService.declineDailyOffer(source.getServer().getOverworld(), player) ? 1 : 0;
+        return QuestPartyService.declineDailyOffer(source.getServer().overworld(), player) ? 1 : 0;
     }
 
-    private static int acceptPartyWeeklyShare(ServerCommandSource source) {
-        ServerPlayerEntity player = source.getPlayer();
+    private static int acceptPartyWeeklyShare(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
         if (player == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
-        return QuestPartyService.acceptWeeklyOffer(source.getServer().getOverworld(), player) ? 1 : 0;
+        return QuestPartyService.acceptWeeklyOffer(source.getServer().overworld(), player) ? 1 : 0;
     }
 
-    private static int declinePartyWeeklyShare(ServerCommandSource source) {
-        ServerPlayerEntity player = source.getPlayer();
+    private static int declinePartyWeeklyShare(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
         if (player == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
-        return QuestPartyService.declineWeeklyOffer(source.getServer().getOverworld(), player) ? 1 : 0;
+        return QuestPartyService.declineWeeklyOffer(source.getServer().overworld(), player) ? 1 : 0;
     }
 
-    private static int acceptPartyStoryShare(ServerCommandSource source) {
-        ServerPlayerEntity player = source.getPlayer();
+    private static int acceptPartyStoryShare(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
         if (player == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
-        return QuestPartyService.acceptStoryOffer(source.getServer().getOverworld(), player) ? 1 : 0;
+        return QuestPartyService.acceptStoryOffer(source.getServer().overworld(), player) ? 1 : 0;
     }
 
-    private static int declinePartyStoryShare(ServerCommandSource source) {
-        ServerPlayerEntity player = source.getPlayer();
-        if (player == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
-            return 0;
-        }
-        return QuestPartyService.declineStoryOffer(source.getServer().getOverworld(), player) ? 1 : 0;
+    private static int partyStoryShare(CommandSourceStack source, de.quest.quest.story.StoryLane lane, boolean accept) {
+        ServerPlayer player=source.getPlayer();
+        if (player==null) return 0;
+        var world=source.getServer().overworld();
+        return (accept ? QuestPartyService.acceptStoryOffer(world,player,lane)
+                : QuestPartyService.declineStoryOffer(world,player,lane)) ? 1 : 0;
     }
 
-    private static int acceptPartyPilgrimShare(ServerCommandSource source) {
-        ServerPlayerEntity player = source.getPlayer();
+    private static int declinePartyStoryShare(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
         if (player == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
-        return QuestPartyService.acceptPilgrimOffer(source.getServer().getOverworld(), player) ? 1 : 0;
+        return QuestPartyService.declineStoryOffer(source.getServer().overworld(), player) ? 1 : 0;
     }
 
-    private static int declinePartyPilgrimShare(ServerCommandSource source) {
-        ServerPlayerEntity player = source.getPlayer();
+    private static int acceptPartyPilgrimShare(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
         if (player == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
-        return QuestPartyService.declinePilgrimOffer(source.getServer().getOverworld(), player) ? 1 : 0;
+        return QuestPartyService.acceptPilgrimOffer(source.getServer().overworld(), player) ? 1 : 0;
     }
 
-    private static int disbandParty(ServerCommandSource source) {
-        ServerPlayerEntity player = source.getPlayer();
+    private static int declinePartyPilgrimShare(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
         if (player == null) {
-            source.sendFeedback(() -> Text.translatable("command.village-quest.questadmin.player_required").formatted(Formatting.RED), false);
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
             return 0;
         }
-        return QuestPartyService.disband(source.getServer().getOverworld(), player) ? 1 : 0;
+        return QuestPartyService.declinePilgrimOffer(source.getServer().overworld(), player) ? 1 : 0;
+    }
+
+    private static int disbandParty(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            source.sendSuccess(() -> Component.translatable("command.village-quest.questadmin.player_required").withStyle(ChatFormatting.RED), false);
+            return 0;
+        }
+        return QuestPartyService.disband(source.getServer().overworld(), player) ? 1 : 0;
     }
 
     private static ReputationService.ReputationTrack parseReputationTrack(String raw) {
@@ -1763,7 +1791,7 @@ public final class QuestCommands {
         return VillageProjectType.fromId(raw);
     }
 
-    private static void refreshQuestUi(net.minecraft.server.world.ServerWorld world, ServerPlayerEntity player) {
+    private static void refreshQuestUi(net.minecraft.server.level.ServerLevel world, ServerPlayer player) {
         if (world == null || player == null) {
             return;
         }

@@ -17,10 +17,9 @@ import de.quest.content.daily.WheatHarvestDailyQuest;
 import de.quest.content.daily.WoolWeaverDailyQuest;
 import de.quest.content.daily.WoodcuttingDailyQuest;
 import de.quest.content.daily.ZombieCullDailyQuest;
-import net.minecraft.server.world.ServerWorld;
-
 import java.util.ArrayList;
 import java.util.List;
+import net.minecraft.server.level.ServerLevel;
 
 public final class DailyQuestGenerator {
     private static final List<DailyQuestDefinition> DEFINITIONS = List.of(
@@ -48,15 +47,15 @@ public final class DailyQuestGenerator {
 
     private DailyQuestGenerator() {}
 
-    public static DailyQuestDefinition pick(ServerWorld world) {
+    public static DailyQuestDefinition pick(ServerLevel world) {
         return pick(world, null);
     }
 
-    public static DailyQuestDefinition pick(ServerWorld world, DailyQuestService.DailyQuestType excludedType) {
+    public static DailyQuestDefinition pick(ServerLevel world, DailyQuestService.DailyQuestType excludedType) {
         return pick(world, excludedType, null);
     }
 
-    public static DailyQuestDefinition pick(ServerWorld world,
+    public static DailyQuestDefinition pick(ServerLevel world,
                                             DailyQuestService.DailyQuestType excludedType,
                                             DailyQuestService.DailyQuestCategory excludedCategory) {
         if (world == null || DEFINITIONS.isEmpty()) {
@@ -66,7 +65,7 @@ public final class DailyQuestGenerator {
         List<DailyQuestDefinition> candidates = withoutType(CORE_DEFINITIONS, excludedType);
         candidates = withoutCategory(candidates, excludedCategory);
 
-        return candidates.get(world.random.nextInt(candidates.size()));
+        return candidates.get(world.getRandom().nextInt(candidates.size()));
     }
 
     private static List<DailyQuestDefinition> withoutType(List<DailyQuestDefinition> source,

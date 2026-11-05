@@ -1,59 +1,86 @@
 package de.quest.quest.weekly;
 
 import de.quest.quest.QuestCompletionMode;
-import net.minecraft.block.BlockState;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.passive.AnimalEntity;
-import net.minecraft.entity.passive.SheepEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-import net.minecraft.util.math.BlockPos;
-
 import java.util.List;
 import java.util.UUID;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.entity.animal.sheep.Sheep;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.state.BlockState;
 
 public interface WeeklyQuestDefinition {
     WeeklyQuestService.WeeklyQuestType type();
 
-    Text title();
+    Component title();
 
-    Text offerParagraph1();
+    Component offerParagraph1();
 
-    Text offerParagraph2();
+    Component offerParagraph2();
 
-    List<Text> progressLines(ServerWorld world, UUID playerId);
+    default List<Component> descriptionLines(ServerLevel world, UUID playerId) {
+        return de.quest.quest.PeacefulRepeatableSupplies.weekly(world,type())
+                ? de.quest.quest.PeacefulRepeatableSupplies.weeklyDescription(type())
+                : List.of(offerParagraph1(),offerParagraph2());
+    }
 
-    boolean isComplete(ServerWorld world, ServerPlayerEntity player);
+    List<Component> progressLines(ServerLevel world, UUID playerId);
+
+    boolean isComplete(ServerLevel world, ServerPlayer player);
 
     WeeklyQuestCompletion buildCompletion();
 
+    default WeeklyQuestCompletion completionFor(ServerLevel world) {
+        var completion = buildCompletion();
+        return de.quest.quest.PeacefulRepeatableSupplies.weekly(world,type())
+                ? de.quest.quest.PeacefulRepeatableSupplies.completion(completion) : completion;
+    }
+
     default QuestCompletionMode completionMode() { return QuestCompletionMode.AUTOMATIC; }
 
-    default boolean consumeCompletionRequirements(ServerWorld world, ServerPlayerEntity player) { return true; }
+    default QuestCompletionMode completionMode(ServerLevel world) {
+        return de.quest.quest.PeacefulRepeatableSupplies.weekly(world,type())
+                ? QuestCompletionMode.QUESTMASTER_TURN_IN : completionMode();
+    }
 
-    default Text claimBlockedMessage(ServerWorld world, ServerPlayerEntity player) { return null; }
+    default boolean consumeCompletionRequirements(ServerLevel world, ServerPlayer player) {
+        return !de.quest.quest.PeacefulRepeatableSupplies.weekly(world,type())
+                || de.quest.quest.PeacefulRepeatableSupplies.consumeWeekly(world,player,type());
+    }
 
-    default void onAccepted(ServerWorld world, ServerPlayerEntity player) {}
+    default Component claimBlockedMessage(ServerLevel world, ServerPlayer player) {
+        return de.quest.quest.PeacefulRepeatableSupplies.weekly(world,type())
+                && !de.quest.quest.PeacefulRepeatableSupplies.weeklyComplete(world,player,type())
+                ? de.quest.quest.PeacefulRepeatableSupplies.blocked() : null;
+    }
 
-    default void onServerTick(ServerWorld world, ServerPlayerEntity player) {}
+    default Component claimBlockedMessage(ServerLevel world, ServerPlayer player, boolean allRequirements) {
+        return claimBlockedMessage(world, player);
+    }
 
-    default void onBlockBreak(ServerWorld world, ServerPlayerEntity player, BlockPos pos, BlockState state) {}
+    default void onAccepted(ServerLevel world, ServerPlayer player) {}
 
-    default void onEntityUse(ServerWorld world, ServerPlayerEntity player, Entity entity, ItemStack inHand) {}
+    default void onServerTick(ServerLevel world, ServerPlayer player) {}
 
-    default void onSheepSheared(ServerWorld world, ServerPlayerEntity player, SheepEntity sheep) {}
+    default void onBlockBreak(ServerLevel world, ServerPlayer player, BlockPos pos, BlockState state) {}
 
-    default void onTrackedItemPickup(ServerWorld world, ServerPlayerEntity player, ItemStack stack, int count) {}
+    default void onEntityUse(ServerLevel world, ServerPlayer player, Entity entity, ItemStack inHand) {}
 
-    default void onFurnaceOutput(ServerWorld world, ServerPlayerEntity player, ItemStack stack) {}
+    default void onSheepSheared(ServerLevel world, ServerPlayer player, Sheep sheep) {}
 
-    default void onVillagerTrade(ServerWorld world, ServerPlayerEntity player, ItemStack stack) {}
+    default void onTrackedItemPickup(ServerLevel world, ServerPlayer player, ItemStack stack, int count) {}
 
-    default void onAnimalLove(ServerWorld world, ServerPlayerEntity player, AnimalEntity animal) {}
+    default void onFurnaceOutput(ServerLevel world, ServerPlayer player, ItemStack stack) {}
 
-    default void onPilgrimPurchase(ServerWorld world, ServerPlayerEntity player, String offerId) {}
+    default void onVillagerTrade(ServerLevel world, ServerPlayer player, ItemStack stack) {}
 
-    default void onMonsterKill(ServerWorld world, ServerPlayerEntity player, Entity killedEntity) {}
+    default void onAnimalLove(ServerLevel world, ServerPlayer player, Animal animal) {}
+
+    default void onPilgrimPurchase(ServerLevel world, ServerPlayer player, String offerId) {}
+
+    default void onMonsterKill(ServerLevel world, ServerPlayer player, Entity killedEntity) {}
 }
