@@ -148,7 +148,10 @@ public final class ReparationService {
         if (changed) state.setDirty(); return new ActionResult(changed, changed ? "" : "reputation.village-quest.reparation.stale", view(player));
     }
     public static ActionResult submit(ServerPlayer player, UUID id, long revision, InteractionAnchor anchor) {
-        if (!validAnchor(player, anchor)) return new ActionResult(false, "reputation.village-quest.reparation.anchor", view(player));
+        if (!validAnchor(player, anchor)) {
+            de.quest.network.GameplayStatsEvent.send(player,"reject","aid","anchor");
+            return new ActionResult(false, "reputation.village-quest.reparation.anchor", view(player));
+        }
         QuestState state = QuestState.get(player.level().getServer()); var data = state.getPlayerData(player.getUUID()).socialReputation();
         Submission result = submit(data, id, revision, inventory(player), state.socialServerTick());
         if (result.applied()) {
@@ -162,6 +165,8 @@ public final class ReparationService {
             }
             inventory.setChanged(); player.inventoryMenu.broadcastChanges(); state.setDirty();
         }
+        if (!result.applied()) de.quest.network.GameplayStatsEvent.send(player,"reject","aid",
+                result.reasonKey().endsWith("stale") ? "stale" : "materials");
         return new ActionResult(result.applied(), result.reasonKey(), view(player));
     }
     public static void onServerTick(MinecraftServer server) {

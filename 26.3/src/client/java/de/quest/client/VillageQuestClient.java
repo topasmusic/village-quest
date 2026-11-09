@@ -26,6 +26,7 @@ public class VillageQuestClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         VillageQuestClientConfig.bootstrap();
+        de.quest.client.config.GameplayStats.init();
         ClientModCompat.bootstrap();
         ModelLayerRegistry.registerModelLayer(
                 PilgrimEntityRenderer.PILGRIM_LAYER,

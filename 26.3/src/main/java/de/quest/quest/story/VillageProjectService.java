@@ -48,7 +48,9 @@ public final class VillageProjectService {
     }
 
     public static boolean unlock(ServerLevel world, UUID playerId, VillageProjectType project) {
-        return setUnlocked(world, playerId, project, true);
+        boolean changed=setUnlocked(world, playerId, project, true);
+        if (changed) de.quest.network.GameplayStatsEvent.send(world.getServer().getPlayerList().getPlayer(playerId),"project","unlocked",project.id());
+        return changed;
     }
 
     public static int bonusReputation(ServerLevel world, UUID playerId, ReputationService.ReputationTrack track) {

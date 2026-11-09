@@ -136,6 +136,7 @@ public final class EncounterQuestService {
         p.text("village",s.offer.getStringOr("village",""));p.text("villageName",s.offer.getStringOr("villageName",""));p.number("target",s.offer.getLongOr("target",0));
         p.text("companion",npc.getUUID().toString());
         store(player,p);consumeOffer(player,npc);close(player,s);
+        de.quest.network.GameplayStatsEvent.send(player, "quest", "started", "encounter_" + s.kind.key());
         QuestTrackerService.enableForAcceptedQuest((ServerLevel)player.level(),player);
         player.sendSystemMessage(tr("accepted",tr(s.kind.key()+".title")),false);
         changed(player);
@@ -163,6 +164,7 @@ public final class EncounterQuestService {
         if(!p.writable() || !p.active())return;
         if(!p.pending() && p.complete(day())){
             store(player,p);
+            de.quest.network.GameplayStatsEvent.send(player, "quest", "completed", "encounter_" + p.kind().key());
             if(!room(player))player.sendSystemMessage(tr("pending"),false);
         }
         if(!p.pending() || !room(player))return;
@@ -242,6 +244,10 @@ public final class EncounterQuestService {
         if(kind==Kind.GREETINGS){var pos=BlockPos.of(tag.getLongOr("target",0));return tr(kind.key()+".objective",pos.getX(),pos.getZ()).append(Component.literal("\n"+tag.getStringOr("villageName","")));}
         if(kind==Kind.LIGHT){var pos=BlockPos.of(tag.getLongOr("origin",0));return tr(kind.key()+".objective",pos.getX(),pos.getY(),pos.getZ());}
         return tr(kind.key()+".objective",progress,kind.target);
+    }
+    public static String statsActiveKey(ServerPlayer player) {
+        if (!(player instanceof AttachmentTarget)) return null;
+        var p=progress(player); return p.writable() && p.active() ? "encounter_"+p.kind().key() : null;
     }
     public static List<JournalActiveQuest> journal(ServerPlayer player){
         if(!(player instanceof AttachmentTarget))return List.of();

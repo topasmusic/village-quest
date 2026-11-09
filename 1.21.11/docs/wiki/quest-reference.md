@@ -57,6 +57,21 @@ Ripe wheat, carrot, and potato objectives accept both normal block harvesting an
 - `A Favor for the Smithy`
 - `Smelting for the Smithy`
 
+#### Fuel for the Workshop
+
+Accept this Daily at the Questmaster, then chop log blocks and pick up coal
+from freshly mined ore. The Journal and quest tracker show your two targets.
+Supplies you already carried, charcoal, and items dropped by players do not
+advance the counters.
+
+The quest finishes automatically when both counters reach their targets. You
+keep the logs and coal. There is no workshop to visit or **Turn in** button to
+press. You can collect any pending reward separately.
+
+If your modpack uses Village Quest 2.5.0, the coal objective counts the coal
+ore blocks you break after accepting. The newer coal-pickup rule was introduced
+in 2.6.3.
+
 ### Animals
 
 - `Fresh Finery for Your Companions!`

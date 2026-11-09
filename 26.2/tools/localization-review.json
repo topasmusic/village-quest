@@ -98955,6 +98955,1181 @@
         }
       ],
       "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.stats.title": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.title",
+      "note": "2.6.5 port: reviewed opt-in loopback-only statistics event hooks and Journal/settings. Default off; no public endpoint configured yet. Quest amounts/rewards/unlocks unchanged. Mine crop and non-pausing aid desk preserve server authority. Target-native APIs retained.",
+      "translations": {
+        "en_us": "d86f298973a20d15c1234132ea129985c606f7738e394dff2e93219669885e8d",
+        "de_de": "4fb731ba2c6f849361d2e6962ec219a703b51004034ba65deacf63a9d807e2b8",
+        "es_es": "bab1a29cfcbe13e23d2adc716f9ef4c497deaff3d8af5a061734d8b31277ac16"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/JournalScreen.java",
+          "match": "literal"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.stats.description": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.description",
+      "note": "2.6.5 official statistics: reviewed actual EN/DE/ES consent and Journal/settings consumers. Fresh public-v1 adult opt-in, default off, explicit fixed-data/IP/provider/retention/revocation notice; local-v1 separate. Only built-in allowlisted metrics; no player identifiers or free text. HTTPS destination fixed, no redirects, bounded spool and disconnect on withdrawal. Native target APIs preserved. Backend deploy/auth acceptance remains separate.",
+      "translations": {
+        "en_us": "c2e87bdcc1d7bbe2b85b0a1d7de928bb3c0aba20d96f8c97541ea1dd63f3e916",
+        "de_de": "80d7e4d21b94c8259ca54c9c97a37f4661c53b4f6c4f26ec2cc6d7df5374b777",
+        "es_es": "14386778c9eb6c1ac9374f39f9340bfcfb3b28fb201106851e5dfed225a3994b"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/JournalScreen.java",
+          "match": "literal"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted consent/transport source-context review; see note."
+    },
+    "screen.village-quest.stats.yes": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.yes",
+      "note": "2.6.5 port: reviewed opt-in loopback-only statistics event hooks and Journal/settings. Default off; no public endpoint configured yet. Quest amounts/rewards/unlocks unchanged. Mine crop and non-pausing aid desk preserve server authority. Target-native APIs retained.",
+      "translations": {
+        "en_us": "85a39ab345d672ff8ca9b9c6876f3adcacf45ee7c1e2dbd2408fd338bd55e07e",
+        "de_de": "cde9e58a9a4e1f369839d800aebbe5e4c19e2efa9f5791ecda15e9e87eb652e3",
+        "es_es": "739215889580345e7630a71acd2863cd8ffd6db4bca79a39d1a276b8b3bcec6a"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/JournalScreen.java",
+          "match": "literal"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/QuestSetupScreen.java",
+          "match": "literal"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.stats.no": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.no",
+      "note": "2.6.5 port: reviewed opt-in loopback-only statistics event hooks and Journal/settings. Default off; no public endpoint configured yet. Quest amounts/rewards/unlocks unchanged. Mine crop and non-pausing aid desk preserve server authority. Target-native APIs retained.",
+      "translations": {
+        "en_us": "1ea442a134b2a184bd5d40104401f2a37fbc09ccf3f4bc9da161c6099be3691d",
+        "de_de": "90ebc1bde6f3b1ffd73c3d7db7a421b21d5a4494ef1ce86aee56013edde0a8f7",
+        "es_es": "1ea442a134b2a184bd5d40104401f2a37fbc09ccf3f4bc9da161c6099be3691d"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/JournalScreen.java",
+          "match": "literal"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/QuestSetupScreen.java",
+          "match": "literal"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.stats.setting": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.setting",
+      "note": "2.6.5 port: reviewed opt-in loopback-only statistics event hooks and Journal/settings. Default off; no public endpoint configured yet. Quest amounts/rewards/unlocks unchanged. Mine crop and non-pausing aid desk preserve server authority. Target-native APIs retained.",
+      "translations": {
+        "en_us": "a2e7a512c884fb623621cbcb331091a6abc8911495727480da92f38f6b110b63",
+        "de_de": "d2d0a652bf066a3f9a5314e76ea6129ef049461d6ed320e158853e8644748e44",
+        "es_es": "d27cd8253486e0044df937cdb697835187b2382139bd41af1ea3666f34449819"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/QuestSetupScreen.java",
+          "match": "literal"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.stats.tooltip.versions": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.tooltip.versions",
+      "note": "2.6.5 port: reviewed opt-in loopback-only statistics event hooks and Journal/settings. Default off; no public endpoint configured yet. Quest amounts/rewards/unlocks unchanged. Mine crop and non-pausing aid desk preserve server authority. Target-native APIs retained.",
+      "translations": {
+        "en_us": "f43c707bfe2f270ac52d2f991c529bf6bcd474549c6266d6b454475a8751a7e6",
+        "de_de": "558298fd4d8ac5c1effbc8da62c3d4c2d74bdb5cfd73f9d0697674e79033dd77",
+        "es_es": "f7d06c684bb699534dc21572d41a011987da05a2367ac708dbf460d063845518"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/QuestSetupScreen.java",
+          "match": "literal"
+        }
+      ],
+      "trace": "Targeted source/context review; see note and source contracts."
+    },
+    "screen.village-quest.stats.tooltip.events": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.tooltip.events",
+      "note": "9 Nov 2026 statistics v2: solo source/context review. Existing quest conditions, supplies, rewards and save authority preserved. Hooks observe actual successful transitions or explicit rejected user actions, not progress polling. Read-only opt-in snapshot sends only allowlisted content/control frames. EN/DE/ES consent describes active/session duration buckets, partial/unknown coverage, coarse FPS/difficulty/profile, locally computed return gaps and optional fixed feedback. No free text/identifiers uploaded; local hashed world scope stays local. Adult public-v2/local-v2 opt-in separate from v1, withdrawal clears pending/local measurements. Responsive consent/settings/feedback areas enlarged; actual wrap/click tests accompany this review. No Ingame/visual approval claimed.",
+      "translations": {
+        "en_us": "a578d7793bdc64d15e3ae65ca17bab3f8fa1778b45d9717bc5d9fa84a4e1db26",
+        "de_de": "06bc5daea09acaf2c25a1a17ce0ee64b2ed6c2c52eb1337b0a1d7757d1e348ec",
+        "es_es": "9de8f87a18ff2bf154fbc923af3e0d509b37047e153b2a7db6aec5397d07aa42"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/QuestSetupScreen.java",
+          "match": "literal"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted v2 consent and fixed-feedback consumer review."
+    },
+    "screen.village-quest.stats.tooltip.local": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.tooltip.local",
+      "note": "2.6.5 official statistics: reviewed actual EN/DE/ES consent and Journal/settings consumers. Fresh public-v1 adult opt-in, default off, explicit fixed-data/IP/provider/retention/revocation notice; local-v1 separate. Only built-in allowlisted metrics; no player identifiers or free text. HTTPS destination fixed, no redirects, bounded spool and disconnect on withdrawal. Native target APIs preserved. Backend deploy/auth acceptance remains separate.",
+      "translations": {
+        "en_us": "7a345c3673b35aea79c8d323b95ce4702dd8e202654c373847355a9c65560fa9",
+        "de_de": "7689c3d5cd09d2b40158256a4a370a3a9b297db8ba3fab1fec2abaeb00e0539b",
+        "es_es": "5b38f85c1be1fd9b4b12397f1fedc56a660dcbbf5f2c5ab7b1543bda0516431c"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/QuestSetupScreen.java",
+          "match": "literal"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted consent/transport source-context review; see note."
+    },
+    "screen.village-quest.stats.description.local": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.description.local",
+      "note": "2.6.5 official statistics: reviewed actual EN/DE/ES consent and Journal/settings consumers. Fresh public-v1 adult opt-in, default off, explicit fixed-data/IP/provider/retention/revocation notice; local-v1 separate. Only built-in allowlisted metrics; no player identifiers or free text. HTTPS destination fixed, no redirects, bounded spool and disconnect on withdrawal. Native target APIs preserved. Backend deploy/auth acceptance remains separate.",
+      "translations": {
+        "en_us": "df292cf9fedd75e64005a20472c372b4863c8537b8ed33cd6924f9802ff7df82",
+        "de_de": "cb420cf58e50f8ac62b03eb547ca1dfa7adfdbf6c2e44717db581ae578ff8c9b",
+        "es_es": "2a55c1dd0ad90497e3fbeb526070d190febb9e291ef7f7d2793a331e0f8ac642"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/JournalScreen.java",
+          "match": "literal"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted consent/transport source-context review; see note."
+    },
+    "screen.village-quest.stats.review": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.review",
+      "note": "2.6.5 official statistics: reviewed actual EN/DE/ES consent and Journal/settings consumers. Fresh public-v1 adult opt-in, default off, explicit fixed-data/IP/provider/retention/revocation notice; local-v1 separate. Only built-in allowlisted metrics; no player identifiers or free text. HTTPS destination fixed, no redirects, bounded spool and disconnect on withdrawal. Native target APIs preserved. Backend deploy/auth acceptance remains separate.",
+      "translations": {
+        "en_us": "45989de49fb7f66dfe17a8fc26f3a02c7abcd74f7e8e6cf9f39fa0e3775780df",
+        "de_de": "45989de49fb7f66dfe17a8fc26f3a02c7abcd74f7e8e6cf9f39fa0e3775780df",
+        "es_es": "c8a74ca68d39907d15f136400078efb8e1756c37895d1f603ffbe5f942110104"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/JournalScreen.java",
+          "match": "literal"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted consent/transport source-context review; see note."
+    },
+    "screen.village-quest.stats.adult_yes": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.adult_yes",
+      "note": "2.6.5 official statistics: reviewed actual EN/DE/ES consent and Journal/settings consumers. Fresh public-v1 adult opt-in, default off, explicit fixed-data/IP/provider/retention/revocation notice; local-v1 separate. Only built-in allowlisted metrics; no player identifiers or free text. HTTPS destination fixed, no redirects, bounded spool and disconnect on withdrawal. Native target APIs preserved. Backend deploy/auth acceptance remains separate.",
+      "translations": {
+        "en_us": "390bf04f8d38f69e09d8a17f360d83732c7e7f6e85fcde65d019beaba446aa91",
+        "de_de": "e4ac5a9478a23a3890de2610b89a58e8b140612f0d55bb008e627bef199e67bc",
+        "es_es": "cbc68bff8b4c2f49d1e774f44e562a171784f624cf88fa67509193faf8f50c80"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted consent/transport source-context review; see note."
+    },
+    "screen.village-quest.stats.consent": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.consent",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "703675484f21d3e2d6754db3f1eeea3fcefad95085123ec8cf3de4de2d293c64",
+        "de_de": "6efc29387232ff0c998b193687efe464a90916e01917be15af194c574415a012",
+        "es_es": "d54e906ad6fdff350707d18f2044a2365dcc1d36dcaa1fff626ab202ca51ba36"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.consent.local": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.consent.local",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "95f9a1915047d1619e795b8e330c4ffae1eba1e7fd43d1676b25d4b42ebe28cc",
+        "de_de": "406ca63930be8df34332fe5b965e0f50ccfb7be4c8ae93d42690b20ec7f3e998",
+        "es_es": "efda3b2bd79b39c1e03a8fc5bc5519feda98ff132280ad45cb2fa62dc81a5256"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.error": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.error",
+      "note": "2.6.5 official statistics: reviewed actual EN/DE/ES consent and Journal/settings consumers. Fresh public-v1 adult opt-in, default off, explicit fixed-data/IP/provider/retention/revocation notice; local-v1 separate. Only built-in allowlisted metrics; no player identifiers or free text. HTTPS destination fixed, no redirects, bounded spool and disconnect on withdrawal. Native target APIs preserved. Backend deploy/auth acceptance remains separate.",
+      "translations": {
+        "en_us": "38b7db20ed4b6eac83f00a94cb3b729c830d08d393546fb166cacece2152bd3a",
+        "de_de": "cb11125010129a2da39a2b18a45dae5381bf7a7f44fae549bff77d336bcefad4",
+        "es_es": "86b447ff9fb614e948165d6a2b7bc30495b9d43d9c009cc544941d45b6b38761"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted consent/transport source-context review; see note."
+    },
+    "screen.village-quest.stats.tooltip.public": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.tooltip.public",
+      "note": "2.6.5 official statistics: reviewed actual EN/DE/ES consent and Journal/settings consumers. Fresh public-v1 adult opt-in, default off, explicit fixed-data/IP/provider/retention/revocation notice; local-v1 separate. Only built-in allowlisted metrics; no player identifiers or free text. HTTPS destination fixed, no redirects, bounded spool and disconnect on withdrawal. Native target APIs preserved. Backend deploy/auth acceptance remains separate.",
+      "translations": {
+        "en_us": "d8bfc1930d9c596c8279a0926348d7c571a48901c597a24432c43915d26c7b97",
+        "de_de": "ab7c07ca028fc3a162f67979cf1ea750b11f17ecbb3efdb75a075b0313a683e4",
+        "es_es": "fab3fecc02d74ecee44029dc41310c8337e0368d45b5783a878acefc725d843f"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/QuestSetupScreen.java",
+          "match": "literal"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Targeted consent/transport source-context review; see note."
+    },
+    "screen.village-quest.stats.feedback.open": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.feedback.open",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "e0708a1dd8f0640bd9e2db3e13e53a397ca682556ccea7c40026621e120a80c0",
+        "de_de": "2ddd1159bd39c5126cec2b32f7e2f71f005aa837428e937dff3df96849b7a19e",
+        "es_es": "6badee9d90d380f5dde040f9218ba95fb519dd85ebd5d485e1fadf28b0ece7d5"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/QuestSetupScreen.java",
+          "match": "literal"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.feedback.title": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.feedback.title",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "0c5bc7045a0668a5ba947e181692cc4e2c668ee5894e303968271260940e9fa8",
+        "de_de": "71471bf38122040f8bf38b0feaf3c8628d0eb46506ae7d9e7e9ff83ed7e90989",
+        "es_es": "6cc5701ad1f3f3b99f712765f78028474fa742e089202fc3af02c6fd864526a8"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java",
+          "match": "literal"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.feedback.notice": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.feedback.notice",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "dfe2a63f56ac82b483691ec3530bb084e6e7c5e13b03f819d43e5279a2905bcc",
+        "de_de": "3217fe57ebc6f8cf510a1182c976e764690042faa639161d1002a7bb2b6f3c9d",
+        "es_es": "b292bda98a358dbb6bde57d27945637e456aa92623ba64d8c456b412b1b6f6af"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.feedback.limit": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.feedback.limit",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "d32b89aa52801e4ef81f7ffa684f9b75f3cc3dd38c3c67eac1d2688a5716f2c5",
+        "de_de": "1d9af77686570f8318d2769a99445c091d8e1cc7c46ee36a71d794ba464a84f6",
+        "es_es": "a4bdb7ee66bdb6538540216e2b0653c4d6915835c7ec8bad4b9753dd2b631e70"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.feedback.sent": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.feedback.sent",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "53791276e47c2e312c03d62ddd3a7969e0d86f0ae9299d1c87c5253dae8fbbde",
+        "de_de": "7da4a1cd87b7ea925cc7b7b8c5c49d49a2f2eabd33a9a416dbc359493e9b86b7",
+        "es_es": "15c44443e87551c9019ab404ba223282e53956bea695de437f3a8717e1f652ad"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.feedback.disabled": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.feedback.disabled",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "e9f671cd9ede09d40bb54806d03d0ffba25381708593289713ce4a8b9a1afc00",
+        "de_de": "5ceab0cfe8fad257e5373c6ed060721c97dff74ea00876ac351c5a205cc17d02",
+        "es_es": "7fb685e6752fcb31b45a62bc75e6e00757017a5125b827e90dbfd0f1ab1e7c64"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.feedback.back": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.feedback.back",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "76900f1bfd16c8d4dd3d25e6f46638d7165aee23883ccea6bfe071c514421769",
+        "de_de": "548611ce58f71a173404d9cfc99816457f97ad25b814310374f5c3f096546ee8",
+        "es_es": "ab26ae7bca362195383b3a6145b3389930682514157a61d4416e44717e497d12"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.feedback.target.general": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.feedback.target.general",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "767451868559171c0945d4ea665de14e70a2868a0ed032938ec24e56fc804fc4",
+        "de_de": "7acb0f82f64fb38b234085ea2ab0810409a0a303f2a2e283f5e9e6402f235b6a",
+        "es_es": "a24674b3f603bf251694c0ffe31a4db6ed32fc7d93181834b8224c050dc04c6f"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.feedback.target.daily": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.feedback.target.daily",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "163733428563fa8efc3d9c0cb406611e24a441b4862565962993867710191c9f",
+        "de_de": "61dd0dc5be9d2ee695a23a8715b244358985ef29415522e777a133df49e4e65e",
+        "es_es": "d14ccc225829c9481399fe99edaa9d81656ac8ed51a6e9449405b8bffe450a39"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.feedback.target.weekly": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.feedback.target.weekly",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "5c7cccd70f678203985b1a5d4b880372d800cd0a44295f30f72d45fcc54df59c",
+        "de_de": "9bbca82e89f4b1ff99f7d450a4493092607d696f72b3e3b6cbe15d7b23f02bea",
+        "es_es": "315bbce9ee6b5f22280a5b571eccae43f7577743ab5ab0ab63b03c914bd78c7b"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.feedback.target.story": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.feedback.target.story",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "31dd72ca4e957d8f86bbca5b62e3112549e00bdf9bdc1e1732cb8759990beed4",
+        "de_de": "09981ecf5671219e51ad3a6b8eba9c60b1b815842da8785b57556e1bd1c5af1b",
+        "es_es": "d1523033c5a64391bdee6cd748422e141eca601bb46c894b0455201f2c61d251"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.feedback.target.special": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.feedback.target.special",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "230b71622854edc0bc1e7f3237c8443eb3727963d9f014e2d3c533c3e1b74711",
+        "de_de": "b514df45374065ae626e8a1b048b900c429e14154214563ce1f47b7be0ffbb09",
+        "es_es": "22260afc8ec56721dafbca28279cecb0697b3e4fe874ef9e27e6ba822eac5b8f"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.feedback.target.town": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.feedback.target.town",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "34bb3edf5cce4e60ed38295e05075635cd91389856cc1afebaf9a49294975614",
+        "de_de": "ba917a1e6109ea953121670a3bd19424b2d6b3dd4babba334b3090d4ee2da9e4",
+        "es_es": "01879fa9e72823b83b74fb3492b103e5d79ef1e9e746fad02815ae0d44117951"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.feedback.target.commission": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.feedback.target.commission",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "faa075c3a7414d78c2e214b9645d931aa69290dd3c6a5348aeb95a72215fcab0",
+        "de_de": "f4bdc7ff8dd146e53543e41088c06a16846a3cc2696dfcf350c5939e4da7c189",
+        "es_es": "463161c08509ca0554af60013e0393eeef554cf30710fb7fae8e704f1d7df5a1"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.feedback.target.freight": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.feedback.target.freight",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "455ea48fb5e0c062640444534c97d7dd334e7e5d6a5ef1b32781994afbb487a3",
+        "de_de": "54937384f9e1e4c03f3f1bf7ccb3c937070c9a2e070220f3d41fe3f03b75b091",
+        "es_es": "0e9c408cf80cd59cb15f609e4e40f16c173511f83af28110d899687c10911763"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.feedback.target.shared": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.feedback.target.shared",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "68d47fa7b42814aa80d1a50e988834e759d29693637bc818cd58412915dd1e7e",
+        "de_de": "02b614c103a6aba409e399ac649dcd37be0db7005e8e870ce9ce275fd10f3237",
+        "es_es": "51aa4739f963b41c7028246aa8467750812381eded1e1bf936c4081a0633a388"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.feedback.target.afterstory": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.feedback.target.afterstory",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "26c411a8464cfc8facf0dc3062c63a9e46c9b85a39a72a5c5c133473b4d99cf1",
+        "de_de": "eea8d0d0fbcfcbd6e40e9c2aa44a60cd6430d4958a0d7e775afaed3059f79f5a",
+        "es_es": "3713e41cb8924b6f200e10451fb5dd9f8c00004d051aed2fd457d6a416429cff"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.feedback.answer.helpful": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.feedback.answer.helpful",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "c8e4d02140a7372cbddd397e90665b5ecb164b88e02c440cd372ad16d651cec2",
+        "de_de": "66cf137daed35eae9ff2a27a30a55b00de2b12304087f088800a3d98675ae5cc",
+        "es_es": "f460f56fe7c4ee77b5814b9e8ab88921cc4baa467ccb895f58e5a478f29f8307"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.feedback.answer.confusing": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.feedback.answer.confusing",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "c917d0b427c4ad92cd04167969ae6ef9a67b78ece20b81c31d47a3809528a11e",
+        "de_de": "89bed87da268d5d61ff0972a0d9b1cc6ffeff34c7555a08f869de4dc8e3d0ebe",
+        "es_es": "f590fccfcd9d39e55bb095ce818f49dbbfa50d7909123cb547eca50af225e03a"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.feedback.answer.easy": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.feedback.answer.easy",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "42db0eda03c3ae1fac9c0b29b8339436f2a814336d309ba76982ef10e8e8fa35",
+        "de_de": "71805a31f81428a76082fcd00415854fb0765f63896525c4621f4b6cb225dbd0",
+        "es_es": "582809a824073b111d6a3e8f7e692253340cd866ac797e503f8d8f2624cf608c"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.feedback.answer.balanced": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.feedback.answer.balanced",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "5386ea5db81c8579a363438895a447d9580cbca1bdecdad43f2839af6d6fbf5c",
+        "de_de": "1df1acb73bed11322f8b8e63b03f60864ab7dda1aee6e54091976546035d6df8",
+        "es_es": "9123685a0d2a98ba9db42261a2a213439eb56ed7bb6916c3d00652a54c6e5b07"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.feedback.answer.hard": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.feedback.answer.hard",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "076a2df32bc9698874528f5a8f9498cc570c73567d7b721ccf15e001c8449aca",
+        "de_de": "a3b34182e1caa83d7b315e5a536f6dd61da7752bde8138c734a493c1ed11616d",
+        "es_es": "fad07e1ddc085aafe2fbd4273ab1b5c92a773fb03f514735b7a50e4873bf17dc"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.feedback.answer.progress": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.feedback.answer.progress",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "56d7de4277a5bd96d45714e3e8cd61289aaf7da08a2184bc4b02ca131307397e",
+        "de_de": "7797a5e45f0494ed91c7a7c8356f443586cabe9b3d8bea61f209343d494bf20f",
+        "es_es": "99baf81a6c14419ea6c7b85b380f67f1d1547503c590076bb64be556222b1304"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.feedback.answer.rewards": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.feedback.answer.rewards",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "e65a2a6f1a999734a99dc61e7acf49c473ecf3d01518f53ab4d44cee2a469613",
+        "de_de": "35fd2228f8e56a1e4292b83e1327bb04ed9beaa146f01f8fdc798ad937129603",
+        "es_es": "2a5bde5e639747875a9ffe3bc8fa9febf050f4e655cb3815e3abd4e58a1823ee"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.feedback.answer.ui": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.feedback.answer.ui",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "f5886cbef5435327f31595b3e21d0fc6425439f754b42e06d458bbc8dc238f83",
+        "de_de": "deb37aa960c6ecdb31eaeb1d37cbb2720d207a1eeda7857e37128f671c447ca9",
+        "es_es": "85a7484165e9e0c104c8759b91e66dc20948539b550b7ee70df49949ec640bae"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.summary.intro": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.summary.intro",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "5effc3bffc63c8261599322b6b68e7d7818898dbe7ea0fdab8309fb5f5758a45",
+        "de_de": "9ffcf383cfa5ee5714ea598e4b82415a79446e1ccf16aff2b6b38788b2d10100",
+        "es_es": "93db31e3b3470cc29bc3584eb7e0ecf90926fdf91c5b08310739ff1fa364708e"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.summary.intro.local": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.summary.intro.local",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "a40104a30a7ebe646c5315e250023d03bc660552c09c0b29755c34dc1cec981d",
+        "de_de": "65052330da30b716f48f399cba34da46cf90b095d022c9350f328dcb0043eb20",
+        "es_es": "2916352623d35bddc2cfa7c7add65609dee74235a5f99b39d25604ef0fdf1f86"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.summary.collect.title": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.summary.collect.title",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "d0e74fdbb67412eafe3cab94f2d64b2177a46b302287171cb4c0eae67972283e",
+        "de_de": "b6edbf4ede88a3c873e1cef7bdd1e8de8c4a103eebc147ca3f1f1c9733af8026",
+        "es_es": "78e995a22ffa0015379b3cc13f854725ecd273d2d4cb1a6ac109e7f98bbeabd5"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.summary.collect.body": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.summary.collect.body",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "b7355fea74ed8695fc137a9eff2c77413ae50ba6dd18cea83e94e18af503e52f",
+        "de_de": "e89e2b24258dd7933eba4bd56b893f15f114038da338642d357939a7fd2be409",
+        "es_es": "b7c5a789a9eebedd18609f0409c2eb36d00fa0c2da476187df980612931ce0dd"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.summary.private.title": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.summary.private.title",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "76f2e174eb33af1934ac437e8479116c37ff5e6154c1f579f8be8ac2678ae5d4",
+        "de_de": "8a445c89f1790ef93ecca5739197ac66aa9bed2518578ef8e87265b2d1648b24",
+        "es_es": "5d5d8c73595d3866c8f30d6e316699bf2fd8820feda33a7f8e979d9ac7de0a42"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.summary.private.body": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.summary.private.body",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "04db42ad626f3bfb163d2c1fa01b46b7f30d11adc0efdaa5d703f79c060fbe9b",
+        "de_de": "c91c9a863191c1d9342b7d7b19def8415a3583635792c38b9d3891458c208738",
+        "es_es": "4f622a16f756fa5a58fbb14d57e51f0b715c219e330c95a29a07aaf8153aa8eb"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.summary.note": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.summary.note",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "e4d439019d92c0fa752531d3c8326ea46ace0e9687e71396dd394b1e02bc1865",
+        "de_de": "ab63fac4108e66537fb6cb814d89a9a4af5ba39ce71a4f37995d8f23599ebdcc",
+        "es_es": "23fce7445a51c57914b8023d1f9fc5dd6da650a61515e2e973f77805c5b642ed"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.summary.note.local": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.summary.note.local",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "7076db5a7b84277f39216843b35f8a566d9db782625aa93c2bf0aad2cb4f73d9",
+        "de_de": "44a6482836240d9c676ba60c3cea7e1603ccd79c23120a4d19a3e851faf0b73b",
+        "es_es": "af340f9fb7798ecb3f8a8d45535b9229bc417599ec5aab2c2012221865b3a824"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.summary.details": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.summary.details",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "445de1d2d283877c18d443fc9c549128b0613078ce95481be69a1adfd1817db5",
+        "de_de": "47fba15b5d0db48d31ea75636101499df0805e2e255c28de27fd6d2cdaeba10d",
+        "es_es": "8b8653ac329a0c1acc190c2edf48e6253929633a4b6fb7f7ecf43bf817b239d3"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.summary.back": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.summary.back",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "b202187e08636bb94c55517d4070c2833ced8edad924b72309687601fc1c721f",
+        "de_de": "4f89a48cdb44705d0fc8e4120da03eb91fd477a09ff8766a1cbb829977712e68",
+        "es_es": "0f2451421560039cf8d54970ddbc6c84a0b182aae78176482b7d33daad498e46"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.feedback.text.label": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.feedback.text.label",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "fa67e3ca8aa85bf6be8b68ea3935cbb41fb37f6558b18c22397dc077a727edd1",
+        "de_de": "5e1fde4c649932ca672c99b1322f9e4c09373cc9d158bad286071366a8e7b075",
+        "es_es": "07e3fb810f627f7736729a677206d4223ccf89e40a6580063f2c8a5d02e62333"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java",
+          "match": "literal"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.feedback.text.notice": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.feedback.text.notice",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "5a89ce0253eab3480c0ad34ff6471038984d742d7205c7ce8e0d0e081a26c3c2",
+        "de_de": "bf08489546d0f975b4688ae019d589ee0a7a3fea8a686dd29b2dc891669fb108",
+        "es_es": "d780b67b186ea10aeff3fb80493cd2794222a08db6a2e1985c6b4bbc8c288dcc"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.feedback.text.notice.local": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.feedback.text.notice.local",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "e5c05ff6e90953d4de79d6362c9995384482f3e46108257c747377dc674e4537",
+        "de_de": "4daa4731953f1dd66ba00bcf571b9d6ce8509328245830e55d3d7dcda4cc0309",
+        "es_es": "7c191afaeff3913b06eca36080228fd5b158abf597a20200d88263d1f5a6b764"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.feedback.text.send": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.feedback.text.send",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "3db6a95ce1532f7f4a82029ecaa3dcd5031261c50a4a6a286e9acada44876784",
+        "de_de": "6440eab19aef5f7a6d93884240f456a3273fe2bbe0ebe5473df11d0c22406b1c",
+        "es_es": "6b1e5e632a71393b1178a661a025824330a5e0aa05d00128967868876010c14d"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.feedback.text.sending": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.feedback.text.sending",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "b8ed5279e897be5def6b902caa5121b3c1ee6957209f715187878a93ae0ca8be",
+        "de_de": "754ed3f63a88432f3e563ccc23908ad9787273338e173f4f42af61db2d43a3a3",
+        "es_es": "9415ac2416c5719d877accb522a7b6e6619d907a1e7434c6d03f315fc07320f1"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.feedback.text.sent": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.feedback.text.sent",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "c890fc63cfbdf273383df282d93218efc7dbcfd2e3f2858a1687360a59077dbe",
+        "de_de": "b5ad06666faf8f10e7d1ad400ce9273bc45e5a58b8feba21d9b650dce6736d00",
+        "es_es": "c545f1d11f5aff9443b8615b455fdba754fcafa292890c1d7d753068e336029c"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.feedback.text.failed": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.feedback.text.failed",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "6cd80ca560b41546e63528e62975131286d72ea92d6b8575f146276e8677dfb0",
+        "de_de": "aafd95c804498719a1e7b19ee543410738a462206ca3be44ccf62cd7ca97451b",
+        "es_es": "4419ff2f7a09ef6cf13252ad679e911906a6bb6b7a1779ec48b4ae6a1d8230fa"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.feedback.text.limit": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.feedback.text.limit",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "f474b716429cf630e31c87b0979c8c397f7aacac1b2a09737c6dac962b01c449",
+        "de_de": "43ec6baa47c9d36ec558160c74483ea156cc45d9d29c056b682862722d28dba0",
+        "es_es": "c66909d4cb886ee80f4b15bf2e9abb755ffd70ad28d8bc434d7350fd4324dc84"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
+    },
+    "screen.village-quest.stats.feedback.text.invalid": {
+      "context": "screen",
+      "subject": "screen.village-quest.stats.feedback.text.invalid",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged.",
+      "translations": {
+        "en_us": "4d99fa530da04871b533521db6cc7e37c7d4e0c6c26e481b162fe524787ea9f5",
+        "de_de": "ee6c24e2f7389c636c1022cac048e5bbb0b2a53c1d4eaed330c478f05500f35a",
+        "es_es": "86946a3ec6cc47bef4d89281ce2175efe5b99d4b16a5cd94da899b45ec0e2322"
+      },
+      "uses": [
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsConsentScreen.java",
+          "match": "dynamic-prefix"
+        },
+        {
+          "path": "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java",
+          "match": "dynamic-prefix"
+        }
+      ],
+      "trace": "Explicit fixed answers versus separate user text Send; compact/full views."
     }
   },
   "sources": {
@@ -99043,12 +100218,12 @@
       "note": "2026-10-12: Context-audit source snapshot; review affected texts whenever this source changes. This is not a whole-code approval."
     },
     "src/main/java/de/quest/caravan/TradeContractType.java": {
-      "sha256": "3bd74934e0f850d2c1941857a645559360e4fb3bb8f4a2490af8b2f11942f992",
-      "note": "Real VillageNeed families lacked matching existing freight for coal, leather, honeycomb and paper. Append four Vanilla cargo types, preserve original eight saved IDs and refund mechanics/economy/daily/rank gates; prioritize actual pending diplomacy promises in the existing three-offer board. DE/EN/ES titles match real cargo."
+      "sha256": "12f140a85f0e0864ebeb7c0f1602900bc6a88adcdbaecf78b7a0a54f3823fefe",
+      "note": "9 Nov 2026 statistics v2: solo source/context review. Existing quest conditions, supplies, rewards and save authority preserved. Hooks observe actual successful transitions or explicit rejected user actions, not progress polling. Read-only opt-in snapshot sends only allowlisted content/control frames. EN/DE/ES consent describes active/session duration buckets, partial/unknown coverage, coarse FPS/difficulty/profile, locally computed return gaps and optional fixed feedback. No free text/identifiers uploaded; local hashed world scope stays local. Adult public-v2/local-v2 opt-in separate from v1, withdrawal clears pending/local measurements. Responsive consent/settings/feedback areas enlarged; actual wrap/click tests accompany this review. No Ingame/visual approval claimed."
     },
     "src/main/java/de/quest/caravan/TradeGuildService.java": {
-      "sha256": "39571d3c4bcb0896eeade596778d046cd48ca74338c0ae8849607e22be0180db",
-      "note": "28.10.2026 targeted26.2 native port review: exact20 source paths selected after incoming/native diff review. Native drop(stack,false), EnderMan, ChunkPos structure lookup, getStructureManager, required notice MapCodec and GLFW period key retain26.3 amounts/ownership/rewards/receipts/story gates. Ambient swing matches native NPC API; PersonalResetItems uses allItemsCopyStream to preserve slots, copied BundleContents templates, bounded recursion/preflight/rescue and immutable original image. Tests required; unchanged native42 reviews restored only on exact source digest match."
+      "sha256": "c177aa90c39ce9914fe7d21e8ba60f65413a3f3f3751f8b3a5881776175cceef",
+      "note": "9 Nov 2026 statistics v2: solo source/context review. Existing quest conditions, supplies, rewards and save authority preserved. Hooks observe actual successful transitions or explicit rejected user actions, not progress polling. Read-only opt-in snapshot sends only allowlisted content/control frames. EN/DE/ES consent describes active/session duration buckets, partial/unknown coverage, coarse FPS/difficulty/profile, locally computed return gaps and optional fixed feedback. No free text/identifiers uploaded; local hashed world scope stays local. Adult public-v2/local-v2 opt-in separate from v1, withdrawal clears pending/local measurements. Responsive consent/settings/feedback areas enlarged; actual wrap/click tests accompany this review. No Ingame/visual approval claimed."
     },
     "src/main/java/de/quest/caravan/TradeRouteAvailability.java": {
       "sha256": "bc5dbdddc900821d4ec8bc22fb5c63acb2c7dbde74ca7dedb182abaf46d3c17f",
@@ -99475,8 +100650,8 @@
       "note": "2026-10-12: Context-audit source snapshot; review affected texts whenever this source changes. This is not a whole-code approval."
     },
     "src/main/java/de/quest/guildtown/GuildTownAfterstoryService.java": {
-      "sha256": "1f07f5bfe5495fe03876915800a1507306c85db36382590cbc0244eda41f4882",
-      "note": "AP7 player-feedback source review: typed current/target pairs select and color each part before wrapping; no localized-number parsing or progress mutation. Checked all authored two-counter keys against their producers; real forge/shrine inventories, Friends stages and expedition item/dimension/return, artifact deeds, and bounded accepted afterstories. Afterstory is once-only; REFRESH only resends; Daily/Weekly social Guild benefit is separate from mandate bond. EN/DE/ES reviewed together with existing item glossary; no reward/gate changes."
+      "sha256": "25e612e142c82eba823230353e1e0c07b8472318bb3b40a69498230aece7da38",
+      "note": "9 Nov 2026 statistics v2: solo source/context review. Existing quest conditions, supplies, rewards and save authority preserved. Hooks observe actual successful transitions or explicit rejected user actions, not progress polling. Read-only opt-in snapshot sends only allowlisted content/control frames. EN/DE/ES consent describes active/session duration buckets, partial/unknown coverage, coarse FPS/difficulty/profile, locally computed return gaps and optional fixed feedback. No free text/identifiers uploaded; local hashed world scope stays local. Adult public-v2/local-v2 opt-in separate from v1, withdrawal clears pending/local measurements. Responsive consent/settings/feedback areas enlarged; actual wrap/click tests accompany this review. No Ingame/visual approval claimed."
     },
     "src/main/java/de/quest/guildtown/GuildTownCommission.java": {
       "sha256": "6031b2c3ae3e85015ac53985c388c771e032704d7a3ed1bd3c018da982c0195a",
@@ -99491,8 +100666,8 @@
       "note": "27 Oct SELF restart integration: UUID/server-bound two-minute once confirmation, copied inventory/Ender/crafting/container plan with vanilla rescue and preflight; only selected data replaced, party/guild survivors kept, archive/map/seal generations advance; retained payout and cycle receipts prevent replay. Warning EN/DE/ES states irreversible scope, old anonymous-item limit, placed blocks retained and blockers. Command deliberately unregistered pending tests."
     },
     "src/main/java/de/quest/guildtown/GuildTownService.java": {
-      "sha256": "7f9a454dde960915fefd6eb93831d87f4d7dc8e0fb488d03140218e49cbbc170",
-      "note": "29.10.2026: Five full local story details reach journal/tracker; ten commission rules precede clickable acceptance and remain active in status/journal/tracker. No permissions, progress or inventory mutations changed."
+      "sha256": "438315680db3fa831f7f457c7f966d64ed19ac498c4dd25ad532f6156ad7dd53",
+      "note": "9 Nov 2026 statistics v2: solo source/context review. Existing quest conditions, supplies, rewards and save authority preserved. Hooks observe actual successful transitions or explicit rejected user actions, not progress polling. Read-only opt-in snapshot sends only allowlisted content/control frames. EN/DE/ES consent describes active/session duration buckets, partial/unknown coverage, coarse FPS/difficulty/profile, locally computed return gaps and optional fixed feedback. No free text/identifiers uploaded; local hashed world scope stays local. Adult public-v2/local-v2 opt-in separate from v1, withdrawal clears pending/local measurements. Responsive consent/settings/feedback areas enlarged; actual wrap/click tests accompany this review. No Ingame/visual approval claimed."
     },
     "src/main/java/de/quest/guildtown/GuildTownSharedProject.java": {
       "sha256": "88c95d6ee70a1e0f182852ff5d26a67c82e6dcb0d496a3ad9c765758953a52d7",
@@ -99599,12 +100774,12 @@
       "note": "2026-10-12: Context-audit source snapshot; review affected texts whenever this source changes. This is not a whole-code approval."
     },
     "src/main/java/de/quest/network/Payloads.java": {
-      "sha256": "33fed0d950b99c99b33a0d5fd5ec025d0fe8647097ac801d7d4ab16f850d1aac",
-      "note": "Reviewed encounter concept against server actions, role/eligibility, own Overworld zombie kills, new two-position torch placement, cumulative moving companionship, saved village target and individual journal/receipt. Rewards are 4 emeralds plus 3 delivery/4 other experience levels, player attachment saved with inventory/XP, one completion per quest-calendar day. EN/DE/ES objectives/rules specify actual quantities, pause/resume, consumption and automatic completion; UI uses existing VQ panel and scroll helpers. Session body/token, current danger/distance, single-use acceptance and exact costs rechecked. Spawn roll 3/16 replaces 1/4. QuestRuleText keeps arguments and adds one consumption heading to compact delivery rows; QuestMaster preserves paragraphs. Native 26.2 swing/drop APIs retained. No Ingame acceptance claimed."
+      "sha256": "213dcdd9b279d8c020cc159b62959289e5ca7a5927d844bbd77f9118b79a12b1",
+      "note": "9 Nov 2026 statistics v2: solo source/context review. Existing quest conditions, supplies, rewards and save authority preserved. Hooks observe actual successful transitions or explicit rejected user actions, not progress polling. Read-only opt-in snapshot sends only allowlisted content/control frames. EN/DE/ES consent describes active/session duration buckets, partial/unknown coverage, coarse FPS/difficulty/profile, locally computed return gaps and optional fixed feedback. No free text/identifiers uploaded; local hashed world scope stays local. Adult public-v2/local-v2 opt-in separate from v1, withdrawal clears pending/local measurements. Responsive consent/settings/feedback areas enlarged; actual wrap/click tests accompany this review. No Ingame/visual approval claimed."
     },
     "src/main/java/de/quest/network/QuestNetworking.java": {
-      "sha256": "a1e6aa74b35ebd4726f192e9f37e4e15f891c5ba624b30e5893b98c940ac044e",
-      "note": "Reviewed encounter concept against server actions, role/eligibility, own Overworld zombie kills, new two-position torch placement, cumulative moving companionship, saved village target and individual journal/receipt. Rewards are 4 emeralds plus 3 delivery/4 other experience levels, player attachment saved with inventory/XP, one completion per quest-calendar day. EN/DE/ES objectives/rules specify actual quantities, pause/resume, consumption and automatic completion; UI uses existing VQ panel and scroll helpers. Session body/token, current danger/distance, single-use acceptance and exact costs rechecked. Spawn roll 3/16 replaces 1/4. QuestRuleText keeps arguments and adds one consumption heading to compact delivery rows; QuestMaster preserves paragraphs. Native 26.2 swing/drop APIs retained. No Ingame acceptance claimed."
+      "sha256": "06b4da6cb53af4fa9ae26fc5f4286aa12157462fe9de57694ccd17af7c754aac",
+      "note": "9 Nov 2026 statistics v2: solo source/context review. Existing quest conditions, supplies, rewards and save authority preserved. Hooks observe actual successful transitions or explicit rejected user actions, not progress polling. Read-only opt-in snapshot sends only allowlisted content/control frames. EN/DE/ES consent describes active/session duration buckets, partial/unknown coverage, coarse FPS/difficulty/profile, locally computed return gaps and optional fixed feedback. No free text/identifiers uploaded; local hashed world scope stays local. Adult public-v2/local-v2 opt-in separate from v1, withdrawal clears pending/local measurements. Responsive consent/settings/feedback areas enlarged; actual wrap/click tests accompany this review. No Ingame/visual approval claimed."
     },
     "src/main/java/de/quest/network/ReputationPayloads.java": {
       "sha256": "a0d640c7800d273fbe9d4960fa446a2710f9ccc1c51e1ecea0c9b32f5dab6333",
@@ -99663,8 +100838,8 @@
       "note": "28.10 stabilization: fresh craft proof in either order (96 Paper,16 Books; hand in48/16); six adults; four distinct employed professions/24 trades; one of each undamaged tool consumed; all native horse armor show-only. EN/DE/ES offer, progress and feedback checked against chapter handlers; old progress retained."
     },
     "src/main/java/de/quest/pilgrim/PilgrimContractService.java": {
-      "sha256": "a3fae319ef4139b99cd7f8b1cf59fd92e123ac30f2791eb57585da23ba214c14",
-      "note": "29.10.2026: Public read-only activeDescriptionLines reuses existing active normal/Peaceful description selection for journal details; objective quantities/profile/progression unchanged."
+      "sha256": "ec19519dd086ee51c968318002db7df5b8fd618c08547f3386b1a36f1ff2ff64",
+      "note": "2.6.5 port: reviewed opt-in loopback-only statistics event hooks and Journal/settings. Default off; no public endpoint configured yet. Quest amounts/rewards/unlocks unchanged. Mine crop and non-pausing aid desk preserve server authority. Target-native APIs retained."
     },
     "src/main/java/de/quest/pilgrim/PilgrimContractType.java": {
       "sha256": "776711f77bda6bce8d2a7e90ea260025bf90516954f5e88e6436414d8a82cf01",
@@ -99703,8 +100878,8 @@
       "note": "2026-10-12: Context-audit source snapshot; review affected texts whenever this source changes. This is not a whole-code approval."
     },
     "src/main/java/de/quest/quest/daily/DailyQuestService.java": {
-      "sha256": "a058cabf85e421cf606494aa20b71b5d8c3347c09c564eb214da86108f6db3f4",
-      "note": "Reviewed encounter concept against server actions, role/eligibility, own Overworld zombie kills, new two-position torch placement, cumulative moving companionship, saved village target and individual journal/receipt. Rewards are 4 emeralds plus 3 delivery/4 other experience levels, player attachment saved with inventory/XP, one completion per quest-calendar day. EN/DE/ES objectives/rules specify actual quantities, pause/resume, consumption and automatic completion; UI uses existing VQ panel and scroll helpers. Session body/token, current danger/distance, single-use acceptance and exact costs rechecked. Spawn roll 3/16 replaces 1/4. QuestRuleText keeps arguments and adds one consumption heading to compact delivery rows; QuestMaster preserves paragraphs. Native 26.2 swing/drop APIs retained. No Ingame acceptance claimed."
+      "sha256": "9e48b6785431ffd7a17e61f8613129f2128e2d4d260fec922f5a9a17284a0e01",
+      "note": "9 Nov 2026 statistics v2: solo source/context review. Existing quest conditions, supplies, rewards and save authority preserved. Hooks observe actual successful transitions or explicit rejected user actions, not progress polling. Read-only opt-in snapshot sends only allowlisted content/control frames. EN/DE/ES consent describes active/session duration buckets, partial/unknown coverage, coarse FPS/difficulty/profile, locally computed return gaps and optional fixed feedback. No free text/identifiers uploaded; local hashed world scope stays local. Adult public-v2/local-v2 opt-in separate from v1, withdrawal clears pending/local measurements. Responsive consent/settings/feedback areas enlarged; actual wrap/click tests accompany this review. No Ingame/visual approval claimed."
     },
     "src/main/java/de/quest/quest/daily/FirstDailyChoiceService.java": {
       "sha256": "100264f4a9f4892533542056f47fba09732a91a94d7e0c10071e185c4ea30ae9",
@@ -99771,12 +100946,12 @@
       "note": "2026-10-12: Context-audit source snapshot; review affected texts whenever this source changes. This is not a whole-code approval."
     },
     "src/main/java/de/quest/quest/special/ApiaristSmokerQuestService.java": {
-      "sha256": "043284b5d23df22ff494075b05379a367e9be44738ddec1faa28c0fd9a19c182",
-      "note": "29.10.2026: Existing chat showProgress now also sends both unchanged offer paragraphs; offspring/work/use counts untouched."
+      "sha256": "5cfb14f70f521444426582a42baf2384db628cfa75efc4716ade08143a5f3b2a",
+      "note": "9 Nov 2026 statistics v2: solo source/context review. Existing quest conditions, supplies, rewards and save authority preserved. Hooks observe actual successful transitions or explicit rejected user actions, not progress polling. Read-only opt-in snapshot sends only allowlisted content/control frames. EN/DE/ES consent describes active/session duration buckets, partial/unknown coverage, coarse FPS/difficulty/profile, locally computed return gaps and optional fixed feedback. No free text/identifiers uploaded; local hashed world scope stays local. Adult public-v2/local-v2 opt-in separate from v1, withdrawal clears pending/local measurements. Responsive consent/settings/feedback areas enlarged; actual wrap/click tests accompany this review. No Ingame/visual approval claimed."
     },
     "src/main/java/de/quest/quest/special/MerchantSealQuestService.java": {
-      "sha256": "54aa21d911ef2b191d773694d02fa4ba58f7847a9a372e70b2f81ffae24dd77a",
-      "note": "29.10.2026: Existing chat showProgress also sends both unchanged offer paragraphs; trade-operation counts and payout untouched."
+      "sha256": "55fe5a6affb8a38208f31e250e2ef5339febd45d5b4d24363b02bf2cbf17056a",
+      "note": "9 Nov 2026 statistics v2: solo source/context review. Existing quest conditions, supplies, rewards and save authority preserved. Hooks observe actual successful transitions or explicit rejected user actions, not progress polling. Read-only opt-in snapshot sends only allowlisted content/control frames. EN/DE/ES consent describes active/session duration buckets, partial/unknown coverage, coarse FPS/difficulty/profile, locally computed return gaps and optional fixed feedback. No free text/identifiers uploaded; local hashed world scope stays local. Adult public-v2/local-v2 opt-in separate from v1, withdrawal clears pending/local measurements. Responsive consent/settings/feedback areas enlarged; actual wrap/click tests accompany this review. No Ingame/visual approval claimed."
     },
     "src/main/java/de/quest/quest/special/RelicQuestProgressionService.java": {
       "sha256": "b2c7a36c2c9c1e8d3280d5be118197d1fe8cf080f2e74bf6ea15cbe39f7742f8",
@@ -99787,16 +100962,16 @@
       "note": "2026-10-12: Context-audit source snapshot; review affected texts whenever this source changes. This is not a whole-code approval."
     },
     "src/main/java/de/quest/quest/special/ShardRelicQuestService.java": {
-      "sha256": "8f2c32c2152abf14dfdeb775958e1588cacdf55660e48f7e44c0eaf0fa8a2053",
-      "note": "29.10.2026: Existing trial chat progress also sends full offers with unchanged10shard parameter; trial/map/cache ownership and grants untouched."
+      "sha256": "c95336f5cff3ddd84079ff142b455577625647dbc2016b61d5ce9cd539dc6fe4",
+      "note": "9 Nov 2026 statistics v2: solo source/context review. Existing quest conditions, supplies, rewards and save authority preserved. Hooks observe actual successful transitions or explicit rejected user actions, not progress polling. Read-only opt-in snapshot sends only allowlisted content/control frames. EN/DE/ES consent describes active/session duration buckets, partial/unknown coverage, coarse FPS/difficulty/profile, locally computed return gaps and optional fixed feedback. No free text/identifiers uploaded; local hashed world scope stays local. Adult public-v2/local-v2 opt-in separate from v1, withdrawal clears pending/local measurements. Responsive consent/settings/feedback areas enlarged; actual wrap/click tests accompany this review. No Ingame/visual approval claimed."
     },
     "src/main/java/de/quest/quest/special/ShardRelicQuestStage.java": {
       "sha256": "7c6f0cca3d58e15d80b755dbe10b7117b74cc125096b7a0f032ee1353f1c5afe",
       "note": "2026-10-12: Context-audit source snapshot; review affected texts whenever this source changes. This is not a whole-code approval."
     },
     "src/main/java/de/quest/quest/special/ShepherdFluteQuestService.java": {
-      "sha256": "41190156cbdd45bfc1856e9766b4a6dcea04e2d6c9e8fc4a389881636670c049",
-      "note": "29.10.2026: Existing chat showProgress also sends both unchanged offer paragraphs; offspring/progress/payout untouched."
+      "sha256": "61dad5e2c824d9dfc683177e7cde6b93d9f2a706ddb92bc44aee8f02aabf33ad",
+      "note": "9 Nov 2026 statistics v2: solo source/context review. Existing quest conditions, supplies, rewards and save authority preserved. Hooks observe actual successful transitions or explicit rejected user actions, not progress polling. Read-only opt-in snapshot sends only allowlisted content/control frames. EN/DE/ES consent describes active/session duration buckets, partial/unknown coverage, coarse FPS/difficulty/profile, locally computed return gaps and optional fixed feedback. No free text/identifiers uploaded; local hashed world scope stays local. Adult public-v2/local-v2 opt-in separate from v1, withdrawal clears pending/local measurements. Responsive consent/settings/feedback areas enlarged; actual wrap/click tests accompany this review. No Ingame/visual approval claimed."
     },
     "src/main/java/de/quest/quest/special/SpecialQuestKind.java": {
       "sha256": "5c62df7622adaa4b2b3f7dbfec684c0673bbebf5e4551e8b864d5706d487900b",
@@ -99811,8 +100986,8 @@
       "note": "2026-10-12: Context-audit source snapshot; review affected texts whenever this source changes. This is not a whole-code approval."
     },
     "src/main/java/de/quest/quest/special/SurveyorCompassQuestService.java": {
-      "sha256": "946cd1babb165b163d61e78e4a5aeda5535175a90aa0ac50acb7bd22bb59e268",
-      "note": "29.10.2026: Read-only bonusIngotCount getter exposes existing BONUS_INGOT_COUNT=3 to preview; payout/receipt unchanged. Active and biome chat progress also retain full existing offer paragraphs."
+      "sha256": "9f5a66e770fd92d1107269e830011bd4ce2b80c30d6730ec968df875034686e4",
+      "note": "9 Nov 2026 statistics v2: solo source/context review. Existing quest conditions, supplies, rewards and save authority preserved. Hooks observe actual successful transitions or explicit rejected user actions, not progress polling. Read-only opt-in snapshot sends only allowlisted content/control frames. EN/DE/ES consent describes active/session duration buckets, partial/unknown coverage, coarse FPS/difficulty/profile, locally computed return gaps and optional fixed feedback. No free text/identifiers uploaded; local hashed world scope stays local. Adult public-v2/local-v2 opt-in separate from v1, withdrawal clears pending/local measurements. Responsive consent/settings/feedback areas enlarged; actual wrap/click tests accompany this review. No Ingame/visual approval claimed."
     },
     "src/main/java/de/quest/quest/story/StoryArcDefinition.java": {
       "sha256": "875be407ebb60772f7c6ddff472c2f705fba2704498ca86b220a4a4444391b39",
@@ -99835,16 +101010,16 @@
       "note": "2026-10-12: Context-audit source snapshot; review affected texts whenever this source changes. This is not a whole-code approval."
     },
     "src/main/java/de/quest/quest/story/StoryQuestService.java": {
-      "sha256": "b122148a21409c613c7a7f9821f6844e5476a66ece176f78c15d0e0beeefc8e7",
-      "note": "AP8b replay review EN/DE/ES: reset warning now names both lanes, reputation, guild/party leave, all personal storage and preserved shared claims; pending claims must be settled, not discarded. Paid story/friend/surveyor previews no longer promise repeated money/XP/material/choice. Native cache ring uses owner/current generation, inserts only into empty slots, records one issue and exposes existing archive recovery without refilling or clearing vanilla storage. Operational owner-bound tools may be re-earned at the new generation; old external issues stay invalid."
+      "sha256": "23d99874ba9e98d0e295fcf5f6d7105630518b1861e95c381a735882865a511f",
+      "note": "9 Nov 2026 statistics v2: solo source/context review. Existing quest conditions, supplies, rewards and save authority preserved. Hooks observe actual successful transitions or explicit rejected user actions, not progress polling. Read-only opt-in snapshot sends only allowlisted content/control frames. EN/DE/ES consent describes active/session duration buckets, partial/unknown coverage, coarse FPS/difficulty/profile, locally computed return gaps and optional fixed feedback. No free text/identifiers uploaded; local hashed world scope stays local. Adult public-v2/local-v2 opt-in separate from v1, withdrawal clears pending/local measurements. Responsive consent/settings/feedback areas enlarged; actual wrap/click tests accompany this review. No Ingame/visual approval claimed."
     },
     "src/main/java/de/quest/quest/story/StoryQuestStatus.java": {
       "sha256": "f9d9a9062dbe139d6c118501b0069b5acc7e6f332861419f73a7186515c7f4b4",
       "note": "2026-10-12: Context-audit source snapshot; review affected texts whenever this source changes. This is not a whole-code approval."
     },
     "src/main/java/de/quest/quest/story/VillageProjectService.java": {
-      "sha256": "5a165648b657fcec1ddc0fbd04ae80f676f481dfa9f10a3e9aae4c72911ef859",
-      "note": "2026-10-12: Context-audit source snapshot; review affected texts whenever this source changes. This is not a whole-code approval."
+      "sha256": "40cc14ee34d2eeacc30e854c62f4e7e41294dc47e682f79b345bb753dae423ec",
+      "note": "9 Nov 2026 statistics v2: solo source/context review. Existing quest conditions, supplies, rewards and save authority preserved. Hooks observe actual successful transitions or explicit rejected user actions, not progress polling. Read-only opt-in snapshot sends only allowlisted content/control frames. EN/DE/ES consent describes active/session duration buckets, partial/unknown coverage, coarse FPS/difficulty/profile, locally computed return gaps and optional fixed feedback. No free text/identifiers uploaded; local hashed world scope stays local. Adult public-v2/local-v2 opt-in separate from v1, withdrawal clears pending/local measurements. Responsive consent/settings/feedback areas enlarged; actual wrap/click tests accompany this review. No Ingame/visual approval claimed."
     },
     "src/main/java/de/quest/quest/story/VillageProjectType.java": {
       "sha256": "7c2d5ddac132744644d875af3f244edc6bdece18eeaaccc2e8a5d47385e6dc76",
@@ -99871,8 +101046,8 @@
       "note": "2026-10-12: Context-audit source snapshot; review affected texts whenever this source changes. This is not a whole-code approval."
     },
     "src/main/java/de/quest/quest/weekly/WeeklyQuestService.java": {
-      "sha256": "dcacf97889b9a9f22c511a0b407fd8cecfc2eaeb0adda2695afa27f331af5367",
-      "note": "Reviewed encounter concept against server actions, role/eligibility, own Overworld zombie kills, new two-position torch placement, cumulative moving companionship, saved village target and individual journal/receipt. Rewards are 4 emeralds plus 3 delivery/4 other experience levels, player attachment saved with inventory/XP, one completion per quest-calendar day. EN/DE/ES objectives/rules specify actual quantities, pause/resume, consumption and automatic completion; UI uses existing VQ panel and scroll helpers. Session body/token, current danger/distance, single-use acceptance and exact costs rechecked. Spawn roll 3/16 replaces 1/4. QuestRuleText keeps arguments and adds one consumption heading to compact delivery rows; QuestMaster preserves paragraphs. Native 26.2 swing/drop APIs retained. No Ingame acceptance claimed."
+      "sha256": "281473ce85574aafe3b7c72a705c88a5f1a3f96227c8eadfb84c9f19fdd1915e",
+      "note": "9 Nov 2026 statistics v2: solo source/context review. Existing quest conditions, supplies, rewards and save authority preserved. Hooks observe actual successful transitions or explicit rejected user actions, not progress polling. Read-only opt-in snapshot sends only allowlisted content/control frames. EN/DE/ES consent describes active/session duration buckets, partial/unknown coverage, coarse FPS/difficulty/profile, locally computed return gaps and optional fixed feedback. No free text/identifiers uploaded; local hashed world scope stays local. Adult public-v2/local-v2 opt-in separate from v1, withdrawal clears pending/local measurements. Responsive consent/settings/feedback areas enlarged; actual wrap/click tests accompany this review. No Ingame/visual approval claimed."
     },
     "src/main/java/de/quest/quest/weekly/WeeklyQuestStatus.java": {
       "sha256": "d0d9ef79e0f724fea4d0d14c90f74fb0a49e55de2c1c45546cc8099d0dffc33e",
@@ -99939,8 +101114,8 @@
       "note": "Concrete full-suite budget issue: resolve searches own cell first and terminates at a valid exact canonical anchor. Height gate remains before shortcut; nonzero ties retain key ordering. Native regression covers neighboring anchor, height rejection, tie and NBT reload; no text or reputation rule change."
     },
     "src/main/java/de/quest/reputation/ReparationService.java": {
-      "sha256": "505134e18e74caa56283934cc8aa8a729fcd6993e83c50a664a8943d02531c96",
-      "note": "2026-10-12: Context-audit source snapshot; review affected texts whenever this source changes. This is not a whole-code approval."
+      "sha256": "d97682b5017cc67a218b7f6aec04f05c67a6711fca2d46d222800c85af685197",
+      "note": "9 Nov 2026 statistics v2: solo source/context review. Existing quest conditions, supplies, rewards and save authority preserved. Hooks observe actual successful transitions or explicit rejected user actions, not progress polling. Read-only opt-in snapshot sends only allowlisted content/control frames. EN/DE/ES consent describes active/session duration buckets, partial/unknown coverage, coarse FPS/difficulty/profile, locally computed return gaps and optional fixed feedback. No free text/identifiers uploaded; local hashed world scope stays local. Adult public-v2/local-v2 opt-in separate from v1, withdrawal clears pending/local measurements. Responsive consent/settings/feedback areas enlarged; actual wrap/click tests accompany this review. No Ingame/visual approval claimed."
     },
     "src/main/java/de/quest/reputation/ReputationAccessService.java": {
       "sha256": "262058ee49bcd05a6cd675f72e317d116f3b81f5bc14cddf2bf9b41094b67a6c",
@@ -100019,8 +101194,8 @@
       "note": "User-authorized intro Daily policy: shortened LIGHT rewards paid after reset, normal daily cap enforced before inventory consumption, intro reservation restored and Eight Bread/2 Silver extra. Unaccepted previews read zero counters without mutating saved quest state; EN/DE/ES cycle wording reviewed. No Trust/network codec changes."
     },
     "src/main/java/de/quest/reward/VanillaRewardService.java": {
-      "sha256": "71d0128441cb426758892c1fc0073cda62f18c0dcf5af25a668e80424be7d50d",
-      "note": "Actual pending blaze-rod inventory deltas alone notify the active shard obtain trial after remaining entitlement is installed. Full inventory gives no trial credit. No general drop/daily/kill event is fabricated. Callback runs outside decode retry catch to prevent feedback failure from requeuing delivered goods."
+      "sha256": "1953f236e2149ffa89e42510da1a2ac7947aa95c1a896f7cb72bb1abbacd7920",
+      "note": "9 Nov 2026 statistics v2: solo source/context review. Existing quest conditions, supplies, rewards and save authority preserved. Hooks observe actual successful transitions or explicit rejected user actions, not progress polling. Read-only opt-in snapshot sends only allowlisted content/control frames. EN/DE/ES consent describes active/session duration buckets, partial/unknown coverage, coarse FPS/difficulty/profile, locally computed return gaps and optional fixed feedback. No free text/identifiers uploaded; local hashed world scope stays local. Adult public-v2/local-v2 opt-in separate from v1, withdrawal clears pending/local measurements. Responsive consent/settings/feedback areas enlarged; actual wrap/click tests accompany this review. No Ingame/visual approval claimed."
     },
     "src/main/java/de/quest/shop/ShopOffer.java": {
       "sha256": "2190517121cb0d77f9d1d4b4819daf6c903e7307d2144978998fbabe16018800",
@@ -100243,8 +101418,8 @@
       "note": "Reviewed VillageRelationship exact personal dimension/anchor/canonical identity and existing bond thresholds; shared labeled standing, independent attack memory/apology freight need, disabled/read-only states. Packet IDs and both-direction exact installed version capability checked; no persistence/reward mutations. DE/EN/ES natural wording and placeholder order checked against actual consumers."
     },
     "src/client/java/de/quest/client/screen/JournalScreen.java": {
-      "sha256": "fc0da8769cde97778ee9e7311c90c3f3004b8eb32f2cae80b72deeef344f546d",
-      "note": "AP7 player-feedback source review: typed current/target pairs select and color each part before wrapping; no localized-number parsing or progress mutation. Checked all authored two-counter keys against their producers; real forge/shrine inventories, Friends stages and expedition item/dimension/return, artifact deeds, and bounded accepted afterstories. Afterstory is once-only; REFRESH only resends; Daily/Weekly social Guild benefit is separate from mandate bond. EN/DE/ES reviewed together with existing item glossary; no reward/gate changes."
+      "sha256": "ea38848ea3a506e34c0bbbe01b3fceb61978891d33d3b6f8d78d172981597d83",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged."
     },
     "src/client/java/de/quest/client/screen/JournalScreenData.java": {
       "sha256": "339b168b1d8afdd973159c0f63a8db1230abdee901b991c8f579135753fa7833",
@@ -100275,8 +101450,8 @@
       "note": "22.10.2026 .41 solo source/context review: same preview/production transform and input bounds; compact completed headings with retained shard explanation, server schedule and rounded h/m duration; actual Weekly/reward fixture IDs with no gameplay sends; incoming/outgoing deal status and active route label; four contact cards, tree, full-name tooltips, paged explanations; Council content/widget geometry, centered diagnosis/header, ivy-safe notice status and oak/paper controls. No reward amounts, inventories, market transaction rules, NPC identities or save contracts changed. EN/DE/ES meanings/placeholders compared in source context; native appearance remains manual."
     },
     "src/client/java/de/quest/client/screen/ReparationScreen.java": {
-      "sha256": "bb20f71e0f29f0e54f1e6558186e20c275dfce14df444158b2da841095f5d71b",
-      "note": "29.10.2026 explicitly authorized 26.2 parity of .15/.16: reviewed all 20 source diffs against 26.3 and actual 26.2 .14 Sources; retained native 26.2 one-argument swing API, loader/MC/dependencies. Finite safe NPC travel, visible hostile/fair read budget and recipient dialogue; server-observed service unlocks and physical/session/revision guards; v3 interaction and separate convoy confirmation; optional validated party-name metadata never authorizes membership/rewards, saved name captured before removal, readable unknown fallback. Shared inn/council fence-and-cover tables resolved solely from loaded scan, no extra reads or market counters; unchanged seat geometry and free-bed checks. EN/DE/ES 30 new +4 changed keys: market BUY/SELL not vanilla trades, shared confirmed buildings with personal chapters, actual route/guild/Concord/local requirements, and wood fence plus plate/closed trapdoor/wool carpet."
+      "sha256": "e6fbf99cb37634c9a1993642cb632e917aaa77295b09af7efa63cfdefc697742",
+      "note": "2.6.5 port: reviewed opt-in loopback-only statistics event hooks and Journal/settings. Default off; no public endpoint configured yet. Quest amounts/rewards/unlocks unchanged. Mine crop and non-pausing aid desk preserve server authority. Target-native APIs retained."
     },
     "src/client/java/de/quest/client/screen/ReputationPanel.java": {
       "sha256": "42174f59f93f9d3829004c9d492d25f77c804ada34e05ab374c1001e43526960",
@@ -100335,8 +101510,8 @@
       "note": "23Oct screenshot correction: shared title artwork only. Storehouse JOB and village-name/release THRONE down3 authored pixels; mediation/entrance LANTERN up3; quests-backpack title up3. Title text, sizing, close/input bounds, body icons and all gameplay/permissions unchanged. No locale changes."
     },
     "src/client/java/de/quest/client/VillageQuestClient.java": {
-      "sha256": "f274fe9a577dd47a5dbe2a897459d2192be54c472b5c3fb13fe235b271c97987",
-      "note": "Ambient encounter source and EN/DE/ES context reviewed: private observed-condition greetings, first-hit warning/repeated refusal, no quest/economy rewards; finite noSave life, loaded corridor navigation, spawn reservation/cooldown, direct-killer loot guard, explicit combat/player limits and synchronized six-profile renderer; existing quest handlers and names preserved."
+      "sha256": "25c52904b513a33c447d716bb9349b4eb62379ea670410e69ce72ead69a81d3c",
+      "note": "2.6.5 port: reviewed opt-in loopback-only statistics event hooks and Journal/settings. Default off; no public endpoint configured yet. Quest amounts/rewards/unlocks unchanged. Mine crop and non-pausing aid desk preserve server authority. Target-native APIs retained."
     },
     "src/client/java/de/quest/mixin/CraftingRecipeBookComponentMixin.java": {
       "sha256": "4ad7f23adb7bd69da5f1cab5cb178bf27eed412200f81e9a3fb386ab1347c99f",
@@ -101059,8 +102234,8 @@
       "note": "19.10 approved bugreport: inspected native loaded/unchanged continuation versus fresh40t transactional gates, sleeping/speech pacing, private expiring diagnosis sessions, preview-only admin story access, genuine saved journal counters, existing UI actions and complete detail paths; reviewed short DE/EN/ES text, coin amounts and indexed percentage placeholders."
     },
     "src/client/java/de/quest/client/ui/QuestArtwork.java": {
-      "sha256": "56c2039a751877c962a51b0359e942e8b95b79b9401022dd10da4e7be097e22f",
-      "note": "Reviewed next actual social-trust thresholds, highest rank at 60, village mandate requires TRUSTED local bond, compound currency stays one wrapped paragraph, artwork full crop remains 768x288. EN/DE/ES natural text and placeholder arguments checked."
+      "sha256": "6b7029a140f82ecb0c4941ccf1bf74d9f92fe45b1bf61de385663db316bae15a",
+      "note": "2.6.5 port: reviewed opt-in loopback-only statistics event hooks and Journal/settings. Default off; no public endpoint configured yet. Quest amounts/rewards/unlocks unchanged. Mine crop and non-pausing aid desk preserve server authority. Target-native APIs retained."
     },
     "src/client/java/de/quest/client/ui/JournalV3Visuals.java": {
       "sha256": "a0f2d7c95550fc902a8695c32041056032ccd2a736894699d0b8fbd6c8171a1f",
@@ -101131,8 +102306,8 @@
       "note": "2026-10-23 journal setup reviewed end-to-end: persistent per-player 2.6 mark also gates migrating players; per-world settings inherit original file values until explicitly changed, server rechecks owner/OP, snapshot and session. Clock sampled before/after change preserves IDs. Client saves only six presentation options retaining unknown/custom properties; tracker/minimap use existing unlocks. DE/EN/ES labels and wrapped complex-option/server-lock tooltips match real modes; no grants or progression changes."
     },
     "src/client/java/de/quest/client/screen/QuestSetupScreen.java": {
-      "sha256": "2d327c205a73ae0017fe913a82847946b6270c85bbf110c034f7dc675cfbb664",
-      "note": "2026-10-23 r55: retained duplicate-blur crash guard. Reviewed server View issued by QuestSetupService/open, session Save and normal minimap unlocks: personal minimap now takes next.minimap like tracker, while notification/sound/speech values remain local. Regression covers conflicting defaults, unchanged Save payload, server update and reconnected View; labels and translations unchanged."
+      "sha256": "3afe81c1eb963f41d74f0429d600e76161eb49f6e50f990ea181a7f846f4b156",
+      "note": "9 Nov 2026 statistics v2: solo source/context review. Existing quest conditions, supplies, rewards and save authority preserved. Hooks observe actual successful transitions or explicit rejected user actions, not progress polling. Read-only opt-in snapshot sends only allowlisted content/control frames. EN/DE/ES consent describes active/session duration buckets, partial/unknown coverage, coarse FPS/difficulty/profile, locally computed return gaps and optional fixed feedback. No free text/identifiers uploaded; local hashed world scope stays local. Adult public-v2/local-v2 opt-in separate from v1, withdrawal clears pending/local measurements. Responsive consent/settings/feedback areas enlarged; actual wrap/click tests accompany this review. No Ingame/visual approval claimed."
     },
     "src/main/java/de/quest/content/item/WeatherTonicItem.java": {
       "sha256": "ca244335673a62e2d82e2531a98cc4a142804d7e5ca462dd906182474c9e2f44",
@@ -101143,8 +102318,8 @@
       "note": "Full-suite regression exposed unnecessary biome read in unrelated resident dialogue: added active personal S3 guard before any biome access, preserving pre-existing NPC speech/story paths. Village evidence now retains first3 identities plus a distinct-biome fourth only if needed; arbitrary same-biome contacts cannot fill a cap and permanently block S3. Costs, authored reward quantities and guest validation unchanged."
     },
     "src/main/java/de/quest/quest/special/FriendsQuestService.java": {
-      "sha256": "5cb3db9cd198c2198f1cc160a15b726f236cd6295e1abaf68ba1af818071a1d1",
-      "note": "29.10.2026: Explicit-key text factory extends Lutte signal and Marius night rules in offer/active/journal. Active lines retain full objective and fallback uses existing friendPaid receipt for replay reward disclosure. No payout path changed."
+      "sha256": "0c847c8f1195bf26b5b72c3a7771ce3e80c43a71ecac919fbe77827cde182372",
+      "note": "9 Nov 2026 statistics v2: solo source/context review. Existing quest conditions, supplies, rewards and save authority preserved. Hooks observe actual successful transitions or explicit rejected user actions, not progress polling. Read-only opt-in snapshot sends only allowlisted content/control frames. EN/DE/ES consent describes active/session duration buckets, partial/unknown coverage, coarse FPS/difficulty/profile, locally computed return gaps and optional fixed feedback. No free text/identifiers uploaded; local hashed world scope stays local. Adult public-v2/local-v2 opt-in separate from v1, withdrawal clears pending/local measurements. Responsive consent/settings/feedback areas enlarged; actual wrap/click tests accompany this review. No Ingame/visual approval claimed."
     },
     "src/main/java/de/quest/quest/special/WeatherTonicState.java": {
       "sha256": "6b7686a35883565fa89559acde42e4e6478552c838b0a22b12c2ec88c7ffafc4",
@@ -101423,8 +102598,8 @@
       "note": "Stable encounter review: natural 1/5 eligible offer roll only; no operator bypass. Accept without supplies; full 2 bread or 3 baked potatoes / 1 iron auto-delivery; 4 emeralds +2 levels; two buttons and icons; existing receipt/pending lifecycle retained. Questmaster completion formatting and native item hover checked. EN/DE/ES rules and material counts read together."
     },
     "src/main/java/de/quest/ambient/EncounterQuestService.java": {
-      "sha256": "77c9d567f1aae5475f256e46a0e2cd4a143a7198c8b22f8b3b49e939203635ec",
-      "note": "Stable encounter review: natural 1/5 eligible offer roll only; no operator bypass. Accept without supplies; full 2 bread or 3 baked potatoes / 1 iron auto-delivery; 4 emeralds +2 levels; two buttons and icons; existing receipt/pending lifecycle retained. Questmaster completion formatting and native item hover checked. EN/DE/ES rules and material counts read together."
+      "sha256": "b12d534f69fc698f4d6d4f1f68e5194f86f7a81187c3f30c59f50411a9057aaf",
+      "note": "9 Nov 2026 statistics v2: solo source/context review. Existing quest conditions, supplies, rewards and save authority preserved. Hooks observe actual successful transitions or explicit rejected user actions, not progress polling. Read-only opt-in snapshot sends only allowlisted content/control frames. EN/DE/ES consent describes active/session duration buckets, partial/unknown coverage, coarse FPS/difficulty/profile, locally computed return gaps and optional fixed feedback. No free text/identifiers uploaded; local hashed world scope stays local. Adult public-v2/local-v2 opt-in separate from v1, withdrawal clears pending/local measurements. Responsive consent/settings/feedback areas enlarged; actual wrap/click tests accompany this review. No Ingame/visual approval claimed."
     },
     "src/main/java/de/quest/network/EncounterQuestPayloads.java": {
       "sha256": "a904155cdac24b7ffe74a59da3a7184bfc9a5e18bd312634373e986867d7f29e",
@@ -101437,6 +102612,34 @@
     "src/main/java/de/quest/mixin/ItemStackCraftMixin.java": {
       "sha256": "945f50d6dd4fcb950764bfd0db0d66f5872cbecbd507120b53cd5a2fdfcd30cd",
       "note": "2.6.4: tracked natural Chicken/Squid supply drops exclude persisted throwers; pickup preserves item identity and actual inserted count. Paper onCraftedBy uses native quantity once; existing active-story/128-block/owner/save gates and 12 supplies + 3 trades remain. Honey success hooks remain before smoke split."
+    },
+    "src/client/java/de/quest/client/config/GameplayStats.java": {
+      "sha256": "5343981f3546b082cb53464b4ccd10661cb57b5d6198afbce51151affcc6c372",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged."
+    },
+    "src/main/java/de/quest/network/GameplayStatsEvent.java": {
+      "sha256": "fe3a22e5243f0ea5fad1405e3e0a4aa791f127b236c1d2bc71c6dac1cf7fe377",
+      "note": "9 Nov 2026 statistics v2: solo source/context review. Existing quest conditions, supplies, rewards and save authority preserved. Hooks observe actual successful transitions or explicit rejected user actions, not progress polling. Read-only opt-in snapshot sends only allowlisted content/control frames. EN/DE/ES consent describes active/session duration buckets, partial/unknown coverage, coarse FPS/difficulty/profile, locally computed return gaps and optional fixed feedback. No free text/identifiers uploaded; local hashed world scope stays local. Adult public-v2/local-v2 opt-in separate from v1, withdrawal clears pending/local measurements. Responsive consent/settings/feedback areas enlarged; actual wrap/click tests accompany this review. No Ingame/visual approval claimed."
+    },
+    "src/client/java/de/quest/client/screen/StatsConsentScreen.java": {
+      "sha256": "1906489e98b4ad5dd19a2393f85696929f19a1a0e94a37fb6578027f2281f6e2",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged."
+    },
+    "src/main/java/de/quest/network/GameplayStatsMetrics.java": {
+      "sha256": "6c03914db783702f2a3e7bef692fce5327dc9be4127fd87daaf784322a4a29c0",
+      "note": "9 Nov 2026 statistics v2: solo source/context review. Existing quest conditions, supplies, rewards and save authority preserved. Hooks observe actual successful transitions or explicit rejected user actions, not progress polling. Read-only opt-in snapshot sends only allowlisted content/control frames. EN/DE/ES consent describes active/session duration buckets, partial/unknown coverage, coarse FPS/difficulty/profile, locally computed return gaps and optional fixed feedback. No free text/identifiers uploaded; local hashed world scope stays local. Adult public-v2/local-v2 opt-in separate from v1, withdrawal clears pending/local measurements. Responsive consent/settings/feedback areas enlarged; actual wrap/click tests accompany this review. No Ingame/visual approval claimed."
+    },
+    "src/client/java/de/quest/client/config/StatsMeasurements.java": {
+      "sha256": "0efd87aed5b07c542c17624e44da005178bcfb64085fa18a61295496a8d65ebb",
+      "note": "9 Nov 2026 statistics v2: solo source/context review. Existing quest conditions, supplies, rewards and save authority preserved. Hooks observe actual successful transitions or explicit rejected user actions, not progress polling. Read-only opt-in snapshot sends only allowlisted content/control frames. EN/DE/ES consent describes active/session duration buckets, partial/unknown coverage, coarse FPS/difficulty/profile, locally computed return gaps and optional fixed feedback. No free text/identifiers uploaded; local hashed world scope stays local. Adult public-v2/local-v2 opt-in separate from v1, withdrawal clears pending/local measurements. Responsive consent/settings/feedback areas enlarged; actual wrap/click tests accompany this review. No Ingame/visual approval claimed."
+    },
+    "src/client/java/de/quest/client/screen/StatsFeedbackScreen.java": {
+      "sha256": "985846a0c1918d9a8777a119088cb691052000b8a0b41b382d42a7e7e3630246",
+      "note": "9 Nov 2026 .6: compact green/red consent plus optional complete notice; right-click reverses target selection. Text is a separate deliberate Send consent, 500 chars/one per UTC day, 30-day private retention, no automatic text upload or device/player identity. Native EditBox retains focus/typing at responsive scales. Dark Journal prompt border. EN/DE/ES text reviewed together; vq@topasmusic.com public contact, owner login unchanged."
+    },
+    "src/main/java/de/quest/network/GameplayStatsSnapshot.java": {
+      "sha256": "911d5ec4e944efee7f00ceabeb9eaab39eb51a81a06a286e96fd5811ba1d413f",
+      "note": "9 Nov 2026 statistics v2: solo source/context review. Existing quest conditions, supplies, rewards and save authority preserved. Hooks observe actual successful transitions or explicit rejected user actions, not progress polling. Read-only opt-in snapshot sends only allowlisted content/control frames. EN/DE/ES consent describes active/session duration buckets, partial/unknown coverage, coarse FPS/difficulty/profile, locally computed return gaps and optional fixed feedback. No free text/identifiers uploaded; local hashed world scope stays local. Adult public-v2/local-v2 opt-in separate from v1, withdrawal clears pending/local measurements. Responsive consent/settings/feedback areas enlarged; actual wrap/click tests accompany this review. No Ingame/visual approval claimed."
     }
   }
 }

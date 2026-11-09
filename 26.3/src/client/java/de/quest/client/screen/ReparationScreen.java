@@ -35,6 +35,7 @@ public final class ReparationScreen extends CompatScreen {
         tab = data.view().reparation() == null ? 0 : 1;
     }
     public UUID session() { return data.session(); }
+    @Override public boolean isPauseScreen() { return false; }
     void selectTourTab(int value) { tab = Math.clamp(value, 0, 2); }
     public void updateData(InteractionPayload next) {
         if (!next.session().equals(data.session()) || next.view().revision() < data.view().revision()) return;

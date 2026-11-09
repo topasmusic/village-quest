@@ -57,3 +57,15 @@ tasks.register('verifyQuality') {
     description = 'Offline language/context gate plus all native unit, layout and navigation regressions.'
     dependsOn tasks.named('test'), tasks.named('validateLocalization')
 }
+
+tasks.register('verifyStatsCollector') {
+    group = 'verification'
+    description = 'Loopback HTTP and SQLite tests for the fixed anonymous statistics catalog.'
+    doLast {
+        processes.execOperations.exec {
+            workingDir new File(projectDir, 'stats')
+            commandLine pythonCommand.get(), '-B', '-m', 'unittest', '-v', 'test_stats.py'
+        }
+    }
+}
+tasks.named('verifyQuality').configure { dependsOn tasks.named('verifyStatsCollector') }

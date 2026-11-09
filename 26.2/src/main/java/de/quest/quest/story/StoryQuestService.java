@@ -205,16 +205,21 @@ public final class StoryQuestService {
 
         if (de.quest.shrine.VillageIntroRequestService.blocksActions(world, player.getUUID())) return false;
         PlayerQuestData data = data(world, player.getUUID());
-        if (!de.quest.questmaster.QuestMasterProgressionService.isStoryCategoryUnlocked(world, player.getUUID())) return false;
+        if (!de.quest.questmaster.QuestMasterProgressionService.isStoryCategoryUnlocked(world, player.getUUID())) {
+            de.quest.network.GameplayStatsEvent.send(player,"reject","acceptance","prerequisite");return false;
+        }
         StoryLane lane = laneFor(arcType);
         if (!data.storyLanesWritable() || data.getActiveStoryArc(lane) != null
                 || isCompleted(world, player.getUUID(), arcType)
                 || lane == StoryLane.CORE && isStoryCooldownActive(world, player.getUUID())) {
+            de.quest.network.GameplayStatsEvent.send(player,"reject","acceptance",
+                    lane == StoryLane.CORE && isStoryCooldownActive(world,player.getUUID()) ? "cooldown" : "unavailable");
             return false;
         }
 
         StoryArcDefinition arc = definition(arcType);
         if (arc == null || !arc.isUnlocked(world, player.getUUID())) {
+            de.quest.network.GameplayStatsEvent.send(player,"reject","acceptance","prerequisite");
             return false;
         }
 
@@ -224,6 +229,7 @@ public final class StoryQuestService {
             return false;
         }
         if (!chapter.canAccept(world, player)) {
+            de.quest.network.GameplayStatsEvent.send(player,"reject","acceptance","prerequisite");
             Component blocked = chapter.acceptBlockedMessage(world, player);
             if (blocked != null) {
                 player.sendSystemMessage(blocked, false);
@@ -241,6 +247,7 @@ public final class StoryQuestService {
         chapter.onAccepted(world, player);
         QuestPartyService.onStoryQuestAccepted(world, player, arcType, chapterIndex, chapter);
         player.sendSystemMessage(Texts.acceptedTitle(chapter.title(), ChatFormatting.GOLD), false);
+        de.quest.network.GameplayStatsEvent.send(player, "story", "started", arcType.id() + "_" + (chapterIndex + 1));
         QuestSoundFeedback.playAccepted(world, player);
         QuestTrackerService.enableForAcceptedQuest(world, player);
         refreshQuestUi(world, player.getUUID());
@@ -263,6 +270,7 @@ public final class StoryQuestService {
         boolean requirementsConsumed = QuestPartyService.storyTurnInRequirementsConsumed(
                 world, player.getUUID(), arcType, chapterIndex);
         if (!requirementsConsumed && !chapter.isComplete(world, player)) {
+            de.quest.network.GameplayStatsEvent.send(player,"reject","turnin","materials");
             Component blocked = chapter.claimBlockedMessage(world, player);
             if (blocked != null) {
                 player.sendSystemMessage(blocked, false);
@@ -270,6 +278,7 @@ public final class StoryQuestService {
             return false;
         }
         if (!requirementsConsumed && !chapter.consumeCompletionRequirements(world, player)) {
+            de.quest.network.GameplayStatsEvent.send(player,"reject","turnin","materials");
             return false;
         }
         if (!requirementsConsumed && shared) {
@@ -1011,6 +1020,7 @@ public final class StoryQuestService {
         else data.setTradeRouteFlag(readyFlagKey(arcType, chapterIndex), false);
         data.setActiveStoryArc(lane, null);
         int nextChapter = chapterIndex + 1;
+        boolean advanced = data.getStoryChapterProgress(arcType.id()) < nextChapter;
         data.setStoryChapterProgress(arcType.id(), nextChapter);
         boolean completedArc = nextChapter >= definition(arcType).chapterCount();
         if (completedArc) {
@@ -1022,6 +1032,7 @@ public final class StoryQuestService {
         QuestState.get(world.getServer()).setDirty();
         ServerPlayer player = world.getServer().getPlayerList().getPlayer(playerId);
         if (player != null) {
+            if (advanced) de.quest.network.GameplayStatsEvent.send(player, "story", "completed", arcType.id() + "_" + nextChapter);
             syncDerivedProgression(world, player);
         } else if (completedArc && lane == StoryLane.CORE) {
             armStoryCooldownIfNeeded(world, playerId);

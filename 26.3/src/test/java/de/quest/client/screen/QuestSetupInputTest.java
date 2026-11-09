@@ -66,9 +66,9 @@ final class QuestSetupInputTest {
         }
     }
     private static void click(QuestSetupScreen screen, int x, int y) {
-        double scale = 1 / screen.responsiveDrag(1, 560, 344);
+        double scale = 1 / screen.responsiveDrag(1, 560, 398);
         double mx = screen.width / 2.0 + (x - 280) * scale;
-        double my = screen.height / 2.0 + (y - 172) * scale;
+        double my = screen.height / 2.0 + ((screen.height - 398) / 2 + y - screen.height / 2.0) * scale;
         screen.mouseClicked(new MouseButtonEvent(mx, my, new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT, 0)), false);
     }
 }

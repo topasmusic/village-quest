@@ -203,6 +203,7 @@ public final class TradeGuildService {
                 TradeRouteData.status(data, routeIndex) == TradeRouteStatus.DANGEROUS);
         data.setTradeRouteInt(CONTRACT_QUOTE, quote);
         data.setTradeRouteInt(CONTRACT_TYPE, type.ordinal() + 1);
+        de.quest.network.GameplayStatsEvent.send(player,"quest","started","freight_"+type.key());
         data.setTradeRouteString("guild_contract_instance",UUID.randomUUID().toString());
         data.setTradeRouteInt(CONTRACT_ROUTE, routeIndex + 1);
         data.setTradeRouteInt(CONTRACT_DUE_DAY, (int) TimeUtil.currentDay() + 3);
@@ -248,6 +249,7 @@ public final class TradeGuildService {
             return false;
         }
         if (!consume(player, type)) {
+            de.quest.network.GameplayStatsEvent.send(player,"reject","freight","materials");
             player.sendSystemMessage(Component.translatable("message.village-quest.trade_guild.contract_missing",
                     type.amount(), new ItemStack(type.item()).getHoverName()).withStyle(ChatFormatting.RED), false);
             return false;
@@ -348,6 +350,7 @@ public final class TradeGuildService {
         de.quest.kingdom.KingdomStoryService.freightDelivered(world,ownerId,routeIndex,data.getTradeRouteInt(CONTRACTS_COMPLETED));
         ServerPlayer owner = world.getServer().getPlayerList().getPlayer(ownerId);
         if (owner != null) {
+            de.quest.network.GameplayStatsEvent.send(owner,"quest","completed","freight_"+type.key());
             owner.sendSystemMessage(Component.translatable("message.village-quest.trade_guild.contract_complete",
                     type.title(), CurrencyService.formatDelta(reward)).withStyle(ChatFormatting.GREEN), false);
         }
@@ -363,6 +366,7 @@ public final class TradeGuildService {
             if (!refundSuppliedFreight(world, ownerId, data, active)) return;
             ServerPlayer owner = world.getServer().getPlayerList().getPlayer(ownerId);
             clearContract(data);
+            if (owner != null) de.quest.network.GameplayStatsEvent.send(owner,"quest","abandoned","freight_"+active.key());
             if (owner != null) owner.sendSystemMessage(Component.translatable(
                     "message.village-quest.trade_guild.contract_route_removed").withStyle(ChatFormatting.RED), false);
         } else if (assigned > removedRouteIndex) {
@@ -412,7 +416,7 @@ public final class TradeGuildService {
                 .withStyle(ChatFormatting.GRAY);
     }
 
-    private static TradeContractType activeContract(ServerLevel world, UUID playerId) {
+    public static TradeContractType activeContract(ServerLevel world, UUID playerId) {
         int stored = data(world, playerId).getTradeRouteInt(CONTRACT_TYPE) - 1;
         TradeContractType[] values = TradeContractType.values();
         return stored >= 0 && stored < values.length ? values[stored] : null;
@@ -456,6 +460,7 @@ public final class TradeGuildService {
         clearContract(data);
         QuestState.get(world.getServer()).setDirty();
         ServerPlayer owner = world.getServer().getPlayerList().getPlayer(ownerId);
+        if (owner != null && type != null) de.quest.network.GameplayStatsEvent.send(owner,"quest","abandoned","freight_"+type.key());
         if (owner != null) owner.sendSystemMessage(Component.translatable("message.village-quest.trade_guild.contract_expired")
                 .withStyle(ChatFormatting.RED), false);
     }

@@ -100,6 +100,7 @@ public final class ShepherdFluteQuestService {
 
         data.resetShepherdFluteQuest();
         data.setShepherdFluteQuestStage(RelicQuestStage.ACTIVE);
+        de.quest.network.GameplayStatsEvent.send(player, "quest", "started", "special_shepherd_flute");
         clearTamingFlags(data);
         markDirty(world);
         player.sendSystemMessage(Texts.acceptedTitle(title(), ChatFormatting.AQUA), false);
@@ -344,6 +345,7 @@ public final class ShepherdFluteQuestService {
                 new ItemStack(ModItems.SHEPHERD_FLUTE)));
         data.setPendingSpecialOfferKind(null);
         data.setShepherdFluteQuestStage(RelicQuestStage.COMPLETED);
+        de.quest.network.GameplayStatsEvent.send(player, "quest", "completed", "special_shepherd_flute");
         data.setShepherdFluteBreedProgress(BREED_TARGET);
         data.setMilestoneFlag(TAME_WOLF_FLAG, true);
         data.setMilestoneFlag(TAME_CAT_FLAG, true);

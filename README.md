@@ -20,7 +20,7 @@ Meet memorable characters, uncover stories, help villages grow, and shape a worl
 
 Current stable releases:
 
-- `2.6.4 — Living Kingdoms` for Minecraft `1.21.11`, `26.2` and `26.3`.
+- `2.6.5 — Living Kingdoms` for Minecraft `1.21.11`, `26.2` and `26.3`.
 - `2.1.1 — Homesteads & Wayfinding` for Minecraft `26.1.2`.
 
 **Living Kingdoms is now available on Minecraft 1.21.11.** Build thriving
@@ -32,9 +32,9 @@ Choose the download for your Minecraft version. Install the matching Fabric Load
 
 | Minecraft | Village Quest | Fabric Loader | Fabric API | Java |
 | --- | --- | --- | --- | --- |
-| 1.21.11 | 2.6.4 | 0.19.2+ | 0.141.3+1.21.11 | 21 |
-| 26.2 | 2.6.4 | 0.19.3+ | 0.153.0+26.2 | 25 |
-| 26.3 | 2.6.4 | 0.19.5+ | 0.161.0+26.3 | 25 |
+| 1.21.11 | 2.6.5 | 0.19.2+ | 0.141.3+1.21.11 | 21 |
+| 26.2 | 2.6.5 | 0.19.3+ | 0.153.0+26.2 | 25 |
+| 26.3 | 2.6.5 | 0.19.5+ | 0.161.0+26.3 | 25 |
 Install Village Quest and Fabric API on both client and server. Back up existing
 worlds before updating. Open `/vq questmaster` to begin, then use `/vq journal`.
 
@@ -42,7 +42,7 @@ worlds before updating. Open `/vq questmaster` to begin, then use `/vq journal`.
 
 - [Getting started](26.3/docs/wiki/getting-started.md) · [Wiki](26.3/docs/wiki/README.md) · [FAQ](26.3/docs/wiki/faq.md)
 - [Version support](VERSION_SUPPORT.md) · [Report an issue](https://github.com/topasmusic/village-quest/issues)
-- Downloads for [Minecraft 1.21.11](https://github.com/topasmusic/village-quest/releases/tag/v2.6.4-mc1.21.11), [26.2](https://github.com/topasmusic/village-quest/releases/tag/v2.6.4-mc26.2), and [26.3](https://github.com/topasmusic/village-quest/releases/tag/v2.6.4-mc26.3)
+- Downloads for [Minecraft 1.21.11](https://github.com/topasmusic/village-quest/releases/tag/v2.6.5-mc1.21.11), [26.2](https://github.com/topasmusic/village-quest/releases/tag/v2.6.5-mc26.2), and [26.3](https://github.com/topasmusic/village-quest/releases/tag/v2.6.5-mc26.3)
 
 ## Licensing
 

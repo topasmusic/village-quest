@@ -37,6 +37,7 @@ public enum TradeContractType {
     }
 
     public Item item() { return item; }
+    public String key() { return key; }
     public int amount() { return amount; }
     public int reward() { return de.quest.economy.DeliveryEconomy.freightBase(item, amount, requiredGuildRank); }
     /** Existing accepted saves predate stored quotes; honor their original formula. */

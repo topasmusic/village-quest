@@ -32,7 +32,7 @@ public final class VanillaRewardService {
         var state = state(world, player.getUUID());
         var existing = state.snapshot(slot, identity);
         if (!existing.isEmpty()) return state.writable() && !existing.getBooleanOr("redeemed", true);
-        if (!state.canAccept()) { player.sendSystemMessage(Component.translatable(state.choiceCount() >= PlayerRewardState.MAX_OPEN_CHOICES
+        if (!state.canAccept()) { de.quest.network.GameplayStatsEvent.send(player,"reject","acceptance",state.choiceCount() >= PlayerRewardState.MAX_OPEN_CHOICES ? "capacity" : "unavailable"); player.sendSystemMessage(Component.translatable(state.choiceCount() >= PlayerRewardState.MAX_OPEN_CHOICES
                 ? "reward.village-quest.backlog_full" : "reward.village-quest.unavailable", PlayerRewardState.MAX_OPEN_CHOICES), false); return false; }
         var snapshot = new CompoundTag(); snapshot.putString("key", key); snapshot.putInt("version", 1);
         var choices = new ListTag();

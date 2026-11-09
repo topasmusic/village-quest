@@ -3,6 +3,7 @@ package de.quest.client.screen;
 import com.mojang.blaze3d.platform.InputConstants;
 import de.quest.client.compat.GuiGraphics;
 import de.quest.client.config.VillageQuestClientConfig;
+import de.quest.client.config.GameplayStats;
 import de.quest.client.ui.VillageUiTheme;
 import de.quest.config.VillageQuestServerConfig.AdventureProfile;
 import de.quest.config.VillageQuestServerConfig.CaravanVisualMode;
@@ -17,7 +18,7 @@ import net.minecraft.network.chat.Component;
 
 /** Small journal setup board. World controls always reflect a server-issued session. */
 public final class QuestSetupScreen extends CompatScreen {
-    private static final int W = 560, H = 344, INK = 0xFF493721;
+    private static final int W = 560, H = GameplayStats.available() ? 398 : 344, INK = 0xFF493721;
     private QuestSetupPayloads.View view;
     private WorldQuestSettings settings;
     private final boolean[] personal = new boolean[6];
@@ -52,7 +53,7 @@ public final class QuestSetupScreen extends CompatScreen {
             g.fill(x, y, x + W, y + H, 0xFF604125);
             VillageUiTheme.drawPaper(g, x + 3, y + 3, W - 6, H - 6);
             VillageUiTheme.drawStringScaled(g, font, text(view.firstRun() ? "title" : "settings"), x + 18, y + 14, INK, 1.2f);
-            button(g, x + W - 33, y + 9, 22, 20, "×", !pending, mx, my, this::onClose);
+            button(g, x + W - 33, y + 9, 22, 20, "Ã—", !pending, mx, my, this::onClose);
             VillageUiTheme.drawWrappedScaled(g, font, text(view.firstRun() ? "intro" : "edit_intro"), x + 18, y + 37, W - 40, INK, .8f, 3);
             VillageUiTheme.drawStringScaled(g, font, text("world"), x + 18, y + 76, INK, .95f);
             VillageUiTheme.drawStringScaled(g, font, text("personal"), x + 294, y + 76, INK, .95f);
@@ -80,12 +81,32 @@ public final class QuestSetupScreen extends CompatScreen {
                         text(toggles[i]) + ": " + text(personal[i] ? "on" : "off"), !pending, mx, my,
                         () -> personal[index] = !personal[index]);
             }
+            int extra = GameplayStats.available() ? 54 : 0;
+            if (GameplayStats.available()) {
+                String choice = Component.translatable(GameplayStats.enabled()
+                        ? "screen.village-quest.stats.yes" : "screen.village-quest.stats.no").getString();
+                button(g, x + 294, y + 260, 248, 23,
+                        Component.translatable("screen.village-quest.stats.setting", choice).getString(), !pending, mx, my, () -> {
+                            if (GameplayStats.enabled()) {
+                                if (!GameplayStats.choose(false)) localError = text("local_error");
+                            } else minecraft.gui.setScreen(new StatsConsentScreen(this));
+                        });
+                if (mx >= x + 294 && mx < x + 542 && my >= y + 260 && my < y + 283) {
+                    g.setTooltipForNextFrame(font, List.of(
+                            Component.translatable("screen.village-quest.stats.tooltip.versions"),
+                            Component.translatable("screen.village-quest.stats.tooltip.events"),
+                            Component.translatable(GameplayStats.localMode() ? "screen.village-quest.stats.tooltip.local" : "screen.village-quest.stats.tooltip.public")), mx, my);
+                }
+            }
+            if (GameplayStats.available()) button(g,x+294,y+287,248,23,
+                    Component.translatable("screen.village-quest.stats.feedback.open").getString(), !pending, mx,my,
+                    () -> minecraft.gui.setScreen(new StatsFeedbackScreen(this)));
             String status = !localError.isEmpty() ? localError : view.status() > 0 ? text("error." + view.status())
                     : pending ? text("saving") : text(view.editable() ? "world_scope" : "locked");
-            VillageUiTheme.drawWrappedScaled(g, font, status, x + 18, y + 269, W - 36,
+            VillageUiTheme.drawWrappedScaled(g, font, status, x + 18, y + 269 + extra, W - 36,
                     !localError.isEmpty() || view.status() > 0 ? 0xFF9A372C : INK, .78f, 3);
-            button(g, x + 18, y + 310, 258, 23, text("defaults"), !pending, mx, my, this::recommended);
-            button(g, x + 289, y + 310, 253, 23, text("save"), !pending, mx, my, this::save);
+            button(g, x + 18, y + 310 + extra, 258, 23, text("defaults"), !pending, mx, my, this::recommended);
+            button(g, x + 289, y + 310 + extra, 253, 23, text("save"), !pending, mx, my, this::save);
         } finally { endResponsivePanel(g, scale); }
     }
     private void cycle(int index) {

@@ -2,6 +2,13 @@
 
 Village Quest uses a single-active-line development policy.
 
+## 2.6.5 — Living Kingdoms
+
+Village Quest **2.6.5** supports Minecraft **1.21.11, 26.2 and 26.3**. It fixes the
+Making amends desk and mine illustration, and adds optional gameplay statistics
+and feedback. See the [installation table](README.md#installation) for matching
+client and server downloads.
+
 ## 2.6.4 — Living Kingdoms
 
 Village Quest **2.6.4** is available for Minecraft **1.21.11, 26.2 and 26.3**.
@@ -82,7 +89,7 @@ The release contains the same intended features, fixes, documentation, and resou
 ## Current support policy
 
 - Minecraft `26.3` is the only active content-development line.
-- Minecraft `26.2` remains available as the maintenance line on Stable 2.6.4 through the explicitly authorized content port.
+- Minecraft `26.2` remains available as the maintenance line on Stable 2.6.5 through the explicitly authorized content port.
 - New quests, systems, items, interfaces, balancing passes, visual redesigns, and other content updates are not automatically backported to previous lines.
 - The released `2.1.x` builds for older Minecraft versions remain available for download.
 - Older lines may receive deliberately scoped maintenance releases for confirmed bug fixes, crash prevention, save-safety fixes, severe exploits, and meaningful performance improvements.

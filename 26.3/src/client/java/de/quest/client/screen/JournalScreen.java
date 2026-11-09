@@ -1,6 +1,7 @@
 package de.quest.client.screen;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import de.quest.client.config.GameplayStats;
 import de.quest.VillageQuest;
 import de.quest.client.ui.InventoryJournalTutorialState;
 import de.quest.client.ui.QuestArtwork;
@@ -43,6 +44,8 @@ public class JournalScreen extends CompatScreen {
             VillageQuest.MOD_ID, "textures/gui/guild_trust_roster.png");
     private static final int WINDOW_WIDTH = 520;
     private static final int WINDOW_HEIGHT = 294;
+    private boolean statsOffer;
+    private static final int STATS_WIDTH = 284, STATS_HEIGHT = 104;
     private static final int SETTINGS_X = 4, SETTINGS_Y = 4, SETTINGS_SIZE = 20;
     private static final Identifier SETTINGS_GEAR = Identifier.fromNamespaceAndPath(
             "village-quest", "textures/gui/ui/v3/settings_gear.png");
@@ -310,6 +313,7 @@ public class JournalScreen extends CompatScreen {
 
     @Override
     protected void init() {
+        if (!UiTestTour.active() && GameplayStats.offer()) statsOffer = true;
         this.closeNotified = false;
         pendingCancelAction = -1;
         this.navigating = false;
@@ -383,8 +387,28 @@ public class JournalScreen extends CompatScreen {
                         (int) Math.round(Math.sin(System.currentTimeMillis() / 180.0d) * 2.0d)
                 );
             }
+            if (statsOffer) drawStatsOffer(graphics, uiMouseX, uiMouseY);
         } finally {
             endResponsivePanel(graphics, panelScale);
+        }
+    }
+
+    private void drawStatsOffer(GuiGraphics g, int mx, int my) {
+        int x = (width - STATS_WIDTH) / 2, y = (height - STATS_HEIGHT) / 2;
+        VillageUiTheme.drawPanelShadow(g, x, y, STATS_WIDTH, STATS_HEIGHT);
+        VillageUiTheme.drawPaper(g, x, y, STATS_WIDTH, STATS_HEIGHT);
+        g.fill(x-2,y-2,x+STATS_WIDTH+2,y+2,0xFF604125);
+        g.fill(x-2,y+STATS_HEIGHT-2,x+STATS_WIDTH+2,y+STATS_HEIGHT+2,0xFF604125);
+        g.fill(x-2,y+2,x+2,y+STATS_HEIGHT-2,0xFF604125);
+        g.fill(x+STATS_WIDTH-2,y+2,x+STATS_WIDTH+2,y+STATS_HEIGHT-2,0xFF604125);
+        VillageUiTheme.drawStringScaled(g, font, Component.translatable("screen.village-quest.stats.title").getString(),
+                x + 12, y + 10, INK, 1);
+        VillageUiTheme.drawWrappedScaled(g, font, Component.translatable(GameplayStats.localMode() ? "screen.village-quest.stats.description.local" : "screen.village-quest.stats.description").getString(),
+                x + 12, y + 26, STATS_WIDTH - 24, INK, .85f, 5);
+        for (int i = 0; i < 2; i++) {
+            int bx = x + 12 + i * 132;
+            String label = Component.translatable(i == 0 ? "screen.village-quest.stats.review" : "screen.village-quest.stats.no").getString();
+            VillageUiTheme.drawButton(g, font, bx, y + 75, 128, 21, label, true, within(mx, my, bx, y + 75, 128, 21), false);
         }
     }
 
@@ -1308,6 +1332,20 @@ public class JournalScreen extends CompatScreen {
         int top = (height - WINDOW_HEIGHT) / 2;
         int mouseX = responsiveMouseX(click.x(), WINDOW_WIDTH, WINDOW_HEIGHT);
         int mouseY = responsiveMouseY(click.y(), WINDOW_WIDTH, WINDOW_HEIGHT);
+        if (statsOffer) {
+            int x = (width - STATS_WIDTH) / 2, y = (height - STATS_HEIGHT) / 2;
+            if (within(mouseX, mouseY, x + 12, y + 75, 128, 21)) {
+                statsOffer = false;
+                minecraft.gui.setScreen(new StatsConsentScreen(this));
+                return true;
+            }
+            if (within(mouseX, mouseY, x + 144, y + 75, 128, 21)) {
+                statsOffer = false;
+                return true;
+            }
+            if (within(mouseX, mouseY, x, y, STATS_WIDTH, STATS_HEIGHT)) return true;
+            statsOffer = false;
+        }
         if(within(mouseX,mouseY,left+WINDOW_WIDTH-25,top+3,20,20)) {onClose();return true;}
         if (!UiTestTour.active() && within(mouseX,mouseY,left+SETTINGS_X,top+SETTINGS_Y,SETTINGS_SIZE,SETTINGS_SIZE)
                 && ClientPlayNetworking.canSend(de.quest.network.QuestSetupPayloads.Open.ID)) {

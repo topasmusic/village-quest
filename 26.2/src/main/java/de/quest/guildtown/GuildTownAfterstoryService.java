@@ -101,6 +101,7 @@ public final class GuildTownAfterstoryService {
             VillageRequestType request = offer(village.type(), currentNeed(village, connected),
                     village.condition(), village.index());
             if (!GuildTownAfterstoryLedger.begin(data, village.index(), request)) return false;
+            de.quest.network.GameplayStatsEvent.send(player,"quest","started","afterstory_"+village.type().key());
             QuestState.get(world.getServer()).setDirty();
             player.sendSystemMessage(Component.translatable("message.village-quest.guild_town.afterstory.accepted")
                     .withStyle(ChatFormatting.AQUA), false);
@@ -116,6 +117,7 @@ public final class GuildTownAfterstoryService {
             return false;
         }
         if (!GuildTownAfterstoryLedger.complete(data, village.index())) return false;
+        de.quest.network.GameplayStatsEvent.send(player,"quest","completed","afterstory_"+village.type().key());
         var socialVillage = new VillageLifeState.VillageKey(world.dimension().identifier().toString(), village.x(), village.z());
         de.quest.reputation.SocialReputationService.recordNamedBenefit(world.getServer(), player.getUUID(),
                 de.quest.reputation.SocialReputationRules.BenefitKind.AFTERSTORY,

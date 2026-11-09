@@ -81,6 +81,30 @@ final class QuestArtworkTest {
         }
     }
 
+    @Test void coalQuestMineArtworkHasNoPaleMatteAlongAnyContentEdge() throws IOException {
+        assertEquals(QuestArtwork.Motif.MINE, motif("daily.coal"));
+        for (var texture : List.of(QuestArtwork.Motif.MINE.smallTexture(), QuestArtwork.Motif.MINE.largeTexture())) {
+            var area = QuestArtwork.contentArea(texture);
+            var image = load(texture.getPath());
+            assertTrue(area.x() >= 0 && area.y() >= 0);
+            assertTrue(area.x() + area.width() <= image.getWidth());
+            assertTrue(area.y() + area.height() <= image.getHeight());
+            for (int edge = 0; edge < 4; edge++) {
+                int length = edge < 2 ? area.width() : area.height();
+                int matte = 0;
+                for (int i = 0; i < length; i++) {
+                    int x = area.x() + (edge < 2 ? i : edge == 2 ? 0 : area.width() - 1);
+                    int y = area.y() + (edge >= 2 ? i : edge == 0 ? 0 : area.height() - 1);
+                    int rgb = image.getRGB(x, y);
+                    int r = (rgb >>> 16) & 255, g = (rgb >>> 8) & 255, b = rgb & 255;
+                    // The authored pale backing is approximately (250, 240, 220).
+                    if (r >= 240 && g >= 230 && b >= 205) matte++;
+                }
+                assertTrue(matte <= length * .05, texture + " edge " + edge + " still contains pale matting");
+            }
+        }
+    }
+
     private static QuestArtwork.Motif motif(String suffix) {
         return QuestArtwork.forComponent(Component.translatable(
                 "quest.village-quest." + suffix + ".title")).orElseThrow();

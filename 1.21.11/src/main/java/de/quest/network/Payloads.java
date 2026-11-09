@@ -58,6 +58,8 @@ public final class Payloads {
         PayloadTypeRegistry.playS2C().register(
                 VillageNetworkPayloads.CaravanMasterPayload.ID, VillageNetworkPayloads.CaravanMasterPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(GuildPathPayload.ID, GuildPathPayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(GameplayStatsEvent.ID, GameplayStatsEvent.CODEC);
+        PayloadTypeRegistry.playC2S().register(GameplayStatsEvent.ID, GameplayStatsEvent.CODEC);
         PayloadTypeRegistry.playS2C().register(QuestFeedbackPayload.ID, QuestFeedbackPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(JournalActionPayload.ID, JournalActionPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(PilgrimTradeActionPayload.ID, PilgrimTradeActionPayload.CODEC);

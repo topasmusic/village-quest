@@ -371,6 +371,7 @@ public final class SurveyorCompassQuestService {
 
         data.resetSurveyorCompassQuest();
         data.setSurveyorCompassQuestStage(RelicQuestStage.ACTIVE);
+        de.quest.network.GameplayStatsEvent.send(player, "quest", "started", "special_surveyor_compass");
         data.setSurveyorCompassPickaxeBaseline(DailyQuestService.getCraftedStat(player, Items.NETHERITE_PICKAXE));
         markDirty(world);
         player.sendSystemMessage(Texts.acceptedTitle(title(), ChatFormatting.GOLD), false);
@@ -1370,6 +1371,7 @@ public final class SurveyorCompassQuestService {
         }
         data.setPendingSpecialOfferKind(null);
         data.setSurveyorCompassQuestStage(RelicQuestStage.COMPLETED);
+        de.quest.network.GameplayStatsEvent.send(player, "quest", "completed", "special_surveyor_compass");
         data.setSurveyorCompassRedstoneProgress(REDSTONE_TARGET);
         data.setSurveyorCompassLapisProgress(LAPIS_TARGET);
         data.setSurveyorCompassCraftedProgress(CRAFTED_TARGET);

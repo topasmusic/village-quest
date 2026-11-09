@@ -128,6 +128,7 @@ public final class ApiaristSmokerQuestService {
 
         data.resetApiaristSmokerQuest();
         data.setApiaristSmokerQuestStage(RelicQuestStage.ACTIVE);
+        de.quest.network.GameplayStatsEvent.send(player, "quest", "started", "special_apiarist_smoker");
         data.setApiaristSmokerHoneyBlockBaseline(DailyQuestService.getCraftedStat(player, Items.HONEY_BLOCK));
         markDirty(world);
         player.sendSystemMessage(Texts.acceptedTitle(title(), ChatFormatting.GREEN), false);
@@ -453,6 +454,7 @@ public final class ApiaristSmokerQuestService {
                 new ItemStack(ModItems.APIARISTS_SMOKER)));
         data.setPendingSpecialOfferKind(null);
         data.setApiaristSmokerQuestStage(RelicQuestStage.COMPLETED);
+        de.quest.network.GameplayStatsEvent.send(player, "quest", "completed", "special_apiarist_smoker");
         data.setApiaristSmokerHoneyProgress(HONEY_WORK_TARGET);
         data.setApiaristSmokerCombProgress(COMB_TARGET);
         data.setApiaristSmokerBeeBreedProgress(BEE_BREED_TARGET);

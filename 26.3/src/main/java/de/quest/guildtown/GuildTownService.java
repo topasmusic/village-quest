@@ -367,6 +367,7 @@ public final class GuildTownService {
         QuestState.get(world.getServer()).setDirty();
         GuildTownProgress.addPersonalChronicle(data, identity(player.getUUID(), village),
                 "story.accepted." + story.key(), false, world.getGameTime());
+        de.quest.network.GameplayStatsEvent.send(player,"quest","started","town_" + story.key());
         player.sendSystemMessage(Component.translatable("message.village-quest.guild_town.story.accepted",
                 story.title(), Component.translatable("quest.village-quest.guild_town.variant."
                         + (variant == GuildTownProgress.RECOVERY ? "recovery" : "preventive")))
@@ -437,6 +438,7 @@ public final class GuildTownService {
                 de.quest.reputation.SocialReputationRules.BenefitKind.STORY,
                 "local:" + story.key() + ":" + socialVillage, java.util.List.of(socialVillage));
         QuestState.get(world.getServer()).setDirty();
+        de.quest.network.GameplayStatsEvent.send(player,"quest","completed","town_" + story.key());
         player.sendSystemMessage(Component.translatable("message.village-quest.guild_town.story.completed", story.title())
                 .withStyle(ChatFormatting.GREEN), false);
         refresh(world, player);
@@ -452,6 +454,8 @@ public final class GuildTownService {
             return fail(player, "message.village-quest.guild_town.story.pause_failed");
         }
         QuestState.get(world.getServer()).setDirty();
+        for (var statsStory : GuildTownStory.values()) if (statsStory.id()==GuildTownProgress.activeStoryId(data))
+            de.quest.network.GameplayStatsEvent.send(player,"quest",paused ? "paused" : "resumed","town_"+statsStory.key());
         player.sendSystemMessage(Component.translatable(paused
                 ? "message.village-quest.guild_town.story.paused"
                 : "message.village-quest.guild_town.story.resumed").withStyle(ChatFormatting.GRAY), false);
@@ -499,6 +503,7 @@ public final class GuildTownService {
         data.setMilestoneFlag("reward.new_commission", true);
         Component ownerLabel = owner.equals(player.getUUID()) ? player.getName()
                 : networkOwnerName == null ? Component.literal(owner.toString()) : networkOwnerName;
+        de.quest.network.GameplayStatsEvent.send(player,"quest","started","commission_" + commission.key());
         player.sendSystemMessage(Component.translatable("message.village-quest.guild_town.commission.accepted",
                 commission.title(), ownerLabel)
                 .withStyle(ChatFormatting.GREEN), false);
@@ -522,6 +527,8 @@ public final class GuildTownService {
         }
         if (!GuildTownProgress.setCommissionPaused(data, paused)) return fail(player, "message.village-quest.guild_town.commission.pause_failed");
         QuestState.get(world.getServer()).setDirty();
+        var statsCommission=GuildTownProgress.activeCommission(data);
+        if (statsCommission != null) de.quest.network.GameplayStatsEvent.send(player,"quest",paused ? "paused" : "resumed","commission_"+statsCommission.key());
         player.sendSystemMessage(Component.translatable(paused
                 ? "message.village-quest.guild_town.commission.paused"
                 : "message.village-quest.guild_town.commission.resumed").withStyle(ChatFormatting.GRAY), false);
@@ -539,6 +546,7 @@ public final class GuildTownService {
             return fail(player, "message.village-quest.guild_town.commission.abandon_failed");
         }
         QuestState.get(world.getServer()).setDirty();
+        de.quest.network.GameplayStatsEvent.send(player,"quest","abandoned","commission_" + commission.key());
         player.sendSystemMessage(Component.translatable(
                 "message.village-quest.guild_town.commission.abandoned", commission.title()
         ).withStyle(ChatFormatting.YELLOW), false);
@@ -585,6 +593,7 @@ public final class GuildTownService {
         QuestState.get(world.getServer()).setDirty();
         if (extraCommissionEligible) de.quest.reward.VanillaRewardService.firstBonus(world, player, "commission:" + commission.key());
         data.setMilestoneFlag("reward.new_commission", false);
+        de.quest.network.GameplayStatsEvent.send(player,"quest","completed","commission_" + commission.key());
         player.sendSystemMessage(Component.translatable("message.village-quest.guild_town.commission.completed",
                 commission.title()).withStyle(ChatFormatting.GREEN), false);
         refresh(world, player);
@@ -595,6 +604,7 @@ public final class GuildTownService {
         VillageGuildState.GuildSnapshot guild = VillageGuildService.guild(world, player.getUUID());
         if (guild == null || !guild.role(player.getUUID()).canChooseProject()) return fail(player, "message.village-quest.guild_town.project.denied");
         if (!GuildTownSharedState.get(world.getServer()).accept(guild.id(), project)) return fail(player, "message.village-quest.guild_town.project.accept_failed");
+        de.quest.network.GameplayStatsEvent.send(player,"quest","started","shared_" + project.key());
         player.sendSystemMessage(Component.translatable("message.village-quest.guild_town.project.accepted", project.title())
                 .withStyle(ChatFormatting.GREEN), false);
         return 1;
@@ -626,6 +636,7 @@ public final class GuildTownService {
         GuildTownSharedState.ClaimResult claim = state.claimForParticipant(
                 player.getUUID(), guild == null ? null : guild.id());
         if (claim == null) return fail(player, "message.village-quest.guild_town.project.claim_failed");
+        de.quest.network.GameplayStatsEvent.send(player,"quest","completed","shared_"+claim.type().key());
         giveNamed(player, vanillaItem("light_blue_banner", Items.SHIELD), "item.village-quest.guild_project_standard",
                 "item.village-quest.guild_project_standard.lore", claim.type().title());
         player.sendSystemMessage(Component.translatable("message.village-quest.guild_town.project.claimed")
@@ -1438,17 +1449,21 @@ public final class GuildTownService {
     }
 
     private static int missing(ServerPlayer player, Item item, int amount) {
+        de.quest.network.GameplayStatsEvent.send(player,"reject","town","materials");
         player.sendSystemMessage(Component.translatable("message.village-quest.guild_town.delivery_missing",
                 amount, new ItemStack(item).getHoverName()).withStyle(ChatFormatting.RED), false);
         return 0;
     }
 
     private static int fail(ServerPlayer player, String key) {
+        de.quest.network.GameplayStatsEvent.send(player,"reject","town",
+                key.endsWith("not_ready") ? "materials" : key.endsWith("denied") ? "prerequisite" : "unavailable");
         player.sendSystemMessage(Component.translatable(key).withStyle(ChatFormatting.RED), false);
         return 0;
     }
 
     private static int locked(ServerPlayer player, String key) {
+        de.quest.network.GameplayStatsEvent.send(player,"reject","town","prerequisite");
         player.sendSystemMessage(Component.translatable(key).withStyle(ChatFormatting.GRAY), false);
         return 0;
     }

@@ -588,6 +588,7 @@ public final class ShardRelicQuestService {
 
     private static void startTrial(ServerLevel world, ServerPlayer player, PlayerQuestData data) {
         data.setShardRelicQuestStage(ShardRelicQuestStage.TRIAL_ACTIVE);
+        de.quest.network.GameplayStatsEvent.send(player, "quest", "started", "special_relic");
         data.setShardRelicAmethystProgress(0);
         data.setShardRelicPotionProgress(0);
         data.setShardRelicEnchantProgress(0);
@@ -955,6 +956,7 @@ public final class ShardRelicQuestService {
         QuestMapHelper.removeTaggedMaps(player, "starreach_cache");
         data.setPendingSpecialOfferKind(null);
         data.setShardRelicQuestStage(ShardRelicQuestStage.COMPLETED);
+        de.quest.network.GameplayStatsEvent.send(player, "quest", "completed", "special_relic");
         markDirty(world);
 
         Component divider = Component.literal("------------------------------").withStyle(ChatFormatting.GRAY);

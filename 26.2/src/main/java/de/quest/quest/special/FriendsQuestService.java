@@ -36,7 +36,11 @@ public final class FriendsQuestService {
     public static void talk(ServerLevel world,ServerPlayer player,KingdomNpcEntity npc,KingdomPersonRegistry.View person,String visit) {
         String who=person.guest()==1?"simon":person.guest()==0?"lutte":person.guest()==2?"marius":""; if(who.isEmpty()) return;
         var p=progress(world,player.getUUID()); p.number(who+".met",1);
-        if(who.equals("simon") && p.stage(who)==3 && !visit.equals(p.text("simon.lastVisit"))) p.rollHerbs(visit,world.getRandom().nextInt(4));
+        if(who.equals("simon") && p.stage(who)==3 && !visit.equals(p.text("simon.lastVisit"))) {
+            boolean had=p.number("simon.herbs")==1;
+            p.rollHerbs(visit,world.getRandom().nextInt(4));
+            if (!had && p.number("simon.herbs")==1) de.quest.network.GameplayStatsEvent.send(player,"quest","started","special_simon_herbs");
+        }
         if(who.equals("simon")) p.text("simon.currentVisit",visit);
         QuestState.get(world.getServer()).setDirty();
         FriendsQuestUiService.open(world,player,npc,visit);
@@ -98,17 +102,21 @@ public final class FriendsQuestService {
                 }
             }
             if(p.accept(who,stat(player,Stats.WALK_ONE_CM),stat(player,Stats.SPRINT_ONE_CM),stat(player,Stats.CROUCH_ONE_CM))) {
+                de.quest.network.GameplayStatsEvent.send(player,"quest","started","special_friend_"+who+"_"+(p.stage(who)+1));
                 if(who.equals("lutte") && p.stage(who)==1) VanillaRewardService.deliverItems(world,player);
                 QuestTrackerService.enableForAcceptedQuest(world,player); changed(world,player); player.sendSystemMessage(tr("accepted",tr(who+"."+(p.stage(who)+1)+".title")),false);
                 if(who.equals("marius") && p.stage(who)==2 && !MariusQuestService.peaceful(world)) {choice(player,npc,"ready","marius.ready");choice(player,npc,"prepare","marius.prepare");}
                 return 1;
             }
         } else if(action.equals("claim") && p.active(who)) {
-            if(ready(world,player,who) && turnIn(world,player,who)) { changed(world,player); player.sendSystemMessage(tr("completed"),false); return 1; }
+            int statsStage=p.stage(who)+1;
+            if(ready(world,player,who) && turnIn(world,player,who)) { de.quest.network.GameplayStatsEvent.send(player,"quest","completed","special_friend_"+who+"_"+statsStage); changed(world,player); player.sendSystemMessage(tr("completed"),false); return 1; }
+            de.quest.network.GameplayStatsEvent.send(player,"reject","friends","materials");
             player.sendSystemMessage(tr("not_ready"),false);
         } else if(action.equals("herbs") && who.equals("simon") && p.stage(who)==3 && p.number("simon.herbs")==1) {
             var costs=plants(); var goods=List.of(new ItemStack(de.quest.registry.ModItems.WEATHER_TONIC));
-            if(has(player,costs) && enqueue(world,player,goods)) { consume(player,costs); p.number("simon.herbs",0); changed(world,player); VanillaRewardService.deliverItems(world,player); return 1; }
+            if(has(player,costs) && enqueue(world,player,goods)) { consume(player,costs); p.number("simon.herbs",0); de.quest.network.GameplayStatsEvent.send(player,"quest","completed","special_simon_herbs"); changed(world,player); VanillaRewardService.deliverItems(world,player); return 1; }
+            de.quest.network.GameplayStatsEvent.send(player,"reject","friends","materials");
             player.sendSystemMessage(tr("not_ready"),false);
         }
         return 0;

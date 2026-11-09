@@ -18,7 +18,7 @@ Meet memorable characters, uncover stories, help villages grow, and shape a worl
 
 ### Your adventure begins in a village.
 
-Current stable release: `2.6.4` — Living Kingdoms for Minecraft `1.21.11`.
+Current stable release: `2.6.5` — Living Kingdoms for Minecraft `1.21.11`.
 
 ## Installation
 
@@ -30,7 +30,7 @@ worlds before updating. Open `/vq questmaster` to begin, then use `/vq journal`.
 
 - [Getting started](docs/wiki/getting-started.md) · [Wiki](docs/wiki/README.md) · [FAQ](docs/wiki/faq.md)
 - [Version support](../VERSION_SUPPORT.md) · [Report an issue](https://github.com/topasmusic/village-quest/issues)
-- [Latest release](https://github.com/topasmusic/village-quest/releases/tag/v2.6.4-mc1.21.11)
+- [Latest release](https://github.com/topasmusic/village-quest/releases/tag/v2.6.5-mc1.21.11)
 
 ## Licensing
 

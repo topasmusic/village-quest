@@ -53,9 +53,9 @@ final class QuestSetupInputTest {
                 var font = mock(Font.class); when(font.width(anyString())).thenAnswer(call -> ((String)call.getArgument(0)).length() * 6);
                 var field = Screen.class.getDeclaredField("font"); field.setAccessible(true); field.set(screen, font);
                 var g = mock(GuiGraphics.class); when(g.pose()).thenReturn(new Matrix3x2fStack(16));
-                doThrow(new IllegalStateException("Can only blur once per frame")).when(screen).renderBackground(any(de.quest.client.compat.GuiGraphics.class), anyInt(), anyInt(), anyFloat());
+                doThrow(new IllegalStateException("Can only blur once per frame")).when(screen).renderBackground(any(GuiGraphics.class), anyInt(), anyInt(), anyFloat());
                 screen.render(g, -100, -100, 0);
-                verify(screen, never()).renderBackground(any(de.quest.client.compat.GuiGraphics.class), anyInt(), anyInt(), anyFloat());
+                verify(screen, never()).renderBackground(any(GuiGraphics.class), anyInt(), anyInt(), anyFloat());
                 click(screen, 70, 120);
                 var settings = QuestSetupScreen.class.getDeclaredField("settings"); settings.setAccessible(true);
                 assertEquals(editable, ((WorldQuestSettings)settings.get(screen)).minecraftCalendar());
@@ -66,9 +66,9 @@ final class QuestSetupInputTest {
         }
     }
     private static void click(QuestSetupScreen screen, int x, int y) {
-        double scale = 1 / screen.responsiveDrag(1, 560, 344);
+        double scale = 1 / screen.responsiveDrag(1, 560, 398);
         double mx = screen.width / 2.0 + (x - 280) * scale;
-        double my = screen.height / 2.0 + (y - 172) * scale;
+        double my = screen.height / 2.0 + ((screen.height - 398) / 2 + y - screen.height / 2.0) * scale;
         screen.mouseClicked(new MouseButtonEvent(mx, my, new MouseButtonInfo(InputConstants.MOUSE_BUTTON_LEFT, 0)), false);
     }
 }

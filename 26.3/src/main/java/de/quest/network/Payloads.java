@@ -58,6 +58,8 @@ public final class Payloads {
         PayloadTypeRegistry.clientboundPlay().register(
                 VillageNetworkPayloads.CaravanMasterPayload.ID, VillageNetworkPayloads.CaravanMasterPayload.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(GuildPathPayload.ID, GuildPathPayload.CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(GameplayStatsEvent.ID, GameplayStatsEvent.CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(GameplayStatsEvent.ID, GameplayStatsEvent.CODEC);
         PayloadTypeRegistry.clientboundPlay().register(QuestFeedbackPayload.ID, QuestFeedbackPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(JournalActionPayload.ID, JournalActionPayload.CODEC);
         PayloadTypeRegistry.serverboundPlay().register(PilgrimTradeActionPayload.ID, PilgrimTradeActionPayload.CODEC);

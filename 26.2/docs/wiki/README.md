@@ -1,8 +1,18 @@
 # Village Quest Wiki
 
-This wiki covers **2.6.4 — Living Kingdoms** for Minecraft 1.21.11, 26.2 and 26.3.
+This wiki covers **2.6.5 — Living Kingdoms** for Minecraft 1.21.11, 26.2 and 26.3.
 
-Current stable release: `2.6.4` — Living Kingdoms for Minecraft `26.2`.
+Current stable release: `2.6.5` — Living Kingdoms for Minecraft `26.2`.
+
+The **2.6.5 update** fixes the pale border on the *A Favor for the Smithy*
+illustration and keeps the [Making amends desk](social-reputation.md#active-reparation)
+running while it is open in singleplayer.
+
+Optional gameplay statistics start off and require consent from
+players aged 18 or older. Use the Journal settings to read the details, change
+your choice, or give feedback. Typed feedback is sent only when you press
+**Send**. See the [statistics privacy notice](https://village-quest-stats.damp-bread-3f6b.workers.dev/privacy)
+for the data collected and how long it is kept.
 
 Help villages, earn trust, follow stories and connect your world through trade.
 Living Kingdoms adds named village staff, player-built council/inn/market/storehouse

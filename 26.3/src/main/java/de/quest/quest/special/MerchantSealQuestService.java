@@ -108,6 +108,7 @@ public final class MerchantSealQuestService {
 
         data.resetMerchantSealQuest();
         data.setMerchantSealQuestStage(RelicQuestStage.ACTIVE);
+        de.quest.network.GameplayStatsEvent.send(player, "quest", "started", "special_merchant_seal");
         markDirty(world);
         player.sendSystemMessage(Texts.acceptedTitle(title(), ChatFormatting.GOLD), false);
         QuestTrackerService.enableForAcceptedQuest(world, player);
@@ -394,6 +395,7 @@ public final class MerchantSealQuestService {
                 new ItemStack(ModItems.MERCHANT_SEAL)));
         data.setPendingSpecialOfferKind(null);
         data.setMerchantSealQuestStage(RelicQuestStage.COMPLETED);
+        de.quest.network.GameplayStatsEvent.send(player, "quest", "completed", "special_merchant_seal");
         data.setMerchantSealTradeProgress(TRADE_TARGET);
         data.setMerchantSealEmeraldProgress(EMERALD_TARGET);
         data.setMerchantSealVillagerPurchaseProgress(VILLAGER_PURCHASE_TARGET);

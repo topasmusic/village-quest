@@ -287,8 +287,13 @@ public final class DailyQuestService {
 
     public static void markCompletedToday(ServerLevel world, UUID playerId) {
         PlayerQuestData data = data(world, playerId);
+        boolean firstCompletion = data.getLastRewardDay() != currentDay();
         data.setLastRewardDay(currentDay());
         setDirty(world);
+        if (firstCompletion && data.getDailyChoice() != null) {
+            de.quest.network.GameplayStatsEvent.send(world.getServer().getPlayerList().getPlayer(playerId),
+                    "quest", "completed", "daily_" + data.getDailyChoice().name());
+        }
     }
 
     public static boolean hasCompletedBonusToday(ServerLevel world, UUID playerId) {
@@ -297,7 +302,12 @@ public final class DailyQuestService {
 
     public static void markBonusCompletedToday(ServerLevel world, UUID playerId) {
         PlayerQuestData data = data(world, playerId);
+        boolean firstCompletion = data.getBonusRewardDay() != currentDay();
         data.setBonusRewardDay(currentDay());
+        if (firstCompletion && data.getBonusChoice() != null) {
+            de.quest.network.GameplayStatsEvent.send(world.getServer().getPlayerList().getPlayer(playerId),
+                    "quest", "completed", "bonus_" + data.getBonusChoice().name());
+        }
         // A carried-over bonus also occupies the delivery day's regular Daily allowance.
         data.setLastRewardDay(currentDay());
         setDirty(world);
@@ -333,6 +343,10 @@ public final class DailyQuestService {
             data.vanillaRewards().forget("bonus");
             data.setPendingBonusOffer(false);
             setDirty(world);
+            if (data.getBonusChoice() != null) {
+                de.quest.network.GameplayStatsEvent.send(world.getServer().getPlayerList().getPlayer(playerId),
+                        "quest", "abandoned", "bonus_" + data.getBonusChoice().name());
+            }
             refreshQuestUi(world, playerId);
             return true;
         }
@@ -348,6 +362,10 @@ public final class DailyQuestService {
         FirstDailyChoiceService.cancel(data);
         clearPendingOffers(data);
         setDirty(world);
+        if (cancelledType != null) {
+            de.quest.network.GameplayStatsEvent.send(world.getServer().getPlayerList().getPlayer(playerId),
+                    "quest", "abandoned", "daily_" + cancelledType.name());
+        }
         if (!introductory) QuestPartyService.clearDailySessionIfFinished(world, playerId, cancelledType);
         refreshQuestUi(world, playerId);
         return true;
@@ -525,6 +543,7 @@ public final class DailyQuestService {
         PlayerQuestData data = data(world, playerId);
         clearPendingOffers(data);
         if (hasCompletedToday(world, playerId) || data.hasActiveDailySlot()) {
+            de.quest.network.GameplayStatsEvent.send(player,"reject","acceptance",hasCompletedToday(world,playerId)?"cooldown":"unavailable");
             return;
         }
 
@@ -546,6 +565,7 @@ public final class DailyQuestService {
                 QuestPartyService.rewardDailyProfile(world, playerId, choice, data.getDailyTargetProfile()),
                 () -> acceptQuest(world, player, resolveShared))) return;
         setAcceptedToday(world, playerId);
+        de.quest.network.GameplayStatsEvent.send(player, "quest", "started", "daily_" + choice.name());
         if (definition != null) {
             withTargetProfile(data, ActiveQuestSlot.NORMAL, () -> definition.onAccepted(world, player));
         }
@@ -577,6 +597,7 @@ public final class DailyQuestService {
                 () -> acceptBonusQuest(world, player))) return;
         clearQuestProgress(data);
         setBonusAcceptedToday(world, playerId);
+        de.quest.network.GameplayStatsEvent.send(player, "quest", "started", "bonus_" + data.getBonusChoice().name());
         DailyQuestDefinition definition = definitionFor(data.getBonusChoice());
         if (definition != null) {
             withTargetProfile(data, ActiveQuestSlot.BONUS, () -> definition.onAccepted(world, player));
@@ -1446,7 +1467,7 @@ public final class DailyQuestService {
                 default -> "";
             };
             body.append(Component.literal("\n\n"))
-                    .append(Component.literal("• ").withStyle(ChatFormatting.DARK_GRAY))
+                    .append(Component.literal("â€¢ ").withStyle(ChatFormatting.DARK_GRAY))
                     .append(definition.title().copy().withStyle(style -> style
                             .withColor(ChatFormatting.GREEN)
                             .withClickEvent(new net.minecraft.network.chat.ClickEvent.RunCommand(

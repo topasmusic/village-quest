@@ -65,6 +65,10 @@ Environmental or unknown causes do not invent an offender. A proven recent injur
 
 ## Active reparation
 
+In 2.6.5, the Making amends desk keeps the singleplayer world running
+while it is open. You can submit aid and the recovery timer can advance there
+while you meet its usual conditions.
+
 Open **Trust / Reparation** at your own valid Homestead Notice Post, a valid affected village board, or an existing nearby Questmaster. The Questmaster fallback works even without routes or a surviving victim village. A board in a village where your local trust is at most−20 can also open the first reconciliation case after an administrative/imported trust change. Stand within8 blocks. The Journal is read-only and explains where to go.
 
 In Village Quest 2.5, the desk uses three icon sections on the left: **Trust** (handshake), **Making amends** (repaired shield) and **Resettlement** (cottage and sprout). Hover an icon to see its label. The gold heading names the current section. Fixed cards show standing, services, material aid and village recovery without vertical scrolling; arrows switch villages and support offers. Hover individual values for compact, wrapped hints that stay on screen. Recent trust changes remain in the Journal's Trust and Chronicle views. Village labels show coordinates without technical world identifiers. The Journal's separate Network tabs remain available.

@@ -32,6 +32,11 @@ Reopening a market does not refill stock. [Markets](kingdom-market.md).
 acceptance. Delivery objectives use the matching items carried at hand-in.
 Keep complete bundles out of storage when claiming.
 
+**Where do I turn in Fuel for the Workshop?** It finishes automatically when
+both tracker targets are met, and you keep the materials. The
+[quest reference](quest-reference.md#fuel-for-the-workshop) explains what counts,
+including the different coal rule in older modpacks.
+
 **My inventory was full—where is my gift?** Free space and use `/vq rewards claim`.
 Do not repeat a purchase just to recover pending goods.
 

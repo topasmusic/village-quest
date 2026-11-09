@@ -1,3 +1,48 @@
+## 2.6.5 Stable — Living Kingdoms
+
+- **Making amends:** Submit aid and let recovery progress while the desk is open in singleplayer.
+- **A Favor for the Smithy:** Removed the pale border around the mine illustration.
+- **Fuel for the Workshop:** The quest guide now explains what counts toward both goals and when the quest completes automatically.
+
+- Choose whether to share gameplay statistics to help improve quests. Sharing is off by default and requires adult consent. You can change your choice in the Journal settings.
+- Share feedback using a preset answer or send a short message separately. See the [privacy notice](https://village-quest-stats.damp-bread-3f6b.workers.dev/privacy).
+
+## 2.6.5-unreleased.6 — Feedback controls
+
+- Add reverse cycling with right-click, an optional 500-character message with an explicit Send action, and private operator review with 30-day text retention.
+- Give the first Journal statistics question a darker frame. Include the compact consent overview and new public contact from .5.
+
+## 2.6.5-unreleased.5 — Clearer statistics choice
+
+- Replace the long first consent page with a short player-oriented overview: green collected-data section, red privacy section, and a brief Cloudflare/IP and opt-out note.
+- Keep the complete v2 privacy notice one click away; consent remains optional, adult-only and off by default. No data collection changes.
+- Use vq@topasmusic.com as the public Village Quest contact. EN/DE/ES and all three supported Minecraft lines updated.
+
+## 2.6.5-unreleased.4 — Optional anonymous improvement statistics v2
+
+- Require fresh adult v2 consent for the expanded scope; sharing remains off by default.
+- Add active quest/chapter-time distributions, explicit partial/unknown samples, active playtime/session groups, coarse FPS/difficulty/quest-profile samples and locally computed return-day-gap signals.
+- Cover special/friend stages, village stories/follow-ups, commissions, guild projects, project unlocks and freight transitions; add fixed, debounced rejection reasons.
+- Add optional fixed feedback in Journal settings and a dashboard that explains distributions, sample coverage and limits. No free text or long-term player/device ID is uploaded.
+- Keep local world/timer notes on the client, delete them on withdrawal, and preserve immutable retries when batching unsent reports. Retain the Making amends desk and mine artwork fixes from .3.
+
+## 2.6.5-unreleased.3 — Making amends and optional official statistics
+
+- Keep the Making amends desk running in singleplayer so supply turn-in and recovery time can progress.
+- Remove the pale border around the mine artwork for **A Favor for the Smithy**.
+- Add optional official HTTPS statistics with a fresh adult (18+) consent screen, fixed event identifiers, withdrawal and a private operator dashboard. Sharing starts off; local test consent is separate.
+- Add a Windows dashboard launcher that starts the local receiver when needed and reuses it on later opens.
+
+## 2.6.5-unreleased.2 — Mine artwork fix
+
+- Remove the pale border around the mine artwork for **A Favor for the Smithy** in quest cards and large previews.
+- Includes the existing optional gameplay statistics test from Unreleased 1.
+
+## 2.6.5-unreleased.1 — Gameplay statistics test
+
+- Test an optional gameplay statistics prompt in the Quest Journal and a matching choice in Journal settings.
+- In local test mode, see active sessions and counts for supported quest and chapter transitions in Village Quest Stats. Statistics sharing starts off and requires consent.
+
 ## 2.6.4 Stable — Living Kingdoms
 
 - **Ink Between Villages** now counts crafted Paper and Ink Sacs or Feathers you collect from the right mobs near the quest village.

@@ -29,6 +29,10 @@ public final class QuestNetworking {
     }
     public static void register() {
         Payloads.register();
+        ServerPlayNetworking.registerGlobalReceiver(GameplayStatsEvent.ID,(payload,context) -> {
+            if (payload.metric().equals("snapshot.request")) context.player().level().getServer().execute(() ->
+                    GameplayStatsSnapshot.send(context.player()));
+        });
         ServerPlayNetworking.registerGlobalReceiver(ExactVersionPayload.ID,(payload,context) -> {});
         ServerPlayNetworking.registerGlobalReceiver(EncounterQuestPayloads.Action.ID,(payload,context)->
                 executeAction(context.player(),()->de.quest.ambient.EncounterQuestService.handle(context.player(),payload)));

@@ -984,6 +984,7 @@ public final class PilgrimContractService {
         data.setPilgrimFlag(FLAG_READY, false);
         data.setPilgrimFlag(FLAG_SUPPRESS_OFFER, false);
         data.setActivePilgrimContractId(type.id());
+        de.quest.network.GameplayStatsEvent.send(player, "quest", "started", "pilgrim_" + type.id());
         data.setActivePilgrimTargetProfile(profile);
         data.setOfferedPilgrimContractId(null);
         data.setOfferedPilgrimTargetProfile(RepeatableTargetProfile.NORMAL);
@@ -1074,6 +1075,7 @@ public final class PilgrimContractService {
                 projectExperienceBonus,
                 QuestExperienceService.RewardType.PILGRIM
         );
+        de.quest.network.GameplayStatsEvent.send(player, "quest", "completed", "pilgrim_" + type.id());
         boolean unlockedCompassStructures = completion.unlocksCompassStructures()
                 && SurveyorCompassQuestService.unlockStructureModes(world, player);
 

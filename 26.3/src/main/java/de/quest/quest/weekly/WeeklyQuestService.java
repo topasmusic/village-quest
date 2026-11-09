@@ -416,10 +416,15 @@ public final class WeeklyQuestService {
 
     public static void markCompletedThisWeek(ServerLevel world, UUID playerId) {
         PlayerQuestData data = data(world, playerId);
+        boolean firstCompletion = data.getWeeklyRewardCycle() != currentCycle();
         data.setWeeklyRewardCycle(currentCycle());
         WeeklyQuestType type = data.getWeeklyChoice();
         if (type != null) {
             data.markWeeklyCompleted(type.name());
+            if (firstCompletion) {
+                de.quest.network.GameplayStatsEvent.send(world.getServer().getPlayerList().getPlayer(playerId),
+                        "quest", "completed", "weekly_" + type.name());
+            }
         }
         setDirty(world);
     }
@@ -444,6 +449,7 @@ public final class WeeklyQuestService {
 
         UUID playerId = player.getUUID();
         if (isAcceptedThisWeek(world, playerId) || hasCompletedThisWeek(world, playerId)) {
+            de.quest.network.GameplayStatsEvent.send(player,"reject","acceptance",hasCompletedThisWeek(world,playerId)?"cooldown":"unavailable");
             return false;
         }
 
@@ -474,6 +480,7 @@ public final class WeeklyQuestService {
         QuestPartyService.onWeeklyQuestAccepted(world, player, type, definition);
         player.sendSystemMessage(Texts.acceptedTitle(definition.title(), ChatFormatting.GOLD), false);
         QuestTrackerService.enableForAcceptedQuest(world, player);
+        de.quest.network.GameplayStatsEvent.send(player, "quest", "started", "weekly_" + type.name());
         QuestSoundFeedback.playAccepted(world, player);
         refreshQuestUi(world, playerId);
         return true;
@@ -512,6 +519,7 @@ public final class WeeklyQuestService {
                 ? QuestPartyService.weeklyTurnInRequirementsConsumed(world, playerId, questType)
                 : data.hasWeeklyFlag(WeeklyQuestKeys.SHARED_TURN_IN_CONSUMED);
         if (!requirementsConsumed && !withTargetProfile(data, () -> definition.isComplete(world, player))) {
+            if (questMasterClaim) de.quest.network.GameplayStatsEvent.send(player,"reject","turnin","materials");
             Component blocked = withTargetProfile(data, () -> definition.claimBlockedMessage(world, player));
             if (blocked != null) {
                 player.sendSystemMessage(blocked, false);
@@ -563,6 +571,10 @@ public final class WeeklyQuestService {
         data.vanillaRewards().forget("weekly");
         data.setWeeklyAcceptedCycle(PlayerQuestData.UNSET_DAY);
         setDirty(world);
+        if (cancelledType != null) {
+            de.quest.network.GameplayStatsEvent.send(world.getServer().getPlayerList().getPlayer(playerId),
+                    "quest", "abandoned", "weekly_" + cancelledType.name());
+        }
         QuestPartyService.clearWeeklySessionIfFinished(world, playerId, cancelledType);
         refreshQuestUi(world, playerId);
         return true;

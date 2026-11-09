@@ -50,8 +50,12 @@ public final class QuestArtwork {
         boolean small=path.endsWith("_64x24.png");
         int width=small?64:192,height=small?24:72;
         String name=path.substring(path.lastIndexOf('/')+1);
+        // The mine scene has pale backing on all sides, with an irregular skyline.
+        // Use the painted opening around the mine entrance for both preview sizes.
+        if(name.equals("mine_ore_64x24.png"))return new ContentArea(64,24,18,7,38,14);
+        if(name.equals("mine_ore_192x72.png"))return new ContentArea(192,72,54,21,114,42);
         int top=small ? switch(name) {
-            case "archive_knowledge_64x24.png", "mine_ore_64x24.png" -> 2;
+            case "archive_knowledge_64x24.png" -> 2;
             case "market_trade_64x24.png" -> 1;
             case "river_fish_64x24.png", "forge_64x24.png" -> 3;
             default -> 0;
@@ -59,7 +63,6 @@ public final class QuestArtwork {
             case "archive_knowledge_192x72.png" -> 6;
             case "pasture_shepherd_192x72.png", "river_fish_192x72.png" -> 5;
             case "animal_companion_192x72.png", "failing_harvest_192x72.png", "fields_harvest_192x72.png", "market_trade_192x72.png" -> 4;
-            case "mine_ore_192x72.png" -> 2;
             default -> 0;
         };
         return new ContentArea(width,height,0,top,width,height-top);
